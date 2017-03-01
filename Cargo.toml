@@ -5,3 +5,6 @@ authors = ["Marco Castelluccio <mcastelluccio@mozilla.com>"]
 
 [dependencies]
 crossbeam = "0.2"
+serde_json = "0.9"
+walkdir = "1"
+num_cpus = "1.2.1"
