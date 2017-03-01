@@ -1,0 +1,4 @@
+{"covered":[6,10,11,12],"methods":{"_ZN4Ciao14calledFromFileEv":[10,11,12],"_ZN4CiaoC2Ev":[6],"_ZN4CiaoD2Ev":[6]},"sourceFile":"include.h","testUrl":"include.h","uncovered":[]}
+{"covered":[74],"methods":{},"sourceFile":"/usr/include/c++/6/iostream","testUrl":"/usr/include/c++/6/iostream","uncovered":[]}
+{"covered":[3,5,7,8,10,11],"methods":{"_GLOBAL__sub_I_main":[11],"_Z41__static_initialization_and_destruction_0ii":[11],"main":[3,5,7,8,10]},"sourceFile":"main.cpp","testUrl":"main.cpp","uncovered":[]}
+{"covered":[3,4,5,7,8,9,10],"methods":{"_GLOBAL__sub_I__ZN4Ciao7setNameENSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE":[10],"_Z41__static_initialization_and_destruction_0ii":[10],"_ZN4Ciao7getNameB5cxx11Ev":[7,8,9],"_ZN4Ciao7setNameENSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE":[3,4,5]},"sourceFile":"file.cpp","testUrl":"file.cpp","uncovered":[]}
