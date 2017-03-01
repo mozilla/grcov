@@ -7,6 +7,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::BufRead;
 use std::io::Read;
+use std::str::Lines;
 
 fn make(path: &Path) {
     let status = Command::new("make")
@@ -24,20 +25,29 @@ fn run(path: &Path) {
     assert!(status.success());
 }
 
-fn read_expected(path: &Path) -> String {
+fn read_expected(path: &Path) -> Vec<String> {
     let mut f = File::open(path.join("expected.txt")).unwrap();
     let mut s = String::new();
     f.read_to_string(&mut s).unwrap();
-    s
+    let mut v = Vec::new();
+    for line in s.lines() {
+        v.push(line.to_string());
+    }
+    v
 }
 
-fn run_grcov(path: &Path) -> String {
+fn run_grcov(path: &Path) -> Vec<String> {
     let output = Command::new("cargo")
                          .arg("run")
                          .arg(path)
                          .output()
                          .expect("Failed to run grcov");
-    String::from_utf8(output.stdout).unwrap()
+    let s = String::from_utf8(output.stdout).unwrap();
+    let mut v = Vec::new();
+    for line in s.lines() {
+        v.push(line.to_string());
+    }
+    v
 }
 
 fn make_clean(path: &Path) {
@@ -62,7 +72,9 @@ fn test_integration() {
 
             let output = run_grcov(path);
 
-            assert_eq!(output, expected_output);
+            for line in expected_output {
+                assert_eq!(output.iter().find(|&&ref x| *x == line), Some(&line));
+            }
 
             make_clean(path);
         }
