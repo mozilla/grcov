@@ -66,15 +66,23 @@ fn test_integration() {
             run(path);
 
             let expected_output = read_expected(path);
+            println!("Expected:");
+            for line in expected_output.iter() {
+                println!("{}", line);
+            }
 
             let output = run_grcov(path);
-
-            for line in expected_output.iter() {
-                assert_eq!(output.iter().find(|&&ref x| x == line), Some(line), "Expected result not present for {}", path.display());
+            println!("Got:");
+            for line in output.iter() {
+                println!("{}", line);
             }
 
             for line in output.iter() {
                 assert_eq!(expected_output.iter().find(|&&ref x| x == line), Some(line), "Unexpected result present for {}", path.display());
+            }
+
+            for line in expected_output.iter() {
+                assert_eq!(output.iter().find(|&&ref x| x == line), Some(line), "Expected result not present for {}", path.display());
             }
 
             make_clean(path);
