@@ -73,14 +73,32 @@ fn test_producer() {
 
     producer(&"test".to_string(), queue);
 
-    assert!(queue_consumer.pop().ends_with("grcov/test/Platform.gcda"));
-    assert!(queue_consumer.pop().ends_with("grcov/test/RootAccessibleWrap.gcda"));
-    assert!(queue_consumer.pop().ends_with("grcov/test/nsMaiInterfaceValue.gcda"));
-    assert!(queue_consumer.pop().ends_with("grcov/test/sub/prova2.gcda"));
-    assert!(queue_consumer.pop().ends_with("grcov/test/nsMaiInterfaceDocument.gcda"));
-    assert!(queue_consumer.pop().ends_with("grcov/test/Unified_cpp_netwerk_base0.gcda"));
-    assert!(queue_consumer.pop().ends_with("grcov/test/prova.gcda"));
-    assert!(queue_consumer.pop().ends_with("grcov/test/nsGnomeModule.gcda"));
+    let mut vec: Vec<PathBuf> = Vec::new();
+    vec.push(queue_consumer.pop());
+    vec.push(queue_consumer.pop());
+    vec.push(queue_consumer.pop());
+    vec.push(queue_consumer.pop());
+    vec.push(queue_consumer.pop());
+    vec.push(queue_consumer.pop());
+    vec.push(queue_consumer.pop());
+    vec.push(queue_consumer.pop());
+
+    assert_eq!(vec.len(), 8);
+
+    let endswith_strings: Vec<String> = vec![
+        "grcov/test/Platform.gcda".to_string(),
+        "grcov/test/RootAccessibleWrap.gcda".to_string(),
+        "grcov/test/nsMaiInterfaceValue.gcda".to_string(),
+        "grcov/test/sub/prova2.gcda".to_string(),
+        "grcov/test/nsMaiInterfaceDocument.gcda".to_string(),
+        "grcov/test/Unified_cpp_netwerk_base0.gcda".to_string(),
+        "grcov/test/prova.gcda".to_string(),
+        "grcov/test/nsGnomeModule.gcda".to_string(),
+    ];
+
+    for endswith_string in endswith_strings.iter() {
+        assert!(vec.iter().any(|&ref x| x.ends_with(endswith_string)), "Missing {}", endswith_string);
+    }
 
     assert_eq!(queue_consumer.try_pop(), None);
 }
