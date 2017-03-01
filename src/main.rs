@@ -73,13 +73,16 @@ fn test_producer() {
 
     producer(&"test".to_string(), queue);
 
-    assert_eq!(queue_consumer.pop(), PathBuf::from("/home/marco/Documenti/workspace/grcov/test/Platform.gcda"));
-    assert_eq!(queue_consumer.pop(), PathBuf::from("/home/marco/Documenti/workspace/grcov/test/RootAccessibleWrap.gcda"));
-    assert_eq!(queue_consumer.pop(), PathBuf::from("/home/marco/Documenti/workspace/grcov/test/nsMaiInterfaceValue.gcda"));
-    assert_eq!(queue_consumer.pop(), PathBuf::from("/home/marco/Documenti/workspace/grcov/test/sub/prova2.gcda"));
-    assert_eq!(queue_consumer.pop(), PathBuf::from("/home/marco/Documenti/workspace/grcov/test/nsMaiInterfaceDocument.gcda"));
-    assert_eq!(queue_consumer.pop(), PathBuf::from("/home/marco/Documenti/workspace/grcov/test/Unified_cpp_netwerk_base0.gcda"));
-    assert_eq!(queue_consumer.pop(), PathBuf::from("/home/marco/Documenti/workspace/grcov/test/prova.gcda"));
+    assert!(queue_consumer.pop().ends_with("grcov/test/Platform.gcda"));
+    assert!(queue_consumer.pop().ends_with("grcov/test/RootAccessibleWrap.gcda"));
+    assert!(queue_consumer.pop().ends_with("grcov/test/nsMaiInterfaceValue.gcda"));
+    assert!(queue_consumer.pop().ends_with("grcov/test/sub/prova2.gcda"));
+    assert!(queue_consumer.pop().ends_with("grcov/test/nsMaiInterfaceDocument.gcda"));
+    assert!(queue_consumer.pop().ends_with("grcov/test/Unified_cpp_netwerk_base0.gcda"));
+    assert!(queue_consumer.pop().ends_with("grcov/test/prova.gcda"));
+    assert!(queue_consumer.pop().ends_with("grcov/test/nsGnomeModule.gcda"));
+
+    assert_eq!(queue_consumer.try_pop(), None);
 }
 
 fn run_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
