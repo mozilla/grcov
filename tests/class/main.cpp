@@ -4,21 +4,21 @@
 using namespace std;
 
 class Ciao {
-public:
-  void setName(string n) {
-    name = n;
-  }
+  public:
+    void setName(string n) {
+      name = n;
+    }
 
-  string getName() {
-    return name;
-  }
+    string getName() {
+      return name;
+    }
 
-  void uncalled() {
-    cout << name;
-  }
+    void uncalled() {
+      cout << name;
+    }
 
-private:
-  string name;
+  private:
+    string name;
 };
 
 int main(void)
