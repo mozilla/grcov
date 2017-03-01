@@ -48,12 +48,9 @@ fn prova() {
 }*/
 
 fn rmdir(directory: &str) {
-    let status = Command::new("rm")
-                         .arg("-rf")
-                         .arg(directory)
-                         .status()
-                         .expect("Failed to create directory");
-    assert!(status.success());
+    if PathBuf::from(directory).exists() {
+        fs::remove_dir_all("workingDir").expect("Failed to remove working directory");
+    }
 }
 
 fn producer(directory: &String, queue: Arc<MsQueue<PathBuf>>) {
