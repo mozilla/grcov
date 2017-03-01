@@ -77,6 +77,8 @@ fn test_producer() {
     assert_eq!(queue_consumer.pop(), PathBuf::from("/home/marco/Documenti/workspace/grcov/test/RootAccessibleWrap.gcda"));
     assert_eq!(queue_consumer.pop(), PathBuf::from("/home/marco/Documenti/workspace/grcov/test/nsMaiInterfaceValue.gcda"));
     assert_eq!(queue_consumer.pop(), PathBuf::from("/home/marco/Documenti/workspace/grcov/test/sub/prova2.gcda"));
+    assert_eq!(queue_consumer.pop(), PathBuf::from("/home/marco/Documenti/workspace/grcov/test/nsMaiInterfaceDocument.gcda"));
+    assert_eq!(queue_consumer.pop(), PathBuf::from("/home/marco/Documenti/workspace/grcov/test/Unified_cpp_netwerk_base0.gcda"));
     assert_eq!(queue_consumer.pop(), PathBuf::from("/home/marco/Documenti/workspace/grcov/test/prova.gcda"));
 }
 
