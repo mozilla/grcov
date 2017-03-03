@@ -299,13 +299,19 @@ fn add_result(mut result: Result, map: &mut HashMap<String,Result>) {
     };
 }
 
-fn output_activedata_etl(results: &mut HashMap<String,Result>) {
-    for (key, result) in results {
+fn sort_and_dedup_lines(results: &mut HashMap<String,Result>) {
+    for result in results.values_mut() {
         let ref mut result = *result;
         result.covered.sort();
         result.covered.dedup();
         result.uncovered.sort();
         result.uncovered.dedup();
+    }
+}
+
+fn output_activedata_etl(results: &mut HashMap<String,Result>) {
+    for (key, result) in results {
+        let ref mut result = *result;
 
         let end: u32 = cmp::max(
             match result.covered.last() { Some(v) => *v, None => 0 },
@@ -419,8 +425,11 @@ fn main() {
         let _ = parser.join();
     }
 
-    let ref mut results_obj = *results.lock().unwrap();
-    output_activedata_etl(results_obj);
-
     rmdir("workingDir");
+
+    let ref mut results_obj = *results.lock().unwrap();
+
+    sort_and_dedup_lines(results_obj);
+
+    output_activedata_etl(results_obj);
 }
