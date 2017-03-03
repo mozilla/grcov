@@ -7,7 +7,7 @@ extern crate walkdir;
 extern crate num_cpus;
 
 use std::cmp;
-use std::collections::HashMap;
+use std::collections::{HashSet,HashMap};
 use std::collections::hash_map::Entry;
 use std::env;
 use std::path::PathBuf;
@@ -230,6 +230,7 @@ fn test_parser() {
     // Assert more stuff.
 }
 
+// Merge results, without caring about duplicate lines (they will be removed at the end).
 fn merge_results(result: &mut Result, result2: &mut Result) {
     result.covered.append(&mut result2.covered);
     result.uncovered.append(&mut result2.uncovered);
@@ -299,13 +300,17 @@ fn add_result(mut result: Result, map: &mut HashMap<String,Result>) {
     };
 }
 
-fn sort_and_dedup_lines(results: &mut HashMap<String,Result>) {
+fn clean_covered_lines(results: &mut HashMap<String,Result>) {
     for result in results.values_mut() {
         let ref mut result = *result;
         result.covered.sort();
         result.covered.dedup();
+
         result.uncovered.sort();
         result.uncovered.dedup();
+
+        let set: HashSet<_> = result.covered.iter().collect();
+        result.uncovered.retain(|x| !set.contains(x));
     }
 }
 
@@ -328,7 +333,7 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
             start_indexes.sort();
 
             for (name, function) in result.functions.drain() {
-                //println!("{} {} {}", name, function.executed, function.start);
+                // println!("{} {} {}", name, function.executed, function.start);
                 if !function.executed {
                     continue;
                 }
@@ -423,7 +428,7 @@ fn main() {
 
     let ref mut results_obj = *results.lock().unwrap();
 
-    sort_and_dedup_lines(results_obj);
+    clean_covered_lines(results_obj);
 
     output_activedata_etl(results_obj);
 }
