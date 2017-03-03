@@ -163,7 +163,7 @@ fn parse_gcov(gcov_path: PathBuf) -> Vec<Result> {
             },
             "lcount" => {
                 let values: Vec<&str> = value.splitn(2, ',').collect();
-                if values[1].starts_with("0") || values[1].starts_with("-") {
+                if values[1] == "0" || values[1].starts_with("-") {
                     cur_lines_uncovered.push(values[0].parse().unwrap());
                 } else {
                     cur_lines_covered.push(values[0].parse().unwrap());
