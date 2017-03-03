@@ -366,16 +366,68 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
     }
 }
 
+fn output_lcov(results: &mut HashMap<String,Result>) {
+    println!("TN:");
+
+    for (key, result) in results {
+        let ref mut result = *result;
+
+        // println!("{} {:?} {:?}", key, result.covered, result.uncovered);
+
+        println!("SF:{}", key);
+        for (name, function) in result.functions.iter() {
+            println!("FN:{},{}", function.start, name);
+        }
+        for (name, function) in result.functions.iter() {
+            println!("FNDA:{},{}", if function.executed { 1 } else { 0 }, name);
+        }
+        if result.functions.len() > 0 {
+            println!("FNF:{}", result.functions.len());
+            println!("FNH:{}", result.functions.values().filter(|x| x.executed).count());
+        }
+
+        let mut lines_map: HashMap<u32,u8> = HashMap::new();
+        for line in result.covered.iter() {
+            lines_map.insert(*line, 1);
+        }
+        for line in result.uncovered.iter() {
+            lines_map.insert(*line, 0);
+        }
+        let mut all_lines: Vec<u32> = result.covered.clone();
+        all_lines.append(&mut result.uncovered.clone());
+        all_lines.sort();
+        for line in all_lines.iter() {
+            println!("DA:{},{}", line, lines_map[line]);
+        }
+        println!("LF:{}",result.covered.len());
+        println!("LH:{}",all_lines.len());
+        println!("end_of_record");
+    }
+}
+
+fn print_usage(program: &String) {
+    println!("Usage: {} DIRECTORY [OUTPUT_TYPE]", program);
+    println!("OUTPUT_TYPE can be one of:");
+    println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
+    println!(" - lcov for the lcov INFO format.");
+}
+
 fn main() {
     rmdir("workingDir");
     fs::create_dir("workingDir").expect("Failed to create initial directory");
 
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        println!("Usage: {} DIRECTORY", args[0]);
+        print_usage(&args[0]);
         return;
     }
     let ref directory = args[1];
+    let output_type = if args.len() == 2 { "ade".to_string() } else { args[2].clone() };
+    if output_type != "ade" && output_type != "lcov" {
+        println!("'{}' output format is not supported.", output_type);
+        print_usage(&args[0]);
+        return;
+    }
 
     let results: Arc<Mutex<HashMap<String,Result>>> = Arc::new(Mutex::new(HashMap::new()));
     let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
@@ -430,5 +482,9 @@ fn main() {
 
     clean_covered_lines(results_obj);
 
-    output_activedata_etl(results_obj);
+    if output_type == "ade" {
+        output_activedata_etl(results_obj);
+    } else if output_type == "lcov" {
+        output_lcov(results_obj);
+    }
 }
