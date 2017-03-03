@@ -367,7 +367,8 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        panic!{}
+        println!("Usage: {} DIRECTORY", args[0]);
+        return;
     }
     let ref directory = args[1];
 
