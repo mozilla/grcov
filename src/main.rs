@@ -110,9 +110,7 @@ fn run_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
                          .status()
                          .expect("Failed to execute process");
 
-    if !status.success() {
-      panic!();
-    }
+    assert!(status.success(), "gcov wasn't successfully executed");
 }
 
 struct Function {
