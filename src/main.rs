@@ -70,18 +70,6 @@ fn test_producer() {
 
     producer(&"test".to_string(), queue);
 
-    let mut vec: Vec<PathBuf> = Vec::new();
-    vec.push(queue_consumer.pop());
-    vec.push(queue_consumer.pop());
-    vec.push(queue_consumer.pop());
-    vec.push(queue_consumer.pop());
-    vec.push(queue_consumer.pop());
-    vec.push(queue_consumer.pop());
-    vec.push(queue_consumer.pop());
-    vec.push(queue_consumer.pop());
-
-    assert_eq!(vec.len(), 8);
-
     let endswith_strings: Vec<String> = vec![
         "grcov/test/Platform.gcda".to_string(),
         "grcov/test/RootAccessibleWrap.gcda".to_string(),
@@ -91,7 +79,16 @@ fn test_producer() {
         "grcov/test/Unified_cpp_netwerk_base0.gcda".to_string(),
         "grcov/test/prova.gcda".to_string(),
         "grcov/test/nsGnomeModule.gcda".to_string(),
+        "grcov/test/negative_counts.gcda".to_string(),
+        "grcov/test/64bit_count.gcda".to_string(),
     ];
+
+    let mut vec: Vec<PathBuf> = Vec::new();
+    for _ in 0..endswith_strings.len() {
+        vec.push(queue_consumer.pop());
+    }
+
+    assert_eq!(vec.len(), 10);
 
     for endswith_string in endswith_strings.iter() {
         assert!(vec.iter().any(|&ref x| x.ends_with(endswith_string)), "Missing {}", endswith_string);
@@ -133,7 +130,7 @@ fn parse_gcov(gcov_path: PathBuf) -> Vec<Result> {
 
     let mut results = Vec::new();
 
-    let f = File::open(gcov_path).unwrap();
+    let f = File::open(&gcov_path).unwrap();
     let file = BufReader::new(&f);
     for line in file.lines() {
         let l = line.unwrap();
@@ -143,6 +140,7 @@ fn parse_gcov(gcov_path: PathBuf) -> Vec<Result> {
         match key {
             "file" => {
                 if !cur_file.is_empty() && (cur_lines_covered.len() > 0 || cur_lines_uncovered.len() > 0) {
+                    // println!("{} {} {:?} {:?}", gcov_path.display(), cur_file, cur_lines_covered, cur_lines_uncovered);
                     results.push(Result {
                         name: cur_file,
                         covered: cur_lines_covered,
@@ -165,7 +163,7 @@ fn parse_gcov(gcov_path: PathBuf) -> Vec<Result> {
             },
             "lcount" => {
                 let values: Vec<&str> = value.splitn(2, ',').collect();
-                if values[1] == "0" {
+                if values[1].starts_with("0") || values[1].starts_with("-") {
                     cur_lines_uncovered.push(values[0].parse().unwrap());
                 } else {
                     cur_lines_covered.push(values[0].parse().unwrap());
@@ -226,6 +224,20 @@ fn test_parser() {
     func = result5.functions.get("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv").unwrap();
     assert_eq!(func.start, 303);
     assert_eq!(func.executed, true);
+
+    let results = parse_gcov(PathBuf::from("./test/negative_counts.gcov"));
+    assert_eq!(results.len(), 118);
+    let ref negative_count_result = results[14];
+    assert_eq!(negative_count_result.name, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/mozilla/Assertions.h");
+    assert!(negative_count_result.covered.is_empty());
+    assert_eq!(negative_count_result.uncovered, vec![40]);
+
+    let results = parse_gcov(PathBuf::from("./test/64bit_count.gcov"));
+    assert_eq!(results.len(), 46);
+    let ref a64bit_count_result = results[8];
+    assert_eq!(a64bit_count_result.name, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/js/HashTable.h");
+    assert_eq!(a64bit_count_result.covered, vec![324, 343, 344, 345, 357, 361, 399, 402, 403, 420, 709, 715, 801, 834, 835, 838, 840, 841, 842, 843, 845, 846, 847, 853, 854, 886, 887, 904, 908, 913, 916, 917, 940, 945, 960, 989, 990, 1019, 1029, 1038, 1065, 1075, 1076, 1090, 1112, 1113, 1118, 1119, 1120, 1197, 1202, 1207, 1210, 1211, 1212, 1222, 1223, 1225, 1237, 1238, 1240, 1244, 1250, 1257, 1264, 1278, 1279, 1283, 1284, 1285, 1286, 1289, 1293, 1294, 1297, 1299, 1309, 1310, 1316, 1327, 1329, 1330, 1331, 1337, 1344, 1345, 1353, 1354, 1364, 1372, 1381, 1382, 1385, 1391, 1397, 1400, 1403, 1404, 1405, 1407, 1408, 1412, 1414, 1415, 1417, 1420, 1433, 1442, 1443, 1446, 1452, 1456, 1459, 1461, 1462, 1471, 1474, 1475, 1476, 1477, 1478, 1484, 1485, 1489, 1490, 1491, 1492, 1495, 1496, 1497, 1498, 1499, 1500, 1506, 1507, 1513, 1516, 1518, 1522, 1527, 1530, 1547, 1548, 1549, 1552, 1554, 1571, 1573, 1574, 1575, 1576, 1577, 1580, 1581, 1582, 1693, 1711, 1730, 1732, 1733, 1735, 1736, 1739, 1741, 1743, 1744, 1747, 1749, 1750, 1752, 1753, 1754, 1755, 1759, 1761, 1767, 1772, 1773, 1776, 1777, 1780, 1781, 1785, 1786, 1789, 1790, 1796]);
+    assert_eq!(a64bit_count_result.uncovered, vec![822, 825, 826, 828, 829, 831, 844, 1114, 1115, 1280, 1534, 1536, 1537, 1538, 1540, 1589, 1592, 1593,1594,1596,1597,1599,1600, 1601, 1604, 1605, 1606, 1607, 1609, 1610, 1611, 1615, 1616, 1625]);
 
     // Assert more stuff.
 }
