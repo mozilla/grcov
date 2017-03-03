@@ -422,11 +422,5 @@ fn main() {
     let ref mut results_obj = *results.lock().unwrap();
     output_activedata_etl(results_obj);
 
-    /*let mut file = match File::create("output.json") {
-        Err(why) => panic!("Couldn't create output file: {}", why.description()),
-        Ok(file) => file,
-    };
-    serde_json::to_writer(&mut file, &results_obj).unwrap();*/
-
     rmdir("workingDir");
 }
