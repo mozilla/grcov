@@ -365,13 +365,6 @@ fn main() {
     rmdir("workingDir");
     fs::create_dir("workingDir").expect("Failed to create initial directory");
 
-    /*let mut prova: HashMap<String,Result> = HashMap::new();
-    let inner = Result {
-      lines_covered: vec![1, 2, 3],
-      lines_uncovered: vec![1, 2, 3],
-    };
-    prova.insert("ciao".to_string(), inner);*/
-
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         panic!{}
