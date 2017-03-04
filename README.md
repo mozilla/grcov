@@ -4,6 +4,6 @@
 
 grcov collects and aggregates code coverage information for multiple source files.
 
-# Minimum requirements
+## Minimum requirements
 
 - GCC 4.9 or higher is required.
