@@ -5,6 +5,7 @@ extern crate serde_json;
 extern crate crossbeam;
 extern crate walkdir;
 extern crate num_cpus;
+extern crate semver;
 
 use std::cmp;
 use std::collections::{HashSet,HashMap};
@@ -23,6 +24,7 @@ use std::thread;
 use crossbeam::sync::MsQueue;
 use walkdir::WalkDir;
 use serde_json::{Value, Map};
+use semver::Version;
 
 /*
 use libc::size_t;
@@ -424,9 +426,43 @@ fn print_usage(program: &String) {
     println!(" - lcov for the lcov INFO format.");
 }
 
+fn check_gcov() -> bool {
+    let output = Command::new("gcov")
+                         .arg("--version")
+                         .output()
+                         .expect("Failed to execute `gcov`. `gcov` is required (it is part of GCC).");
+
+    assert!(output.status.success(), "`gcov` failed to execute.");
+
+    let min_ver = Version {
+        major: 4,
+        minor: 9,
+        patch: 0,
+        pre: vec!(),
+        build: vec!(),
+    };
+
+    let s = String::from_utf8(output.stdout).unwrap();
+    let values: Vec<&str> = s.split(' ').collect();
+    for value in values {
+        match Version::parse(value) {
+            Ok(ver) => {
+                if ver < min_ver {
+                    return false;
+                }
+            },
+            Err(_) => {}
+        };
+    }
+
+    return true;
+}
+
 fn main() {
-    rmdir("workingDir");
-    fs::create_dir("workingDir").expect("Failed to create initial directory");
+    if !check_gcov() {
+        println!("gcov (bundled with GCC) >= 4.9 is required.");
+        return;
+    }
 
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
@@ -440,6 +476,9 @@ fn main() {
         print_usage(&args[0]);
         return;
     }
+
+    rmdir("workingDir");
+    fs::create_dir("workingDir").expect("Failed to create initial directory");
 
     let results: Arc<Mutex<HashMap<String,Result>>> = Arc::new(Mutex::new(HashMap::new()));
     let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
