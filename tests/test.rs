@@ -1,6 +1,7 @@
 extern crate walkdir;
 extern crate serde_json;
 
+use std::env;
 use std::process::Command;
 use walkdir::WalkDir;
 use std::path::Path;
@@ -77,17 +78,34 @@ fn check_equal(expected_output: Vec<String>, output: Vec<String>) {
         actual.push(serde_json::from_str(line).unwrap());
     }
 
+    // On CI and without gcc-6, don't check /usr/include files, as they are different between GCC versions and the expected files are built using gcc-6.
+    let skip_builtin = env::var("COMPILER_VER").is_ok() && env::var("COMPILER_VER").unwrap() != "6";
+    // On CI, don't check methods, as on different machines names are slightly differently mangled.
+    let skip_methods = skip_builtin || env::var("CONTINUOUS_INTEGRATION").is_ok();
+
     for out in actual.iter() {
+        if out["sourceFile"].as_str().unwrap().contains("/usr/include") && skip_builtin {
+            continue;
+        }
+
         let exp = expected.iter().find(|&&ref x| x["sourceFile"] == out["sourceFile"]);
         assert!(exp.is_some(), "Got unexpected {}", out["sourceFile"]);
         let exp_val = exp.unwrap();
         assert_eq!(out["testUrl"], exp_val["testUrl"]);
         assert_eq!(out["covered"], exp_val["covered"]);
         assert_eq!(out["uncovered"], exp_val["uncovered"]);
-        assert_eq!(out["methods"].as_object().unwrap().len(), exp_val["methods"].as_object().unwrap().len());
+        if skip_methods {
+            assert_eq!(out["methods"].as_object().unwrap().len(), exp_val["methods"].as_object().unwrap().len());
+        } else {
+            assert_eq!(out["methods"], exp_val["methods"]);
+        }
     }
 
     for exp in expected.iter() {
+        if exp["sourceFile"].as_str().unwrap().contains("/usr/include") && skip_builtin {
+            continue;
+        }
+
         let out = actual.iter().find(|&&ref x| x["sourceFile"] == exp["sourceFile"]);
         assert!(out.is_some(), "Missing {}", exp["sourceFile"]);
         assert!(out.is_some());
@@ -95,7 +113,11 @@ fn check_equal(expected_output: Vec<String>, output: Vec<String>) {
         assert_eq!(exp["testUrl"], out_val["testUrl"]);
         assert_eq!(exp["covered"], out_val["covered"]);
         assert_eq!(exp["uncovered"], out_val["uncovered"]);
-        assert_eq!(exp["methods"].as_object().unwrap().len(), out_val["methods"].as_object().unwrap().len());
+        if skip_methods {
+            assert_eq!(exp["methods"].as_object().unwrap().len(), out_val["methods"].as_object().unwrap().len());
+        } else {
+            assert_eq!(exp["methods"], out_val["methods"]);
+        }
     }
 }
 
