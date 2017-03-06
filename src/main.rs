@@ -55,12 +55,14 @@ fn rmdir(directory: &str) {
     }
 }
 
-fn producer(directory: &String, queue: Arc<MsQueue<PathBuf>>) {
-    for entry in WalkDir::new(directory) {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        if path.is_file() && path.extension() == Some(OsStr::new("gcda")) {
-            queue.push(fs::canonicalize(&path).unwrap());
+fn producer(directories: Vec<&String>, queue: Arc<MsQueue<PathBuf>>) {
+    for directory in directories {
+        for entry in WalkDir::new(directory) {
+            let entry = entry.expect(format!("Failed to open directory '{}'.", directory).as_str());
+            let path = entry.path();
+            if path.is_file() && path.extension() == Some(OsStr::new("gcda")) {
+                queue.push(fs::canonicalize(&path).unwrap());
+            }
         }
     }
 }
@@ -70,11 +72,11 @@ fn test_producer() {
     let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
     let queue_consumer = queue.clone();
 
-    producer(&"test".to_string(), queue);
+    producer(vec![&"test".to_string()], queue);
 
     let endswith_strings: Vec<String> = vec![
         "grcov/test/Platform.gcda".to_string(),
-        "grcov/test/RootAccessibleWrap.gcda".to_string(),
+        "grcov/test/sub2/RootAccessibleWrap.gcda".to_string(),
         "grcov/test/nsMaiInterfaceValue.gcda".to_string(),
         "grcov/test/sub/prova2.gcda".to_string(),
         "grcov/test/nsMaiInterfaceDocument.gcda".to_string(),
@@ -91,6 +93,29 @@ fn test_producer() {
     }
 
     assert_eq!(vec.len(), 10);
+
+    for endswith_string in endswith_strings.iter() {
+        assert!(vec.iter().any(|&ref x| x.ends_with(endswith_string)), "Missing {}", endswith_string);
+    }
+
+    assert_eq!(queue_consumer.try_pop(), None);
+
+    let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
+    let queue_consumer = queue.clone();
+
+    producer(vec![&"test/sub".to_string(), &"test/sub2".to_string()], queue);
+
+    let endswith_strings: Vec<String> = vec![
+        "grcov/test/sub2/RootAccessibleWrap.gcda".to_string(),
+        "grcov/test/sub/prova2.gcda".to_string(),
+    ];
+
+    let mut vec: Vec<PathBuf> = Vec::new();
+    for _ in 0..endswith_strings.len() {
+        vec.push(queue_consumer.pop());
+    }
+
+    assert_eq!(vec.len(), 2);
 
     for endswith_string in endswith_strings.iter() {
         assert!(vec.iter().any(|&ref x| x.ends_with(endswith_string)), "Missing {}", endswith_string);
@@ -420,7 +445,8 @@ fn output_lcov(results: &mut HashMap<String,Result>) {
 }
 
 fn print_usage(program: &String) {
-    println!("Usage: {} DIRECTORY [OUTPUT_TYPE]", program);
+    println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE]", program);
+    println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
     println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
     println!(" - lcov for the lcov INFO format.");
@@ -460,7 +486,7 @@ fn check_gcov() -> bool {
 
 fn main() {
     if !check_gcov() {
-        println!("gcov (bundled with GCC) >= 4.9 is required.");
+        println!("[ERROR]: gcov (bundled with GCC) >= 4.9 is required.\n");
         return;
     }
 
@@ -469,10 +495,31 @@ fn main() {
         print_usage(&args[0]);
         return;
     }
-    let ref directory = args[1];
-    let output_type = if args.len() == 2 { "ade".to_string() } else { args[2].clone() };
+    let mut output_type: &String = &"ade".to_string();
+    let mut directories: Vec<&String> = Vec::new();
+    let range = 1..args.len();
+    for i in range {
+        if args[i] != "-t" {
+            directories.push(&args[i])
+        } else {
+            if args.len() <= i + 1 {
+                println!("[ERROR]: Output format not specified.\n");
+                print_usage(&args[0]);
+                return;
+            } else if i != 1 && args.len() > i + 2 {
+                println!("[ERROR]: the last {} parameter(s) could not be parsed.\n", (args.len() - i - 2));
+                print_usage(&args[0]);
+                return;
+            }
+
+            output_type = &args[i + 1];
+
+            break;
+        }
+    }
+
     if output_type != "ade" && output_type != "lcov" {
-        println!("'{}' output format is not supported.", output_type);
+        println!("[ERROR]: '{}' output format is not supported.\n", output_type);
         print_usage(&args[0]);
         return;
     }
@@ -520,7 +567,7 @@ fn main() {
         parsers.push(t);
     }
 
-    producer(directory, queue);
+    producer(directories, queue);
     finished_producing.store(true, Ordering::Release);
 
     for parser in parsers {
