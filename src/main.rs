@@ -164,9 +164,9 @@ fn parse_gcov(gcov_path: PathBuf) -> Vec<Result> {
     let file = BufReader::new(&f);
     for line in file.lines() {
         let l = line.unwrap();
-        let key_value: Vec<&str> = l.splitn(2, ':').collect();
-        let key = key_value[0];
-        let value = key_value[1];
+        let mut key_value = l.splitn(2, ':');
+        let key = key_value.next().unwrap();
+        let value = key_value.next().unwrap();
         match key {
             "file" => {
                 if !cur_file.is_empty() && (cur_lines_covered.len() > 0 || cur_lines_uncovered.len() > 0) {
@@ -185,18 +185,23 @@ fn parse_gcov(gcov_path: PathBuf) -> Vec<Result> {
                 cur_functions = HashMap::new();
             },
             "function" => {
-                let f_splits: Vec<&str> = value.splitn(3, ',').collect();
-                cur_functions.insert(f_splits[2].to_string(), Function {
-                  start: f_splits[0].parse().unwrap(),
-                  executed: f_splits[1] != "0",
+                let mut f_splits = value.splitn(3, ',');
+                let start = f_splits.next().unwrap().parse().unwrap();
+                let executed = f_splits.next().unwrap() != "0";
+                let f_name = f_splits.next().unwrap();
+                cur_functions.insert(f_name.to_string(), Function {
+                  start: start,
+                  executed: executed,
                 });
             },
             "lcount" => {
-                let values: Vec<&str> = value.splitn(2, ',').collect();
-                if values[1] == "0" || values[1].starts_with("-") {
-                    cur_lines_uncovered.push(values[0].parse().unwrap());
+                let mut values = value.splitn(2, ',');
+                let line_no = values.next().unwrap().parse().unwrap();
+                let execution_count = values.next().unwrap();
+                if execution_count == "0" || execution_count.starts_with("-") {
+                    cur_lines_uncovered.push(line_no);
                 } else {
-                    cur_lines_covered.push(values[0].parse().unwrap());
+                    cur_lines_covered.push(line_no);
                 }
             },
             _ => {}
