@@ -365,10 +365,7 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
     for (key, result) in results {
         let ref mut result = *result;
 
-        let end: u32 = cmp::max(
-            match result.covered.last() { Some(v) => *v, None => 0 },
-            match result.uncovered.last() { Some(v) => *v, None => 0 },
-        ) + 1;
+        let end: u32 = cmp::max(result.covered.last().unwrap_or(&0), result.uncovered.last().unwrap_or(&0)) + 1;
 
         let mut methods = Map::new();
 
@@ -461,10 +458,7 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, r
     for (key, result) in results {
         let ref mut result = *result;
 
-        let end: u32 = cmp::max(
-            match result.covered.last() { Some(v) => *v, None => 0 },
-            match result.uncovered.last() { Some(v) => *v, None => 0 },
-        ) + 1;
+        let end: u32 = cmp::max(result.covered.last().unwrap_or(&0), result.uncovered.last().unwrap_or(&0)) + 1;
 
         let mut lines_map: HashMap<u32,u8> = HashMap::new();
         for line in result.covered.iter() {
