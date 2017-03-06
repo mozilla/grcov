@@ -6,6 +6,7 @@ extern crate crossbeam;
 extern crate walkdir;
 extern crate num_cpus;
 extern crate semver;
+extern crate crypto;
 
 use std::cmp;
 use std::collections::{HashSet,HashMap};
@@ -16,8 +17,7 @@ use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
 use std::io;
-use std::io::BufReader;
-use std::io::BufRead;
+use std::io::{Read, BufRead, BufReader, Write, BufWriter};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -26,6 +26,8 @@ use crossbeam::sync::MsQueue;
 use walkdir::WalkDir;
 use serde_json::{Value, Map};
 use semver::Version;
+use crypto::md5::Md5;
+use crypto::digest::Digest;
 
 /*
 use libc::size_t;
@@ -393,35 +395,37 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
             }
         }
 
-        serde_json::to_writer(&mut io::stdout(), &json!({
+        println!("{}", json!({
             "sourceFile": key,
             "testUrl": key,
             "covered": result.covered,
             "uncovered": result.uncovered,
             "methods": methods,
-            
-        })).unwrap();
+        }).to_string());
     }
 }
 
 fn output_lcov(results: &mut HashMap<String,Result>) {
-    println!("TN:");
+    let stdout = io::stdout();
+    let mut writer = BufWriter::new(stdout.lock());
+
+    writer.write(b"TN:\n").unwrap();
 
     for (key, result) in results {
         let ref mut result = *result;
 
         // println!("{} {:?} {:?}", key, result.covered, result.uncovered);
 
-        println!("SF:{}", key);
+        write!(writer, "SF:{}\n", key).unwrap();
         for (name, function) in result.functions.iter() {
-            println!("FN:{},{}", function.start, name);
+            write!(writer, "FN:{},{}\n", function.start, name).unwrap();
         }
         for (name, function) in result.functions.iter() {
-            println!("FNDA:{},{}", if function.executed { 1 } else { 0 }, name);
+            write!(writer, "FNDA:{},{}\n", if function.executed { 1 } else { 0 }, name).unwrap();
         }
         if result.functions.len() > 0 {
-            println!("FNF:{}", result.functions.len());
-            println!("FNH:{}", result.functions.values().filter(|x| x.executed).count());
+            write!(writer, "FNF:{}\n", result.functions.len()).unwrap();
+            write!(writer, "FNF:{}\n", result.functions.values().filter(|x| x.executed).count()).unwrap();
         }
 
         let mut lines_map: HashMap<u32,u8> = HashMap::new();
@@ -435,20 +439,92 @@ fn output_lcov(results: &mut HashMap<String,Result>) {
         all_lines.append(&mut result.uncovered.clone());
         all_lines.sort();
         for line in all_lines.iter() {
-            println!("DA:{},{}", line, lines_map[line]);
+            write!(writer, "DA:{},{}\n", line, lines_map[line]).unwrap();
         }
-        println!("LF:{}",result.covered.len());
-        println!("LH:{}",all_lines.len());
-        println!("end_of_record");
+        write!(writer, "LF:{}\n", all_lines.len()).unwrap();
+        write!(writer, "LH:{}\n", result.covered.len()).unwrap();
+        writer.write(b"end_of_record\n").unwrap();
     }
 }
 
+fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, repo_token: &String) {
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
+
+    let mut source_files = Vec::new();
+
+    for (key, result) in results {
+        let ref mut result = *result;
+
+        let end: u32 = cmp::max(
+            match result.covered.last() { Some(v) => *v, None => 0 },
+            match result.uncovered.last() { Some(v) => *v, None => 0 },
+        ) + 1;
+
+        let mut lines_map: HashMap<u32,u8> = HashMap::new();
+        for line in result.covered.iter() {
+            lines_map.insert(*line, 1);
+        }
+        for line in result.uncovered.iter() {
+            lines_map.insert(*line, 0);
+        }
+
+        let mut coverage = Vec::new();
+        for line in 1..end {
+            match lines_map.entry(line) {
+                Entry::Occupied(covered) => {
+                    coverage.push(Value::from(*covered.get()));
+                },
+                Entry::Vacant(_) => {
+                    coverage.push(Value::Null);
+                }
+            };
+        }
+
+        match File::open(key) {
+            Ok(mut f) => {
+                let mut buffer = Vec::new();
+                f.read_to_end(&mut buffer).unwrap();
+
+                let mut hasher = Md5::new();
+                hasher.input(buffer.as_slice());
+
+                let path: PathBuf = PathBuf::from(key).canonicalize().unwrap();
+                let unprefixed: PathBuf = if path.starts_with(source_dir) {
+                    path.strip_prefix(source_dir).unwrap().to_path_buf()
+                } else {
+                    path
+                };
+
+                source_files.push(json!({
+                    "name": unprefixed,
+                    "source_digest": hasher.result_str(),
+                    "coverage": coverage,
+                }));
+            }
+            Err(e) => {
+                writeln!(&mut std::io::stderr(), "[WARNING]: {} can't be opened: {}.", key, e).unwrap();
+            }
+        };
+    }
+
+    serde_json::to_writer(&mut stdout, &json!({
+        // "service_job_id": "1",
+        // "service_name": "CustomService",
+        "repo_token": repo_token,
+        "source_files": source_files,
+    })).unwrap();
+}
+
 fn print_usage(program: &String) {
-    println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE]", program);
+    println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [--token COVERALLS_REPO_TOKEN]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
     println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
-    println!(" - lcov for the lcov INFO format.");
+    println!(" - lcov for the lcov INFO format;");
+    println!(" - coveralls for the Coveralls specific format.");
+    println!("SOURCE_ROOT is the root directory of the source files, required for the 'coveralls' format.");
+    println!("REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' format.");
 }
 
 fn check_gcov() -> bool {
@@ -495,32 +571,67 @@ fn main() {
         return;
     }
     let mut output_type: &String = &"ade".to_string();
+    let mut source_dir: &String = &String::new();
+    let mut repo_token: &String = &String::new();
     let mut directories: Vec<&String> = Vec::new();
-    let range = 1..args.len();
-    for i in range {
-        if args[i] != "-t" {
-            directories.push(&args[i])
-        } else {
+    let mut i = 1;
+    while i < args.len() {
+        if args[i] == "-t" {
             if args.len() <= i + 1 {
                 println!("[ERROR]: Output format not specified.\n");
-                print_usage(&args[0]);
-                return;
-            } else if i != 1 && args.len() > i + 2 {
-                println!("[ERROR]: the last {} parameter(s) could not be parsed.\n", (args.len() - i - 2));
                 print_usage(&args[0]);
                 return;
             }
 
             output_type = &args[i + 1];
+            i += 1;
+        } else if args[i] == "-s" {
+            if args.len() <= i + 1 {
+                println!("[ERROR]: Source root directory not specified.\n");
+                print_usage(&args[0]);
+                return;
+            }
 
-            break;
+            source_dir = &args[i + 1];
+            i += 1;
+        } else if args[i] == "--token" {
+            if args.len() <= i + 1 {
+                println!("[ERROR]: Repository token not specified.\n");
+                print_usage(&args[0]);
+                return;
+            }
+
+            repo_token = &args[i + 1];
+            i += 1;
+        } else {
+            directories.push(&args[i])
         }
+
+        i += 1;
     }
 
-    if output_type != "ade" && output_type != "lcov" {
+    if output_type != "ade" && output_type != "lcov" && output_type != "coveralls" {
         println!("[ERROR]: '{}' output format is not supported.\n", output_type);
         print_usage(&args[0]);
         return;
+    }
+
+    if output_type == "coveralls" {
+        if source_dir == "" {
+            println!("[ERROR]: Source root directory is needed when the output format is 'coveralls'.\n");
+            print_usage(&args[0]);
+            return;
+        } else if !PathBuf::from(source_dir).exists() {
+            println!("[ERROR]: The source root directory specified does not exist.\n");
+            print_usage(&args[0]);
+            return;
+        }
+
+        if repo_token == "" {
+            println!("[ERROR]: Repository token is needed when the output format is 'coveralls'.\n");
+            print_usage(&args[0]);
+            return;
+        }
     }
 
     rmdir("workingDir");
@@ -583,5 +694,7 @@ fn main() {
         output_activedata_etl(results_obj);
     } else if output_type == "lcov" {
         output_lcov(results_obj);
+    } else if output_type == "coveralls" {
+        output_coveralls(results_obj, source_dir, repo_token);
     }
 }
