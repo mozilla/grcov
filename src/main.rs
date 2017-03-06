@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
+use std::io;
 use std::io::BufReader;
 use std::io::BufRead;
 use std::process::{Command, Stdio};
@@ -392,16 +393,14 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
             }
         }
 
-        let asd = json!({
+        serde_json::to_writer(&mut io::stdout(), &json!({
             "sourceFile": key,
             "testUrl": key,
             "covered": result.covered,
             "uncovered": result.uncovered,
             "methods": methods,
             
-        });
-
-        println!("{}", asd.to_string());
+        })).unwrap();
     }
 }
 
