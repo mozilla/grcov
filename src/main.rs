@@ -399,7 +399,6 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
 
         println!("{}", json!({
             "sourceFile": key,
-            "testUrl": key,
             "covered": result.covered,
             "uncovered": result.uncovered,
             "methods": methods,
