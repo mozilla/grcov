@@ -94,7 +94,6 @@ fn check_equal(expected_output: Vec<String>, output: Vec<String>) {
         let exp = expected.iter().find(|&&ref x| x["sourceFile"] == out["sourceFile"]);
         assert!(exp.is_some(), "Got unexpected {}", out["sourceFile"]);
         let exp_val = exp.unwrap();
-        assert_eq!(out["testUrl"], exp_val["testUrl"]);
         assert_eq!(out["covered"], exp_val["covered"]);
         assert_eq!(out["uncovered"], exp_val["uncovered"]);
         if skip_methods {
@@ -113,7 +112,6 @@ fn check_equal(expected_output: Vec<String>, output: Vec<String>) {
         assert!(out.is_some(), "Missing {}", exp["sourceFile"]);
         assert!(out.is_some());
         let out_val = out.unwrap();
-        assert_eq!(exp["testUrl"], out_val["testUrl"]);
         assert_eq!(exp["covered"], out_val["covered"]);
         assert_eq!(exp["uncovered"], out_val["uncovered"]);
         if skip_methods {
