@@ -361,7 +361,7 @@ fn clean_covered_lines(results: &mut HashMap<String,Result>) {
     }
 }
 
-fn output_activedata_etl(results: &mut HashMap<String,Result>) {
+fn output_old_activedata_etl(results: &mut HashMap<String,Result>) {
     for (key, result) in results {
         let ref mut result = *result;
 
@@ -403,6 +403,94 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
             "uncovered": result.uncovered,
             "methods": methods,
         }).to_string());
+    }
+}
+
+fn to_activedata_etl_vec(normal_vec: &Vec<u32>) -> Vec<Value> {
+    normal_vec.iter().map(|&x| json!({"line": x})).collect()
+}
+
+fn output_activedata_etl(results: &mut HashMap<String,Result>) {
+    for (key, result) in results {
+        let ref mut result = *result;
+
+        let mut orphan_covered: HashSet<u32> = result.covered.iter().cloned().collect();
+        let mut orphan_uncovered: HashSet<u32> = result.uncovered.iter().cloned().collect();
+
+        let end: u32 = cmp::max(result.covered.last().unwrap_or(&0), result.uncovered.last().unwrap_or(&0)) + 1;
+
+        let mut start_indexes: Vec<u32> = Vec::new();
+        for function in result.functions.values() {
+            start_indexes.push(function.start);
+        }
+        start_indexes.sort();
+
+        for (name, function) in result.functions.drain() {
+            // println!("{} {} {}", name, function.executed, function.start);
+            if !function.executed {
+                continue;
+            }
+
+            let mut func_end = end;
+
+            for start in start_indexes.iter() {
+                if *start > function.start {
+                    func_end = *start;
+                    break;
+                }
+            }
+
+            let mut lines_covered: Vec<Value> = Vec::new();
+            for line in result.covered.iter().filter(|&&x| x >= function.start && x < func_end) {
+                lines_covered.push(json!({
+                    "line": *line
+                }));
+                orphan_covered.remove(&line);
+            }
+
+            let mut lines_uncovered: Vec<u32> = Vec::new();
+            for line in result.uncovered.iter().filter(|&&x| x >= function.start && x < func_end) {
+                lines_uncovered.push(*line);
+                orphan_uncovered.remove(&line);
+            }
+
+            println!("{}", json!({
+                "file": {
+                    "name": key,
+                },
+                "method": {
+                    "name": name,
+                    "covered": lines_covered,
+                    "uncovered": lines_uncovered,
+                    "total_covered": lines_covered.len(),
+                    "total_uncovered": lines_uncovered.len(),
+                    "percentage_covered": lines_covered.len() as f32 / (lines_covered.len() + lines_uncovered.len()) as f32,
+                }
+            }));
+        }
+
+        let orphan_covered = orphan_covered.into_iter().collect();
+        let orphan_uncovered: Vec<u32> = orphan_uncovered.into_iter().collect();
+
+        // The orphan lines will represent the file as a whole.
+        println!("{}", json!({
+            "is_file": true,
+            "file": {
+                "name": key,
+                "covered": to_activedata_etl_vec(&result.covered),
+                "uncovered": result.uncovered,
+                "total_covered": result.covered.len(),
+                "total_uncovered": result.uncovered.len(),
+                "percentage_covered": result.covered.len() as f32 / (result.covered.len() + result.uncovered.len()) as f32,
+            },
+            "method": {
+                "covered": to_activedata_etl_vec(&orphan_covered),
+                "uncovered": orphan_uncovered,
+                "total_covered": orphan_covered.len(),
+                "total_uncovered": orphan_uncovered.len(),
+                "percentage_covered": orphan_covered.len() as f32 / cmp::max(1, orphan_covered.len() + orphan_uncovered.len()) as f32,
+            }
+        }));
     }
 }
 
@@ -608,7 +696,7 @@ fn main() {
         i += 1;
     }
 
-    if output_type != "ade" && output_type != "lcov" && output_type != "coveralls" {
+    if output_type != "ade" && output_type != "old_ade" && output_type != "lcov" && output_type != "coveralls" {
         println!("[ERROR]: '{}' output format is not supported.\n", output_type);
         print_usage(&args[0]);
         return;
@@ -690,6 +778,8 @@ fn main() {
 
     if output_type == "ade" {
         output_activedata_etl(results_obj);
+    } else if output_type == "old_ade" {
+        output_old_activedata_etl(results_obj);
     } else if output_type == "lcov" {
         output_lcov(results_obj);
     } else if output_type == "coveralls" {

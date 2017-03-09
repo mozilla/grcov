@@ -40,6 +40,9 @@ fn run_grcov(path: &Path) -> Vec<String> {
     let output = Command::new("cargo")
                          .arg("run")
                          .arg(path)
+                         .arg("--")
+                         .arg("-t")
+                         .arg("old_ade")
                          .output()
                          .expect("Failed to run grcov");
     let s = String::from_utf8(output.stdout).unwrap();
