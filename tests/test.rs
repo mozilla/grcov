@@ -127,6 +127,7 @@ fn test_integration() {
     for entry in WalkDir::new("tests").min_depth(1) {
         let entry = entry.unwrap();
         let path = entry.path();
+        println!("{}", path.display());
         if path.is_dir() {
             make(path);
             run(path);
