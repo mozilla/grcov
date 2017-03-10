@@ -8,3 +8,7 @@ rm -f grcov grcov-$PLATFORM.tar.bz2
 wget https://github.com/marco-c/grcov/releases/download/$LATEST_VERSION/grcov-$PLATFORM.tar.bz2
 tar xf grcov-$PLATFORM.tar.bz2
 rm grcov-$PLATFORM.tar.bz2
+
+if [ -n "$1" ]; then
+    sudo mv grcov $1/grcov
+fi
