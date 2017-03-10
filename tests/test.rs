@@ -91,25 +91,29 @@ fn check_equal(expected_output: Vec<String>, output: Vec<String>) {
     // On CI, don't check methods, as on different machines names are slightly differently mangled.
     let skip_methods = skip_builtin || env::var("CONTINUOUS_INTEGRATION").is_ok();
 
+    let mut actual_len = 0;
     for out in actual.iter() {
         if out["file"]["name"].as_str().unwrap().contains("/usr/include") && skip_builtin {
             continue;
         }
+        actual_len += 1;
 
         let exp = expected.iter().find(|&&ref x| check_equal_inner(x, out, skip_methods));
         assert!(exp.is_some(), "Got unexpected {}", out);
     }
 
+    let mut expected_len = 0;
     for exp in expected.iter() {
         if exp["file"]["name"].as_str().unwrap().contains("/usr/include") && skip_builtin {
             continue;
         }
+        expected_len += 1;
 
         let out = actual.iter().find(|&&ref x| check_equal_inner(x, exp, skip_methods));
         assert!(out.is_some(), "Missing {}", exp);
     }
 
-    assert_eq!(expected.len(), actual.len(), "Got same number of expected records.")
+    assert_eq!(expected_len, actual_len, "Got same number of expected records.")
 }
 
 #[test]
