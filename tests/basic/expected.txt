@@ -1,1 +1,2 @@
-{"covered":[3,5,6,7,10,15],"methods":{"main":[3,5,6,7,10,15]},"sourceFile":"main.c","uncovered":[11]}
+{"file":{"name":"main.c"},"method":{"covered":[{"line":3},{"line":5},{"line":6},{"line":7},{"line":10},{"line":15}],"name":"main","percentage_covered":0.8571428656578064,"total_covered":6,"total_uncovered":1,"uncovered":[11]}}
+{"file":{"covered":[{"line":3},{"line":5},{"line":6},{"line":7},{"line":10},{"line":15}],"name":"main.c","percentage_covered":0.8571428656578064,"total_covered":6,"total_uncovered":1,"uncovered":[11]},"is_file":true,"method":{"covered":[],"percentage_covered":0.0,"total_covered":0,"total_uncovered":0,"uncovered":[]}}

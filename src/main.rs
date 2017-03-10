@@ -24,7 +24,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use crossbeam::sync::MsQueue;
 use walkdir::WalkDir;
-use serde_json::{Value, Map};
+use serde_json::Value;
 use semver::Version;
 use crypto::md5::Md5;
 use crypto::digest::Digest;
@@ -361,51 +361,6 @@ fn clean_covered_lines(results: &mut HashMap<String,Result>) {
     }
 }
 
-fn output_old_activedata_etl(results: &mut HashMap<String,Result>) {
-    for (key, result) in results {
-        let ref mut result = *result;
-
-        let end: u32 = cmp::max(result.covered.last().unwrap_or(&0), result.uncovered.last().unwrap_or(&0)) + 1;
-
-        let mut methods = Map::new();
-
-        if result.covered.len() > 0 {
-            let mut start_indexes: Vec<u32> = Vec::new();
-            for function in result.functions.values() {
-                start_indexes.push(function.start);
-            }
-            start_indexes.sort();
-
-            for (name, function) in result.functions.drain() {
-                // println!("{} {} {}", name, function.executed, function.start);
-                if !function.executed {
-                    continue;
-                }
-
-                let mut func_end = end;
-
-                for start in start_indexes.iter() {
-                    if *start > function.start {
-                        func_end = *start;
-                        break;
-                    }
-                }
-
-                let lines_covered: Vec<u32> = result.covered.iter().filter(|&&x| x >= function.start && x < func_end).cloned().collect();
-
-                methods.insert(name, Value::from(lines_covered));
-            }
-        }
-
-        println!("{}", json!({
-            "sourceFile": key,
-            "covered": result.covered,
-            "uncovered": result.uncovered,
-            "methods": methods,
-        }).to_string());
-    }
-}
-
 fn to_activedata_etl_vec(normal_vec: &Vec<u32>) -> Vec<Value> {
     normal_vec.iter().map(|&x| json!({"line": x})).collect()
 }
@@ -469,8 +424,10 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
             }));
         }
 
-        let orphan_covered = orphan_covered.into_iter().collect();
-        let orphan_uncovered: Vec<u32> = orphan_uncovered.into_iter().collect();
+        let mut orphan_covered: Vec<u32> = orphan_covered.into_iter().collect();
+        orphan_covered.sort();
+        let mut orphan_uncovered: Vec<u32> = orphan_uncovered.into_iter().collect();
+        orphan_uncovered.sort();
 
         // The orphan lines will represent the file as a whole.
         println!("{}", json!({
@@ -696,7 +653,7 @@ fn main() {
         i += 1;
     }
 
-    if output_type != "ade" && output_type != "old_ade" && output_type != "lcov" && output_type != "coveralls" {
+    if output_type != "ade" && output_type != "lcov" && output_type != "coveralls" {
         println!("[ERROR]: '{}' output format is not supported.\n", output_type);
         print_usage(&args[0]);
         return;
@@ -778,8 +735,6 @@ fn main() {
 
     if output_type == "ade" {
         output_activedata_etl(results_obj);
-    } else if output_type == "old_ade" {
-        output_old_activedata_etl(results_obj);
     } else if output_type == "lcov" {
         output_lcov(results_obj);
     } else if output_type == "coveralls" {

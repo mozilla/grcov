@@ -40,9 +40,6 @@ fn run_grcov(path: &Path) -> Vec<String> {
     let output = Command::new("cargo")
                          .arg("run")
                          .arg(path)
-                         .arg("--")
-                         .arg("-t")
-                         .arg("old_ade")
                          .output()
                          .expect("Failed to run grcov");
     let s = String::from_utf8(output.stdout).unwrap();
@@ -62,20 +59,28 @@ fn make_clean(path: &Path) {
     assert!(status.success());
 }
 
+fn check_equal_inner(a: &Value, b: &Value, skip_methods: bool) -> bool {
+    a["is_file"] == b["is_file"] &&
+    (skip_methods || a["method"]["name"] == b["method"]["name"]) &&
+    a["method"]["covered"] == b["method"]["covered"] &&
+    a["method"]["uncovered"] == b["method"]["uncovered"] &&
+    a["method"]["percentage_covered"] == b["method"]["percentage_covered"] &&
+    a["method"]["total_covered"] == b["method"]["total_covered"] &&
+    a["method"]["total_uncovered"] == b["method"]["total_uncovered"] &&
+    a["file"]["name"] == b["file"]["name"] &&
+    a["file"]["covered"] == b["file"]["covered"] &&
+    a["file"]["uncovered"] == b["file"]["uncovered"] &&
+    a["file"]["percentage_covered"] == b["file"]["percentage_covered"] &&
+    a["file"]["total_covered"] == b["file"]["total_covered"] &&
+    a["file"]["total_uncovered"] == b["file"]["total_uncovered"]
+}
+
 fn check_equal(expected_output: Vec<String>, output: Vec<String>) {
-    println!("Expected:");
-    for line in expected_output.iter() {
-        println!("{}", line);
-    }
     let mut expected: Vec<Value> = Vec::new();
     for line in expected_output.iter() {
         expected.push(serde_json::from_str(line).unwrap());
     }
 
-    println!("Got:");
-    for line in output.iter() {
-        println!("{}", line);
-    }
     let mut actual: Vec<Value> = Vec::new();
     for line in output.iter() {
         actual.push(serde_json::from_str(line).unwrap());
@@ -86,40 +91,29 @@ fn check_equal(expected_output: Vec<String>, output: Vec<String>) {
     // On CI, don't check methods, as on different machines names are slightly differently mangled.
     let skip_methods = skip_builtin || env::var("CONTINUOUS_INTEGRATION").is_ok();
 
+    let mut actual_len = 0;
     for out in actual.iter() {
-        if out["sourceFile"].as_str().unwrap().contains("/usr/include") && skip_builtin {
+        if out["file"]["name"].as_str().unwrap().contains("/usr/include") && skip_builtin {
             continue;
         }
+        actual_len += 1;
 
-        let exp = expected.iter().find(|&&ref x| x["sourceFile"] == out["sourceFile"]);
-        assert!(exp.is_some(), "Got unexpected {}", out["sourceFile"]);
-        let exp_val = exp.unwrap();
-        assert_eq!(out["covered"], exp_val["covered"]);
-        assert_eq!(out["uncovered"], exp_val["uncovered"]);
-        if skip_methods {
-            assert_eq!(out["methods"].as_object().unwrap().len(), exp_val["methods"].as_object().unwrap().len());
-        } else {
-            assert_eq!(out["methods"], exp_val["methods"]);
-        }
+        let exp = expected.iter().find(|&&ref x| check_equal_inner(x, out, skip_methods));
+        assert!(exp.is_some(), "Got unexpected {}", out);
     }
 
+    let mut expected_len = 0;
     for exp in expected.iter() {
-        if exp["sourceFile"].as_str().unwrap().contains("/usr/include") && skip_builtin {
+        if exp["file"]["name"].as_str().unwrap().contains("/usr/include") && skip_builtin {
             continue;
         }
+        expected_len += 1;
 
-        let out = actual.iter().find(|&&ref x| x["sourceFile"] == exp["sourceFile"]);
-        assert!(out.is_some(), "Missing {}", exp["sourceFile"]);
-        assert!(out.is_some());
-        let out_val = out.unwrap();
-        assert_eq!(exp["covered"], out_val["covered"]);
-        assert_eq!(exp["uncovered"], out_val["uncovered"]);
-        if skip_methods {
-            assert_eq!(exp["methods"].as_object().unwrap().len(), out_val["methods"].as_object().unwrap().len());
-        } else {
-            assert_eq!(exp["methods"], out_val["methods"]);
-        }
+        let out = actual.iter().find(|&&ref x| check_equal_inner(x, exp, skip_methods));
+        assert!(out.is_some(), "Missing {}", exp);
     }
+
+    assert_eq!(expected_len, actual_len, "Got same number of expected records.")
 }
 
 #[test]
@@ -128,6 +122,8 @@ fn test_integration() {
         let entry = entry.unwrap();
         let path = entry.path();
         if path.is_dir() {
+            println!("{}", path.display());
+
             make(path);
             run(path);
 
