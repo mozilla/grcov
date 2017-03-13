@@ -7,15 +7,18 @@ extern crate walkdir;
 extern crate num_cpus;
 extern crate semver;
 extern crate crypto;
+extern crate zip;
+extern crate tempdir;
 
 use std::cmp;
 use std::collections::{HashSet,HashMap};
 use std::collections::hash_map::Entry;
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
+use zip::ZipArchive;
 use std::io;
 use std::io::{Read, BufRead, BufReader, Write, BufWriter};
 use std::process::{Command, Stdio};
@@ -28,6 +31,7 @@ use serde_json::Value;
 use semver::Version;
 use crypto::md5::Md5;
 use crypto::digest::Digest;
+use tempdir::TempDir;
 
 /*
 use libc::size_t;
@@ -51,12 +55,6 @@ fn prova() {
     panic!();
   }
 }*/
-
-fn rmdir(directory: &str) {
-    if PathBuf::from(directory).exists() {
-        fs::remove_dir_all("workingDir").expect("Failed to remove working directory");
-    }
-}
 
 fn producer(directories: Vec<&String>, queue: Arc<MsQueue<PathBuf>>) {
     for directory in directories {
@@ -127,6 +125,104 @@ fn test_producer() {
     assert_eq!(queue_consumer.try_pop(), None);
 }
 
+fn open_archive(path: &String) -> ZipArchive<File> {
+    let file = File::open(&path).expect("Failed to open ZIP file");
+    ZipArchive::new(file).expect("Failed to parse ZIP file")
+}
+
+fn extract_file(zip_file: &mut zip::read::ZipFile, path: &PathBuf) {
+    let mut file = File::create(&path).expect("Failed to create file");
+    io::copy(zip_file, &mut file).expect("Failed to copy file from ZIP");
+}
+
+fn zip_producer(tmp_dir: &Path, zip_files: Vec<&String>, queue: Arc<MsQueue<PathBuf>>) {
+    let mut gcno_archive = open_archive(zip_files[0]);
+
+    for i in 0..gcno_archive.len() {
+        let mut file = gcno_archive.by_index(i).unwrap();
+
+        let path = tmp_dir.join(PathBuf::from(file.name()));
+
+        fs::create_dir_all(path.parent().unwrap()).expect("Failed to create directory");
+
+        if file.name().ends_with("/") {
+            fs::create_dir_all(path).expect("Failed to create directory");
+        }
+        else {
+            let new_path = path.with_file_name(format!("{}_1.gcno", path.file_stem().unwrap().to_str().unwrap()));
+            extract_file(&mut file, &new_path);
+            // Create symlinks.
+            for j in 2..zip_files.len() {
+                let link_path = path.with_file_name(format!("{}_{}.gcno", path.file_stem().unwrap().to_str().unwrap(), j));
+                fs::hard_link(&new_path, &link_path).expect(format!("Failed to create hardlink {}", link_path.display()).as_str());
+            }
+        }
+    }
+
+    for i in 1..zip_files.len() {
+        let mut gcda_archive = open_archive(zip_files[i]);
+        for j in 0..gcda_archive.len() {
+            let mut file = gcda_archive.by_index(j).unwrap();
+
+            let path = tmp_dir.join(PathBuf::from(file.name()));
+
+            fs::create_dir_all(path.parent().unwrap()).expect("Failed to create directory");
+
+            if file.name().ends_with("/") {
+                fs::create_dir_all(path).expect("Failed to create directory");
+            }
+            else {
+                let new_path = path.with_file_name(format!("{}_{}.gcda", path.file_stem().unwrap().to_str().unwrap(), i));
+                extract_file(&mut file, &new_path);
+                queue.push(new_path);
+            }
+        }
+    }
+}
+
+#[test]
+fn test_zip_producer() {
+    let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
+    let queue_consumer = queue.clone();
+
+    let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+    let tmp_path = tmp_dir.path().to_owned();
+    zip_producer(&tmp_path, vec![&"test/gcno.zip".to_string(), &"test/gcda1.zip".to_string(), &"test/gcda2.zip".to_string()], queue);
+
+    let endswith_strings: Vec<String> = vec![
+        "Platform_1.gcda".to_string(),
+        "sub2/RootAccessibleWrap_1.gcda".to_string(),
+        "nsMaiInterfaceValue_1.gcda".to_string(),
+        "sub/prova2_1.gcda".to_string(),
+        "nsMaiInterfaceDocument_1.gcda".to_string(),
+        "nsGnomeModule_1.gcda".to_string(),
+        "nsMaiInterfaceValue_2.gcda".to_string(),
+        "nsMaiInterfaceDocument_2.gcda".to_string(),
+        "nsGnomeModule_2.gcda".to_string(),
+        "sub/prova2_2.gcda".to_string(),
+    ];
+
+    let mut vec: Vec<PathBuf> = Vec::new();
+    for _ in 0..endswith_strings.len() {
+        vec.push(queue_consumer.pop());
+    }
+
+    assert_eq!(vec.len(), 10);
+
+    for endswith_string in endswith_strings.iter() {
+        assert!(vec.iter().any(|&ref x| x.ends_with(endswith_string)), "Missing {}", endswith_string);
+        // Assert file exists and file with the same name but with extension .gcno exists.
+    }
+
+    for f in vec.iter() {
+        assert!(f.exists(), "{} doesn't exist", f.display());
+        let gcno = f.with_file_name(format!("{}.gcno", f.file_stem().unwrap().to_str().unwrap()));
+        assert!(gcno.exists(), "{} doesn't exist", gcno.display());
+    }
+
+    assert_eq!(queue_consumer.try_pop(), None);
+}
+
 fn run_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
     let status = Command::new("gcov")
                          .arg(gcda_path)
@@ -160,7 +256,7 @@ fn parse_gcov(gcov_path: PathBuf) -> Vec<Result> {
 
     let mut results = Vec::new();
 
-    let f = File::open(&gcov_path).unwrap();
+    let f = File::open(&gcov_path).expect("Failed to open gcov file");
     let file = BufReader::new(&f);
     for line in file.lines() {
         let l = line.unwrap();
@@ -560,7 +656,7 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, r
 }
 
 fn print_usage(program: &String) {
-    println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [--token COVERALLS_REPO_TOKEN]", program);
+    println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [--token COVERALLS_REPO_TOKEN] [-z]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
     println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
@@ -568,6 +664,7 @@ fn print_usage(program: &String) {
     println!(" - coveralls for the Coveralls specific format.");
     println!("SOURCE_ROOT is the root directory of the source files, required for the 'coveralls' format.");
     println!("REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' format.");
+    println!("Use -z to use ZIP files instead of directories (the first ZIP file must contain the GCNO files, the following ones must contain the GCDA files).")
 }
 
 fn check_gcov() -> bool {
@@ -618,6 +715,7 @@ fn main() {
     let mut repo_token: &String = &String::new();
     let mut directories: Vec<&String> = Vec::new();
     let mut i = 1;
+    let mut is_zip = false;
     while i < args.len() {
         if args[i] == "-t" {
             if args.len() <= i + 1 {
@@ -646,6 +744,8 @@ fn main() {
 
             repo_token = &args[i + 1];
             i += 1;
+        } else if args[i] == "-z" {
+            is_zip = true;
         } else {
             directories.push(&args[i])
         }
@@ -677,8 +777,8 @@ fn main() {
         }
     }
 
-    rmdir("workingDir");
-    fs::create_dir("workingDir").expect("Failed to create initial directory");
+    let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+    let tmp_path = tmp_dir.path().to_owned();
 
     let results: Arc<Mutex<HashMap<String,Result>>> = Arc::new(Mutex::new(HashMap::new()));
     let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
@@ -692,9 +792,10 @@ fn main() {
         let queue_consumer = queue.clone();
         let results_consumer = results.clone();
         let finished_producing_consumer = finished_producing.clone();
+        let tmp_path = tmp_path.clone();
 
         let t = thread::spawn(move || {
-            let working_dir = PathBuf::from(&format!("workingDir/{}/", i));
+            let working_dir = tmp_path.join(format!("{}", i));
             fs::create_dir(&working_dir).expect("Failed to create working directory");
 
             loop {
@@ -720,14 +821,16 @@ fn main() {
         parsers.push(t);
     }
 
-    producer(directories, queue);
+    if is_zip {
+        zip_producer(&tmp_path, directories, queue);
+    } else {
+        producer(directories, queue);
+    }
     finished_producing.store(true, Ordering::Release);
 
     for parser in parsers {
         let _ = parser.join();
     }
-
-    rmdir("workingDir");
 
     let ref mut results_obj = *results.lock().unwrap();
 
