@@ -789,9 +789,9 @@ fn main() {
     let num_threads = num_cpus::get() * 2;
 
     for i in 0..num_threads {
-        let queue_consumer = queue.clone();
+        let queue = queue.clone();
         let results_consumer = results.clone();
-        let finished_producing_consumer = finished_producing.clone();
+        let finished_producing = finished_producing.clone();
         let tmp_path = tmp_path.clone();
 
         let t = thread::spawn(move || {
@@ -799,7 +799,7 @@ fn main() {
             fs::create_dir(&working_dir).expect("Failed to create working directory");
 
             loop {
-                if let Some(gcda_path) = queue_consumer.try_pop() {
+                if let Some(gcda_path) = queue.try_pop() {
                     run_gcov(&gcda_path, &working_dir);
 
                     let mut results = parse_gcov(working_dir.join(gcda_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov"));
@@ -809,7 +809,7 @@ fn main() {
                         add_result(result, &mut map);
                     }
                 } else {
-                    if finished_producing_consumer.load(Ordering::Acquire) {
+                    if finished_producing.load(Ordering::Acquire) {
                         break;
                     }
 
