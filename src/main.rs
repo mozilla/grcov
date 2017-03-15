@@ -547,7 +547,7 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
     }
 }
 
-fn output_lcov(results: &mut HashMap<String,Result>) {
+fn output_lcov(results: &mut HashMap<String,Result>, source_dir: &String) {
     let stdout = io::stdout();
     let mut writer = BufWriter::new(stdout.lock());
 
@@ -558,7 +558,18 @@ fn output_lcov(results: &mut HashMap<String,Result>) {
 
         // println!("{} {:?} {:?}", key, result.covered, result.uncovered);
 
-        write!(writer, "SF:{}\n", key).unwrap();
+        if source_dir != "" {
+            let path = PathBuf::from(key);
+            let unprefixed = if path.starts_with(source_dir) {
+                path.strip_prefix(source_dir).unwrap().to_path_buf()
+            } else {
+                path
+            };
+            write!(writer, "SF:{}\n", unprefixed.display()).unwrap();
+        } else {
+            write!(writer, "SF:{}\n", key).unwrap();
+        }
+
         for (name, function) in result.functions.iter() {
             write!(writer, "FN:{},{}\n", function.start, name).unwrap();
         }
@@ -628,8 +639,8 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, r
                 let mut hasher = Md5::new();
                 hasher.input(buffer.as_slice());
 
-                let path: PathBuf = PathBuf::from(key).canonicalize().unwrap();
-                let unprefixed: PathBuf = if path.starts_with(source_dir) {
+                let path = PathBuf::from(key).canonicalize().unwrap();
+                let unprefixed = if path.starts_with(source_dir) {
                     path.strip_prefix(source_dir).unwrap().to_path_buf()
                 } else {
                     path
@@ -839,7 +850,7 @@ fn main() {
     if output_type == "ade" {
         output_activedata_etl(results_obj);
     } else if output_type == "lcov" {
-        output_lcov(results_obj);
+        output_lcov(results_obj, source_dir);
     } else if output_type == "coveralls" {
         output_coveralls(results_obj, source_dir, repo_token);
     }
