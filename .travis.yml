@@ -1,6 +1,7 @@
 sudo: required
 language: rust
 rust:
+  - stable
   - nightly
 script:
   - sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
