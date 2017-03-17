@@ -538,7 +538,7 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
                 "uncovered": orphan_uncovered,
                 "total_covered": orphan_covered.len(),
                 "total_uncovered": orphan_uncovered.len(),
-                "percentage_covered": orphan_covered.len() as f32 / cmp::max(1, orphan_covered.len() + orphan_uncovered.len()) as f32,
+                "percentage_covered": orphan_covered.len() as f32 / (orphan_covered.len() + orphan_uncovered.len()) as f32,
             }
         }));
     }
