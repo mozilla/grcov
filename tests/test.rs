@@ -61,6 +61,7 @@ fn make_clean(path: &Path) {
 
 fn check_equal_inner(a: &Value, b: &Value, skip_methods: bool) -> bool {
     a["is_file"] == b["is_file"] &&
+    a["language"] == b["language"] &&
     (skip_methods || a["method"]["name"] == b["method"]["name"]) &&
     a["method"]["covered"] == b["method"]["covered"] &&
     a["method"]["uncovered"] == b["method"]["uncovered"] &&

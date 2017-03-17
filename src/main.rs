@@ -501,6 +501,7 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
             }
 
             println!("{}", json!({
+                "language": "c/c++",
                 "file": {
                     "name": key,
                 },
@@ -522,6 +523,7 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
 
         // The orphan lines will represent the file as a whole.
         println!("{}", json!({
+            "language": "c/c++",
             "is_file": true,
             "file": {
                 "name": key,
