@@ -476,9 +476,6 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
 
         for (name, function) in result.functions.drain() {
             // println!("{} {} {}", name, function.executed, function.start);
-            if !function.executed {
-                continue;
-            }
 
             let mut func_end = end;
 
