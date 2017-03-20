@@ -31,9 +31,7 @@ use crypto::md5::Md5;
 use crypto::digest::Digest;
 use tempdir::TempDir;
 
-/*
-use libc::size_t;
-use std::ffi::CString;
+/*use std::ffi::CString;
 use std::os::raw::c_char;
 
 #[link(name = "gcov")]
@@ -48,10 +46,22 @@ fn gcov_open(file: String) -> i32 {
     return unsafe { __gcov_open(c_to_print.as_ptr()) };
 }
 
+fn gcov_read_unsigned() -> u32 {
+    return unsafe { __gcov_read_unsigned() };
+}
+
 fn prova() {
-  if gcov_open("~/Documenti/FD/mozilla-central/build-cov-gcc/toolkit/components/telemetry/Telemetry.gcda".to_string()) == 1 {
-    panic!();
+  if gcov_open("/home/marco/Documenti/workspace/grcov/tests/llvm/main.gcda".to_string()) == 1 {
+    println!("2");
   }
+
+  println!("{:x}", gcov_read_unsigned());
+
+  if gcov_open("/home/marco/Documenti/workspace/grcov/tests/basic/main.gcda".to_string()) == 1 {
+    println!("1");
+  }
+
+  println!("{:x}", gcov_read_unsigned());
 }*/
 
 fn producer(directories: Vec<&String>, queue: Arc<MsQueue<PathBuf>>) {
