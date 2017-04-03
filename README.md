@@ -14,8 +14,8 @@ Usage: grcov DIRECTORY[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [--token COVERALLS
 You can specify one or more directories, separated by a space.
 OUTPUT_TYPE can be one of:
  - (DEFAULT) ade for the ActiveData-ETL specific format;
- - lcov for the lcov INFO format;");
- - coveralls for the Coveralls specific format.");
+ - lcov for the lcov INFO format;
+ - coveralls for the Coveralls specific format.
 SOURCE_ROOT is the root directory of the source files, required for the 'coveralls' format.
 REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' format.
 ```
