@@ -626,7 +626,7 @@ fn get_digest(path: &String) -> String {
     }
 }
 
-fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, repo_token: &String) {
+fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, repo_token: &String, commit_sha: &String) {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
 
@@ -675,19 +675,21 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, r
 
     serde_json::to_writer(&mut stdout, &json!({
         "repo_token": repo_token,
+        "commit_sha": commit_sha,
         "source_files": source_files,
     })).unwrap();
 }
 
 fn print_usage(program: &String) {
-    println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [--token COVERALLS_REPO_TOKEN] [-z]", program);
+    println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [-z]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
     println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
     println!(" - lcov for the lcov INFO format;");
     println!(" - coveralls for the Coveralls specific format.");
     println!("SOURCE_ROOT is the root directory of the source files (a prefix to remove from the paths).");
-    println!("REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' format.");
+    println!("COVERALLS_REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' format.");
+    println!("COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data.");
     println!("Use -z to use ZIP files instead of directories (the first ZIP file must contain the GCNO files, the following ones must contain the GCDA files).")
 }
 
@@ -737,6 +739,7 @@ fn main() {
     let mut output_type: &String = &"ade".to_string();
     let mut source_dir: &String = &String::new();
     let mut repo_token: &String = &String::new();
+    let mut commit_sha: &String = &String::new();
     let mut directories: Vec<&String> = Vec::new();
     let mut i = 1;
     let mut is_zip = false;
@@ -768,6 +771,15 @@ fn main() {
 
             repo_token = &args[i + 1];
             i += 1;
+        } else if args[i] == "--commit-sha" {
+            if args.len() <= i + 1 {
+                println!("[ERROR]: Commit SHA not specified.\n");
+                print_usage(&args[0]);
+                return;
+            }
+
+            commit_sha = &args[i + 1];
+            i += 1;
         } else if args[i] == "-z" {
             is_zip = true;
         } else {
@@ -786,6 +798,12 @@ fn main() {
     if output_type == "coveralls" {
         if repo_token == "" {
             println!("[ERROR]: Repository token is needed when the output format is 'coveralls'.\n");
+            print_usage(&args[0]);
+            return;
+        }
+
+        if commit_sha == "" {
+            println!("[ERROR]: Commit SHA is needed when the output format is 'coveralls'.\n");
             print_usage(&args[0]);
             return;
         }
@@ -855,6 +873,6 @@ fn main() {
     } else if output_type == "lcov" {
         output_lcov(results_obj, source_dir);
     } else if output_type == "coveralls" {
-        output_coveralls(results_obj, source_dir, repo_token);
+        output_coveralls(results_obj, source_dir, repo_token, commit_sha);
     }
 }
