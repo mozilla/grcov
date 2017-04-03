@@ -7,6 +7,7 @@ extern crate semver;
 extern crate crypto;
 extern crate zip;
 extern crate tempdir;
+extern crate uuid;
 
 use std::cmp;
 use std::collections::{HashSet,HashMap};
@@ -30,6 +31,7 @@ use semver::Version;
 use crypto::md5::Md5;
 use crypto::digest::Digest;
 use tempdir::TempDir;
+use uuid::Uuid;
 
 /*use std::ffi::CString;
 use std::os::raw::c_char;
@@ -135,7 +137,7 @@ fn test_producer() {
 
 fn open_archive(path: &String) -> ZipArchive<File> {
     let file = File::open(&path).expect("Failed to open ZIP file");
-    ZipArchive::new(file).expect("Failed to parse ZIP file")
+    ZipArchive::new(file).expect(format!("Failed to parse ZIP file: {}", path).as_str())
 }
 
 fn extract_file(zip_file: &mut zip::read::ZipFile, path: &PathBuf) {
@@ -239,7 +241,7 @@ fn run_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
                          .stdout(Stdio::null())
                          .stderr(Stdio::null())
                          .status()
-                         .expect("Failed to execute process");
+                         .expect("Failed to execute gcov process");
 
     assert!(status.success(), "gcov wasn't successfully executed");
 }
@@ -607,6 +609,23 @@ fn output_lcov(results: &mut HashMap<String,Result>, source_dir: &String) {
     }
 }
 
+fn get_digest(path: &String) -> String {
+    match File::open(path) {
+        Ok(mut f) => {
+            let mut buffer = Vec::new();
+            f.read_to_end(&mut buffer).unwrap();
+
+            let mut hasher = Md5::new();
+            hasher.input(buffer.as_slice());
+
+            hasher.result_str()
+        },
+        Err(_) => {
+            Uuid::new_v4().simple().to_string()
+        }
+    }
+}
+
 fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, repo_token: &String) {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
@@ -638,36 +657,23 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, r
             };
         }
 
-        match File::open(key) {
-            Ok(mut f) => {
-                let mut buffer = Vec::new();
-                f.read_to_end(&mut buffer).unwrap();
+        let digest = get_digest(key);
 
-                let mut hasher = Md5::new();
-                hasher.input(buffer.as_slice());
-
-                let path = PathBuf::from(key).canonicalize().unwrap();
-                let unprefixed = if path.starts_with(source_dir) {
-                    path.strip_prefix(source_dir).unwrap().to_path_buf()
-                } else {
-                    path
-                };
-
-                source_files.push(json!({
-                    "name": unprefixed,
-                    "source_digest": hasher.result_str(),
-                    "coverage": coverage,
-                }));
-            }
-            Err(e) => {
-                writeln!(&mut std::io::stderr(), "[WARNING]: {} can't be opened: {}.", key, e).unwrap();
-            }
+        let path = PathBuf::from(key);
+        let unprefixed = if path.starts_with(source_dir) {
+            path.strip_prefix(source_dir).unwrap().to_path_buf()
+        } else {
+            path
         };
+
+        source_files.push(json!({
+            "name": unprefixed,
+            "source_digest": digest,
+            "coverage": coverage,
+        }));
     }
 
     serde_json::to_writer(&mut stdout, &json!({
-        // "service_job_id": "1",
-        // "service_name": "CustomService",
         "repo_token": repo_token,
         "source_files": source_files,
     })).unwrap();
@@ -680,7 +686,7 @@ fn print_usage(program: &String) {
     println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
     println!(" - lcov for the lcov INFO format;");
     println!(" - coveralls for the Coveralls specific format.");
-    println!("SOURCE_ROOT is the root directory of the source files, required for the 'coveralls' format.");
+    println!("SOURCE_ROOT is the root directory of the source files (a prefix to remove from the paths).");
     println!("REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' format.");
     println!("Use -z to use ZIP files instead of directories (the first ZIP file must contain the GCNO files, the following ones must contain the GCDA files).")
 }
@@ -778,16 +784,6 @@ fn main() {
     }
 
     if output_type == "coveralls" {
-        if source_dir == "" {
-            println!("[ERROR]: Source root directory is needed when the output format is 'coveralls'.\n");
-            print_usage(&args[0]);
-            return;
-        } else if !PathBuf::from(source_dir).exists() {
-            println!("[ERROR]: The source root directory specified does not exist.\n");
-            print_usage(&args[0]);
-            return;
-        }
-
         if repo_token == "" {
             println!("[ERROR]: Repository token is needed when the output format is 'coveralls'.\n");
             print_usage(&args[0]);

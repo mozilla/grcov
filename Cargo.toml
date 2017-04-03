@@ -12,3 +12,4 @@ semver = "0.6"
 rust-crypto = "^0.2"
 zip = { version = "0.2.2", default-features = false }
 tempdir = "0.3.5"
+uuid = { version = "0.4", features = ["v4"] }
