@@ -136,7 +136,7 @@ fn test_producer() {
 }
 
 fn open_archive(path: &String) -> ZipArchive<File> {
-    let file = File::open(&path).expect("Failed to open ZIP file");
+    let file = File::open(&path).expect(format!("Failed to open ZIP file '{}'.", path).as_str());
     ZipArchive::new(file).expect(format!("Failed to parse ZIP file: {}", path).as_str())
 }
 
