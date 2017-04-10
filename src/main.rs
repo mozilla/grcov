@@ -609,7 +609,7 @@ fn output_lcov(results: &mut HashMap<String,Result>, source_dir: &String) {
     }
 }
 
-fn get_digest(path: &PathBuf) -> String {
+fn get_digest(path: PathBuf) -> String {
     match File::open(path) {
         Ok(mut f) => {
             let mut buffer = Vec::new();
@@ -658,21 +658,37 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, p
         }
 
         let path = PathBuf::from(key);
+
+        // Remove prefix from path.
         let unprefixed = if path.starts_with(prefix_dir) {
             path.strip_prefix(prefix_dir).unwrap().to_path_buf()
         } else {
             path
         };
 
-        let digest = if unprefixed.is_relative() {
-            get_digest(&PathBuf::from(source_dir).join(&unprefixed))
+        // Get absolute path to source file.
+        let path = if unprefixed.is_relative() {
+            PathBuf::from(source_dir).join(&unprefixed)
         } else {
-            get_digest(&unprefixed)
+            unprefixed
+        };
+
+        // Canonicalize, if possible.
+        let path = match fs::canonicalize(&path) {
+            Ok(p) => p,
+            Err(_) => path,
+        };
+
+        // Remove source dir from path.
+        let unprefixed = if path.starts_with(source_dir) {
+            path.strip_prefix(source_dir).unwrap().to_path_buf()
+        } else {
+            path.clone()
         };
 
         source_files.push(json!({
             "name": unprefixed,
-            "source_digest": digest,
+            "source_digest": get_digest(path),
             "coverage": coverage,
         }));
     }
