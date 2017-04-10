@@ -626,7 +626,7 @@ fn get_digest(path: PathBuf) -> String {
     }
 }
 
-fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, prefix_dir: &String, repo_token: &String, commit_sha: &String) {
+fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, prefix_dir: &String, repo_token: &String, commit_sha: &String, ignore_global: bool) {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
 
@@ -634,6 +634,39 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, p
 
     for (key, result) in results {
         let ref mut result = *result;
+
+        let path = PathBuf::from(key);
+
+        // Remove prefix from path.
+        let unprefixed = if path.starts_with(prefix_dir) {
+            path.strip_prefix(prefix_dir).unwrap().to_path_buf()
+        } else {
+            path
+        };
+
+        if ignore_global && !unprefixed.is_relative() {
+            continue;
+        }
+
+        // Get absolute path to source file.
+        let path = if unprefixed.is_relative() {
+            PathBuf::from(source_dir).join(&unprefixed)
+        } else {
+            unprefixed
+        };
+
+        // Canonicalize, if possible.
+        let path = match fs::canonicalize(&path) {
+            Ok(p) => p,
+            Err(_) => path,
+        };
+
+        // Remove source dir from path.
+        let unprefixed = if path.starts_with(source_dir) {
+            path.strip_prefix(source_dir).unwrap().to_path_buf()
+        } else {
+            path.clone()
+        };
 
         let end: u32 = cmp::max(result.covered.last().unwrap_or(&0), result.uncovered.last().unwrap_or(&0)) + 1;
 
@@ -657,35 +690,6 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, p
             };
         }
 
-        let path = PathBuf::from(key);
-
-        // Remove prefix from path.
-        let unprefixed = if path.starts_with(prefix_dir) {
-            path.strip_prefix(prefix_dir).unwrap().to_path_buf()
-        } else {
-            path
-        };
-
-        // Get absolute path to source file.
-        let path = if unprefixed.is_relative() {
-            PathBuf::from(source_dir).join(&unprefixed)
-        } else {
-            unprefixed
-        };
-
-        // Canonicalize, if possible.
-        let path = match fs::canonicalize(&path) {
-            Ok(p) => p,
-            Err(_) => path,
-        };
-
-        // Remove source dir from path.
-        let unprefixed = if path.starts_with(source_dir) {
-            path.strip_prefix(source_dir).unwrap().to_path_buf()
-        } else {
-            path.clone()
-        };
-
         source_files.push(json!({
             "name": unprefixed,
             "source_digest": get_digest(path),
@@ -701,7 +705,7 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, p
 }
 
 fn print_usage(program: &String) {
-    println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [-z]", program);
+    println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [-z] [--keep-global-includes]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
     println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
@@ -711,7 +715,8 @@ fn print_usage(program: &String) {
     println!("PREFIX_PATH is a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that generated the code coverage information).");
     println!("COVERALLS_REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' format.");
     println!("COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data.");
-    println!("Use -z to use ZIP files instead of directories (the first ZIP file must contain the GCNO files, the following ones must contain the GCDA files).")
+    println!("Use -z to use ZIP files instead of directories (the first ZIP file must contain the GCNO files, the following ones must contain the GCDA files).");
+    println!("By default global includes are ignored. Use --keep-global-includes to keep them.");
 }
 
 fn check_gcov() -> bool {
@@ -762,6 +767,7 @@ fn main() {
     let mut prefix_dir: &String = &String::new();
     let mut repo_token: &String = &String::new();
     let mut commit_sha: &String = &String::new();
+    let mut ignore_global: bool = true;
     let mut directories: Vec<&String> = Vec::new();
     let mut i = 1;
     let mut is_zip = false;
@@ -813,6 +819,8 @@ fn main() {
             i += 1;
         } else if args[i] == "-z" {
             is_zip = true;
+        } else if args[i] == "--keep-global-includes" {
+            ignore_global = false;
         } else {
             directories.push(&args[i])
         }
@@ -908,6 +916,6 @@ fn main() {
     } else if output_type == "lcov" {
         output_lcov(results_obj, source_dir);
     } else if output_type == "coveralls" {
-        output_coveralls(results_obj, source_dir, prefix_dir, repo_token, commit_sha);
+        output_coveralls(results_obj, source_dir, prefix_dir, repo_token, commit_sha, ignore_global);
     }
 }
