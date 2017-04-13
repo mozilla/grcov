@@ -648,9 +648,11 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, p
             continue;
         }
 
+        let source_dir = fs::canonicalize(&source_dir).expect("Source directory does not exist.");
+
         // Get absolute path to source file.
         let path = if unprefixed.is_relative() {
-            PathBuf::from(source_dir).join(&unprefixed)
+            PathBuf::from(&source_dir).join(&unprefixed)
         } else {
             unprefixed
         };
@@ -666,8 +668,8 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, p
         }
 
         // Remove source dir from path.
-        let unprefixed = if path.starts_with(source_dir) {
-            path.strip_prefix(source_dir).unwrap().to_path_buf()
+        let unprefixed = if path.starts_with(&source_dir) {
+            path.strip_prefix(&source_dir).unwrap().to_path_buf()
         } else {
             path.clone()
         };
