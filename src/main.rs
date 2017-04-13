@@ -626,7 +626,7 @@ fn get_digest(path: PathBuf) -> String {
     }
 }
 
-fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, prefix_dir: &String, repo_token: &String, commit_sha: &String, ignore_global: bool) {
+fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, prefix_dir: &String, repo_token: &String, commit_sha: &String, ignore_global: bool, to_ignore_dir: Option<String>) {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
 
@@ -660,6 +660,10 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, p
             Ok(p) => p,
             Err(_) => path,
         };
+
+        if to_ignore_dir.is_some() && path.starts_with(to_ignore_dir.as_ref().unwrap()) {
+            continue;
+        }
 
         // Remove source dir from path.
         let unprefixed = if path.starts_with(source_dir) {
@@ -705,7 +709,7 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, p
 }
 
 fn print_usage(program: &String) {
-    println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [-z] [--keep-global-includes]", program);
+    println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [-z] [--keep-global-includes] [--ignore-dir DIRECTORY]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
     println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
@@ -717,6 +721,7 @@ fn print_usage(program: &String) {
     println!("COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data.");
     println!("Use -z to use ZIP files instead of directories (the first ZIP file must contain the GCNO files, the following ones must contain the GCDA files).");
     println!("By default global includes are ignored. Use --keep-global-includes to keep them.");
+    println!("The --ignore-dir option can be used to ignore a directory.")
 }
 
 fn check_gcov() -> bool {
@@ -768,6 +773,7 @@ fn main() {
     let mut repo_token: &String = &String::new();
     let mut commit_sha: &String = &String::new();
     let mut ignore_global: bool = true;
+    let mut to_ignore_dir: &String = &"".to_string();
     let mut directories: Vec<&String> = Vec::new();
     let mut i = 1;
     let mut is_zip = false;
@@ -821,6 +827,15 @@ fn main() {
             is_zip = true;
         } else if args[i] == "--keep-global-includes" {
             ignore_global = false;
+        } else if args[i] == "--ignore-dir" {
+            if args.len() <= i + 1 {
+                println!("[ERROR]: Directory to ignore not specified.\n");
+                print_usage(&args[0]);
+                return;
+            }
+
+            to_ignore_dir = &args[i + 1];
+            i += 1;
         } else {
             directories.push(&args[i])
         }
@@ -851,6 +866,12 @@ fn main() {
     if prefix_dir == "" {
         prefix_dir = source_dir;
     }
+
+    let to_ignore_dir = if to_ignore_dir == "" {
+        None
+    } else {
+        Some(PathBuf::from(source_dir).join(to_ignore_dir).to_str().unwrap().to_string())
+    };
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
@@ -916,6 +937,6 @@ fn main() {
     } else if output_type == "lcov" {
         output_lcov(results_obj, source_dir);
     } else if output_type == "coveralls" {
-        output_coveralls(results_obj, source_dir, prefix_dir, repo_token, commit_sha, ignore_global);
+        output_coveralls(results_obj, source_dir, prefix_dir, repo_token, commit_sha, ignore_global, to_ignore_dir);
     }
 }
