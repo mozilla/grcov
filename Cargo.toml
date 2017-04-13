@@ -1,6 +1,6 @@
 [package]
 name = "grcov"
-version = "0.1.10"
+version = "0.1.11"
 authors = ["Marco Castelluccio <mcastelluccio@mozilla.com>"]
 
 [dependencies]
