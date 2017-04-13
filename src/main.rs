@@ -626,7 +626,7 @@ fn get_digest(path: PathBuf) -> String {
     }
 }
 
-fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, prefix_dir: &String, repo_token: &String, commit_sha: &String, ignore_global: bool, to_ignore_dir: Option<String>) {
+fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, prefix_dir: &String, repo_token: &String, service_name: &String, service_number: &String, service_job_number: &String, commit_sha: &String, ignore_global: bool, to_ignore_dir: Option<String>) {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
 
@@ -705,6 +705,9 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, p
         "repo_token": repo_token,
         "commit_sha": commit_sha,
         "source_files": source_files,
+        "service_name": service_name,
+        "service_number": service_number,
+        "service_job_number": service_job_number,
     })).unwrap();
 }
 
@@ -772,6 +775,9 @@ fn main() {
     let mut prefix_dir: &String = &String::new();
     let mut repo_token: &String = &String::new();
     let mut commit_sha: &String = &String::new();
+    let mut service_name: &String = &String::new();
+    let mut service_number: &String = &String::new();
+    let mut service_job_number: &String = &String::new();
     let mut ignore_global: bool = true;
     let mut to_ignore_dir: &String = &"".to_string();
     let mut directories: Vec<&String> = Vec::new();
@@ -813,6 +819,33 @@ fn main() {
             }
 
             repo_token = &args[i + 1];
+            i += 1;
+        } else if args[i] == "--service-name" {
+            if args.len() <= i + 1 {
+                println!("[ERROR]: Service name not specified.\n");
+                print_usage(&args[0]);
+                return;
+            }
+
+            service_name = &args[i + 1];
+            i += 1;
+        } else if args[i] == "--service-number" {
+            if args.len() <= i + 1 {
+                println!("[ERROR]: Service number not specified.\n");
+                print_usage(&args[0]);
+                return;
+            }
+
+            service_number = &args[i + 1];
+            i += 1;
+        } else if args[i] == "--service-job-number" {
+            if args.len() <= i + 1 {
+                println!("[ERROR]: Service job number not specified.\n");
+                print_usage(&args[0]);
+                return;
+            }
+
+            service_job_number = &args[i + 1];
             i += 1;
         } else if args[i] == "--commit-sha" {
             if args.len() <= i + 1 {
@@ -937,6 +970,6 @@ fn main() {
     } else if output_type == "lcov" {
         output_lcov(results_obj, source_dir);
     } else if output_type == "coveralls" {
-        output_coveralls(results_obj, source_dir, prefix_dir, repo_token, commit_sha, ignore_global, to_ignore_dir);
+        output_coveralls(results_obj, source_dir, prefix_dir, repo_token, service_name, service_number, service_job_number, commit_sha, ignore_global, to_ignore_dir);
     }
 }
