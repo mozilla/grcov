@@ -663,16 +663,16 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, p
             Err(_) => path,
         };
 
-        if to_ignore_dir.is_some() && path.starts_with(to_ignore_dir.as_ref().unwrap()) {
-            continue;
-        }
-
         // Remove source dir from path.
         let unprefixed = if path.starts_with(&source_dir) {
             path.strip_prefix(&source_dir).unwrap().to_path_buf()
         } else {
             path.clone()
         };
+
+        if to_ignore_dir.is_some() && unprefixed.starts_with(to_ignore_dir.as_ref().unwrap()) {
+            continue;
+        }
 
         let end: u32 = cmp::max(result.covered.last().unwrap_or(&0), result.uncovered.last().unwrap_or(&0)) + 1;
 
@@ -905,7 +905,7 @@ fn main() {
     let to_ignore_dir = if to_ignore_dir == "" {
         None
     } else {
-        Some(PathBuf::from(source_dir).join(to_ignore_dir).to_str().unwrap().to_string())
+        Some(to_ignore_dir.clone())
     };
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
