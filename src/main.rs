@@ -709,7 +709,12 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, p
 
     serde_json::to_writer(&mut stdout, &json!({
         "repo_token": repo_token,
-        "commit_sha": commit_sha,
+        "git": {
+          "head": {
+            "id": commit_sha,
+          },
+          "branch": "master",
+        },
         "source_files": source_files,
         "service_name": service_name,
         "service_number": service_number,
