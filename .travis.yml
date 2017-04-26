@@ -12,6 +12,8 @@ script:
   - ln -s /usr/bin/gcc-$COMPILER_VER gcc-symlinks/gcc
   - ln -s /usr/bin/gcov-$COMPILER_VER gcc-symlinks/gcov
   - export PATH=$PWD/gcc-symlinks:$PATH
+  - g++ --version
+  - clang++ --version
   - cargo build --verbose
   - cargo test -- --nocapture
 env:
