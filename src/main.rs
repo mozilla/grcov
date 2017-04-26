@@ -246,6 +246,21 @@ fn run_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
     assert!(status.success(), "gcov wasn't successfully executed");
 }
 
+fn run_llvm_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
+    let status = Command::new("llvm-cov")
+                         .arg("gcov")
+                         .arg("-l") // Generate unique names for gcov files.
+                         .arg("-b") // Generate function call information.
+                         .arg(gcda_path)
+                         .current_dir(working_dir)
+                         .stdout(Stdio::null())
+                         .stderr(Stdio::null())
+                         .status()
+                         .expect("Failed to execute llvm-cov process");
+
+    assert!(status.success(), "llvm-cov wasn't successfully executed");
+}
+
 struct Function {
     start: u32,
     executed: bool,
@@ -258,7 +273,66 @@ struct Result {
     functions: HashMap<String,Function>,
 }
 
-fn parse_gcov(gcov_path: PathBuf) -> Vec<Result> {
+fn parse_old_gcov(gcov_path: &Path) -> Vec<Result> {
+    let mut lines_covered = Vec::new();
+    let mut lines_uncovered = Vec::new();
+    let mut functions: HashMap<String,Function> = HashMap::new();
+
+    let f = File::open(gcov_path).expect("Failed to open gcov file");
+    let mut file = BufReader::new(&f);
+    let mut line_no: u32 = 0;
+
+    let mut first_line = String::new();
+    file.read_line(&mut first_line).unwrap();
+    let splits: Vec<&str> = first_line.splitn(4, ':').collect();
+    let mut source_name = splits[3].to_string();
+    let len = source_name.len();
+    source_name.truncate(len - 1);
+
+    for line in file.lines() {
+        let l = line.unwrap();
+        let splits: Vec<&str> = l.splitn(3, ':').collect();
+        if splits.len() == 1 {
+            if !l.starts_with("function ") {
+                continue;
+            }
+
+            let f_splits: Vec<&str> = l.splitn(5, ' ').collect();
+            let execution_count: u64 = f_splits[3].parse().expect(&format!("Failed parsing execution count: {:?}", f_splits));
+            functions.insert(f_splits[1].to_string(), Function {
+              start: line_no + 1,
+              executed: execution_count > 0,
+            });
+        } else {
+            if splits.len() != 3 {
+                println!("{:?}", splits);
+                panic!("GCOV lines should be in the format STRING:STRING:STRING");
+            }
+
+            line_no = splits[1].trim().parse().unwrap();
+
+            let cover = splits[0].trim();
+            if cover == "-" {
+                continue;
+            }
+
+            if cover == "#####" || cover.starts_with("-") {
+                lines_uncovered.push(line_no);
+            } else {
+                lines_covered.push(line_no);
+            }
+        }
+    }
+
+    vec![Result {
+      name: source_name,
+      covered: lines_covered,
+      uncovered: lines_uncovered,
+      functions: functions,
+    }]
+}
+
+fn parse_gcov(gcov_path: &Path) -> Vec<Result> {
     let mut cur_file = String::new();
     let mut cur_lines_covered: Vec<u32> = Vec::new();
     let mut cur_lines_uncovered: Vec<u32> = Vec::new();
@@ -328,7 +402,7 @@ fn parse_gcov(gcov_path: PathBuf) -> Vec<Result> {
 
 #[test]
 fn test_parser() {
-    let results = parse_gcov(PathBuf::from("./test/prova.gcov"));
+    let results = parse_gcov(Path::new("./test/prova.gcov"));
 
     assert_eq!(results.len(), 10);
 
@@ -366,14 +440,14 @@ fn test_parser() {
     assert_eq!(func.start, 303);
     assert_eq!(func.executed, true);
 
-    let results = parse_gcov(PathBuf::from("./test/negative_counts.gcov"));
+    let results = parse_gcov(Path::new("./test/negative_counts.gcov"));
     assert_eq!(results.len(), 118);
     let ref negative_count_result = results[14];
     assert_eq!(negative_count_result.name, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/mozilla/Assertions.h");
     assert!(negative_count_result.covered.is_empty());
     assert_eq!(negative_count_result.uncovered, vec![40]);
 
-    let results = parse_gcov(PathBuf::from("./test/64bit_count.gcov"));
+    let results = parse_gcov(Path::new("./test/64bit_count.gcov"));
     assert_eq!(results.len(), 46);
     let ref a64bit_count_result = results[8];
     assert_eq!(a64bit_count_result.name, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/js/HashTable.h");
@@ -723,7 +797,7 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, p
 }
 
 fn print_usage(program: &String) {
-    println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [-z] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY]", program);
+    println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [-z] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
     println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
@@ -736,7 +810,8 @@ fn print_usage(program: &String) {
     println!("Use -z to use ZIP files instead of directories (the first ZIP file must contain the GCNO files, the following ones must contain the GCDA files).");
     println!("By default global includes are ignored. Use --keep-global-includes to keep them.");
     println!("By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.");
-    println!("The --ignore-dir option can be used to ignore a directory.")
+    println!("The --llvm option must be used when the code coverage information is coming from a llvm build.");
+    println!("The --ignore-dir option can be used to ignore a directory.");
 }
 
 fn check_gcov() -> bool {
@@ -793,6 +868,7 @@ fn main() {
     let mut ignore_global: bool = true;
     let mut ignore_not_existing: bool = false;
     let mut to_ignore_dir: &String = &"".to_string();
+    let mut is_llvm: bool = false;
     let mut directories: Vec<&String> = Vec::new();
     let mut i = 1;
     let mut is_zip = false;
@@ -884,6 +960,8 @@ fn main() {
 
             to_ignore_dir = &args[i + 1];
             i += 1;
+        } else if args[i] == "--llvm" {
+            is_llvm = true;
         } else {
             directories.push(&args[i])
         }
@@ -944,13 +1022,30 @@ fn main() {
 
             loop {
                 if let Some(gcda_path) = queue.try_pop() {
-                    run_gcov(&gcda_path, &working_dir);
+                    if is_llvm {
+                        run_llvm_gcov(&gcda_path, &working_dir);
+                    } else {
+                        run_gcov(&gcda_path, &working_dir);
+                    }
 
-                    let mut results = parse_gcov(working_dir.join(gcda_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov"));
+                    // GCC generates a single .gcov file, LLVM generates multiple files.
+                    // We could optimize in the GCC case by avoiding to walk the directory, but
+                    // for the sake of simplicity we don't.
+                    for entry in WalkDir::new(&working_dir).min_depth(1) {
+                        let entry = entry.unwrap();
 
-                    let mut map = results_consumer.lock().unwrap();
-                    for result in results.drain(..) {
-                        add_result(result, &mut map);
+                        let mut results = if is_llvm {
+                            parse_old_gcov(entry.path())
+                        } else {
+                            parse_gcov(entry.path())
+                        };
+
+                        let mut map = results_consumer.lock().unwrap();
+                        for result in results.drain(..) {
+                            add_result(result, &mut map);
+                        }
+
+                        fs::remove_file(entry.path()).unwrap();
                     }
                 } else {
                     if finished_producing.load(Ordering::Acquire) {
