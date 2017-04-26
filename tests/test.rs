@@ -107,12 +107,12 @@ fn check_equal(expected_output: Vec<String>, output: Vec<String>) {
         actual_len += 1;
 
         let exp = expected.iter().find(|&&ref x| check_equal_inner(x, out, skip_methods));
-        assert!(exp.is_some(), "Got unexpected {}", out);
+        assert!(exp.is_some(), "Got unexpected {} - Expected output: {:?}", out, expected_output);
     }
 
     for exp in expected.iter() {
         let out = actual.iter().find(|&&ref x| check_equal_inner(x, exp, skip_methods));
-        assert!(out.is_some(), "Missing {}", exp);
+        assert!(out.is_some(), "Missing {} - Full output: {:?}", exp, output);
     }
 
     assert_eq!(expected.len(), actual_len, "Got same number of expected records.")
