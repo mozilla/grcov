@@ -1012,7 +1012,7 @@ fn main() {
 
     for i in 0..num_threads {
         let queue = queue.clone();
-        let results_consumer = results.clone();
+        let results = results.clone();
         let finished_producing = finished_producing.clone();
         let tmp_path = tmp_path.clone();
 
@@ -1034,15 +1034,15 @@ fn main() {
                     for entry in WalkDir::new(&working_dir).min_depth(1) {
                         let entry = entry.unwrap();
 
-                        let mut results = if is_llvm {
+                        let mut elems = if is_llvm {
                             parse_old_gcov(entry.path())
                         } else {
                             parse_gcov(entry.path())
                         };
 
-                        let mut map = results_consumer.lock().unwrap();
-                        for result in results.drain(..) {
-                            add_result(result, &mut map);
+                        let mut map = results.lock().unwrap();
+                        for elem in elems.drain(..) {
+                            add_result(elem, &mut map);
                         }
 
                         fs::remove_file(entry.path()).unwrap();
