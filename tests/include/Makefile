@@ -1,5 +1,5 @@
 all:
-	g++ -O0 -fprofile-arcs -ftest-coverage main.cpp file.cpp
+	$(COMPILER) -O0 -fno-inline -fprofile-arcs -ftest-coverage main.cpp file.cpp
 
 clean:
-	rm -f a.out main.gcno main.gcda file.gcno file.gcda
+	rm -f a.out main.gcno main.gcda file.gcno file.gcda default.profraw

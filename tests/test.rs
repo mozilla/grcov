@@ -9,8 +9,9 @@ use std::fs::File;
 use std::io::Read;
 use serde_json::Value;
 
-fn make(path: &Path) {
+fn make(path: &Path, compiler: &str) {
     let status = Command::new("make")
+                         .arg(format!("COMPILER={}", compiler))
                          .current_dir(path)
                          .status()
                          .expect("Failed to build");
@@ -25,8 +26,9 @@ fn run(path: &Path) {
     assert!(status.success());
 }
 
-fn read_expected(path: &Path) -> Vec<String> {
-    let mut f = File::open(path.join("expected.txt")).unwrap();
+fn read_expected(path: &Path, compiler: &str) -> Vec<String> {
+    let name = format!("expected_{}.txt", compiler);
+    let mut f = File::open(path.join(&name)).expect(format!("{} file not found", name).as_str());
     let mut s = String::new();
     f.read_to_string(&mut s).unwrap();
     let mut v = Vec::new();
@@ -36,10 +38,17 @@ fn read_expected(path: &Path) -> Vec<String> {
     v
 }
 
-fn run_grcov(path: &Path) -> Vec<String> {
+fn run_grcov(path: &Path, llvm: bool) -> Vec<String> {
+    let mut args: Vec<String> = Vec::new();
+    if llvm {
+        args.push("--".to_string());
+        args.push("--llvm".to_string());
+    }
+
     let output = Command::new("cargo")
                          .arg("run")
                          .arg(path)
+                         .args(args)
                          .output()
                          .expect("Failed to run grcov");
     let s = String::from_utf8(output.stdout).unwrap();
@@ -87,14 +96,12 @@ fn check_equal(expected_output: Vec<String>, output: Vec<String>) {
         actual.push(serde_json::from_str(line).unwrap());
     }
 
-    // On CI and without gcc-6, don't check /usr/include files, as they are different between GCC versions and the expected files are built using gcc-6.
-    let skip_builtin = env::var("COMPILER_VER").is_ok() && env::var("COMPILER_VER").unwrap() != "6";
     // On CI, don't check methods, as on different machines names are slightly differently mangled.
-    let skip_methods = skip_builtin || env::var("CONTINUOUS_INTEGRATION").is_ok();
+    let skip_methods = env::var("CONTINUOUS_INTEGRATION").is_ok();
 
     let mut actual_len = 0;
     for out in actual.iter() {
-        if out["file"]["name"].as_str().unwrap().contains("/usr/include") && skip_builtin {
+        if out["file"]["name"].as_str().unwrap().starts_with("/usr/") {
             continue;
         }
         actual_len += 1;
@@ -103,18 +110,12 @@ fn check_equal(expected_output: Vec<String>, output: Vec<String>) {
         assert!(exp.is_some(), "Got unexpected {}", out);
     }
 
-    let mut expected_len = 0;
     for exp in expected.iter() {
-        if exp["file"]["name"].as_str().unwrap().contains("/usr/include") && skip_builtin {
-            continue;
-        }
-        expected_len += 1;
-
         let out = actual.iter().find(|&&ref x| check_equal_inner(x, exp, skip_methods));
         assert!(out.is_some(), "Missing {}", exp);
     }
 
-    assert_eq!(expected_len, actual_len, "Got same number of expected records.")
+    assert_eq!(expected.len(), actual_len, "Got same number of expected records.")
 }
 
 #[test]
@@ -123,13 +124,20 @@ fn test_integration() {
         let entry = entry.unwrap();
         let path = entry.path();
         if path.is_dir() {
-            println!("{}", path.display());
+            println!("\n\n{}", path.display());
 
-            make(path);
+            make_clean(path);
+
+            println!("GCC");
+            make(path, "g++");
             run(path);
+            check_equal(read_expected(path, "gcc"), run_grcov(path, false));
+            make_clean(path);
 
-            check_equal(read_expected(path), run_grcov(path));
-
+            println!("\nLLVM");
+            make(path, "clang++");
+            run(path);
+            check_equal(read_expected(path, "llvm"), run_grcov(path, true));
             make_clean(path);
         }
     }
