@@ -527,6 +527,21 @@ fn add_result(mut result: Result, map: &mut HashMap<String,Result>) {
     };
 }
 
+fn process_gcov(gcov_path: &Path, is_llvm: bool, results_map: &Arc<Mutex<HashMap<String,Result>>>) {
+    let mut results = if is_llvm {
+        parse_old_gcov(gcov_path)
+    } else {
+        parse_gcov(gcov_path)
+    };
+
+    fs::remove_file(gcov_path).unwrap();
+
+    let mut map = results_map.lock().unwrap();
+    for result in results.drain(..) {
+        add_result(result, &mut map);
+    }
+}
+
 fn clean_covered_lines(results: &mut HashMap<String,Result>) {
     for result in results.values_mut() {
         let ref mut result = *result;
@@ -1024,28 +1039,12 @@ fn main() {
                 if let Some(gcda_path) = queue.try_pop() {
                     if is_llvm {
                         run_llvm_gcov(&gcda_path, &working_dir);
+                        for entry in WalkDir::new(&working_dir).min_depth(1) {
+                            process_gcov(entry.unwrap().path(), is_llvm, &results);
+                        }
                     } else {
                         run_gcov(&gcda_path, &working_dir);
-                    }
-
-                    // GCC generates a single .gcov file, LLVM generates multiple files.
-                    // We could optimize in the GCC case by avoiding to walk the directory, but
-                    // for the sake of simplicity we don't.
-                    for entry in WalkDir::new(&working_dir).min_depth(1) {
-                        let entry = entry.unwrap();
-
-                        let mut elems = if is_llvm {
-                            parse_old_gcov(entry.path())
-                        } else {
-                            parse_gcov(entry.path())
-                        };
-
-                        let mut map = results.lock().unwrap();
-                        for elem in elems.drain(..) {
-                            add_result(elem, &mut map);
-                        }
-
-                        fs::remove_file(entry.path()).unwrap();
+                        process_gcov(working_dir.join(gcda_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov").as_path(), is_llvm, &results);
                     }
                 } else {
                     if finished_producing.load(Ordering::Acquire) {
