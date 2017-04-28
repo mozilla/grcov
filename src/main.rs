@@ -24,6 +24,7 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
+use std::process;
 use crossbeam::sync::MsQueue;
 use walkdir::WalkDir;
 use serde_json::Value;
@@ -65,6 +66,12 @@ fn prova() {
 
   println!("{:x}", gcov_read_unsigned());
 }*/
+
+macro_rules! println_stderr(
+    ($($arg:tt)*) => { {
+        writeln!(&mut io::stderr(), $($arg)*).unwrap();
+    } }
+);
 
 fn producer(directories: Vec<&String>, queue: Arc<MsQueue<PathBuf>>) {
     for directory in directories {
@@ -863,14 +870,15 @@ fn check_gcov() -> bool {
 
 fn main() {
     if !check_gcov() {
-        println!("[ERROR]: gcov (bundled with GCC) >= 4.9 is required.\n");
-        return;
+        println_stderr!("[ERROR]: gcov (bundled with GCC) >= 4.9 is required.\n");
+        process::exit(1);
     }
 
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
+        println_stderr!("[ERROR]: Missing required directory argument.\n");
         print_usage(&args[0]);
-        return;
+        process::exit(1);
     }
     let mut output_type: &String = &"ade".to_string();
     let mut source_dir: &String = &String::new();
@@ -890,72 +898,72 @@ fn main() {
     while i < args.len() {
         if args[i] == "-t" {
             if args.len() <= i + 1 {
-                println!("[ERROR]: Output format not specified.\n");
+                println_stderr!("[ERROR]: Output format not specified.\n");
                 print_usage(&args[0]);
-                return;
+                process::exit(1);
             }
 
             output_type = &args[i + 1];
             i += 1;
         } else if args[i] == "-s" {
             if args.len() <= i + 1 {
-                println!("[ERROR]: Source root directory not specified.\n");
+                println_stderr!("[ERROR]: Source root directory not specified.\n");
                 print_usage(&args[0]);
-                return;
+                process::exit(1);
             }
 
             source_dir = &args[i + 1];
             i += 1;
         } else if args[i] == "-p" {
             if args.len() <= i + 1 {
-                println!("[ERROR]: Prefix path not specified.\n");
+                println_stderr!("[ERROR]: Prefix path not specified.\n");
                 print_usage(&args[0]);
-                return;
+                process::exit(1);
             }
 
             prefix_dir = &args[i + 1];
             i += 1;
         } else if args[i] == "--token" {
             if args.len() <= i + 1 {
-                println!("[ERROR]: Repository token not specified.\n");
+                println_stderr!("[ERROR]: Repository token not specified.\n");
                 print_usage(&args[0]);
-                return;
+                process::exit(1);
             }
 
             repo_token = &args[i + 1];
             i += 1;
         } else if args[i] == "--service-name" {
             if args.len() <= i + 1 {
-                println!("[ERROR]: Service name not specified.\n");
+                println_stderr!("[ERROR]: Service name not specified.\n");
                 print_usage(&args[0]);
-                return;
+                process::exit(1);
             }
 
             service_name = &args[i + 1];
             i += 1;
         } else if args[i] == "--service-number" {
             if args.len() <= i + 1 {
-                println!("[ERROR]: Service number not specified.\n");
+                println_stderr!("[ERROR]: Service number not specified.\n");
                 print_usage(&args[0]);
-                return;
+                process::exit(1);
             }
 
             service_number = &args[i + 1];
             i += 1;
         } else if args[i] == "--service-job-number" {
             if args.len() <= i + 1 {
-                println!("[ERROR]: Service job number not specified.\n");
+                println_stderr!("[ERROR]: Service job number not specified.\n");
                 print_usage(&args[0]);
-                return;
+                process::exit(1);
             }
 
             service_job_number = &args[i + 1];
             i += 1;
         } else if args[i] == "--commit-sha" {
             if args.len() <= i + 1 {
-                println!("[ERROR]: Commit SHA not specified.\n");
+                println_stderr!("[ERROR]: Commit SHA not specified.\n");
                 print_usage(&args[0]);
-                return;
+                process::exit(1);
             }
 
             commit_sha = &args[i + 1];
@@ -968,9 +976,9 @@ fn main() {
             ignore_not_existing = true;
         } else if args[i] == "--ignore-dir" {
             if args.len() <= i + 1 {
-                println!("[ERROR]: Directory to ignore not specified.\n");
+                println_stderr!("[ERROR]: Directory to ignore not specified.\n");
                 print_usage(&args[0]);
-                return;
+                process::exit(1);
             }
 
             to_ignore_dir = &args[i + 1];
@@ -985,22 +993,22 @@ fn main() {
     }
 
     if output_type != "ade" && output_type != "lcov" && output_type != "coveralls" {
-        println!("[ERROR]: '{}' output format is not supported.\n", output_type);
+        println_stderr!("[ERROR]: '{}' output format is not supported.\n", output_type);
         print_usage(&args[0]);
-        return;
+        process::exit(1);
     }
 
     if output_type == "coveralls" {
         if repo_token == "" {
-            println!("[ERROR]: Repository token is needed when the output format is 'coveralls'.\n");
+            println_stderr!("[ERROR]: Repository token is needed when the output format is 'coveralls'.\n");
             print_usage(&args[0]);
-            return;
+            process::exit(1);
         }
 
         if commit_sha == "" {
-            println!("[ERROR]: Commit SHA is needed when the output format is 'coveralls'.\n");
+            println_stderr!("[ERROR]: Commit SHA is needed when the output format is 'coveralls'.\n");
             print_usage(&args[0]);
-            return;
+            process::exit(1);
         }
     }
 
