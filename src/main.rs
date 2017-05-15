@@ -152,7 +152,7 @@ fn extract_file(zip_file: &mut zip::read::ZipFile, path: &PathBuf) {
     io::copy(zip_file, &mut file).expect("Failed to copy file from ZIP");
 }
 
-fn zip_producer(tmp_dir: &Path, zip_files: Vec<&String>, queue: Arc<MsQueue<PathBuf>>) {
+fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: Arc<MsQueue<PathBuf>>) {
     let mut gcno_archive = open_archive(zip_files[0]);
 
     for i in 0..gcno_archive.len() {
@@ -204,7 +204,7 @@ fn test_zip_producer() {
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
-    zip_producer(&tmp_path, vec![&"test/gcno.zip".to_string(), &"test/gcda1.zip".to_string(), &"test/gcda2.zip".to_string()], queue);
+    zip_producer(&tmp_path, &vec![&"test/gcno.zip".to_string(), &"test/gcda1.zip".to_string(), &"test/gcda2.zip".to_string()], queue);
 
     let endswith_strings: Vec<String> = vec![
         "Platform_1.gcda".to_string(),
@@ -856,14 +856,11 @@ fn check_gcov() -> bool {
     let s = String::from_utf8(output.stdout).unwrap();
     let values: Vec<&str> = s.split(' ').collect();
     for value in values {
-        match Version::parse(value) {
-            Ok(ver) => {
-                if ver < min_ver {
-                    return false;
-                }
-            },
-            Err(_) => {}
-        };
+        if let Ok(ver) = Version::parse(value) {
+            if ver < min_ver {
+                return false;
+            }
+        }
     }
 
     true
@@ -1069,7 +1066,7 @@ fn main() {
     }
 
     if is_zip {
-        zip_producer(&tmp_path, directories, queue);
+        zip_producer(&tmp_path, &directories, queue);
     } else {
         producer(directories, queue);
     }
