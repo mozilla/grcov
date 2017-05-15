@@ -291,6 +291,7 @@ fn parse_old_gcov(gcov_path: &Path) -> Vec<Result> {
 
     let mut first_line = String::new();
     file.read_line(&mut first_line).unwrap();
+    // TODO: Don't collect in a Vec when parsing to avoid malloc overhead, both here and next.
     let splits: Vec<&str> = first_line.splitn(4, ':').collect();
     let mut source_name = splits[3].to_string();
     let len = source_name.len();
@@ -656,7 +657,7 @@ fn output_lcov(results: &mut HashMap<String,Result>, source_dir: &String) {
     let stdout = io::stdout();
     let mut writer = BufWriter::new(stdout.lock());
 
-    writer.write(b"TN:\n").unwrap();
+    writer.write_all(b"TN:\n").unwrap();
 
     for (key, result) in results {
         let ref mut result = *result;
@@ -701,7 +702,7 @@ fn output_lcov(results: &mut HashMap<String,Result>, source_dir: &String) {
         }
         write!(writer, "LF:{}\n", all_lines.len()).unwrap();
         write!(writer, "LH:{}\n", result.covered.len()).unwrap();
-        writer.write(b"end_of_record\n").unwrap();
+        writer.write_all(b"end_of_record\n").unwrap();
     }
 }
 
