@@ -142,7 +142,7 @@ fn test_producer() {
     assert_eq!(queue_consumer.try_pop(), None);
 }
 
-fn open_archive(path: &String) -> ZipArchive<File> {
+fn open_archive(path: &str) -> ZipArchive<File> {
     let file = File::open(&path).expect(format!("Failed to open ZIP file '{}'.", path).as_str());
     ZipArchive::new(file).expect(format!("Failed to parse ZIP file: {}", path).as_str())
 }
@@ -162,7 +162,7 @@ fn zip_producer(tmp_dir: &Path, zip_files: Vec<&String>, queue: Arc<MsQueue<Path
 
         fs::create_dir_all(path.parent().unwrap()).expect("Failed to create directory");
 
-        if file.name().ends_with("/") {
+        if file.name().ends_with('/') {
             fs::create_dir_all(path).expect("Failed to create directory");
         }
         else {
@@ -176,8 +176,8 @@ fn zip_producer(tmp_dir: &Path, zip_files: Vec<&String>, queue: Arc<MsQueue<Path
         }
     }
 
-    for i in 1..zip_files.len() {
-        let mut gcda_archive = open_archive(zip_files[i]);
+    for (i, zip_file) in zip_files.iter().enumerate().skip(1) {
+        let mut gcda_archive = open_archive(zip_file);
         for j in 0..gcda_archive.len() {
             let mut file = gcda_archive.by_index(j).unwrap();
 
@@ -185,7 +185,7 @@ fn zip_producer(tmp_dir: &Path, zip_files: Vec<&String>, queue: Arc<MsQueue<Path
 
             fs::create_dir_all(path.parent().unwrap()).expect("Failed to create directory");
 
-            if file.name().ends_with("/") {
+            if file.name().ends_with('/') {
                 fs::create_dir_all(path).expect("Failed to create directory");
             }
             else {
@@ -324,7 +324,7 @@ fn parse_old_gcov(gcov_path: &Path) -> Vec<Result> {
                 continue;
             }
 
-            if cover == "#####" || cover.starts_with("-") {
+            if cover == "#####" || cover.starts_with('-') {
                 lines_uncovered.push(line_no);
             } else {
                 lines_covered.push(line_no);
@@ -357,7 +357,7 @@ fn parse_gcov(gcov_path: &Path) -> Vec<Result> {
         let value = key_value.next().unwrap();
         match key {
             "file" => {
-                if !cur_file.is_empty() && (cur_lines_covered.len() > 0 || cur_lines_uncovered.len() > 0) {
+                if !cur_file.is_empty() && (!cur_lines_covered.is_empty() || !cur_lines_uncovered.is_empty()) {
                     // println!("{} {} {:?} {:?}", gcov_path.display(), cur_file, cur_lines_covered, cur_lines_uncovered);
                     results.push(Result {
                         name: cur_file,
@@ -386,7 +386,7 @@ fn parse_gcov(gcov_path: &Path) -> Vec<Result> {
                 let mut values = value.splitn(2, ',');
                 let line_no = values.next().unwrap().parse().unwrap();
                 let execution_count = values.next().unwrap();
-                if execution_count == "0" || execution_count.starts_with("-") {
+                if execution_count == "0" || execution_count.starts_with('-') {
                     cur_lines_uncovered.push(line_no);
                 } else {
                     cur_lines_covered.push(line_no);
@@ -396,7 +396,7 @@ fn parse_gcov(gcov_path: &Path) -> Vec<Result> {
         }
     }
 
-    if cur_lines_covered.len() > 0 || cur_lines_uncovered.len() > 0 {
+    if !cur_lines_covered.is_empty() || !cur_lines_uncovered.is_empty() {
         results.push(Result {
             name: cur_file,
             covered: cur_lines_covered,
@@ -552,7 +552,7 @@ fn process_gcov(gcov_path: &Path, is_llvm: bool, results_map: &Arc<Mutex<HashMap
 
 fn clean_covered_lines(results: &mut HashMap<String,Result>) {
     for result in results.values_mut() {
-        let ref mut result = *result;
+        let result = &mut (*result);
         result.covered.sort();
         result.covered.dedup();
 
@@ -564,13 +564,13 @@ fn clean_covered_lines(results: &mut HashMap<String,Result>) {
     }
 }
 
-fn to_activedata_etl_vec(normal_vec: &Vec<u32>) -> Vec<Value> {
+fn to_activedata_etl_vec(normal_vec: &[u32]) -> Vec<Value> {
     normal_vec.iter().map(|&x| json!({"line": x})).collect()
 }
 
 fn output_activedata_etl(results: &mut HashMap<String,Result>) {
     for (key, result) in results {
-        let ref mut result = *result;
+        let result = &mut (*result);
 
         let mut orphan_covered: HashSet<u32> = result.covered.iter().cloned().collect();
         let mut orphan_uncovered: HashSet<u32> = result.uncovered.iter().cloned().collect();
@@ -588,7 +588,7 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
 
             let mut func_end = end;
 
-            for start in start_indexes.iter() {
+            for start in &start_indexes {
                 if *start > function.start {
                     func_end = *start;
                     break;
@@ -600,13 +600,13 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
                 lines_covered.push(json!({
                     "line": *line
                 }));
-                orphan_covered.remove(&line);
+                orphan_covered.remove(line);
             }
 
             let mut lines_uncovered: Vec<u32> = Vec::new();
             for line in result.uncovered.iter().filter(|&&x| x >= function.start && x < func_end) {
                 lines_uncovered.push(*line);
-                orphan_uncovered.remove(&line);
+                orphan_uncovered.remove(line);
             }
 
             println!("{}", json!({
@@ -653,14 +653,14 @@ fn output_activedata_etl(results: &mut HashMap<String,Result>) {
     }
 }
 
-fn output_lcov(results: &mut HashMap<String,Result>, source_dir: &String) {
+fn output_lcov(results: &mut HashMap<String,Result>, source_dir: &str) {
     let stdout = io::stdout();
     let mut writer = BufWriter::new(stdout.lock());
 
     writer.write_all(b"TN:\n").unwrap();
 
     for (key, result) in results {
-        let ref mut result = *result;
+        let result = &mut (*result);
 
         // println!("{} {:?} {:?}", key, result.covered, result.uncovered);
 
@@ -676,28 +676,28 @@ fn output_lcov(results: &mut HashMap<String,Result>, source_dir: &String) {
             write!(writer, "SF:{}\n", key).unwrap();
         }
 
-        for (name, function) in result.functions.iter() {
+        for (name, function) in &result.functions {
             write!(writer, "FN:{},{}\n", function.start, name).unwrap();
         }
-        for (name, function) in result.functions.iter() {
+        for (name, function) in &result.functions {
             write!(writer, "FNDA:{},{}\n", if function.executed { 1 } else { 0 }, name).unwrap();
         }
-        if result.functions.len() > 0 {
+        if !result.functions.is_empty() {
             write!(writer, "FNF:{}\n", result.functions.len()).unwrap();
             write!(writer, "FNF:{}\n", result.functions.values().filter(|x| x.executed).count()).unwrap();
         }
 
         let mut lines_map: HashMap<u32,u8> = HashMap::new();
-        for line in result.covered.iter() {
+        for line in &result.covered {
             lines_map.insert(*line, 1);
         }
-        for line in result.uncovered.iter() {
+        for line in &result.uncovered {
             lines_map.insert(*line, 0);
         }
         let mut all_lines: Vec<u32> = result.covered.clone();
         all_lines.append(&mut result.uncovered.clone());
         all_lines.sort();
-        for line in all_lines.iter() {
+        for line in &all_lines {
             write!(writer, "DA:{},{}\n", line, lines_map[line]).unwrap();
         }
         write!(writer, "LF:{}\n", all_lines.len()).unwrap();
@@ -723,14 +723,14 @@ fn get_digest(path: PathBuf) -> String {
     }
 }
 
-fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, prefix_dir: &String, repo_token: &String, service_name: &String, service_number: &String, service_job_number: &String, commit_sha: &String, ignore_global: bool, ignore_not_existing: bool, to_ignore_dir: Option<String>) {
+fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &str, prefix_dir: &str, repo_token: &str, service_name: &str, service_number: &str, service_job_number: &str, commit_sha: &str, ignore_global: bool, ignore_not_existing: bool, to_ignore_dir: &Option<String>) {
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
 
     let mut source_files = Vec::new();
 
     for (key, result) in results {
-        let ref mut result = *result;
+        let result = &mut (*result);
 
         let path = PathBuf::from(key);
 
@@ -778,10 +778,10 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, p
         let end: u32 = cmp::max(result.covered.last().unwrap_or(&0), result.uncovered.last().unwrap_or(&0)) + 1;
 
         let mut lines_map: HashMap<u32,u8> = HashMap::new();
-        for line in result.covered.iter() {
+        for line in &result.covered {
             lines_map.insert(*line, 1);
         }
-        for line in result.uncovered.iter() {
+        for line in &result.uncovered {
             lines_map.insert(*line, 0);
         }
 
@@ -819,7 +819,7 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &String, p
     })).unwrap();
 }
 
-fn print_usage(program: &String) {
+fn print_usage(program: &str) {
     println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [-z] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
@@ -866,7 +866,7 @@ fn check_gcov() -> bool {
         };
     }
 
-    return true;
+    true
 }
 
 fn main() {
@@ -1079,7 +1079,7 @@ fn main() {
         let _ = parser.join();
     }
 
-    let ref mut results_obj = *results.lock().unwrap();
+    let results_obj = &mut (*results.lock().unwrap());
 
     clean_covered_lines(results_obj);
 
@@ -1088,6 +1088,6 @@ fn main() {
     } else if output_type == "lcov" {
         output_lcov(results_obj, source_dir);
     } else if output_type == "coveralls" {
-        output_coveralls(results_obj, source_dir, prefix_dir, repo_token, service_name, service_number, service_job_number, commit_sha, ignore_global, ignore_not_existing, to_ignore_dir);
+        output_coveralls(results_obj, source_dir, prefix_dir, repo_token, service_name, service_number, service_job_number, commit_sha, ignore_global, ignore_not_existing, &to_ignore_dir);
     }
 }

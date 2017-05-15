@@ -85,14 +85,14 @@ fn check_equal_inner(a: &Value, b: &Value, skip_methods: bool) -> bool {
     a["file"]["total_uncovered"] == b["file"]["total_uncovered"]
 }
 
-fn check_equal(expected_output: Vec<String>, output: Vec<String>) {
+fn check_equal(expected_output: &[String], output: &[String]) {
     let mut expected: Vec<Value> = Vec::new();
-    for line in expected_output.iter() {
+    for line in expected_output {
         expected.push(serde_json::from_str(line).unwrap());
     }
 
     let mut actual: Vec<Value> = Vec::new();
-    for line in output.iter() {
+    for line in output {
         actual.push(serde_json::from_str(line).unwrap());
     }
 
@@ -100,7 +100,7 @@ fn check_equal(expected_output: Vec<String>, output: Vec<String>) {
     let skip_methods = env::var("CONTINUOUS_INTEGRATION").is_ok();
 
     let mut actual_len = 0;
-    for out in actual.iter() {
+    for out in &actual {
         if out["file"]["name"].as_str().unwrap().starts_with("/usr/") {
             continue;
         }
@@ -110,7 +110,7 @@ fn check_equal(expected_output: Vec<String>, output: Vec<String>) {
         assert!(exp.is_some(), "Got unexpected {} - Expected output: {:?}", out, expected_output);
     }
 
-    for exp in expected.iter() {
+    for exp in &expected {
         let out = actual.iter().find(|&&ref x| check_equal_inner(x, exp, skip_methods));
         assert!(out.is_some(), "Missing {} - Full output: {:?}", exp, output);
     }
@@ -131,7 +131,7 @@ fn test_integration() {
             println!("GCC");
             make(path, "g++");
             run(path);
-            check_equal(read_expected(path, "gcc"), run_grcov(path, false));
+            check_equal(&read_expected(path, "gcc"), &run_grcov(path, false));
             make_clean(path);
 
             // On CI, don't test llvm, as there are problems for now.
@@ -141,7 +141,7 @@ fn test_integration() {
             make(path, "clang++");
             run(path);
             if !skip_llvm {
-                check_equal(read_expected(path, "llvm"), run_grcov(path, true));
+                check_equal(&read_expected(path, "llvm"), &run_grcov(path, true));
             }
             make_clean(path);
         }
