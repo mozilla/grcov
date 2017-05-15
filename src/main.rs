@@ -837,14 +837,7 @@ fn print_usage(program: &str) {
     println!("The --ignore-dir option can be used to ignore a directory.");
 }
 
-fn check_gcov() -> bool {
-    let output = Command::new("gcov")
-                         .arg("--version")
-                         .output()
-                         .expect("Failed to execute `gcov`. `gcov` is required (it is part of GCC).");
-
-    assert!(output.status.success(), "`gcov` failed to execute.");
-
+fn is_recent_version(gcov_output: &str) -> bool {
     let min_ver = Version {
         major: 4,
         minor: 9,
@@ -853,21 +846,35 @@ fn check_gcov() -> bool {
         build: vec!(),
     };
 
-    let s = String::from_utf8(output.stdout).unwrap();
-    let values: Vec<&str> = s.split(' ').collect();
-    for value in values {
+    gcov_output.split(' ').all(|value| {
         if let Ok(ver) = Version::parse(value) {
-            if ver < min_ver {
-                return false;
-            }
+            ver >= min_ver
+        } else {
+            true
         }
-    }
+    })
+}
 
-    true
+#[test]
+fn test_is_recent_version() {
+    assert!(!is_recent_version("gcov (Ubuntu 4.3.0-12ubuntu2) 4.3.0 20170406"));
+    assert!(is_recent_version("gcov (Ubuntu 4.9.0-12ubuntu2) 4.9.0 20170406"));
+    assert!(is_recent_version("gcov (Ubuntu 6.3.0-12ubuntu2) 6.3.0 20170406"));
+}
+
+fn check_gcov_version() -> bool {
+    let output = Command::new("gcov")
+                         .arg("--version")
+                         .output()
+                         .expect("Failed to execute `gcov`. `gcov` is required (it is part of GCC).");
+
+    assert!(output.status.success(), "`gcov` failed to execute.");
+
+    is_recent_version(&String::from_utf8(output.stdout).unwrap())
 }
 
 fn main() {
-    if !check_gcov() {
+    if !check_gcov_version() {
         println_stderr!("[ERROR]: gcov (bundled with GCC) >= 4.9 is required.\n");
         process::exit(1);
     }
