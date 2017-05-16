@@ -570,8 +570,6 @@ fn to_activedata_etl_vec(normal_vec: &[u32]) -> Vec<Value> {
 
 fn output_activedata_etl(results: &mut HashMap<String,Result>) {
     for (key, result) in results {
-        let result = &mut (*result);
-
         let mut orphan_covered: HashSet<u32> = result.covered.iter().cloned().collect();
         let mut orphan_uncovered: HashSet<u32> = result.uncovered.iter().cloned().collect();
 
@@ -660,8 +658,6 @@ fn output_lcov(results: &mut HashMap<String,Result>, source_dir: &str) {
     writer.write_all(b"TN:\n").unwrap();
 
     for (key, result) in results {
-        let result = &mut (*result);
-
         // println!("{} {:?} {:?}", key, result.covered, result.uncovered);
 
         if source_dir != "" {
@@ -730,8 +726,6 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &str, pref
     let mut source_files = Vec::new();
 
     for (key, result) in results {
-        let result = &mut (*result);
-
         let path = PathBuf::from(key);
 
         // Remove prefix from path.
