@@ -8,6 +8,7 @@ extern crate crypto;
 extern crate zip;
 extern crate tempdir;
 extern crate uuid;
+extern crate libc;
 
 use std::cmp;
 use std::collections::{HashSet,HashMap};
@@ -33,8 +34,9 @@ use crypto::md5::Md5;
 use crypto::digest::Digest;
 use tempdir::TempDir;
 use uuid::Uuid;
+use std::ffi::CString;
 
-/*use std::ffi::CString;
+/*
 use std::os::raw::c_char;
 
 #[link(name = "gcov")]
@@ -72,6 +74,23 @@ macro_rules! println_stderr(
         writeln!(&mut io::stderr(), $($arg)*).unwrap();
     } }
 );
+
+fn mkfifo(path: &str) {
+    let filename = CString::new(path).unwrap();
+    unsafe {
+        if libc::mkfifo(filename.as_ptr(), 0o644) != 0 {
+            panic!("mkfifo fail!");
+        }
+    }
+}
+
+#[test]
+fn test_mkfifo() {
+    let test_path = "/tmp/grcov_mkfifo_test";
+    mkfifo(test_path);
+    assert!(Path::new(test_path).exists());
+    fs::remove_file(test_path).unwrap();
+}
 
 fn producer(directories: Vec<&String>, queue: Arc<MsQueue<PathBuf>>) {
     let gcda_ext = Some(OsStr::new("gcda"));
