@@ -74,11 +74,14 @@ macro_rules! println_stderr(
 );
 
 fn producer(directories: Vec<&String>, queue: Arc<MsQueue<PathBuf>>) {
+    let gcda_ext = Some(OsStr::new("gcda"));
+    let info_ext = Some(OsStr::new("info"));
+
     for directory in directories {
         for entry in WalkDir::new(directory) {
             let entry = entry.expect(format!("Failed to open directory '{}'.", directory).as_str());
             let path = entry.path();
-            if path.is_file() && path.extension() == Some(OsStr::new("gcda")) {
+            if path.is_file() && (path.extension() == gcda_ext || path.extension() == info_ext) {
                 queue.push(fs::canonicalize(&path).unwrap());
             }
         }
@@ -103,6 +106,8 @@ fn test_producer() {
         "grcov/test/nsGnomeModule.gcda".to_string(),
         "grcov/test/negative_counts.gcda".to_string(),
         "grcov/test/64bit_count.gcda".to_string(),
+        "grcov/test/1494603973-2977-7.info".to_string(),
+        "grcov/test/prova.info".to_string(),
     ];
 
     let mut vec: Vec<PathBuf> = Vec::new();
@@ -110,7 +115,7 @@ fn test_producer() {
         vec.push(queue_consumer.pop());
     }
 
-    assert_eq!(vec.len(), 10);
+    assert_eq!(vec.len(), 12);
 
     for endswith_string in endswith_strings.iter() {
         assert!(vec.iter().any(|&ref x| x.ends_with(endswith_string)), "Missing {}", endswith_string);
