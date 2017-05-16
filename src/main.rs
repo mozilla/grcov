@@ -153,33 +153,21 @@ fn extract_file(zip_file: &mut zip::read::ZipFile, path: &PathBuf) {
 }
 
 fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: Arc<MsQueue<PathBuf>>) {
-    let mut gcno_archive = open_archive(zip_files[0]);
+    for (num, zip_file) in zip_files.iter().enumerate() {
+        let mut archive = open_archive(zip_file);
 
-    for i in 0..gcno_archive.len() {
-        let mut file = gcno_archive.by_index(i).unwrap();
+        let (archive_type, num) = if zip_file.contains("gcno") {
+            ("gcno", 1)
+        } else if zip_file.contains("gcda") {
+            ("gcda", num)
+        } else if zip_file.contains("info") {
+            ("info", num)
+        } else {
+            panic!("Unsupported type.");
+        };
 
-        let path = tmp_dir.join(PathBuf::from(file.name()));
-
-        fs::create_dir_all(path.parent().unwrap()).expect("Failed to create directory");
-
-        if file.name().ends_with('/') {
-            fs::create_dir_all(path).expect("Failed to create directory");
-        }
-        else {
-            let new_path = path.with_file_name(format!("{}_1.gcno", path.file_stem().unwrap().to_str().unwrap()));
-            extract_file(&mut file, &new_path);
-            // Create symlinks.
-            for j in 2..zip_files.len() {
-                let link_path = path.with_file_name(format!("{}_{}.gcno", path.file_stem().unwrap().to_str().unwrap(), j));
-                fs::hard_link(&new_path, &link_path).expect(format!("Failed to create hardlink {}", link_path.display()).as_str());
-            }
-        }
-    }
-
-    for (i, zip_file) in zip_files.iter().enumerate().skip(1) {
-        let mut gcda_archive = open_archive(zip_file);
-        for j in 0..gcda_archive.len() {
-            let mut file = gcda_archive.by_index(j).unwrap();
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i).unwrap();
 
             let path = tmp_dir.join(PathBuf::from(file.name()));
 
@@ -189,9 +177,18 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: Arc<MsQueue<PathBu
                 fs::create_dir_all(path).expect("Failed to create directory");
             }
             else {
-                let new_path = path.with_file_name(format!("{}_{}.gcda", path.file_stem().unwrap().to_str().unwrap(), i));
+                let new_path = path.with_file_name(format!("{}_{}.{}", path.file_stem().unwrap().to_str().unwrap(), num, archive_type));
                 extract_file(&mut file, &new_path);
-                queue.push(new_path);
+
+                if archive_type == "gcno" {
+                    // Create symlinks.
+                    for j in 2..zip_files.len() {
+                        let link_path = path.with_file_name(format!("{}_{}.gcno", path.file_stem().unwrap().to_str().unwrap(), j));
+                        fs::hard_link(&new_path, &link_path).expect(format!("Failed to create hardlink {}", link_path.display()).as_str());
+                    }
+                } else if archive_type == "gcda" || archive_type == "info" {
+                    queue.push(new_path);
+                }
             }
         }
     }
@@ -228,13 +225,50 @@ fn test_zip_producer() {
 
     for endswith_string in endswith_strings.iter() {
         assert!(vec.iter().any(|&ref x| x.ends_with(endswith_string)), "Missing {}", endswith_string);
-        // Assert file exists and file with the same name but with extension .gcno exists.
     }
 
+    // Assert file exists and file with the same name but with extension .gcno exists.
     for f in vec.iter() {
         assert!(f.exists(), "{} doesn't exist", f.display());
         let gcno = f.with_file_name(format!("{}.gcno", f.file_stem().unwrap().to_str().unwrap()));
         assert!(gcno.exists(), "{} doesn't exist", gcno.display());
+    }
+
+    assert_eq!(queue_consumer.try_pop(), None);
+
+    let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
+    let queue_consumer = queue.clone();
+
+    zip_producer(&tmp_path, &vec![&"test/info1.zip".to_string(), &"test/info2.zip".to_string()], queue);
+
+    let endswith_strings: Vec<String> = vec![
+        "1494603967-2977-2_0.info".to_string(),
+        "1494603967-2977-3_0.info".to_string(),
+        "1494603967-2977-4_0.info".to_string(),
+        "1494603968-2977-5_0.info".to_string(),
+        "1494603972-2977-6_0.info".to_string(),
+        "1494603973-2977-7_0.info".to_string(),
+        "1494603967-2977-2_1.info".to_string(),
+        "1494603967-2977-3_1.info".to_string(),
+        "1494603967-2977-4_1.info".to_string(),
+        "1494603968-2977-5_1.info".to_string(),
+        "1494603972-2977-6_1.info".to_string(),
+        "1494603973-2977-7_1.info".to_string(),
+    ];
+
+    let mut vec: Vec<PathBuf> = Vec::new();
+    for _ in 0..endswith_strings.len() {
+        vec.push(queue_consumer.pop());
+    }
+
+    assert_eq!(vec.len(), 12);
+
+    for endswith_string in endswith_strings.iter() {
+        assert!(vec.iter().any(|&ref x| x.ends_with(endswith_string)), "Missing {}", endswith_string);
+    }
+
+    for f in vec.iter() {
+        assert!(f.exists(), "{} doesn't exist", f.display());
     }
 
     assert_eq!(queue_consumer.try_pop(), None);
@@ -278,6 +312,98 @@ struct Result {
     covered: Vec<u32>,
     uncovered: Vec<u32>,
     functions: HashMap<String,Function>,
+}
+
+fn parse_lcov(lcov_path: &Path) -> Vec<Result> {
+    let mut cur_file = String::new();
+    let mut cur_lines_covered: Vec<u32> = Vec::new();
+    let mut cur_lines_uncovered: Vec<u32> = Vec::new();
+    let mut cur_functions: HashMap<String,Function> = HashMap::new();
+
+    let mut results = Vec::new();
+
+    let f = File::open(&lcov_path).expect("Failed to open gcov file");
+    let file = BufReader::new(&f);
+    for line in file.lines() {
+        let l = line.unwrap();
+
+        if l == "end_of_record" {
+            results.push(Result {
+                name: cur_file,
+                covered: cur_lines_covered,
+                uncovered: cur_lines_uncovered,
+                functions: cur_functions,
+            });
+
+            cur_file = String::new();
+            cur_lines_covered = Vec::new();
+            cur_lines_uncovered = Vec::new();
+            cur_functions = HashMap::new();
+        } else {
+            let mut key_value = l.splitn(2, ':');
+            let key = key_value.next().unwrap();
+            let value = key_value.next();
+            if value.is_none() {
+                // Ignore lines without a ':' character.
+                continue;
+            }
+            let value = value.unwrap();
+            match key {
+                "SF" => {
+                    cur_file = value.to_string();
+                },
+                "DA" => {
+                    let mut values = value.splitn(3, ',');
+                    let line_no = values.next().unwrap().parse().unwrap();
+                    let execution_count = values.next().unwrap();
+                    if execution_count == "0" || execution_count.starts_with('-') {
+                        cur_lines_uncovered.push(line_no);
+                    } else {
+                        cur_lines_covered.push(line_no);
+                    }
+                },
+                "FN" => {
+                    let mut f_splits = value.splitn(2, ',');
+                    let start = f_splits.next().unwrap().parse().unwrap();
+                    let f_name = f_splits.next().unwrap();
+                    cur_functions.insert(f_name.to_string(), Function {
+                      start: start,
+                      executed: false,
+                    });
+                },
+                "FNDA" => {
+                    let mut f_splits = value.splitn(2, ',');
+                    let executed = f_splits.next().unwrap() != "0";
+                    let f_name = f_splits.next().unwrap();
+                    let f = cur_functions.get_mut(f_name).expect(format!("FN record missing for function {}", f_name).as_str());
+                    f.executed = executed;
+                },
+                _ => {}
+            }
+        }
+    }
+
+    results
+}
+
+#[test]
+fn test_lcov_parser() {
+    let results = parse_lcov(Path::new("./test/prova.info"));
+
+    assert_eq!(results.len(), 603);
+
+    let ref result1 = results[0];
+    assert_eq!(result1.name, "resource://gre/components/MainProcessSingleton.js");
+    assert_eq!(result1.covered, vec![7,9,10,12,13,12,16,17,18,19,18,21,28,67,90,68,70,74,75,76,77,78,83,84]);
+    assert_eq!(result1.uncovered, vec![22,23,24,29,30,32,33,34,35,37,39,41,42,44,45,46,47,49,50,51,52,53,54,53,55,56,65,59,60,61,63]);
+    assert!(result1.functions.contains_key("MainProcessSingleton"));
+    let func = result1.functions.get("MainProcessSingleton").unwrap();
+    assert_eq!(func.start, 15);
+    assert_eq!(func.executed, true);
+    assert!(result1.functions.contains_key("logConsoleMessage"));
+    let func = result1.functions.get("logConsoleMessage").unwrap();
+    assert_eq!(func.start, 21);
+    assert_eq!(func.executed, false);
 }
 
 fn parse_old_gcov(gcov_path: &Path) -> Vec<Result> {
