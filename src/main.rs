@@ -70,6 +70,8 @@ fn prova() {
   println!("{:x}", gcov_read_unsigned());
 }*/
 
+type WorkQueue = MsQueue<Option<PathBuf>>;
+
 macro_rules! println_stderr(
     ($($arg:tt)*) => { {
         writeln!(&mut io::stderr(), $($arg)*).unwrap();
@@ -93,7 +95,7 @@ fn test_mkfifo() {
     fs::remove_file(test_path).unwrap();
 }
 
-fn producer(directories: &[String], queue: Arc<MsQueue<Option<PathBuf>>>) {
+fn producer(directories: &[String], queue: Arc<WorkQueue>) {
     let gcda_ext = Some(OsStr::new("gcda"));
     let info_ext = Some(OsStr::new("info"));
 
@@ -110,7 +112,7 @@ fn producer(directories: &[String], queue: Arc<MsQueue<Option<PathBuf>>>) {
 
 #[test]
 fn test_producer() {
-    let queue: Arc<MsQueue<Option<PathBuf>>> = Arc::new(MsQueue::new());
+    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
     let queue_consumer = queue.clone();
 
     producer(&vec!["test".to_string()], queue);
@@ -143,7 +145,7 @@ fn test_producer() {
 
     assert_eq!(queue_consumer.try_pop(), None);
 
-    let queue: Arc<MsQueue<Option<PathBuf>>> = Arc::new(MsQueue::new());
+    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
     let queue_consumer = queue.clone();
 
     producer(&vec!["test/sub".to_string(), "test/sub2".to_string()], queue);
@@ -177,7 +179,7 @@ fn extract_file(zip_file: &mut zip::read::ZipFile, path: &PathBuf) {
     io::copy(zip_file, &mut file).expect("Failed to copy file from ZIP");
 }
 
-fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: Arc<MsQueue<Option<PathBuf>>>) {
+fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: Arc<WorkQueue>) {
     let mut gcno_archive: Option<ZipArchive<File>> = None;
     let mut gcda_archives: Vec<ZipArchive<File>> = Vec::new();
     let mut info_archives: Vec<ZipArchive<File>> = Vec::new();
@@ -254,7 +256,7 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: Arc<MsQueue<Option<
 
 #[test]
 fn test_zip_producer() {
-    let queue: Arc<MsQueue<Option<PathBuf>>> = Arc::new(MsQueue::new());
+    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
     let queue_consumer = queue.clone();
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
@@ -295,7 +297,7 @@ fn test_zip_producer() {
 
     assert_eq!(queue_consumer.try_pop(), None);
 
-    let queue: Arc<MsQueue<Option<PathBuf>>> = Arc::new(MsQueue::new());
+    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
     let queue_consumer = queue.clone();
 
     zip_producer(&tmp_path, &vec!["test/info1.zip".to_string(), "test/info2.zip".to_string()], queue);
@@ -1210,7 +1212,7 @@ fn main() {
     let tmp_path = tmp_dir.path().to_owned();
 
     let results: Arc<Mutex<HashMap<String,Result>>> = Arc::new(Mutex::new(HashMap::new()));
-    let queue: Arc<MsQueue<Option<PathBuf>>> = Arc::new(MsQueue::new());
+    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let producer = {
         let queue = queue.clone();
