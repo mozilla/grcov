@@ -72,6 +72,20 @@ fn prova() {
 
 type WorkQueue = MsQueue<Option<PathBuf>>;
 
+struct Function {
+    start: u32,
+    executed: bool,
+}
+
+struct Result {
+    name: String,
+    covered: Vec<u32>,
+    uncovered: Vec<u32>,
+    functions: HashMap<String,Function>,
+}
+
+type ResultsMap = Mutex<HashMap<String,Result>>;
+
 macro_rules! println_stderr(
     ($($arg:tt)*) => { {
         writeln!(&mut io::stderr(), $($arg)*).unwrap();
@@ -95,7 +109,7 @@ fn test_mkfifo() {
     fs::remove_file(test_path).unwrap();
 }
 
-fn producer(directories: &[String], queue: Arc<WorkQueue>) {
+fn producer(directories: &[String], queue: &WorkQueue) {
     let gcda_ext = Some(OsStr::new("gcda"));
     let info_ext = Some(OsStr::new("info"));
 
@@ -179,7 +193,7 @@ fn extract_file(zip_file: &mut zip::read::ZipFile, path: &PathBuf) {
     io::copy(zip_file, &mut file).expect("Failed to copy file from ZIP");
 }
 
-fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: Arc<WorkQueue>) {
+fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: &WorkQueue) {
     let mut gcno_archive: Option<ZipArchive<File>> = None;
     let mut gcda_archives: Vec<ZipArchive<File>> = Vec::new();
     let mut info_archives: Vec<ZipArchive<File>> = Vec::new();
@@ -362,18 +376,6 @@ fn run_llvm_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
                          .expect("Failed to execute llvm-cov process");
 
     assert!(status.success(), "llvm-cov wasn't successfully executed");
-}
-
-struct Function {
-    start: u32,
-    executed: bool,
-}
-
-struct Result {
-    name: String,
-    covered: Vec<u32>,
-    uncovered: Vec<u32>,
-    functions: HashMap<String,Function>,
 }
 
 fn parse_lcov(lcov_path: &Path) -> Vec<Result> {
@@ -723,7 +725,7 @@ fn add_result(mut result: Result, map: &mut HashMap<String,Result>) {
     };
 }
 
-fn process_gcov(gcov_path: &Path, is_llvm: bool, results_map: &Arc<Mutex<HashMap<String,Result>>>) {
+fn process_gcov(gcov_path: &Path, is_llvm: bool, results_map: &ResultsMap) {
     let mut results = if is_llvm {
         parse_old_gcov(gcov_path)
     } else {
@@ -1211,7 +1213,7 @@ fn main() {
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
 
-    let results: Arc<Mutex<HashMap<String,Result>>> = Arc::new(Mutex::new(HashMap::new()));
+    let results: Arc<ResultsMap> = Arc::new(Mutex::new(HashMap::new()));
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let producer = {
@@ -1220,9 +1222,9 @@ fn main() {
 
         thread::spawn(move || {
             if is_zip {
-                zip_producer(&tmp_path, &directories, queue);
+                zip_producer(&tmp_path, &directories, &queue);
             } else {
-                producer(&directories, queue);
+                producer(&directories, &queue);
             }
         })
     };
