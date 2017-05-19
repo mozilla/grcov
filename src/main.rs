@@ -25,7 +25,6 @@ use std::io;
 use std::io::{Read, BufRead, BufReader, Write, BufWriter};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::process;
 use crossbeam::sync::MsQueue;
@@ -94,7 +93,7 @@ fn test_mkfifo() {
     fs::remove_file(test_path).unwrap();
 }
 
-fn producer(directories: &[String], queue: Arc<MsQueue<PathBuf>>) {
+fn producer(directories: &[String], queue: Arc<MsQueue<Option<PathBuf>>>) {
     let gcda_ext = Some(OsStr::new("gcda"));
     let info_ext = Some(OsStr::new("info"));
 
@@ -103,7 +102,7 @@ fn producer(directories: &[String], queue: Arc<MsQueue<PathBuf>>) {
             let entry = entry.expect(format!("Failed to open directory '{}'.", directory).as_str());
             let path = entry.path();
             if path.is_file() && (path.extension() == gcda_ext || path.extension() == info_ext) {
-                queue.push(fs::canonicalize(&path).unwrap());
+                queue.push(Some(fs::canonicalize(&path).unwrap()));
             }
         }
     }
@@ -111,7 +110,7 @@ fn producer(directories: &[String], queue: Arc<MsQueue<PathBuf>>) {
 
 #[test]
 fn test_producer() {
-    let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
+    let queue: Arc<MsQueue<Option<PathBuf>>> = Arc::new(MsQueue::new());
     let queue_consumer = queue.clone();
 
     producer(&vec!["test".to_string()], queue);
@@ -131,7 +130,7 @@ fn test_producer() {
         "grcov/test/prova.info".to_string(),
     ];
 
-    let mut vec: Vec<PathBuf> = Vec::new();
+    let mut vec: Vec<Option<PathBuf>> = Vec::new();
     for _ in 0..endswith_strings.len() {
         vec.push(queue_consumer.pop());
     }
@@ -139,12 +138,12 @@ fn test_producer() {
     assert_eq!(vec.len(), 12);
 
     for endswith_string in endswith_strings.iter() {
-        assert!(vec.iter().any(|&ref x| x.ends_with(endswith_string)), "Missing {}", endswith_string);
+        assert!(vec.iter().any(|x| x.clone().unwrap().ends_with(endswith_string)), "Missing {}", endswith_string);
     }
 
     assert_eq!(queue_consumer.try_pop(), None);
 
-    let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
+    let queue: Arc<MsQueue<Option<PathBuf>>> = Arc::new(MsQueue::new());
     let queue_consumer = queue.clone();
 
     producer(&vec!["test/sub".to_string(), "test/sub2".to_string()], queue);
@@ -154,7 +153,7 @@ fn test_producer() {
         "grcov/test/sub/prova2.gcda".to_string(),
     ];
 
-    let mut vec: Vec<PathBuf> = Vec::new();
+    let mut vec: Vec<Option<PathBuf>> = Vec::new();
     for _ in 0..endswith_strings.len() {
         vec.push(queue_consumer.pop());
     }
@@ -162,7 +161,7 @@ fn test_producer() {
     assert_eq!(vec.len(), 2);
 
     for endswith_string in endswith_strings.iter() {
-        assert!(vec.iter().any(|&ref x| x.ends_with(endswith_string)), "Missing {}", endswith_string);
+        assert!(vec.iter().any(|x| x.clone().unwrap().ends_with(endswith_string)), "Missing {}", endswith_string);
     }
 
     assert_eq!(queue_consumer.try_pop(), None);
@@ -178,7 +177,7 @@ fn extract_file(zip_file: &mut zip::read::ZipFile, path: &PathBuf) {
     io::copy(zip_file, &mut file).expect("Failed to copy file from ZIP");
 }
 
-fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: Arc<MsQueue<PathBuf>>) {
+fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: Arc<MsQueue<Option<PathBuf>>>) {
     let mut gcno_archive: Option<ZipArchive<File>> = None;
     let mut gcda_archives: Vec<ZipArchive<File>> = Vec::new();
     let mut info_archives: Vec<ZipArchive<File>> = Vec::new();
@@ -226,7 +225,7 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: Arc<MsQueue<PathBuf
 
                         extract_file(&mut gcda_file, &gcda_path);
 
-                        queue.push(gcda_path);
+                        queue.push(Some(gcda_path));
                     }
                 }
             }
@@ -247,7 +246,7 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: Arc<MsQueue<PathBuf
             else {
                 let new_path = path.with_file_name(format!("{}_{}.info", path.file_stem().unwrap().to_str().unwrap(), num));
                 extract_file(&mut file, &new_path);
-                queue.push(new_path);
+                queue.push(Some(new_path));
             }
         }
     }
@@ -255,7 +254,7 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: Arc<MsQueue<PathBuf
 
 #[test]
 fn test_zip_producer() {
-    let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
+    let queue: Arc<MsQueue<Option<PathBuf>>> = Arc::new(MsQueue::new());
     let queue_consumer = queue.clone();
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
@@ -275,7 +274,7 @@ fn test_zip_producer() {
         "sub/prova2_2.gcda".to_string(),
     ];
 
-    let mut vec: Vec<PathBuf> = Vec::new();
+    let mut vec: Vec<Option<PathBuf>> = Vec::new();
     for _ in 0..endswith_strings.len() {
         vec.push(queue_consumer.pop());
     }
@@ -283,11 +282,12 @@ fn test_zip_producer() {
     assert_eq!(vec.len(), 10);
 
     for endswith_string in endswith_strings.iter() {
-        assert!(vec.iter().any(|&ref x| x.ends_with(endswith_string)), "Missing {}", endswith_string);
+        assert!(vec.iter().any(|x| x.clone().unwrap().ends_with(endswith_string)), "Missing {}", endswith_string);
     }
 
     // Assert file exists and file with the same name but with extension .gcno exists.
     for f in vec.iter() {
+        let f = f.clone().unwrap();
         assert!(f.exists(), "{} doesn't exist", f.display());
         let gcno = f.with_file_name(format!("{}.gcno", f.file_stem().unwrap().to_str().unwrap()));
         assert!(gcno.exists(), "{} doesn't exist", gcno.display());
@@ -295,7 +295,7 @@ fn test_zip_producer() {
 
     assert_eq!(queue_consumer.try_pop(), None);
 
-    let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
+    let queue: Arc<MsQueue<Option<PathBuf>>> = Arc::new(MsQueue::new());
     let queue_consumer = queue.clone();
 
     zip_producer(&tmp_path, &vec!["test/info1.zip".to_string(), "test/info2.zip".to_string()], queue);
@@ -315,7 +315,7 @@ fn test_zip_producer() {
         "1494603973-2977-7_1.info".to_string(),
     ];
 
-    let mut vec: Vec<PathBuf> = Vec::new();
+    let mut vec: Vec<Option<PathBuf>> = Vec::new();
     for _ in 0..endswith_strings.len() {
         vec.push(queue_consumer.pop());
     }
@@ -323,10 +323,11 @@ fn test_zip_producer() {
     assert_eq!(vec.len(), 12);
 
     for endswith_string in endswith_strings.iter() {
-        assert!(vec.iter().any(|&ref x| x.ends_with(endswith_string)), "Missing {}", endswith_string);
+        assert!(vec.iter().any(|x| x.clone().unwrap().ends_with(endswith_string)), "Missing {}", endswith_string);
     }
 
     for f in vec.iter() {
+        let f = f.clone().unwrap();
         assert!(f.exists(), "{} doesn't exist", f.display());
     }
 
@@ -1209,8 +1210,7 @@ fn main() {
     let tmp_path = tmp_dir.path().to_owned();
 
     let results: Arc<Mutex<HashMap<String,Result>>> = Arc::new(Mutex::new(HashMap::new()));
-    let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
-    let finished_producing = Arc::new(AtomicBool::new(false));
+    let queue: Arc<MsQueue<Option<PathBuf>>> = Arc::new(MsQueue::new());
 
     let producer = {
         let queue = queue.clone();
@@ -1232,30 +1232,21 @@ fn main() {
     for i in 0..num_threads {
         let queue = queue.clone();
         let results = results.clone();
-        let finished_producing = finished_producing.clone();
         let tmp_path = tmp_path.clone();
 
         let t = thread::spawn(move || {
             let working_dir = tmp_path.join(format!("{}", i));
             fs::create_dir(&working_dir).expect("Failed to create working directory");
 
-            loop {
-                if let Some(gcda_path) = queue.try_pop() {
-                    if is_llvm {
-                        run_llvm_gcov(&gcda_path, &working_dir);
-                        for entry in WalkDir::new(&working_dir).min_depth(1) {
-                            process_gcov(entry.unwrap().path(), is_llvm, &results);
-                        }
-                    } else {
-                        run_gcov(&gcda_path, &working_dir);
-                        process_gcov(working_dir.join(gcda_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov").as_path(), is_llvm, &results);
+            while let Some(gcda_path) = queue.pop() {
+                if is_llvm {
+                    run_llvm_gcov(&gcda_path, &working_dir);
+                    for entry in WalkDir::new(&working_dir).min_depth(1) {
+                        process_gcov(entry.unwrap().path(), is_llvm, &results);
                     }
                 } else {
-                    if finished_producing.load(Ordering::Acquire) {
-                        break;
-                    }
-
-                    thread::yield_now();
+                    run_gcov(&gcda_path, &working_dir);
+                    process_gcov(working_dir.join(gcda_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov").as_path(), is_llvm, &results);
                 }
             }
         });
@@ -1264,7 +1255,11 @@ fn main() {
     }
 
     let _ = producer.join();
-    finished_producing.store(true, Ordering::Release);
+
+    // Poison the queue, now that the producer is finished.
+    for _ in 0..num_threads {
+        queue.push(None);
+    }
 
     for parser in parsers {
         let _ = parser.join();
