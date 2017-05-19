@@ -1,3 +1,5 @@
+#![feature(alloc_system)]
+extern crate alloc_system;
 #[macro_use]
 extern crate serde_json;
 extern crate crossbeam;
