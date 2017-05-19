@@ -872,8 +872,7 @@ fn get_digest(path: PathBuf) -> String {
 }
 
 fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &str, prefix_dir: &str, repo_token: &str, service_name: &str, service_number: &str, service_job_number: &str, commit_sha: &str, ignore_global: bool, ignore_not_existing: bool, to_ignore_dir: &Option<String>) {
-    let stdout = io::stdout();
-    let mut stdout = stdout.lock();
+    let source_dir = fs::canonicalize(&source_dir).expect("Source directory does not exist.");
 
     let mut source_files = Vec::new();
 
@@ -890,8 +889,6 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &str, pref
         if ignore_global && !unprefixed.is_relative() {
             continue;
         }
-
-        let source_dir = fs::canonicalize(&source_dir).expect("Source directory does not exist.");
 
         // Get absolute path to source file.
         let path = if unprefixed.is_relative() {
@@ -950,6 +947,8 @@ fn output_coveralls(results: &mut HashMap<String,Result>, source_dir: &str, pref
         }));
     }
 
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
     serde_json::to_writer(&mut stdout, &json!({
         "repo_token": repo_token,
         "git": {
