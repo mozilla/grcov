@@ -94,12 +94,12 @@ fn test_mkfifo() {
     fs::remove_file(test_path).unwrap();
 }
 
-fn producer(directories: Vec<&String>, queue: Arc<MsQueue<PathBuf>>) {
+fn producer(directories: &[String], queue: Arc<MsQueue<PathBuf>>) {
     let gcda_ext = Some(OsStr::new("gcda"));
     let info_ext = Some(OsStr::new("info"));
 
     for directory in directories {
-        for entry in WalkDir::new(directory) {
+        for entry in WalkDir::new(&directory) {
             let entry = entry.expect(format!("Failed to open directory '{}'.", directory).as_str());
             let path = entry.path();
             if path.is_file() && (path.extension() == gcda_ext || path.extension() == info_ext) {
@@ -114,7 +114,7 @@ fn test_producer() {
     let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
     let queue_consumer = queue.clone();
 
-    producer(vec![&"test".to_string()], queue);
+    producer(&vec!["test".to_string()], queue);
 
     let endswith_strings: Vec<String> = vec![
         "grcov/test/Platform.gcda".to_string(),
@@ -147,7 +147,7 @@ fn test_producer() {
     let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
     let queue_consumer = queue.clone();
 
-    producer(vec![&"test/sub".to_string(), &"test/sub2".to_string()], queue);
+    producer(&vec!["test/sub".to_string(), "test/sub2".to_string()], queue);
 
     let endswith_strings: Vec<String> = vec![
         "grcov/test/sub2/RootAccessibleWrap.gcda".to_string(),
@@ -178,7 +178,7 @@ fn extract_file(zip_file: &mut zip::read::ZipFile, path: &PathBuf) {
     io::copy(zip_file, &mut file).expect("Failed to copy file from ZIP");
 }
 
-fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: Arc<MsQueue<PathBuf>>) {
+fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: Arc<MsQueue<PathBuf>>) {
     for (num, zip_file) in zip_files.iter().enumerate() {
         let mut archive = open_archive(zip_file);
 
@@ -227,7 +227,7 @@ fn test_zip_producer() {
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
-    zip_producer(&tmp_path, &vec![&"test/gcno.zip".to_string(), &"test/gcda1.zip".to_string(), &"test/gcda2.zip".to_string()], queue);
+    zip_producer(&tmp_path, &vec!["test/gcno.zip".to_string(), "test/gcda1.zip".to_string(), "test/gcda2.zip".to_string()], queue);
 
     let endswith_strings: Vec<String> = vec![
         "Platform_1.gcda".to_string(),
@@ -265,7 +265,7 @@ fn test_zip_producer() {
     let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
     let queue_consumer = queue.clone();
 
-    zip_producer(&tmp_path, &vec![&"test/info1.zip".to_string(), &"test/info2.zip".to_string()], queue);
+    zip_producer(&tmp_path, &vec!["test/info1.zip".to_string(), "test/info2.zip".to_string()], queue);
 
     let endswith_strings: Vec<String> = vec![
         "1494603967-2977-2_0.info".to_string(),
@@ -1043,7 +1043,7 @@ fn main() {
     let mut ignore_not_existing: bool = false;
     let mut to_ignore_dir: &String = &"".to_string();
     let mut is_llvm: bool = false;
-    let mut directories: Vec<&String> = Vec::new();
+    let mut directories: Vec<String> = Vec::new();
     let mut i = 1;
     let mut is_zip = false;
     while i < args.len() {
@@ -1137,7 +1137,7 @@ fn main() {
         } else if args[i] == "--llvm" {
             is_llvm = true;
         } else {
-            directories.push(&args[i])
+            directories.push(args[i].to_owned());
         }
 
         i += 1;
@@ -1180,6 +1180,19 @@ fn main() {
     let queue: Arc<MsQueue<PathBuf>> = Arc::new(MsQueue::new());
     let finished_producing = Arc::new(AtomicBool::new(false));
 
+    let producer = {
+        let queue = queue.clone();
+        let tmp_path = tmp_path.clone();
+
+        thread::spawn(move || {
+            if is_zip {
+                zip_producer(&tmp_path, &directories, queue);
+            } else {
+                producer(&directories, queue);
+            }
+        })
+    };
+
     let mut parsers = Vec::new();
 
     let num_threads = num_cpus::get() * 2;
@@ -1218,11 +1231,7 @@ fn main() {
         parsers.push(t);
     }
 
-    if is_zip {
-        zip_producer(&tmp_path, &directories, queue);
-    } else {
-        producer(directories, queue);
-    }
+    let _ = producer.join();
     finished_producing.store(true, Ordering::Release);
 
     for parser in parsers {
