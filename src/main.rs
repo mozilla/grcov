@@ -92,7 +92,7 @@ macro_rules! println_stderr(
     } }
 );
 
-fn mkfifo(path: &str) {
+/*fn mkfifo(path: &str) {
     let filename = CString::new(path).unwrap();
     unsafe {
         if libc::mkfifo(filename.as_ptr(), 0o644) != 0 {
@@ -107,7 +107,7 @@ fn test_mkfifo() {
     mkfifo(test_path);
     assert!(Path::new(test_path).exists());
     fs::remove_file(test_path).unwrap();
-}
+}*/
 
 fn producer(directories: &[String], queue: &WorkQueue) {
     let gcda_ext = Some(OsStr::new("gcda"));
@@ -386,7 +386,7 @@ fn parse_lcov(lcov_path: &Path) -> Vec<(String,CovResult)> {
 
     let mut results = Vec::new();
 
-    let f = File::open(&lcov_path).expect("Failed to open gcov file");
+    let f = File::open(&lcov_path).expect("Failed to open lcov file");
     let file = BufReader::new(&f);
     for line in file.lines() {
         let l = line.unwrap();
