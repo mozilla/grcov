@@ -179,19 +179,61 @@ fn extract_file(zip_file: &mut zip::read::ZipFile, path: &PathBuf) {
 }
 
 fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: Arc<MsQueue<PathBuf>>) {
-    for (num, zip_file) in zip_files.iter().enumerate() {
-        let mut archive = open_archive(zip_file);
+    let mut gcno_archive: Option<ZipArchive<File>> = None;
+    let mut gcda_archives: Vec<ZipArchive<File>> = Vec::new();
+    let mut info_archives: Vec<ZipArchive<File>> = Vec::new();
 
-        let (archive_type, num) = if zip_file.contains("gcno") {
-            ("gcno", 1)
+    for zip_file in zip_files.iter() {
+        let archive = open_archive(zip_file);
+        if zip_file.contains("gcno") {
+            gcno_archive = Some(archive);
         } else if zip_file.contains("gcda") {
-            ("gcda", num)
+            gcda_archives.push(archive);
         } else if zip_file.contains("info") {
-            ("info", num)
+            info_archives.push(archive);
         } else {
-            panic!("Unsupported type.");
-        };
+            panic!("Unsupported archive type.");
+        }
+    }
 
+    if let Some(mut gcno_archive) = gcno_archive {
+        for i in 0..gcno_archive.len() {
+            let mut gcno_file = gcno_archive.by_index(i).unwrap();
+            let gcno_path_in_zip = PathBuf::from(gcno_file.name());
+            let gcda_path_in_zip = gcno_path_in_zip.with_extension("gcda");
+
+            let path = tmp_dir.join(gcno_path_in_zip);
+            let stem = path.file_stem().unwrap().to_str().unwrap();
+
+            fs::create_dir_all(path.parent().unwrap()).expect("Failed to create directory");
+
+            if gcno_file.name().ends_with('/') {
+                fs::create_dir_all(&path).expect("Failed to create directory");
+            }
+            else {
+                let gcno_path = path.with_file_name(format!("{}_{}.gcno", stem, 1));
+                extract_file(&mut gcno_file, &gcno_path);
+
+                for (num, gcda_archive) in gcda_archives.iter_mut().enumerate() {
+                    if let Ok(mut gcda_file) = gcda_archive.by_name(gcda_path_in_zip.to_str().unwrap()) {
+                        // Create symlinks.
+                        if num != 0 {
+                            let link_path = path.with_file_name(format!("{}_{}.gcno", stem, num + 1));
+                            fs::hard_link(&gcno_path, &link_path).expect(format!("Failed to create hardlink {}", link_path.display()).as_str());
+                        }
+
+                        let gcda_path = path.with_file_name(format!("{}_{}.gcda", stem, num + 1));
+
+                        extract_file(&mut gcda_file, &gcda_path);
+
+                        queue.push(gcda_path);
+                    }
+                }
+            }
+        }
+    }
+
+    for (num, archive) in info_archives.iter_mut().enumerate() {
         for i in 0..archive.len() {
             let mut file = archive.by_index(i).unwrap();
 
@@ -203,18 +245,9 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: Arc<MsQueue<PathBuf
                 fs::create_dir_all(path).expect("Failed to create directory");
             }
             else {
-                let new_path = path.with_file_name(format!("{}_{}.{}", path.file_stem().unwrap().to_str().unwrap(), num, archive_type));
+                let new_path = path.with_file_name(format!("{}_{}.info", path.file_stem().unwrap().to_str().unwrap(), num));
                 extract_file(&mut file, &new_path);
-
-                if archive_type == "gcno" {
-                    // Create symlinks.
-                    for j in 2..zip_files.len() {
-                        let link_path = path.with_file_name(format!("{}_{}.gcno", path.file_stem().unwrap().to_str().unwrap(), j));
-                        fs::hard_link(&new_path, &link_path).expect(format!("Failed to create hardlink {}", link_path.display()).as_str());
-                    }
-                } else if archive_type == "gcda" || archive_type == "info" {
-                    queue.push(new_path);
-                }
+                queue.push(new_path);
             }
         }
     }
