@@ -481,7 +481,7 @@ fn test_lcov_parser() {
     assert_eq!(func.executed, false);
 }
 
-fn parse_old_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
+fn parse_old_gcov(gcov_path: &Path) -> (String,CovResult) {
     let mut lines_covered = Vec::new();
     let mut lines_uncovered = Vec::new();
     let mut functions: HashMap<String,Function> = HashMap::new();
@@ -533,11 +533,11 @@ fn parse_old_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
         }
     }
 
-    vec![(source_name, CovResult {
+    (source_name, CovResult {
       covered: lines_covered,
       uncovered: lines_uncovered,
       functions: functions,
-    })]
+    })
 }
 
 fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
@@ -730,15 +730,7 @@ fn add_result(mut result: (String,CovResult), map: &mut HashMap<String,CovResult
     };
 }
 
-fn process_gcov(gcov_path: &Path, is_llvm: bool, results_map: &CovResultMap) {
-    let mut results = if is_llvm {
-        parse_old_gcov(gcov_path)
-    } else {
-        parse_gcov(gcov_path)
-    };
-
-    fs::remove_file(gcov_path).unwrap();
-
+fn add_results(mut results: Vec<(String,CovResult)>, results_map: &CovResultMap) {
     let mut map = results_map.lock().unwrap();
     for result in results.drain(..) {
         add_result(result, &mut map);
@@ -1218,7 +1210,7 @@ fn main() {
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
 
-    let results: Arc<CovResultMap> = Arc::new(Mutex::new(HashMap::new()));
+    let result_map: Arc<CovResultMap> = Arc::new(Mutex::new(HashMap::new()));
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let producer = {
@@ -1240,7 +1232,7 @@ fn main() {
 
     for i in 0..num_threads {
         let queue = queue.clone();
-        let results = results.clone();
+        let result_map = result_map.clone();
         let tmp_path = tmp_path.clone();
 
         let t = thread::spawn(move || {
@@ -1248,19 +1240,35 @@ fn main() {
             fs::create_dir(&working_dir).expect("Failed to create working directory");
 
             while let Some(gcda_path) = queue.pop() {
-                if is_llvm {
-                    run_llvm_gcov(&gcda_path, &working_dir);
-                    for entry in WalkDir::new(&working_dir).min_depth(1) {
-                        process_gcov(entry.unwrap().path(), is_llvm, &results);
-                    }
-                } else {
+                let new_results = if !is_llvm {
                     let gcov_path = working_dir.join(gcda_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov");
+
                     if cfg!(unix) {
                         mkfifo(&gcov_path);
                     }
                     run_gcov(&gcda_path, &working_dir);
-                    process_gcov(&gcov_path, is_llvm, &results);
-                }
+
+                    let new_results = parse_gcov(&gcov_path);
+                    fs::remove_file(gcov_path).unwrap();
+
+                    new_results
+                } else {
+                    run_llvm_gcov(&gcda_path, &working_dir);
+
+                    let mut new_results: Vec<(String,CovResult)> = Vec::new();
+
+                    for entry in WalkDir::new(&working_dir).min_depth(1) {
+                        let gcov_path = entry.unwrap();
+                        let gcov_path = gcov_path.path();
+
+                        new_results.push(parse_old_gcov(&gcov_path));
+                        fs::remove_file(gcov_path).unwrap();
+                    }
+
+                    new_results
+                };
+
+                add_results(new_results, &result_map);
             }
         });
 
@@ -1278,15 +1286,15 @@ fn main() {
         let _ = parser.join();
     }
 
-    let results_obj = &mut (*results.lock().unwrap());
+    let result_map = &mut (*result_map.lock().unwrap());
 
-    clean_covered_lines(results_obj);
+    clean_covered_lines(result_map);
 
     if output_type == "ade" {
-        output_activedata_etl(results_obj);
+        output_activedata_etl(result_map);
     } else if output_type == "lcov" {
-        output_lcov(results_obj, source_dir);
+        output_lcov(result_map, source_dir);
     } else if output_type == "coveralls" {
-        output_coveralls(results_obj, source_dir, prefix_dir, repo_token, service_name, service_number, service_job_number, commit_sha, ignore_global, ignore_not_existing, &to_ignore_dir);
+        output_coveralls(result_map, source_dir, prefix_dir, repo_token, service_name, service_number, service_job_number, commit_sha, ignore_global, ignore_not_existing, &to_ignore_dir);
     }
 }
