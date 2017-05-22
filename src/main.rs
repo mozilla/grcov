@@ -36,6 +36,7 @@ use crypto::md5::Md5;
 use crypto::digest::Digest;
 use tempdir::TempDir;
 use uuid::Uuid;
+#[cfg(unix)]
 use std::ffi::CString;
 
 /*
@@ -92,22 +93,28 @@ macro_rules! println_stderr(
     } }
 );
 
-/*fn mkfifo(path: &str) {
-    let filename = CString::new(path).unwrap();
+#[cfg(unix)]
+fn mkfifo<P: AsRef<Path>>(path: P) {
+    let filename = CString::new(path.as_ref().as_os_str().to_str().unwrap()).unwrap();
     unsafe {
         if libc::mkfifo(filename.as_ptr(), 0o644) != 0 {
             panic!("mkfifo fail!");
         }
     }
 }
+#[cfg(windows)]
+fn mkfifo<P: AsRef<Path>>(path: P) {
+}
 
+#[cfg(unix)]
 #[test]
 fn test_mkfifo() {
     let test_path = "/tmp/grcov_mkfifo_test";
+    assert!(!Path::new(test_path).exists());
     mkfifo(test_path);
     assert!(Path::new(test_path).exists());
     fs::remove_file(test_path).unwrap();
-}*/
+}
 
 fn producer(directories: &[String], queue: &WorkQueue) {
     let gcda_ext = Some(OsStr::new("gcda"));
@@ -351,16 +358,21 @@ fn test_zip_producer() {
 }
 
 fn run_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
-    let status = Command::new("gcov")
-                         .arg(gcda_path)
-                         .arg("-i") // Generate intermediate gcov format, faster to parse.
-                         .current_dir(working_dir)
-                         .stdout(Stdio::null())
-                         .stderr(Stdio::null())
-                         .status()
-                         .expect("Failed to execute gcov process");
+    let mut command = Command::new("gcov");
+    let status = command.arg(gcda_path)
+                        .arg("-i") // Generate intermediate gcov format, faster to parse.
+                        .current_dir(working_dir)
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null());
 
-    assert!(status.success(), "gcov wasn't successfully executed");
+    if cfg!(unix) {
+        status.spawn()
+              .expect("Failed to execute gcov process");
+    } else {
+        let status = status.status()
+                           .expect("Failed to execute gcov process");
+        assert!(status.success(), "gcov wasn't successfully executed");
+    }
 }
 
 fn run_llvm_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
@@ -1242,8 +1254,12 @@ fn main() {
                         process_gcov(entry.unwrap().path(), is_llvm, &results);
                     }
                 } else {
+                    let gcov_path = working_dir.join(gcda_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov");
+                    if cfg!(unix) {
+                        mkfifo(&gcov_path);
+                    }
                     run_gcov(&gcda_path, &working_dir);
-                    process_gcov(working_dir.join(gcda_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov").as_path(), is_llvm, &results);
+                    process_gcov(&gcov_path, is_llvm, &results);
                 }
             }
         });
