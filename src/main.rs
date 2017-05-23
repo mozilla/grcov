@@ -1208,7 +1208,7 @@ fn main() {
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
 
-    let result_map: Arc<CovResultMap> = Arc::new(Mutex::new(HashMap::new()));
+    let result_map: Arc<CovResultMap> = Arc::new(Mutex::new(HashMap::with_capacity(20000)));
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let producer = {
