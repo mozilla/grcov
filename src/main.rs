@@ -367,14 +367,14 @@ fn run_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
                         .stdout(Stdio::null())
                         .stderr(Stdio::null());
 
-    if cfg!(unix) {
+    /*if cfg!(unix) {
         status.spawn()
               .expect("Failed to execute gcov process");
-    } else {
+    } else {*/
         let status = status.status()
                            .expect("Failed to execute gcov process");
         assert!(status.success(), "gcov wasn't successfully executed");
-    }
+    //}
 }
 
 fn run_llvm_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
@@ -1241,9 +1241,9 @@ fn main() {
                 let new_results = if !is_llvm {
                     let gcov_path = working_dir.join(gcda_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov");
 
-                    if cfg!(unix) {
+                    /*if cfg!(unix) {
                         mkfifo(&gcov_path);
-                    }
+                    }*/
                     run_gcov(&gcda_path, &working_dir);
 
                     let new_results = parse_gcov(&gcov_path);
