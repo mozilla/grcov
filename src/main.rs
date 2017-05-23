@@ -12,9 +12,10 @@ extern crate zip;
 extern crate tempdir;
 extern crate uuid;
 extern crate libc;
+extern crate fnv;
 
 use std::cmp;
-use std::collections::{HashSet,HashMap};
+use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -36,6 +37,7 @@ use crypto::md5::Md5;
 use crypto::digest::Digest;
 use tempdir::TempDir;
 use uuid::Uuid;
+use fnv::FnvHashSet;
 #[cfg(unix)]
 use std::ffi::CString;
 
@@ -80,8 +82,8 @@ struct Function {
 }
 
 struct CovResult {
-    covered: Vec<u32>,
-    uncovered: Vec<u32>,
+    covered: FnvHashSet<u32>,
+    uncovered: FnvHashSet<u32>,
     functions: HashMap<String,Function>,
 }
 
@@ -392,8 +394,8 @@ fn run_llvm_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
 
 fn parse_lcov(lcov_path: &Path) -> Vec<(String,CovResult)> {
     let mut cur_file = String::new();
-    let mut cur_lines_covered: Vec<u32> = Vec::new();
-    let mut cur_lines_uncovered: Vec<u32> = Vec::new();
+    let mut cur_lines_covered: FnvHashSet<u32> = FnvHashSet::default();
+    let mut cur_lines_uncovered: FnvHashSet<u32> = FnvHashSet::default();
     let mut cur_functions: HashMap<String,Function> = HashMap::new();
 
     let mut results = Vec::new();
@@ -411,8 +413,8 @@ fn parse_lcov(lcov_path: &Path) -> Vec<(String,CovResult)> {
             }));
 
             cur_file = String::new();
-            cur_lines_covered = Vec::new();
-            cur_lines_uncovered = Vec::new();
+            cur_lines_covered = FnvHashSet::default();
+            cur_lines_uncovered = FnvHashSet::default();
             cur_functions = HashMap::new();
         } else {
             let mut key_value = l.splitn(2, ':');
@@ -432,9 +434,9 @@ fn parse_lcov(lcov_path: &Path) -> Vec<(String,CovResult)> {
                     let line_no = values.next().unwrap().parse().unwrap();
                     let execution_count = values.next().unwrap();
                     if execution_count == "0" || execution_count.starts_with('-') {
-                        cur_lines_uncovered.push(line_no);
+                        cur_lines_uncovered.insert(line_no);
                     } else {
-                        cur_lines_covered.push(line_no);
+                        cur_lines_covered.insert(line_no);
                     }
                 },
                 "FN" => {
@@ -469,8 +471,8 @@ fn test_lcov_parser() {
 
     let ref result1 = results[0];
     assert_eq!(result1.0, "resource://gre/components/MainProcessSingleton.js");
-    assert_eq!(result1.1.covered, vec![7,9,10,12,13,12,16,17,18,19,18,21,28,67,90,68,70,74,75,76,77,78,83,84]);
-    assert_eq!(result1.1.uncovered, vec![22,23,24,29,30,32,33,34,35,37,39,41,42,44,45,46,47,49,50,51,52,53,54,53,55,56,65,59,60,61,63]);
+    assert_eq!(result1.1.covered, [7,9,10,12,13,12,16,17,18,19,18,21,28,67,90,68,70,74,75,76,77,78,83,84].iter().cloned().collect());
+    assert_eq!(result1.1.uncovered, [22,23,24,29,30,32,33,34,35,37,39,41,42,44,45,46,47,49,50,51,52,53,54,53,55,56,65,59,60,61,63].iter().cloned().collect());
     assert!(result1.1.functions.contains_key("MainProcessSingleton"));
     let func = result1.1.functions.get("MainProcessSingleton").unwrap();
     assert_eq!(func.start, 15);
@@ -482,8 +484,8 @@ fn test_lcov_parser() {
 }
 
 fn parse_old_gcov(gcov_path: &Path) -> (String,CovResult) {
-    let mut lines_covered = Vec::new();
-    let mut lines_uncovered = Vec::new();
+    let mut lines_covered = FnvHashSet::default();
+    let mut lines_uncovered = FnvHashSet::default();
     let mut functions: HashMap<String,Function> = HashMap::new();
 
     let f = File::open(gcov_path).expect("Failed to open gcov file");
@@ -526,9 +528,9 @@ fn parse_old_gcov(gcov_path: &Path) -> (String,CovResult) {
             }
 
             if cover == "#####" || cover.starts_with('-') {
-                lines_uncovered.push(line_no);
+                lines_uncovered.insert(line_no);
             } else {
-                lines_covered.push(line_no);
+                lines_covered.insert(line_no);
             }
         }
     }
@@ -542,8 +544,8 @@ fn parse_old_gcov(gcov_path: &Path) -> (String,CovResult) {
 
 fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
     let mut cur_file = String::new();
-    let mut cur_lines_covered: Vec<u32> = Vec::new();
-    let mut cur_lines_uncovered: Vec<u32> = Vec::new();
+    let mut cur_lines_covered: FnvHashSet<u32> = FnvHashSet::default();
+    let mut cur_lines_uncovered: FnvHashSet<u32> = FnvHashSet::default();
     let mut cur_functions: HashMap<String,Function> = HashMap::new();
 
     let mut results = Vec::new();
@@ -567,8 +569,8 @@ fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
                 }
 
                 cur_file = value.to_string();
-                cur_lines_covered = Vec::new();
-                cur_lines_uncovered = Vec::new();
+                cur_lines_covered = FnvHashSet::default();
+                cur_lines_uncovered = FnvHashSet::default();
                 cur_functions = HashMap::new();
             },
             "function" => {
@@ -586,9 +588,9 @@ fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
                 let line_no = values.next().unwrap().parse().unwrap();
                 let execution_count = values.next().unwrap();
                 if execution_count == "0" || execution_count.starts_with('-') {
-                    cur_lines_uncovered.push(line_no);
+                    cur_lines_uncovered.insert(line_no);
                 } else {
-                    cur_lines_covered.push(line_no);
+                    cur_lines_covered.insert(line_no);
                 }
             },
             _ => {}
@@ -615,7 +617,7 @@ fn test_parser() {
     let ref result1 = results[0];
     assert_eq!(result1.0, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/nsExpirationTracker.h");
     assert!(result1.1.covered.is_empty());
-    assert_eq!(result1.1.uncovered, vec![393,397,399,401,402,403,405]);
+    assert_eq!(result1.1.uncovered, [393,397,399,401,402,403,405].iter().cloned().collect());
     assert!(result1.1.functions.contains_key("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv"));
     let mut func = result1.1.functions.get("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv").unwrap();
     assert_eq!(func.start, 393);
@@ -623,8 +625,8 @@ fn test_parser() {
 
     let ref result5 = results[5];
     assert_eq!(result5.0, "/home/marco/Documenti/FD/mozilla-central/accessible/atk/Platform.cpp");
-    assert_eq!(result5.1.covered, vec![136, 138, 216, 218, 226, 253, 261, 265, 268, 274, 277, 278, 281, 288, 289, 293, 294, 295, 298, 303, 306, 307, 309, 311, 312, 316, 317, 321, 322, 323, 324, 327, 328, 329, 330, 331, 332, 333, 338, 339, 340, 352, 353, 354, 355, 361, 362, 364, 365]);
-    assert_eq!(result5.1.uncovered, vec![81, 83, 85, 87, 88, 90, 94, 96, 97, 98, 99, 100, 101, 103, 104, 108, 110, 111, 112, 115, 117, 118, 122, 123, 124, 128, 129, 130, 141, 142, 146, 147, 148, 151, 152, 153, 154, 155, 156, 157, 161, 162, 165, 166, 167, 168, 169, 170, 171, 172, 184, 187, 189, 190, 194, 195, 196, 200, 201, 202, 203, 207, 208, 219, 220, 221, 222, 223, 232, 233, 234, 313, 318, 343, 344, 345, 346, 347, 370, 372, 373, 374, 376]);
+    assert_eq!(result5.1.covered, [136, 138, 216, 218, 226, 253, 261, 265, 268, 274, 277, 278, 281, 288, 289, 293, 294, 295, 298, 303, 306, 307, 309, 311, 312, 316, 317, 321, 322, 323, 324, 327, 328, 329, 330, 331, 332, 333, 338, 339, 340, 352, 353, 354, 355, 361, 362, 364, 365].iter().cloned().collect());
+    assert_eq!(result5.1.uncovered, [81, 83, 85, 87, 88, 90, 94, 96, 97, 98, 99, 100, 101, 103, 104, 108, 110, 111, 112, 115, 117, 118, 122, 123, 124, 128, 129, 130, 141, 142, 146, 147, 148, 151, 152, 153, 154, 155, 156, 157, 161, 162, 165, 166, 167, 168, 169, 170, 171, 172, 184, 187, 189, 190, 194, 195, 196, 200, 201, 202, 203, 207, 208, 219, 220, 221, 222, 223, 232, 233, 234, 313, 318, 343, 344, 345, 346, 347, 370, 372, 373, 374, 376].iter().cloned().collect());
     assert!(result5.1.functions.contains_key("_ZL13LoadGtkModuleR24GnomeAccessibilityModule"));
     func = result5.1.functions.get("_ZL13LoadGtkModuleR24GnomeAccessibilityModule").unwrap();
     assert_eq!(func.start, 81);
@@ -651,22 +653,22 @@ fn test_parser() {
     let ref negative_count_result = results[14];
     assert_eq!(negative_count_result.0, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/mozilla/Assertions.h");
     assert!(negative_count_result.1.covered.is_empty());
-    assert_eq!(negative_count_result.1.uncovered, vec![40]);
+    assert_eq!(negative_count_result.1.uncovered, [40].iter().cloned().collect());
 
     let results = parse_gcov(Path::new("./test/64bit_count.gcov"));
     assert_eq!(results.len(), 46);
     let ref a64bit_count_result = results[8];
     assert_eq!(a64bit_count_result.0, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/js/HashTable.h");
-    assert_eq!(a64bit_count_result.1.covered, vec![324, 343, 344, 345, 357, 361, 399, 402, 403, 420, 709, 715, 801, 834, 835, 838, 840, 841, 842, 843, 845, 846, 847, 853, 854, 886, 887, 904, 908, 913, 916, 917, 940, 945, 960, 989, 990, 1019, 1029, 1038, 1065, 1075, 1076, 1090, 1112, 1113, 1118, 1119, 1120, 1197, 1202, 1207, 1210, 1211, 1212, 1222, 1223, 1225, 1237, 1238, 1240, 1244, 1250, 1257, 1264, 1278, 1279, 1283, 1284, 1285, 1286, 1289, 1293, 1294, 1297, 1299, 1309, 1310, 1316, 1327, 1329, 1330, 1331, 1337, 1344, 1345, 1353, 1354, 1364, 1372, 1381, 1382, 1385, 1391, 1397, 1400, 1403, 1404, 1405, 1407, 1408, 1412, 1414, 1415, 1417, 1420, 1433, 1442, 1443, 1446, 1452, 1456, 1459, 1461, 1462, 1471, 1474, 1475, 1476, 1477, 1478, 1484, 1485, 1489, 1490, 1491, 1492, 1495, 1496, 1497, 1498, 1499, 1500, 1506, 1507, 1513, 1516, 1518, 1522, 1527, 1530, 1547, 1548, 1549, 1552, 1554, 1571, 1573, 1574, 1575, 1576, 1577, 1580, 1581, 1582, 1693, 1711, 1730, 1732, 1733, 1735, 1736, 1739, 1741, 1743, 1744, 1747, 1749, 1750, 1752, 1753, 1754, 1755, 1759, 1761, 1767, 1772, 1773, 1776, 1777, 1780, 1781, 1785, 1786, 1789, 1790, 1796]);
-    assert_eq!(a64bit_count_result.1.uncovered, vec![822, 825, 826, 828, 829, 831, 844, 1114, 1115, 1280, 1534, 1536, 1537, 1538, 1540, 1589, 1592, 1593,1594,1596,1597,1599,1600, 1601, 1604, 1605, 1606, 1607, 1609, 1610, 1611, 1615, 1616, 1625]);
+    assert_eq!(a64bit_count_result.1.covered, [324, 343, 344, 345, 357, 361, 399, 402, 403, 420, 709, 715, 801, 834, 835, 838, 840, 841, 842, 843, 845, 846, 847, 853, 854, 886, 887, 904, 908, 913, 916, 917, 940, 945, 960, 989, 990, 1019, 1029, 1038, 1065, 1075, 1076, 1090, 1112, 1113, 1118, 1119, 1120, 1197, 1202, 1207, 1210, 1211, 1212, 1222, 1223, 1225, 1237, 1238, 1240, 1244, 1250, 1257, 1264, 1278, 1279, 1283, 1284, 1285, 1286, 1289, 1293, 1294, 1297, 1299, 1309, 1310, 1316, 1327, 1329, 1330, 1331, 1337, 1344, 1345, 1353, 1354, 1364, 1372, 1381, 1382, 1385, 1391, 1397, 1400, 1403, 1404, 1405, 1407, 1408, 1412, 1414, 1415, 1417, 1420, 1433, 1442, 1443, 1446, 1452, 1456, 1459, 1461, 1462, 1471, 1474, 1475, 1476, 1477, 1478, 1484, 1485, 1489, 1490, 1491, 1492, 1495, 1496, 1497, 1498, 1499, 1500, 1506, 1507, 1513, 1516, 1518, 1522, 1527, 1530, 1547, 1548, 1549, 1552, 1554, 1571, 1573, 1574, 1575, 1576, 1577, 1580, 1581, 1582, 1693, 1711, 1730, 1732, 1733, 1735, 1736, 1739, 1741, 1743, 1744, 1747, 1749, 1750, 1752, 1753, 1754, 1755, 1759, 1761, 1767, 1772, 1773, 1776, 1777, 1780, 1781, 1785, 1786, 1789, 1790, 1796].iter().cloned().collect());
+    assert_eq!(a64bit_count_result.1.uncovered, [822, 825, 826, 828, 829, 831, 844, 1114, 1115, 1280, 1534, 1536, 1537, 1538, 1540, 1589, 1592, 1593,1594,1596,1597,1599,1600, 1601, 1604, 1605, 1606, 1607, 1609, 1610, 1611, 1615, 1616, 1625].iter().cloned().collect());
 
     // Assert more stuff.
 }
 
 // Merge results, without caring about duplicate lines (they will be removed at the end).
 fn merge_results(result: &mut CovResult, result2: &mut CovResult) {
-    result.covered.append(&mut result2.covered);
-    result.uncovered.append(&mut result2.uncovered);
+    result.covered = result.covered.union(&result2.covered).cloned().collect();
+    result.uncovered = result.uncovered.union(&result2.uncovered).cloned().collect();
     for (name, function) in result2.functions.drain() {
         match result.functions.entry(name) {
             Entry::Occupied(f) => f.into_mut().executed |= function.executed,
@@ -687,8 +689,8 @@ fn test_merge_results() {
         executed: false,
     });
     let mut result = CovResult {
-        covered: vec![1, 2],
-        uncovered: vec![1, 7],
+        covered: [1, 2].iter().cloned().collect(),
+        uncovered: [1, 7].iter().cloned().collect(),
         functions: functions1,
     };
     let mut functions2: HashMap<String,Function> = HashMap::new();
@@ -701,14 +703,14 @@ fn test_merge_results() {
         executed: true,
     });
     let mut result2 = CovResult {
-        covered: vec![3, 4],
-        uncovered: vec![1, 2, 8],
+        covered: [3, 4].iter().cloned().collect(),
+        uncovered: [1, 2, 8].iter().cloned().collect(),
         functions: functions2,
     };
 
     merge_results(&mut result, &mut result2);
-    assert_eq!(result.covered, vec![1, 2, 3, 4]);
-    assert_eq!(result.uncovered, vec![1, 7, 1, 2, 8]);
+    assert_eq!(result.covered, [1, 2, 3, 4].iter().cloned().collect());
+    assert_eq!(result.uncovered, [1, 7, 1, 2, 8].iter().cloned().collect());
     assert!(result.functions.contains_key("f1"));
     assert!(result.functions.contains_key("f2"));
     let mut func = result.functions.get("f1").unwrap();
@@ -739,15 +741,7 @@ fn add_results(mut results: Vec<(String,CovResult)>, results_map: &CovResultMap)
 
 fn clean_covered_lines(results: &mut HashMap<String,CovResult>) {
     for result in results.values_mut() {
-        let result = &mut (*result);
-        result.covered.sort();
-        result.covered.dedup();
-
-        result.uncovered.sort();
-        result.uncovered.dedup();
-
-        let set: HashSet<_> = result.covered.iter().collect();
-        result.uncovered.retain(|x| !set.contains(x));
+        result.uncovered = result.uncovered.difference(&result.covered).cloned().collect();
     }
 }
 
@@ -757,10 +751,15 @@ fn to_activedata_etl_vec(normal_vec: &[u32]) -> Vec<Value> {
 
 fn output_activedata_etl(results: &mut HashMap<String,CovResult>) {
     for (key, result) in results {
-        let mut orphan_covered: HashSet<u32> = result.covered.iter().cloned().collect();
-        let mut orphan_uncovered: HashSet<u32> = result.uncovered.iter().cloned().collect();
+        let mut covered: Vec<u32> = result.covered.iter().cloned().collect();
+        covered.sort();
+        let mut uncovered: Vec<u32> = result.uncovered.iter().cloned().collect();
+        uncovered.sort();
 
-        let end: u32 = cmp::max(result.covered.last().unwrap_or(&0), result.uncovered.last().unwrap_or(&0)) + 1;
+        let mut orphan_covered: FnvHashSet<u32> = result.covered.iter().cloned().collect();
+        let mut orphan_uncovered: FnvHashSet<u32> = result.uncovered.iter().cloned().collect();
+
+        let end: u32 = cmp::max(result.covered.iter().max().unwrap_or(&0), result.uncovered.iter().max().unwrap_or(&0)) + 1;
 
         let mut start_indexes: Vec<u32> = Vec::new();
         for function in result.functions.values() {
@@ -781,7 +780,7 @@ fn output_activedata_etl(results: &mut HashMap<String,CovResult>) {
             }
 
             let mut lines_covered: Vec<Value> = Vec::new();
-            for line in result.covered.iter().filter(|&&x| x >= function.start && x < func_end) {
+            for line in covered.iter().filter(|&&x| x >= function.start && x < func_end) {
                 lines_covered.push(json!({
                     "line": *line
                 }));
@@ -789,7 +788,7 @@ fn output_activedata_etl(results: &mut HashMap<String,CovResult>) {
             }
 
             let mut lines_uncovered: Vec<u32> = Vec::new();
-            for line in result.uncovered.iter().filter(|&&x| x >= function.start && x < func_end) {
+            for line in uncovered.iter().filter(|&&x| x >= function.start && x < func_end) {
                 lines_uncovered.push(*line);
                 orphan_uncovered.remove(line);
             }
@@ -821,8 +820,8 @@ fn output_activedata_etl(results: &mut HashMap<String,CovResult>) {
             "is_file": true,
             "file": {
                 "name": key,
-                "covered": to_activedata_etl_vec(&result.covered),
-                "uncovered": result.uncovered,
+                "covered": to_activedata_etl_vec(&covered),
+                "uncovered": uncovered,
                 "total_covered": result.covered.len(),
                 "total_uncovered": result.uncovered.len(),
                 "percentage_covered": result.covered.len() as f32 / (result.covered.len() + result.uncovered.len()) as f32,
@@ -877,8 +876,7 @@ fn output_lcov(results: &mut HashMap<String,CovResult>, source_dir: &str) {
         for line in &result.uncovered {
             lines_map.insert(*line, 0);
         }
-        let mut all_lines: Vec<u32> = result.covered.clone();
-        all_lines.append(&mut result.uncovered.clone());
+        let mut all_lines: Vec<u32> = result.covered.union(&result.uncovered).cloned().collect();
         all_lines.sort();
         for line in &all_lines {
             write!(writer, "DA:{},{}\n", line, lines_map[line]).unwrap();
@@ -953,7 +951,7 @@ fn output_coveralls(results: &mut HashMap<String,CovResult>, source_dir: &str, p
             continue;
         }
 
-        let end: u32 = cmp::max(result.covered.last().unwrap_or(&0), result.uncovered.last().unwrap_or(&0)) + 1;
+        let end: u32 = cmp::max(result.covered.iter().max().unwrap_or(&0), result.uncovered.iter().max().unwrap_or(&0)) + 1;
 
         let mut lines_map: HashMap<u32,u8> = HashMap::new();
         for line in &result.covered {
@@ -1261,7 +1259,7 @@ fn main() {
                         let gcov_path = entry.unwrap();
                         let gcov_path = gcov_path.path();
 
-                        new_results.push(parse_old_gcov(&gcov_path));
+                        new_results.push(parse_old_gcov(gcov_path));
                         fs::remove_file(gcov_path).unwrap();
                     }
 
