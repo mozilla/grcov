@@ -12,11 +12,8 @@ extern crate zip;
 extern crate tempdir;
 extern crate uuid;
 extern crate libc;
-extern crate fnv;
 
-use std::cmp;
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
+use std::collections::{BTreeSet, BTreeMap, btree_map, HashMap, hash_map};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::ffi::OsStr;
@@ -37,7 +34,6 @@ use crypto::md5::Md5;
 use crypto::digest::Digest;
 use tempdir::TempDir;
 use uuid::Uuid;
-use fnv::FnvHashSet;
 #[cfg(unix)]
 use std::ffi::CString;
 
@@ -82,8 +78,7 @@ struct Function {
 }
 
 struct CovResult {
-    covered: FnvHashSet<u32>,
-    uncovered: FnvHashSet<u32>,
+    lines: BTreeMap<u32,u64>,
     functions: HashMap<String,Function>,
 }
 
@@ -394,8 +389,7 @@ fn run_llvm_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
 
 fn parse_lcov(lcov_path: &Path) -> Vec<(String,CovResult)> {
     let mut cur_file = String::new();
-    let mut cur_lines_covered: FnvHashSet<u32> = FnvHashSet::default();
-    let mut cur_lines_uncovered: FnvHashSet<u32> = FnvHashSet::default();
+    let mut cur_lines: BTreeMap<u32,u64> = BTreeMap::new();
     let mut cur_functions: HashMap<String,Function> = HashMap::new();
 
     let mut results = Vec::new();
@@ -407,14 +401,12 @@ fn parse_lcov(lcov_path: &Path) -> Vec<(String,CovResult)> {
 
         if l == "end_of_record" {
             results.push((cur_file, CovResult {
-                covered: cur_lines_covered,
-                uncovered: cur_lines_uncovered,
+                lines: cur_lines,
                 functions: cur_functions,
             }));
 
             cur_file = String::new();
-            cur_lines_covered = FnvHashSet::default();
-            cur_lines_uncovered = FnvHashSet::default();
+            cur_lines = BTreeMap::new();
             cur_functions = HashMap::new();
         } else {
             let mut key_value = l.splitn(2, ':');
@@ -434,9 +426,9 @@ fn parse_lcov(lcov_path: &Path) -> Vec<(String,CovResult)> {
                     let line_no = values.next().unwrap().parse().unwrap();
                     let execution_count = values.next().unwrap();
                     if execution_count == "0" || execution_count.starts_with('-') {
-                        cur_lines_uncovered.insert(line_no);
+                        cur_lines.insert(line_no, 0);
                     } else {
-                        cur_lines_covered.insert(line_no);
+                        cur_lines.insert(line_no, execution_count.parse().unwrap());
                     }
                 },
                 "FN" => {
@@ -469,23 +461,21 @@ fn test_lcov_parser() {
 
     assert_eq!(results.len(), 603);
 
-    let ref result1 = results[0];
-    assert_eq!(result1.0, "resource://gre/components/MainProcessSingleton.js");
-    assert_eq!(result1.1.covered, [7,9,10,12,13,12,16,17,18,19,18,21,28,67,90,68,70,74,75,76,77,78,83,84].iter().cloned().collect());
-    assert_eq!(result1.1.uncovered, [22,23,24,29,30,32,33,34,35,37,39,41,42,44,45,46,47,49,50,51,52,53,54,53,55,56,65,59,60,61,63].iter().cloned().collect());
-    assert!(result1.1.functions.contains_key("MainProcessSingleton"));
-    let func = result1.1.functions.get("MainProcessSingleton").unwrap();
+    let ref result = results[0];
+    assert_eq!(result.0, "resource://gre/components/MainProcessSingleton.js");
+    assert_eq!(result.1.lines, [(7,1),(9,1),(10,1),(12,1),(13,1),(16,1),(17,1),(18,1),(19,1),(21,1),(22,0),(23,0),(24,0),(28,1),(29,0),(30,0),(32,0),(33,0),(34,0),(35,0),(37,0),(39,0),(41,0),(42,0),(44,0),(45,0),(46,0),(47,0),(49,0),(50,0),(51,0),(52,0),(53,0),(54,0),(55,0),(56,0),(59,0),(60,0),(61,0),(63,0),(65,0),(67,1),(68,2),(70,1),(74,1),(75,1),(76,1),(77,1),(78,1),(83,1),(84,1),(90,1)].iter().cloned().collect());
+    assert!(result.1.functions.contains_key("MainProcessSingleton"));
+    let func = result.1.functions.get("MainProcessSingleton").unwrap();
     assert_eq!(func.start, 15);
     assert_eq!(func.executed, true);
-    assert!(result1.1.functions.contains_key("logConsoleMessage"));
-    let func = result1.1.functions.get("logConsoleMessage").unwrap();
+    assert!(result.1.functions.contains_key("logConsoleMessage"));
+    let func = result.1.functions.get("logConsoleMessage").unwrap();
     assert_eq!(func.start, 21);
     assert_eq!(func.executed, false);
 }
 
 fn parse_old_gcov(gcov_path: &Path) -> (String,CovResult) {
-    let mut lines_covered = FnvHashSet::default();
-    let mut lines_uncovered = FnvHashSet::default();
+    let mut lines = BTreeMap::new();
     let mut functions: HashMap<String,Function> = HashMap::new();
 
     let f = File::open(gcov_path).expect("Failed to open gcov file");
@@ -528,24 +518,22 @@ fn parse_old_gcov(gcov_path: &Path) -> (String,CovResult) {
             }
 
             if cover == "#####" || cover.starts_with('-') {
-                lines_uncovered.insert(line_no);
+                lines.insert(line_no, 0);
             } else {
-                lines_covered.insert(line_no);
+                lines.insert(line_no, cover.parse().unwrap());
             }
         }
     }
 
     (source_name, CovResult {
-      covered: lines_covered,
-      uncovered: lines_uncovered,
+      lines: lines,
       functions: functions,
     })
 }
 
 fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
     let mut cur_file = String::new();
-    let mut cur_lines_covered: FnvHashSet<u32> = FnvHashSet::default();
-    let mut cur_lines_uncovered: FnvHashSet<u32> = FnvHashSet::default();
+    let mut cur_lines: BTreeMap<u32,u64> = BTreeMap::new();
     let mut cur_functions: HashMap<String,Function> = HashMap::new();
 
     let mut results = Vec::new();
@@ -559,18 +547,16 @@ fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
         let value = key_value.next().unwrap();
         match key {
             "file" => {
-                if !cur_file.is_empty() && (!cur_lines_covered.is_empty() || !cur_lines_uncovered.is_empty()) {
-                    // println!("{} {} {:?} {:?}", gcov_path.display(), cur_file, cur_lines_covered, cur_lines_uncovered);
+                if !cur_file.is_empty() && !cur_lines.is_empty() {
+                    // println!("{} {} {:?}", gcov_path.display(), cur_file, cur_lines);
                     results.push((cur_file, CovResult {
-                        covered: cur_lines_covered,
-                        uncovered: cur_lines_uncovered,
+                        lines: cur_lines,
                         functions: cur_functions,
                     }));
                 }
 
                 cur_file = value.to_string();
-                cur_lines_covered = FnvHashSet::default();
-                cur_lines_uncovered = FnvHashSet::default();
+                cur_lines = BTreeMap::new();
                 cur_functions = HashMap::new();
             },
             "function" => {
@@ -588,19 +574,18 @@ fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
                 let line_no = values.next().unwrap().parse().unwrap();
                 let execution_count = values.next().unwrap();
                 if execution_count == "0" || execution_count.starts_with('-') {
-                    cur_lines_uncovered.insert(line_no);
+                    cur_lines.insert(line_no, 0);
                 } else {
-                    cur_lines_covered.insert(line_no);
+                    cur_lines.insert(line_no, execution_count.parse().unwrap());
                 }
             },
             _ => {}
         }
     }
 
-    if !cur_lines_covered.is_empty() || !cur_lines_uncovered.is_empty() {
+    if !cur_lines.is_empty() {
         results.push((cur_file, CovResult {
-            covered: cur_lines_covered,
-            uncovered: cur_lines_uncovered,
+            lines: cur_lines,
             functions: cur_functions,
         }));
     }
@@ -614,65 +599,72 @@ fn test_parser() {
 
     assert_eq!(results.len(), 10);
 
-    let ref result1 = results[0];
-    assert_eq!(result1.0, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/nsExpirationTracker.h");
-    assert!(result1.1.covered.is_empty());
-    assert_eq!(result1.1.uncovered, [393,397,399,401,402,403,405].iter().cloned().collect());
-    assert!(result1.1.functions.contains_key("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv"));
-    let mut func = result1.1.functions.get("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv").unwrap();
+    let ref result = results[0];
+    assert_eq!(result.0, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/nsExpirationTracker.h");
+    assert_eq!(result.1.lines, [(393,0),(397,0),(399,0),(401,0),(402,0),(403,0),(405,0)].iter().cloned().collect());
+    assert!(result.1.functions.contains_key("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv"));
+    let mut func = result.1.functions.get("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv").unwrap();
     assert_eq!(func.start, 393);
     assert_eq!(func.executed, false);
 
-    let ref result5 = results[5];
-    assert_eq!(result5.0, "/home/marco/Documenti/FD/mozilla-central/accessible/atk/Platform.cpp");
-    assert_eq!(result5.1.covered, [136, 138, 216, 218, 226, 253, 261, 265, 268, 274, 277, 278, 281, 288, 289, 293, 294, 295, 298, 303, 306, 307, 309, 311, 312, 316, 317, 321, 322, 323, 324, 327, 328, 329, 330, 331, 332, 333, 338, 339, 340, 352, 353, 354, 355, 361, 362, 364, 365].iter().cloned().collect());
-    assert_eq!(result5.1.uncovered, [81, 83, 85, 87, 88, 90, 94, 96, 97, 98, 99, 100, 101, 103, 104, 108, 110, 111, 112, 115, 117, 118, 122, 123, 124, 128, 129, 130, 141, 142, 146, 147, 148, 151, 152, 153, 154, 155, 156, 157, 161, 162, 165, 166, 167, 168, 169, 170, 171, 172, 184, 187, 189, 190, 194, 195, 196, 200, 201, 202, 203, 207, 208, 219, 220, 221, 222, 223, 232, 233, 234, 313, 318, 343, 344, 345, 346, 347, 370, 372, 373, 374, 376].iter().cloned().collect());
-    assert!(result5.1.functions.contains_key("_ZL13LoadGtkModuleR24GnomeAccessibilityModule"));
-    func = result5.1.functions.get("_ZL13LoadGtkModuleR24GnomeAccessibilityModule").unwrap();
+    let ref result = results[5];
+    assert_eq!(result.0, "/home/marco/Documenti/FD/mozilla-central/accessible/atk/Platform.cpp");
+    assert_eq!(result.1.lines, [(81,0),(83,0),(85,0),(87,0),(88,0),(90,0),(94,0),(96,0),(97,0),(98,0),(99,0),(100,0),(101,0),(103,0),(104,0),(108,0),(110,0),(111,0),(112,0),(115,0),(117,0),(118,0),(122,0),(123,0),(124,0),(128,0),(129,0),(130,0),(136,17),(138,17),(141,0),(142,0),(146,0),(147,0),(148,0),(151,0),(152,0),(153,0),(154,0),(155,0),(156,0),(157,0),(161,0),(162,0),(165,0),(166,0),(167,0),(168,0),(169,0),(170,0),(171,0),(172,0),(184,0),(187,0),(189,0),(190,0),(194,0),(195,0),(196,0),(200,0),(201,0),(202,0),(203,0),(207,0),(208,0),(216,17),(218,17),(219,0),(220,0),(221,0),(222,0),(223,0),(226,17),(232,0),(233,0),(234,0),(253,17),(261,11390),(265,11390),(268,373),(274,373),(277,373),(278,373),(281,373),(288,373),(289,373),(293,373),(294,373),(295,373),(298,373),(303,5794),(306,5794),(307,5558),(309,236),(311,236),(312,236),(313,0),(316,236),(317,236),(318,0),(321,236),(322,236),(323,236),(324,236),(327,236),(328,236),(329,236),(330,236),(331,472),(332,472),(333,236),(338,236),(339,236),(340,236),(343,0),(344,0),(345,0),(346,0),(347,0),(352,236),(353,236),(354,236),(355,236),(361,236),(362,236),(364,236),(365,236),(370,0),(372,0),(373,0),(374,0),(376,0)].iter().cloned().collect());
+    assert!(result.1.functions.contains_key("_ZL13LoadGtkModuleR24GnomeAccessibilityModule"));
+    func = result.1.functions.get("_ZL13LoadGtkModuleR24GnomeAccessibilityModule").unwrap();
     assert_eq!(func.start, 81);
     assert_eq!(func.executed, false);
-    assert!(result5.1.functions.contains_key("_ZN7mozilla4a11y12PlatformInitEv"));
-    func = result5.1.functions.get("_ZN7mozilla4a11y12PlatformInitEv").unwrap();
+    assert!(result.1.functions.contains_key("_ZN7mozilla4a11y12PlatformInitEv"));
+    func = result.1.functions.get("_ZN7mozilla4a11y12PlatformInitEv").unwrap();
     assert_eq!(func.start, 136);
     assert_eq!(func.executed, true);
-    assert!(result5.1.functions.contains_key("_ZN7mozilla4a11y16PlatformShutdownEv"));
-    func = result5.1.functions.get("_ZN7mozilla4a11y16PlatformShutdownEv").unwrap();
+    assert!(result.1.functions.contains_key("_ZN7mozilla4a11y16PlatformShutdownEv"));
+    func = result.1.functions.get("_ZN7mozilla4a11y16PlatformShutdownEv").unwrap();
     assert_eq!(func.start, 216);
     assert_eq!(func.executed, true);
-    assert!(result5.1.functions.contains_key("_ZN7mozilla4a11y7PreInitEv"));
-    func = result5.1.functions.get("_ZN7mozilla4a11y7PreInitEv").unwrap();
+    assert!(result.1.functions.contains_key("_ZN7mozilla4a11y7PreInitEv"));
+    func = result.1.functions.get("_ZN7mozilla4a11y7PreInitEv").unwrap();
     assert_eq!(func.start, 261);
     assert_eq!(func.executed, true);
-    assert!(result5.1.functions.contains_key("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv"));
-    func = result5.1.functions.get("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv").unwrap();
+    assert!(result.1.functions.contains_key("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv"));
+    func = result.1.functions.get("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv").unwrap();
     assert_eq!(func.start, 303);
     assert_eq!(func.executed, true);
 
     let results = parse_gcov(Path::new("./test/negative_counts.gcov"));
     assert_eq!(results.len(), 118);
-    let ref negative_count_result = results[14];
-    assert_eq!(negative_count_result.0, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/mozilla/Assertions.h");
-    assert!(negative_count_result.1.covered.is_empty());
-    assert_eq!(negative_count_result.1.uncovered, [40].iter().cloned().collect());
+    let ref result = results[14];
+    assert_eq!(result.0, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/mozilla/Assertions.h");
+    assert_eq!(result.1.lines, [(40,0)].iter().cloned().collect());
 
     let results = parse_gcov(Path::new("./test/64bit_count.gcov"));
     assert_eq!(results.len(), 46);
-    let ref a64bit_count_result = results[8];
-    assert_eq!(a64bit_count_result.0, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/js/HashTable.h");
-    assert_eq!(a64bit_count_result.1.covered, [324, 343, 344, 345, 357, 361, 399, 402, 403, 420, 709, 715, 801, 834, 835, 838, 840, 841, 842, 843, 845, 846, 847, 853, 854, 886, 887, 904, 908, 913, 916, 917, 940, 945, 960, 989, 990, 1019, 1029, 1038, 1065, 1075, 1076, 1090, 1112, 1113, 1118, 1119, 1120, 1197, 1202, 1207, 1210, 1211, 1212, 1222, 1223, 1225, 1237, 1238, 1240, 1244, 1250, 1257, 1264, 1278, 1279, 1283, 1284, 1285, 1286, 1289, 1293, 1294, 1297, 1299, 1309, 1310, 1316, 1327, 1329, 1330, 1331, 1337, 1344, 1345, 1353, 1354, 1364, 1372, 1381, 1382, 1385, 1391, 1397, 1400, 1403, 1404, 1405, 1407, 1408, 1412, 1414, 1415, 1417, 1420, 1433, 1442, 1443, 1446, 1452, 1456, 1459, 1461, 1462, 1471, 1474, 1475, 1476, 1477, 1478, 1484, 1485, 1489, 1490, 1491, 1492, 1495, 1496, 1497, 1498, 1499, 1500, 1506, 1507, 1513, 1516, 1518, 1522, 1527, 1530, 1547, 1548, 1549, 1552, 1554, 1571, 1573, 1574, 1575, 1576, 1577, 1580, 1581, 1582, 1693, 1711, 1730, 1732, 1733, 1735, 1736, 1739, 1741, 1743, 1744, 1747, 1749, 1750, 1752, 1753, 1754, 1755, 1759, 1761, 1767, 1772, 1773, 1776, 1777, 1780, 1781, 1785, 1786, 1789, 1790, 1796].iter().cloned().collect());
-    assert_eq!(a64bit_count_result.1.uncovered, [822, 825, 826, 828, 829, 831, 844, 1114, 1115, 1280, 1534, 1536, 1537, 1538, 1540, 1589, 1592, 1593,1594,1596,1597,1599,1600, 1601, 1604, 1605, 1606, 1607, 1609, 1610, 1611, 1615, 1616, 1625].iter().cloned().collect());
+    let ref result = results[8];
+    assert_eq!(result.0, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/js/HashTable.h");
+    assert_eq!(result.1.lines, [(324,8096),(343,12174),(344,6085),(345,23331),(357,10720),(361,313165934),(399,272539208),(402,31491125),(403,35509735),(420,434104),(709,313172766),(715,272542535),(801,584943263),(822,0),(825,0),(826,0),(828,0),(829,0),(831,0),(834,2210404897),(835,196249666),(838,3764974),(840,516370744),(841,1541684),(842,2253988941),(843,197245483),(844,0),(845,5306658),(846,821426720),(847,47096565),(853,82598134),(854,247796865),(886,272542256),(887,272542256),(904,599154437),(908,584933028),(913,584943263),(916,543534922),(917,584933028),(940,508959481),(945,1084660344),(960,545084512),(989,534593),(990,128435),(1019,427973453),(1029,504065334),(1038,1910289238),(1065,425402),(1075,10613316),(1076,5306658),(1090,392499332),(1112,48208),(1113,48208),(1114,0),(1115,0),(1118,48211),(1119,8009),(1120,48211),(1197,40347),(1202,585715301),(1207,1171430602),(1210,585715301),(1211,910968),(1212,585715301),(1222,30644),(1223,70165),(1225,1647),(1237,4048),(1238,4048),(1240,8096),(1244,6087),(1250,6087),(1257,6085),(1264,6085),(1278,6085),(1279,6085),(1280,0),(1283,6085),(1284,66935),(1285,30425),(1286,30425),(1289,6085),(1293,12171),(1294,6086),(1297,6087),(1299,6087),(1309,4048),(1310,4048),(1316,632104110),(1327,251893735),(1329,251893735),(1330,251893735),(1331,503787470),(1337,528619265),(1344,35325952),(1345,35325952),(1353,26236),(1354,13118),(1364,305520839),(1372,585099705),(1381,585099705),(1382,585099705),(1385,585099705),(1391,1135737600),(1397,242807686),(1400,242807686),(1403,1032741488),(1404,1290630),(1405,1042115),(1407,515080114),(1408,184996962),(1412,516370744),(1414,516370744),(1415,516370744),(1417,154330912),(1420,812664176),(1433,47004405),(1442,47004405),(1443,47004405),(1446,94008810),(1452,9086049),(1456,24497042),(1459,12248521),(1461,12248521),(1462,24497042),(1471,30642),(1474,30642),(1475,30642),(1476,30642),(1477,30642),(1478,30642),(1484,64904),(1485,34260),(1489,34260),(1490,34260),(1491,34260),(1492,34260),(1495,34260),(1496,69792911),(1497,139524496),(1498,94193130),(1499,47096565),(1500,47096565),(1506,61326),(1507,30663),(1513,58000),(1516,35325952),(1518,35325952),(1522,29000),(1527,29000),(1530,29000),(1534,0),(1536,0),(1537,0),(1538,0),(1540,0),(1547,10613316),(1548,1541684),(1549,1541684),(1552,3764974),(1554,5306658),(1571,8009),(1573,8009),(1574,8009),(1575,31345),(1576,5109),(1577,5109),(1580,8009),(1581,1647),(1582,8009),(1589,0),(1592,0),(1593,0),(1594,0),(1596,0),(1597,0),(1599,0),(1600,0),(1601,0),(1604,0),(1605,0),(1606,0),(1607,0),(1609,0),(1610,0),(1611,0),(1615,0),(1616,0),(1625,0),(1693,655507),(1711,35615006),(1730,10720),(1732,10720),(1733,10720),(1735,10720),(1736,10720),(1739,313162046),(1741,313162046),(1743,313162046),(1744,313162046),(1747,272542535),(1749,272542535),(1750,272542535),(1752,272542535),(1753,272542535),(1754,272542256),(1755,272542256),(1759,35509724),(1761,35509724),(1767,71019448),(1772,35505028),(1773,179105),(1776,179105),(1777,179105),(1780,35325923),(1781,35326057),(1785,35326058),(1786,29011),(1789,71010332),(1790,35505166),(1796,35505166)].iter().cloned().collect());
 
     // Assert more stuff.
 }
 
 // Merge results, without caring about duplicate lines (they will be removed at the end).
 fn merge_results(result: &mut CovResult, result2: &mut CovResult) {
-    result.covered = result.covered.union(&result2.covered).cloned().collect();
-    result.uncovered = result.uncovered.union(&result2.uncovered).cloned().collect();
+    for (&line_no, &execution_count) in &result2.lines {
+        match result.lines.entry(line_no) {
+            btree_map::Entry::Occupied(c) => {
+                *c.into_mut() += execution_count;
+            },
+            btree_map::Entry::Vacant(v) => {
+                v.insert(execution_count);
+            }
+        };
+    }
+
     for (name, function) in result2.functions.drain() {
         match result.functions.entry(name) {
-            Entry::Occupied(f) => f.into_mut().executed |= function.executed,
-            Entry::Vacant(v) => { v.insert(function); }
+            hash_map::Entry::Occupied(f) => f.into_mut().executed |= function.executed,
+            hash_map::Entry::Vacant(v) => {
+                v.insert(function);
+            }
         };
     }
 }
@@ -689,8 +681,7 @@ fn test_merge_results() {
         executed: false,
     });
     let mut result = CovResult {
-        covered: [1, 2].iter().cloned().collect(),
-        uncovered: [1, 7].iter().cloned().collect(),
+        lines: [(1, 21),(2, 7),(7,0)].iter().cloned().collect(),
         functions: functions1,
     };
     let mut functions2: HashMap<String,Function> = HashMap::new();
@@ -703,14 +694,12 @@ fn test_merge_results() {
         executed: true,
     });
     let mut result2 = CovResult {
-        covered: [3, 4].iter().cloned().collect(),
-        uncovered: [1, 2, 8].iter().cloned().collect(),
+        lines: [(1,21),(3,42),(4,7),(2,0),(8,0)].iter().cloned().collect(),
         functions: functions2,
     };
 
     merge_results(&mut result, &mut result2);
-    assert_eq!(result.covered, [1, 2, 3, 4].iter().cloned().collect());
-    assert_eq!(result.uncovered, [1, 7, 1, 2, 8].iter().cloned().collect());
+    assert_eq!(result.lines, [(1,42),(2,7),(3,42),(4,7),(7,0),(8,0)].iter().cloned().collect());
     assert!(result.functions.contains_key("f1"));
     assert!(result.functions.contains_key("f2"));
     let mut func = result.functions.get("f1").unwrap();
@@ -723,10 +712,10 @@ fn test_merge_results() {
 
 fn add_result(mut result: (String,CovResult), map: &mut HashMap<String,CovResult>) {
     match map.entry(result.0) {
-        Entry::Occupied(obj) => {
+        hash_map::Entry::Occupied(obj) => {
             merge_results(obj.into_mut(), &mut result.1);
         },
-        Entry::Vacant(v) => {
+        hash_map::Entry::Vacant(v) => {
             v.insert(result.1);
         }
     };
@@ -739,27 +728,19 @@ fn add_results(mut results: Vec<(String,CovResult)>, results_map: &CovResultMap)
     }
 }
 
-fn clean_covered_lines(results: &mut HashMap<String,CovResult>) {
-    for result in results.values_mut() {
-        result.uncovered = result.uncovered.difference(&result.covered).cloned().collect();
-    }
-}
-
 fn to_activedata_etl_vec(normal_vec: &[u32]) -> Vec<Value> {
     normal_vec.iter().map(|&x| json!({"line": x})).collect()
 }
 
 fn output_activedata_etl(results: &mut HashMap<String,CovResult>) {
     for (key, result) in results {
-        let mut covered: Vec<u32> = result.covered.iter().cloned().collect();
-        covered.sort();
-        let mut uncovered: Vec<u32> = result.uncovered.iter().cloned().collect();
-        uncovered.sort();
+        let covered: Vec<u32> = result.lines.iter().filter(|&(_,v)| *v > 0).map(|(k,_)| k).cloned().collect();
+        let uncovered: Vec<u32> = result.lines.iter().filter(|&(_,v)| *v == 0).map(|(k,_)| k).cloned().collect();
 
-        let mut orphan_covered: FnvHashSet<u32> = result.covered.iter().cloned().collect();
-        let mut orphan_uncovered: FnvHashSet<u32> = result.uncovered.iter().cloned().collect();
+        let mut orphan_covered: BTreeSet<u32> = covered.iter().cloned().collect();
+        let mut orphan_uncovered: BTreeSet<u32> = uncovered.iter().cloned().collect();
 
-        let end: u32 = cmp::max(result.covered.iter().max().unwrap_or(&0), result.uncovered.iter().max().unwrap_or(&0)) + 1;
+        let end: u32 = result.lines.keys().last().unwrap_or(&0) + 1;
 
         let mut start_indexes: Vec<u32> = Vec::new();
         for function in result.functions.values() {
@@ -809,10 +790,8 @@ fn output_activedata_etl(results: &mut HashMap<String,CovResult>) {
             }));
         }
 
-        let mut orphan_covered: Vec<u32> = orphan_covered.into_iter().collect();
-        orphan_covered.sort();
-        let mut orphan_uncovered: Vec<u32> = orphan_uncovered.into_iter().collect();
-        orphan_uncovered.sort();
+        let orphan_covered: Vec<u32> = orphan_covered.into_iter().collect();
+        let orphan_uncovered: Vec<u32> = orphan_uncovered.into_iter().collect();
 
         // The orphan lines will represent the file as a whole.
         println!("{}", json!({
@@ -822,9 +801,9 @@ fn output_activedata_etl(results: &mut HashMap<String,CovResult>) {
                 "name": key,
                 "covered": to_activedata_etl_vec(&covered),
                 "uncovered": uncovered,
-                "total_covered": result.covered.len(),
-                "total_uncovered": result.uncovered.len(),
-                "percentage_covered": result.covered.len() as f32 / (result.covered.len() + result.uncovered.len()) as f32,
+                "total_covered": covered.len(),
+                "total_uncovered": uncovered.len(),
+                "percentage_covered": covered.len() as f32 / (covered.len() + uncovered.len()) as f32,
             },
             "method": {
                 "covered": to_activedata_etl_vec(&orphan_covered),
@@ -844,7 +823,7 @@ fn output_lcov(results: &mut HashMap<String,CovResult>, source_dir: &str) {
     writer.write_all(b"TN:\n").unwrap();
 
     for (key, result) in results {
-        // println!("{} {:?} {:?}", key, result.covered, result.uncovered);
+        // println!("{} {:?}", key, result.lines);
 
         if source_dir != "" {
             let path = PathBuf::from(key);
@@ -869,20 +848,11 @@ fn output_lcov(results: &mut HashMap<String,CovResult>, source_dir: &str) {
             write!(writer, "FNF:{}\n", result.functions.values().filter(|x| x.executed).count()).unwrap();
         }
 
-        let mut lines_map: HashMap<u32,u8> = HashMap::new();
-        for line in &result.covered {
-            lines_map.insert(*line, 1);
+        for (line, execution_count) in &result.lines {
+            write!(writer, "DA:{},{}\n", line, execution_count).unwrap();
         }
-        for line in &result.uncovered {
-            lines_map.insert(*line, 0);
-        }
-        let mut all_lines: Vec<u32> = result.covered.union(&result.uncovered).cloned().collect();
-        all_lines.sort();
-        for line in &all_lines {
-            write!(writer, "DA:{},{}\n", line, lines_map[line]).unwrap();
-        }
-        write!(writer, "LF:{}\n", all_lines.len()).unwrap();
-        write!(writer, "LH:{}\n", result.covered.len()).unwrap();
+        write!(writer, "LF:{}\n", result.lines.len()).unwrap();
+        write!(writer, "LH:{}\n", result.lines.values().filter(|&v| *v > 0).count()).unwrap();
         writer.write_all(b"end_of_record\n").unwrap();
     }
 }
@@ -951,23 +921,15 @@ fn output_coveralls(results: &mut HashMap<String,CovResult>, source_dir: &str, p
             continue;
         }
 
-        let end: u32 = cmp::max(result.covered.iter().max().unwrap_or(&0), result.uncovered.iter().max().unwrap_or(&0)) + 1;
-
-        let mut lines_map: HashMap<u32,u8> = HashMap::new();
-        for line in &result.covered {
-            lines_map.insert(*line, 1);
-        }
-        for line in &result.uncovered {
-            lines_map.insert(*line, 0);
-        }
+        let end: u32 = result.lines.keys().last().unwrap_or(&0) + 1;
 
         let mut coverage = Vec::new();
         for line in 1..end {
-            match lines_map.entry(line) {
-                Entry::Occupied(covered) => {
-                    coverage.push(Value::from(*covered.get()));
+            match result.lines.entry(line) {
+                btree_map::Entry::Occupied(c) => {
+                    coverage.push(Value::from(*c.get()));
                 },
-                Entry::Vacant(_) => {
+                btree_map::Entry::Vacant(_) => {
                     coverage.push(Value::Null);
                 }
             };
@@ -1285,8 +1247,6 @@ fn main() {
     }
 
     let result_map = &mut (*result_map.lock().unwrap());
-
-    clean_covered_lines(result_map);
 
     if output_type == "ade" {
         output_activedata_etl(result_map);
