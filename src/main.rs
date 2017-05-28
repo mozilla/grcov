@@ -70,7 +70,7 @@ fn prova() {
   println!("{:x}", gcov_read_unsigned());
 }*/
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug,PartialEq)]
 enum ItemFormat {
     GCDA,
     INFO,
@@ -100,17 +100,21 @@ impl WorkItem {
 
 type WorkQueue = MsQueue<Option<WorkItem>>;
 
+#[derive(Debug,Clone,PartialEq)]
 struct Function {
     start: u32,
     executed: bool,
 }
 
+#[derive(Debug,Clone,PartialEq)]
 struct CovResult {
     lines: BTreeMap<u32,u64>,
     functions: HashMap<String,Function>,
 }
 
-type CovResultMap = Mutex<HashMap<String,CovResult>>;
+type CovResultMap = HashMap<String,CovResult>;
+type SyncCovResultMap = Mutex<CovResultMap>;
+type CovResultIter = Box<Iterator<Item=(PathBuf,PathBuf,CovResult)>>;
 
 macro_rules! println_stderr(
     ($($arg:tt)*) => { {
@@ -288,10 +292,8 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: &WorkQueue) {
         for i in 0..gcno_archive.len() {
             let mut gcno_file = gcno_archive.by_index(i).unwrap();
             let gcno_path_in_zip = PathBuf::from(gcno_file.name());
-            let gcda_path_in_zip = gcno_path_in_zip.with_extension("gcda");
 
-            let path = tmp_dir.join(gcno_path_in_zip);
-            let stem = path.file_stem().unwrap().to_str().unwrap();
+            let path = tmp_dir.join(&gcno_path_in_zip);
 
             fs::create_dir_all(path.parent().unwrap()).expect("Failed to create directory");
 
@@ -299,8 +301,12 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: &WorkQueue) {
                 fs::create_dir_all(&path).expect("Failed to create directory");
             }
             else {
+                let stem = path.file_stem().unwrap().to_str().unwrap();
+
                 let gcno_path = path.with_file_name(format!("{}_{}.gcno", stem, 1));
                 extract_file(&mut gcno_file, &gcno_path);
+
+                let gcda_path_in_zip = gcno_path_in_zip.with_extension("gcda");
 
                 for (num, gcda_archive) in gcda_archives.iter_mut().enumerate() {
                     if let Ok(mut gcda_file) = gcda_archive.by_name(gcda_path_in_zip.to_str().unwrap()) {
@@ -324,7 +330,7 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: &WorkQueue) {
         }
     }
 
-    for archive in info_archives.iter_mut() {
+    for archive in &mut info_archives {
         for i in 0..archive.len() {
             let mut file = archive.by_index(i).unwrap();
 
@@ -799,30 +805,200 @@ fn test_merge_results() {
     assert_eq!(func.executed, true);
 }
 
-fn add_result(mut result: (String,CovResult), map: &mut HashMap<String,CovResult>) {
-    match map.entry(result.0) {
-        hash_map::Entry::Occupied(obj) => {
-            merge_results(obj.into_mut(), &mut result.1);
-        },
-        hash_map::Entry::Vacant(v) => {
-            v.insert(result.1);
-        }
-    };
+fn add_results(mut results: Vec<(String,CovResult)>, result_map: &SyncCovResultMap) {
+    let mut map = result_map.lock().unwrap();
+    for mut result in results.drain(..) {
+        match map.entry(result.0) {
+            hash_map::Entry::Occupied(obj) => {
+                merge_results(obj.into_mut(), &mut result.1);
+            },
+            hash_map::Entry::Vacant(v) => {
+                v.insert(result.1);
+            }
+        };
+    }
 }
 
-fn add_results(mut results: Vec<(String,CovResult)>, results_map: &CovResultMap) {
-    let mut map = results_map.lock().unwrap();
-    for result in results.drain(..) {
-        add_result(result, &mut map);
+fn rewrite_paths(result_map: CovResultMap, source_dir: &str, prefix_dir: &str, ignore_global: bool, ignore_not_existing: bool, to_ignore_dir: Option<String>) -> CovResultIter {
+    let source_dir = if source_dir != "" {
+        fs::canonicalize(&source_dir).expect("Source directory does not exist.")
+    } else {
+        PathBuf::from("")
+    };
+
+    let prefix_dir = prefix_dir.to_owned();
+
+    Box::new(result_map.into_iter().filter_map(move |(path, result)| {
+        let path = PathBuf::from(path);
+
+        // Remove prefix from path.
+        let rel_path = if path.starts_with(&prefix_dir) {
+            path.strip_prefix(&prefix_dir).unwrap().to_path_buf()
+        } else {
+            path
+        };
+
+        if ignore_global && !rel_path.is_relative() {
+            return None;
+        }
+
+        // Get absolute path to source file.
+        let abs_path = if rel_path.is_relative() {
+            PathBuf::from(&source_dir).join(&rel_path)
+        } else {
+            rel_path
+        };
+
+        // Canonicalize, if possible.
+        let abs_path = match fs::canonicalize(&abs_path) {
+            Ok(p) => p,
+            Err(_) => abs_path,
+        };
+
+        // Remove source dir from path.
+        let rel_path = if abs_path.starts_with(&source_dir) {
+            abs_path.strip_prefix(&source_dir).unwrap().to_path_buf()
+        } else {
+            abs_path.clone()
+        };
+
+        if to_ignore_dir.is_some() && rel_path.starts_with(to_ignore_dir.as_ref().unwrap()) {
+            return None;
+        }
+
+        if ignore_not_existing && !abs_path.exists() {
+            return None;
+        }
+
+        Some((abs_path, rel_path, result))
+    }))
+}
+
+#[test]
+fn test_rewrite_paths() {
+    let empty_result = CovResult {
+        lines: BTreeMap::new(),
+        functions: HashMap::new(),
+    };
+
+    // Basic test.
+    let mut result_map: CovResultMap = HashMap::new();
+    result_map.insert("main.cpp".to_string(), empty_result.clone());
+    let results = rewrite_paths(result_map, "", "", false, false, None);
+    let mut count = 0;
+    for (abs_path, rel_path, result) in results {
+       count += 1;
+       assert_eq!(abs_path, PathBuf::from("main.cpp"));
+       assert_eq!(rel_path, PathBuf::from("main.cpp"));
+       assert_eq!(result, empty_result);
     }
+    assert_eq!(count, 1);
+
+    // Ignore global files.
+    let mut result_map: CovResultMap = HashMap::new();
+    result_map.insert("main.cpp".to_string(), empty_result.clone());
+    result_map.insert("/usr/include/prova.h".to_string(), empty_result.clone());
+    let results = rewrite_paths(result_map, "", "", true, false, None);
+    let mut count = 0;
+    for (abs_path, rel_path, result) in results {
+       count += 1;
+       assert_eq!(abs_path, PathBuf::from("main.cpp"));
+       assert_eq!(rel_path, PathBuf::from("main.cpp"));
+       assert_eq!(result, empty_result);
+    }
+    assert_eq!(count, 1);
+
+    // Remove prefix.
+    let mut result_map: CovResultMap = HashMap::new();
+    result_map.insert("/home/worker/src/workspace/main.cpp".to_string(), empty_result.clone());
+    let results = rewrite_paths(result_map, "", "/home/worker/src/workspace/", false, false, None);
+    let mut count = 0;
+    for (abs_path, rel_path, result) in results {
+       count += 1;
+       assert_eq!(abs_path, PathBuf::from("main.cpp"));
+       assert_eq!(rel_path, PathBuf::from("main.cpp"));
+       assert_eq!(result, empty_result);
+    }
+    assert_eq!(count, 1);
+
+    // Ignore non existing files.
+    let mut result_map: CovResultMap = HashMap::new();
+    result_map.insert("tests/class/main.cpp".to_string(), empty_result.clone());
+    result_map.insert("tests/class/doesntexist.cpp".to_string(), empty_result.clone());
+    let results = rewrite_paths(result_map, "", "", false, true, None);
+    let mut count = 0;
+    for (abs_path, rel_path, result) in results {
+       count += 1;
+       assert!(abs_path.is_absolute());
+       assert!(abs_path.ends_with("tests/class/main.cpp"));
+       assert!(rel_path.ends_with("tests/class/main.cpp"));
+       assert_eq!(result, empty_result);
+    }
+    assert_eq!(count, 1);
+
+    // Ignore a directory.
+    let mut result_map: CovResultMap = HashMap::new();
+    result_map.insert("main.cpp".to_string(), empty_result.clone());
+    result_map.insert("mydir/prova.h".to_string(), empty_result.clone());
+    let results = rewrite_paths(result_map, "", "", false, false, Some("mydir".to_string()));
+    let mut count = 0;
+    for (abs_path, rel_path, result) in results {
+       count += 1;
+       assert_eq!(abs_path, PathBuf::from("main.cpp"));
+       assert_eq!(rel_path, PathBuf::from("main.cpp"));
+       assert_eq!(result, empty_result);
+    }
+    assert_eq!(count, 1);
+
+    // Rewrite path using relative source directory.
+    let mut result_map: CovResultMap = HashMap::new();
+    result_map.insert("class/main.cpp".to_string(), empty_result.clone());
+    let results = rewrite_paths(result_map, "tests", "", false, true, None);
+    let mut count = 0;
+    for (abs_path, rel_path, result) in results {
+       count += 1;
+       assert!(abs_path.is_absolute());
+       assert!(abs_path.ends_with("tests/class/main.cpp"));
+       assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
+       assert_eq!(result, empty_result);
+    }
+    assert_eq!(count, 1);
+
+    // Rewrite path using absolute source directory.
+    let mut result_map: CovResultMap = HashMap::new();
+    result_map.insert("class/main.cpp".to_string(), empty_result.clone());
+    let results = rewrite_paths(result_map, fs::canonicalize("tests").unwrap().to_str().unwrap(), "", false, true, None);
+    let mut count = 0;
+    for (abs_path, rel_path, result) in results {
+       count += 1;
+       assert!(abs_path.is_absolute());
+       assert!(abs_path.ends_with("tests/class/main.cpp"));
+       assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
+       assert_eq!(result, empty_result);
+    }
+    assert_eq!(count, 1);
+
+    // Rewrite path and remove prefix.
+    let mut result_map: CovResultMap = HashMap::new();
+    result_map.insert("/home/worker/src/workspace/class/main.cpp".to_string(), empty_result.clone());
+    let results = rewrite_paths(result_map, "tests", "/home/worker/src/workspace", false, true, None);
+    let mut count = 0;
+    for (abs_path, rel_path, result) in results {
+       count += 1;
+       assert!(abs_path.is_absolute());
+       assert!(abs_path.ends_with("tests/class/main.cpp"));
+       assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
+       assert_eq!(result, empty_result);
+    }
+    assert_eq!(count, 1);
 }
 
 fn to_activedata_etl_vec(normal_vec: &[u32]) -> Vec<Value> {
     normal_vec.iter().map(|&x| json!({"line": x})).collect()
 }
 
-fn output_activedata_etl(results: &mut HashMap<String,CovResult>) {
-    for (key, result) in results {
+fn output_activedata_etl(results: CovResultIter) {
+    for (_, rel_path, result) in results {
         let covered: Vec<u32> = result.lines.iter().filter(|&(_,v)| *v > 0).map(|(k,_)| k).cloned().collect();
         let uncovered: Vec<u32> = result.lines.iter().filter(|&(_,v)| *v == 0).map(|(k,_)| k).cloned().collect();
 
@@ -837,7 +1013,7 @@ fn output_activedata_etl(results: &mut HashMap<String,CovResult>) {
         }
         start_indexes.sort();
 
-        for (name, function) in result.functions.drain() {
+        for (name, function) in &result.functions {
             // println!("{} {} {}", name, function.executed, function.start);
 
             let mut func_end = end;
@@ -866,7 +1042,7 @@ fn output_activedata_etl(results: &mut HashMap<String,CovResult>) {
             println!("{}", json!({
                 "language": "c/c++",
                 "file": {
-                    "name": key,
+                    "name": rel_path,
                 },
                 "method": {
                     "name": name,
@@ -887,7 +1063,7 @@ fn output_activedata_etl(results: &mut HashMap<String,CovResult>) {
             "language": "c/c++",
             "is_file": true,
             "file": {
-                "name": key,
+                "name": rel_path,
                 "covered": to_activedata_etl_vec(&covered),
                 "uncovered": uncovered,
                 "total_covered": covered.len(),
@@ -905,26 +1081,16 @@ fn output_activedata_etl(results: &mut HashMap<String,CovResult>) {
     }
 }
 
-fn output_lcov(results: &mut HashMap<String,CovResult>, source_dir: &str) {
+fn output_lcov(results: CovResultIter) {
     let stdout = io::stdout();
     let mut writer = BufWriter::new(stdout.lock());
 
     writer.write_all(b"TN:\n").unwrap();
 
-    for (key, result) in results {
-        // println!("{} {:?}", key, result.lines);
+    for (_, rel_path, result) in results {
+        // println!("{} {:?}", rel_path, result.lines);
 
-        if source_dir != "" {
-            let path = PathBuf::from(key);
-            let unprefixed = if path.starts_with(source_dir) {
-                path.strip_prefix(source_dir).unwrap().to_path_buf()
-            } else {
-                path
-            };
-            write!(writer, "SF:{}\n", unprefixed.display()).unwrap();
-        } else {
-            write!(writer, "SF:{}\n", key).unwrap();
-        }
+        write!(writer, "SF:{}\n", rel_path.display()).unwrap();
 
         for (name, function) in &result.functions {
             write!(writer, "FN:{},{}\n", function.start, name).unwrap();
@@ -963,70 +1129,25 @@ fn get_digest(path: PathBuf) -> String {
     }
 }
 
-fn output_coveralls(results: &mut HashMap<String,CovResult>, source_dir: &str, prefix_dir: &str, repo_token: &str, service_name: &str, service_number: &str, service_job_number: &str, commit_sha: &str, ignore_global: bool, ignore_not_existing: bool, to_ignore_dir: &Option<String>) {
-    let source_dir = fs::canonicalize(&source_dir).expect("Source directory does not exist.");
-
+fn output_coveralls(results: CovResultIter, repo_token: &str, service_name: &str, service_number: &str, service_job_number: &str, commit_sha: &str) {
     let mut source_files = Vec::new();
 
-    for (key, result) in results {
-        let path = PathBuf::from(key);
-
-        // Remove prefix from path.
-        let unprefixed = if path.starts_with(prefix_dir) {
-            path.strip_prefix(prefix_dir).unwrap().to_path_buf()
-        } else {
-            path
-        };
-
-        if ignore_global && !unprefixed.is_relative() {
-            continue;
-        }
-
-        // Get absolute path to source file.
-        let path = if unprefixed.is_relative() {
-            PathBuf::from(&source_dir).join(&unprefixed)
-        } else {
-            unprefixed
-        };
-
-        // Canonicalize, if possible.
-        let path = match fs::canonicalize(&path) {
-            Ok(p) => p,
-            Err(_) => path,
-        };
-
-        // Remove source dir from path.
-        let unprefixed = if path.starts_with(&source_dir) {
-            path.strip_prefix(&source_dir).unwrap().to_path_buf()
-        } else {
-            path.clone()
-        };
-
-        if to_ignore_dir.is_some() && unprefixed.starts_with(to_ignore_dir.as_ref().unwrap()) {
-            continue;
-        }
-
-        if ignore_not_existing && !path.exists() {
-            continue;
-        }
-
+    for (abs_path, rel_path, result) in results {
         let end: u32 = result.lines.keys().last().unwrap_or(&0) + 1;
 
         let mut coverage = Vec::new();
         for line in 1..end {
-            match result.lines.entry(line) {
-                btree_map::Entry::Occupied(c) => {
-                    coverage.push(Value::from(*c.get()));
-                },
-                btree_map::Entry::Vacant(_) => {
-                    coverage.push(Value::Null);
-                }
-            };
+            let entry = result.lines.get(&line);
+            if let Some(c) = entry {
+                coverage.push(Value::from(*c));
+            } else {
+                coverage.push(Value::Null);
+            }
         }
 
         source_files.push(json!({
-            "name": unprefixed,
-            "source_digest": get_digest(path),
+            "name": rel_path,
+            "source_digest": get_digest(abs_path),
             "coverage": coverage,
         }));
     }
@@ -1114,19 +1235,19 @@ fn main() {
         print_usage(&args[0]);
         process::exit(1);
     }
-    let mut output_type: &String = &"ade".to_string();
-    let mut source_dir: &String = &String::new();
-    let mut prefix_dir: &String = &String::new();
-    let mut repo_token: &String = &String::new();
-    let mut commit_sha: &String = &String::new();
-    let mut service_name: &String = &String::new();
-    let mut service_number: &String = &String::new();
-    let mut service_job_number: &String = &String::new();
-    let mut ignore_global: bool = true;
-    let mut ignore_not_existing: bool = false;
-    let mut to_ignore_dir: &String = &"".to_string();
-    let mut is_llvm: bool = false;
-    let mut directories: Vec<String> = Vec::new();
+    let mut output_type = "ade";
+    let mut source_dir = "";
+    let mut prefix_dir = "";
+    let mut repo_token = "";
+    let mut commit_sha = "";
+    let mut service_name = "";
+    let mut service_number = "";
+    let mut service_job_number = "";
+    let mut ignore_global = true;
+    let mut ignore_not_existing = false;
+    let mut to_ignore_dir = "";
+    let mut is_llvm = false;
+    let mut directories = Vec::new();
     let mut i = 1;
     let mut is_zip = false;
     while i < args.len() {
@@ -1220,7 +1341,7 @@ fn main() {
         } else if args[i] == "--llvm" {
             is_llvm = true;
         } else {
-            directories.push(args[i].to_owned());
+            directories.push(args[i].clone());
         }
 
         i += 1;
@@ -1253,13 +1374,13 @@ fn main() {
     let to_ignore_dir = if to_ignore_dir == "" {
         None
     } else {
-        Some(to_ignore_dir.clone())
+        Some(to_ignore_dir.to_owned())
     };
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
 
-    let result_map: Arc<CovResultMap> = Arc::new(Mutex::new(HashMap::with_capacity(20000)));
+    let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(HashMap::with_capacity(20000)));
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let producer = {
@@ -1298,14 +1419,14 @@ fn main() {
                             /*if cfg!(unix) {
                                 mkfifo(&gcov_path);
                             }*/
-                            run_gcov(&gcda_path, &working_dir);
+                            run_gcov(gcda_path, &working_dir);
 
                             let new_results = parse_gcov(&gcov_path);
                             fs::remove_file(gcov_path).unwrap();
 
                             new_results
                         } else {
-                            run_llvm_gcov(&gcda_path, &working_dir);
+                            run_llvm_gcov(gcda_path, &working_dir);
 
                             let mut new_results: Vec<(String,CovResult)> = Vec::new();
 
@@ -1353,13 +1474,16 @@ fn main() {
         let _ = parser.join();
     }
 
-    let result_map = &mut (*result_map.lock().unwrap());
+    let result_map_mutex = Arc::try_unwrap(result_map).unwrap();
+    let result_map = result_map_mutex.into_inner().unwrap();
+
+    let iterator = rewrite_paths(result_map, source_dir, prefix_dir, ignore_global, ignore_not_existing, to_ignore_dir);
 
     if output_type == "ade" {
-        output_activedata_etl(result_map);
+        output_activedata_etl(iterator);
     } else if output_type == "lcov" {
-        output_lcov(result_map, source_dir);
+        output_lcov(iterator);
     } else if output_type == "coveralls" {
-        output_coveralls(result_map, source_dir, prefix_dir, repo_token, service_name, service_number, service_job_number, commit_sha, ignore_global, ignore_not_existing, &to_ignore_dir);
+        output_coveralls(iterator, repo_token, service_name, service_number, service_job_number, commit_sha);
     }
 }
