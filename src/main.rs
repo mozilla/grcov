@@ -1282,10 +1282,9 @@ fn main() {
     for i in 0..num_threads {
         let queue = queue.clone();
         let result_map = result_map.clone();
-        let tmp_path = tmp_path.clone();
+        let working_dir = tmp_path.join(format!("{}", i));
 
         let t = thread::spawn(move || {
-            let working_dir = tmp_path.join(format!("{}", i));
             fs::create_dir(&working_dir).expect("Failed to create working directory");
 
             while let Some(work_item) = queue.pop() {
