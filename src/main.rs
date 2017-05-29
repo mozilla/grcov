@@ -145,9 +145,12 @@ fn test_mkfifo() {
     fs::remove_file(test_path).unwrap();
 }
 
-fn producer(directories: &[String], queue: &WorkQueue) {
+fn producer(directories: &[String], queue: &WorkQueue) -> Option<Vec<u8>> {
     let gcda_ext = Some(OsStr::new("gcda"));
     let info_ext = Some(OsStr::new("info"));
+    let json_ext = Some(OsStr::new("json"));
+
+    let mut path_mapping_file = None;
 
     for directory in directories {
         for entry in WalkDir::new(&directory) {
@@ -159,6 +162,11 @@ fn producer(directories: &[String], queue: &WorkQueue) {
                     ItemFormat::GCDA
                 } else if ext == info_ext {
                     ItemFormat::INFO
+                } else if ext == json_ext && path.file_name().unwrap() == "linked-files-map.json" {
+                    let mut buffer = Vec::new();
+                    File::open(path).unwrap().read_to_end(&mut buffer).unwrap();
+                    path_mapping_file = Some(buffer);
+                    continue
                 } else {
                     continue
                 };
@@ -170,6 +178,8 @@ fn producer(directories: &[String], queue: &WorkQueue) {
             }
         }
     }
+
+    path_mapping_file
 }
 
 #[cfg(test)]
@@ -228,7 +238,7 @@ fn check_produced(queue: &WorkQueue, expected: Vec<(ItemFormat,bool,&str)>) {
 fn test_producer() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
-    producer(&vec!["test".to_string()], &queue);
+    let mapping = producer(&vec!["test".to_string()], &queue);
 
     let expected: Vec<(ItemFormat,bool,&str)> = vec![
         (ItemFormat::GCDA, true, "grcov/test/Platform.gcda"),
@@ -246,11 +256,14 @@ fn test_producer() {
     ];
 
     check_produced(&queue, expected);
+    assert!(mapping.is_some());
+    let mapping: Value = serde_json::from_slice(&mapping.unwrap()).unwrap();
+    assert_eq!(mapping.get("dist/include/zlib.h").unwrap().as_str().unwrap(), "modules/zlib/src/zlib.h");
 
 
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
-    producer(&vec!["test/sub".to_string(), "test/sub2".to_string()], &queue);
+    let mapping = producer(&vec!["test/sub".to_string(), "test/sub2".to_string()], &queue);
 
     let expected: Vec<(ItemFormat,bool,&str)> = vec![
         (ItemFormat::GCDA, true, "grcov/test/sub2/RootAccessibleWrap.gcda"),
@@ -258,6 +271,7 @@ fn test_producer() {
     ];
 
     check_produced(&queue, expected);
+    assert!(mapping.is_none());
 }
 
 fn open_archive(path: &str) -> ZipArchive<File> {
@@ -270,10 +284,12 @@ fn extract_file(zip_file: &mut zip::read::ZipFile, path: &PathBuf) {
     io::copy(zip_file, &mut file).expect("Failed to copy file from ZIP");
 }
 
-fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: &WorkQueue) {
+fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: &WorkQueue) -> Option<Vec<u8>> {
     let mut gcno_archive: Option<ZipArchive<File>> = None;
     let mut gcda_archives: Vec<ZipArchive<File>> = Vec::new();
     let mut info_archives: Vec<ZipArchive<File>> = Vec::new();
+
+    let mut path_mapping_file = None;
 
     for zip_file in zip_files.iter() {
         let archive = open_archive(zip_file);
@@ -291,6 +307,13 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: &WorkQueue) {
     if let Some(mut gcno_archive) = gcno_archive {
         for i in 0..gcno_archive.len() {
             let mut gcno_file = gcno_archive.by_index(i).unwrap();
+            if gcno_file.name() == "linked-files-map.json" {
+                let mut buffer = Vec::new();
+                gcno_file.read_to_end(&mut buffer).unwrap();
+                path_mapping_file = Some(buffer);
+                continue;
+            }
+
             let gcno_path_in_zip = PathBuf::from(gcno_file.name());
 
             let path = tmp_dir.join(&gcno_path_in_zip);
@@ -346,6 +369,8 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: &WorkQueue) {
             }));
         }
     }
+
+    path_mapping_file
 }
 
 #[test]
@@ -355,7 +380,7 @@ fn test_zip_producer() {
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
-    zip_producer(&tmp_path, &vec!["test/gcno.zip".to_string(), "test/gcda1.zip".to_string(), "test/gcda2.zip".to_string()], &queue);
+    let mapping = zip_producer(&tmp_path, &vec!["test/gcno.zip".to_string(), "test/gcda1.zip".to_string(), "test/gcda2.zip".to_string()], &queue);
 
     let expected: Vec<(ItemFormat,bool,&str)> = vec![
         (ItemFormat::GCDA, true, "Platform_1.gcda"),
@@ -371,6 +396,28 @@ fn test_zip_producer() {
     ];
 
     check_produced(&queue, expected);
+    assert!(mapping.is_some());
+    let mapping: Value = serde_json::from_slice(&mapping.unwrap()).unwrap();
+    assert_eq!(mapping.get("dist/include/zlib.h").unwrap().as_str().unwrap(), "modules/zlib/src/zlib.h");
+
+    // Test extracting gcno with no path mapping.
+    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+    let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+    let tmp_path = tmp_dir.path().to_owned();
+    let mapping = zip_producer(&tmp_path, &vec!["test/gcno_no_path_mapping.zip".to_string(), "test/gcda1.zip".to_string()], &queue);
+
+    let expected: Vec<(ItemFormat,bool,&str)> = vec![
+        (ItemFormat::GCDA, true, "Platform_1.gcda"),
+        (ItemFormat::GCDA, true, "sub2/RootAccessibleWrap_1.gcda"),
+        (ItemFormat::GCDA, true, "nsMaiInterfaceValue_1.gcda"),
+        (ItemFormat::GCDA, true, "sub/prova2_1.gcda"),
+        (ItemFormat::GCDA, true, "nsMaiInterfaceDocument_1.gcda"),
+        (ItemFormat::GCDA, true, "nsGnomeModule_1.gcda"),
+    ];
+
+    check_produced(&queue, expected);
+    assert!(mapping.is_none());
 
     // Test calling zip_producer with a different order of zip files.
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
@@ -1472,17 +1519,21 @@ fn main() {
         let path_mapping = path_mapping.clone();
 
         thread::spawn(move || {
-            if is_zip {
-                zip_producer(&tmp_path, &directories, &queue);
+            let producer_path_mapping_buf = if is_zip {
+                zip_producer(&tmp_path, &directories, &queue)
             } else {
-                producer(&directories, &queue);
-            }
+                producer(&directories, &queue)
+            };
 
-            if path_mapping_file != "" {
+            let mut path_mapping = path_mapping.lock().unwrap();
+            *path_mapping = if path_mapping_file != "" {
                 let file = File::open(path_mapping_file).unwrap();
-                let mut path_mapping = path_mapping.lock().unwrap();
-                *path_mapping = Some(serde_json::from_reader(file).unwrap());
-            }
+                Some(serde_json::from_reader(file).unwrap())
+            } else if let Some(producer_path_mapping_buf) = producer_path_mapping_buf {
+                Some(serde_json::from_slice(&producer_path_mapping_buf).unwrap())
+            } else {
+                None
+            };
         })
     };
 
