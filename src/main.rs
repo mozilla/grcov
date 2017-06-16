@@ -912,6 +912,8 @@ fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, source_d
         // Remove prefix from path.
         let rel_path = if path.starts_with(&prefix_dir) {
             path.strip_prefix(&prefix_dir).unwrap().to_path_buf()
+        } else if path.starts_with(&source_dir) {
+            path.strip_prefix(&source_dir).unwrap().to_path_buf()
         } else {
             path
         };
