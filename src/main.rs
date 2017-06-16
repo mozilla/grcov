@@ -235,7 +235,7 @@ fn check_produced(queue: &WorkQueue, expected: Vec<(ItemFormat,bool,&str)>) {
 }
 
 #[test]
-fn test_producer() {
+fn test_dir_producer() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let mapping = dir_producer(&vec![&"test".to_string()], &queue);
@@ -253,6 +253,7 @@ fn test_producer() {
         (ItemFormat::GCDA, true, "grcov/test/64bit_count.gcda"),
         (ItemFormat::INFO, true, "grcov/test/1494603973-2977-7.info"),
         (ItemFormat::INFO, true, "grcov/test/prova.info"),
+        (ItemFormat::INFO, true, "grcov/test/prova_fn_with_commas.info"),
     ];
 
     check_produced(&queue, expected);
@@ -638,6 +639,24 @@ fn test_lcov_parser() {
     let func = result.1.functions.get("logConsoleMessage").unwrap();
     assert_eq!(func.start, 21);
     assert_eq!(func.executed, false);
+
+    let f = File::open("./test/prova_fn_with_commas.info").expect("Failed to open lcov file");
+    let file = BufReader::new(&f);
+    let results = parse_lcov(file);
+
+    assert_eq!(results.len(), 1);
+
+    let ref result = results[0];
+    assert_eq!(result.0, "aFile.js");
+    assert_eq!(result.1.lines, [(7,1),(9,1),(10,1),(12,1),(13,1),(16,1),(17,1),(18,1),(19,1),(21,1),(22,0),(23,0),(24,0),(28,1),(29,0),(30,0),(32,0),(33,0),(34,0),(35,0),(37,0),(39,0),(41,0),(42,0),(44,0),(45,0),(46,0),(47,0),(49,0),(50,0),(51,0),(52,0),(53,0),(54,0),(55,0),(56,0),(59,0),(60,0),(61,0),(63,0),(65,0),(67,1),(68,2),(70,1),(74,1),(75,1),(76,1),(77,1),(78,1),(83,1),(84,1),(90,1),(95,1),(96,1),(97,1),(98,1),(99,1)].iter().cloned().collect());
+    assert!(result.1.functions.contains_key("MainProcessSingleton"));
+    let func = result.1.functions.get("MainProcessSingleton").unwrap();
+    assert_eq!(func.start, 15);
+    assert_eq!(func.executed, true);
+    assert!(result.1.functions.contains_key("cubic-bezier(0.0, 0.0, 1.0, 1.0)"));
+    let func = result.1.functions.get("cubic-bezier(0.0, 0.0, 1.0, 1.0)").unwrap();
+    assert_eq!(func.start, 95);
+    assert_eq!(func.executed, true);
 }
 
 fn parse_old_gcov(gcov_path: &Path) -> (String,CovResult) {
