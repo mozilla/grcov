@@ -145,7 +145,7 @@ fn test_mkfifo() {
     fs::remove_file(test_path).unwrap();
 }
 
-fn producer(directories: &[String], queue: &WorkQueue) -> Option<Vec<u8>> {
+fn dir_producer(directories: &[&String], queue: &WorkQueue) -> Option<Vec<u8>> {
     let gcda_ext = Some(OsStr::new("gcda"));
     let info_ext = Some(OsStr::new("info"));
     let json_ext = Some(OsStr::new("json"));
@@ -238,7 +238,7 @@ fn check_produced(queue: &WorkQueue, expected: Vec<(ItemFormat,bool,&str)>) {
 fn test_producer() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
-    let mapping = producer(&vec!["test".to_string()], &queue);
+    let mapping = dir_producer(&vec![&"test".to_string()], &queue);
 
     let expected: Vec<(ItemFormat,bool,&str)> = vec![
         (ItemFormat::GCDA, true, "grcov/test/Platform.gcda"),
@@ -263,7 +263,7 @@ fn test_producer() {
 
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
-    let mapping = producer(&vec!["test/sub".to_string(), "test/sub2".to_string()], &queue);
+    let mapping = dir_producer(&vec![&"test/sub".to_string(), &"test/sub2".to_string()], &queue);
 
     let expected: Vec<(ItemFormat,bool,&str)> = vec![
         (ItemFormat::GCDA, true, "grcov/test/sub2/RootAccessibleWrap.gcda"),
@@ -284,7 +284,7 @@ fn extract_file(zip_file: &mut zip::read::ZipFile, path: &PathBuf) {
     io::copy(zip_file, &mut file).expect("Failed to copy file from ZIP");
 }
 
-fn zip_producer(tmp_dir: &Path, zip_files: &[String], queue: &WorkQueue) -> Option<Vec<u8>> {
+fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue) -> Option<Vec<u8>> {
     let mut gcno_archive: Option<ZipArchive<File>> = None;
     let mut gcda_archives: Vec<ZipArchive<File>> = Vec::new();
     let mut info_archives: Vec<ZipArchive<File>> = Vec::new();
@@ -380,7 +380,7 @@ fn test_zip_producer() {
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
-    let mapping = zip_producer(&tmp_path, &vec!["test/gcno.zip".to_string(), "test/gcda1.zip".to_string(), "test/gcda2.zip".to_string()], &queue);
+    let mapping = zip_producer(&tmp_path, &vec![&"test/gcno.zip".to_string(), &"test/gcda1.zip".to_string(), &"test/gcda2.zip".to_string()], &queue);
 
     let expected: Vec<(ItemFormat,bool,&str)> = vec![
         (ItemFormat::GCDA, true, "Platform_1.gcda"),
@@ -405,7 +405,7 @@ fn test_zip_producer() {
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
-    let mapping = zip_producer(&tmp_path, &vec!["test/gcno_no_path_mapping.zip".to_string(), "test/gcda1.zip".to_string()], &queue);
+    let mapping = zip_producer(&tmp_path, &vec![&"test/gcno_no_path_mapping.zip".to_string(), &"test/gcda1.zip".to_string()], &queue);
 
     let expected: Vec<(ItemFormat,bool,&str)> = vec![
         (ItemFormat::GCDA, true, "Platform_1.gcda"),
@@ -424,7 +424,7 @@ fn test_zip_producer() {
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
-    zip_producer(&tmp_path, &vec!["test/gcda1.zip".to_string(), "test/gcno.zip".to_string(), "test/gcda2.zip".to_string()], &queue);
+    zip_producer(&tmp_path, &vec![&"test/gcda1.zip".to_string(), &"test/gcno.zip".to_string(), &"test/gcda2.zip".to_string()], &queue);
 
     let expected: Vec<(ItemFormat,bool,&str)> = vec![
         (ItemFormat::GCDA, true, "Platform_1.gcda"),
@@ -446,7 +446,7 @@ fn test_zip_producer() {
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
-    zip_producer(&tmp_path, &vec!["test/info1.zip".to_string(), "test/info2.zip".to_string()], &queue);
+    zip_producer(&tmp_path, &vec![&"test/info1.zip".to_string(), &"test/info2.zip".to_string()], &queue);
 
     let expected: Vec<(ItemFormat,bool,&str)> = vec![
         (ItemFormat::INFO, false, "1494603967-2977-2_0.info"),
@@ -470,7 +470,7 @@ fn test_zip_producer() {
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
-    zip_producer(&tmp_path, &vec!["test/gcno.zip".to_string(), "test/gcda1.zip".to_string(), "test/info1.zip".to_string(), "test/info2.zip".to_string()], &queue);
+    zip_producer(&tmp_path, &vec![&"test/gcno.zip".to_string(), &"test/gcda1.zip".to_string(), &"test/info1.zip".to_string(), &"test/info2.zip".to_string()], &queue);
 
     let expected: Vec<(ItemFormat,bool,&str)> = vec![
         (ItemFormat::GCDA, true, "Platform_1.gcda"),
@@ -494,6 +494,30 @@ fn test_zip_producer() {
     ];
 
     check_produced(&queue, expected);
+}
+
+fn producer(tmp_dir: &Path, paths: &[String], queue: &WorkQueue) -> Option<Vec<u8>> {
+    let mut zip_files = Vec::new();
+    let mut directories = Vec::new();
+
+    for path in paths {
+        if path.ends_with(".zip") {
+            zip_files.push(path);
+        } else {
+            directories.push(path);
+        }
+    }
+
+    let ret1 = zip_producer(tmp_dir, &zip_files, queue);
+    let ret2 = dir_producer(&directories, queue);
+
+    if ret1.is_some() {
+        ret1
+    } else if ret2.is_some() {
+        ret2
+    } else {
+        None
+    }
 }
 
 fn run_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
@@ -1288,7 +1312,7 @@ fn output_coveralls(results: CovResultIter, repo_token: &str, service_name: &str
 }
 
 fn print_usage(program: &str) {
-    println!("Usage: {} DIRECTORY[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [-z] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE]", program);
+    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
     println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
@@ -1298,7 +1322,6 @@ fn print_usage(program: &str) {
     println!("PREFIX_PATH is a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that generated the code coverage information).");
     println!("COVERALLS_REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' format.");
     println!("COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data.");
-    println!("Use -z to use ZIP files instead of directories (the first ZIP file must contain the GCNO files, the following ones must contain the GCDA files).");
     println!("By default global includes are ignored. Use --keep-global-includes to keep them.");
     println!("By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.");
     println!("The --llvm option must be used when the code coverage information is coming from a llvm build.");
@@ -1365,9 +1388,8 @@ fn main() {
     let mut ignore_not_existing = false;
     let mut to_ignore_dir = "";
     let mut is_llvm = false;
-    let mut directories = Vec::new();
+    let mut paths = Vec::new();
     let mut i = 1;
-    let mut is_zip = false;
     let mut path_mapping_file = "";
     while i < args.len() {
         if args[i] == "-t" {
@@ -1442,8 +1464,6 @@ fn main() {
 
             commit_sha = &args[i + 1];
             i += 1;
-        } else if args[i] == "-z" {
-            is_zip = true;
         } else if args[i] == "--keep-global-includes" {
             ignore_global = false;
         } else if args[i] == "--ignore-not-existing" {
@@ -1469,7 +1489,7 @@ fn main() {
             path_mapping_file = &args[i + 1];
             i += 1;
         } else {
-            directories.push(args[i].clone());
+            paths.push(args[i].clone());
         }
 
         i += 1;
@@ -1519,11 +1539,7 @@ fn main() {
         let path_mapping = path_mapping.clone();
 
         thread::spawn(move || {
-            let producer_path_mapping_buf = if is_zip {
-                zip_producer(&tmp_path, &directories, &queue)
-            } else {
-                producer(&directories, &queue)
-            };
+            let producer_path_mapping_buf = producer(&tmp_path, &paths, &queue);
 
             let mut path_mapping = path_mapping.lock().unwrap();
             *path_mapping = if path_mapping_file != "" {
