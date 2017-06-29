@@ -1263,7 +1263,7 @@ fn output_lcov(results: CovResultIter) {
         }
         if !result.functions.is_empty() {
             write!(writer, "FNF:{}\n", result.functions.len()).unwrap();
-            write!(writer, "FNF:{}\n", result.functions.values().filter(|x| x.executed).count()).unwrap();
+            write!(writer, "FNH:{}\n", result.functions.values().filter(|x| x.executed).count()).unwrap();
         }
 
         for (line, execution_count) in &result.lines {
