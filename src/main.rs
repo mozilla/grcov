@@ -916,8 +916,7 @@ fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, source_d
         PathBuf::from("")
     };
 
-    let is_path_mapping = path_mapping.is_some();
-    let path_mapping = if is_path_mapping {
+    let path_mapping = if path_mapping.is_some() {
         path_mapping.unwrap()
     } else {
         json!({})
@@ -942,10 +941,10 @@ fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, source_d
         }
 
         // Get path from the mapping.
-        let rel_path = if let Some(p) = path_mapping.get(rel_path.to_str().unwrap()) {
-            PathBuf::from(p.as_str().unwrap())
+        let (rel_path, found_in_mapping) = if let Some(p) = path_mapping.get(rel_path.to_str().unwrap()) {
+            (PathBuf::from(p.as_str().unwrap()), true)
         } else {
-            rel_path
+            (rel_path, false)
         };
 
         // Get absolute path to source file.
@@ -961,7 +960,7 @@ fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, source_d
             Err(_) => abs_path,
         };
 
-        let rel_path = if is_path_mapping {
+        let rel_path = if found_in_mapping {
             rel_path
         } else if abs_path.starts_with(&source_dir) { // Remove source dir from path.
             abs_path.strip_prefix(&source_dir).unwrap().to_path_buf()
