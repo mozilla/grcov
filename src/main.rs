@@ -298,7 +298,7 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue) -> Opt
             gcno_archive = Some(archive);
         } else if zip_file.contains("gcda") {
             gcda_archives.push(archive);
-        } else if zip_file.contains("info") {
+        } else if zip_file.contains("info") || zip_file.contains("grcov") {
             info_archives.push(archive);
         } else {
             panic!("Unsupported archive type.");
