@@ -927,25 +927,20 @@ fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, source_d
     Box::new(result_map.into_iter().filter_map(move |(path, result)| {
         let path = PathBuf::from(path);
 
-        // Remove prefix from path.
-        let rel_path = if path.starts_with(&prefix_dir) {
-            path.strip_prefix(&prefix_dir).unwrap().to_path_buf()
+        // Get path from the mapping, or remove prefix from path.
+        let (rel_path, found_in_mapping) = if let Some(p) = path_mapping.get(path.to_str().unwrap()) {
+            (PathBuf::from(p.as_str().unwrap()), true)
+        } else if path.starts_with(&prefix_dir) {
+            (path.strip_prefix(&prefix_dir).unwrap().to_path_buf(), false)
         } else if path.starts_with(&source_dir) {
-            path.strip_prefix(&source_dir).unwrap().to_path_buf()
+            (path.strip_prefix(&source_dir).unwrap().to_path_buf(), false)
         } else {
-            path
+            (path, false)
         };
 
         if ignore_global && !rel_path.is_relative() {
             return None;
         }
-
-        // Get path from the mapping.
-        let (rel_path, found_in_mapping) = if let Some(p) = path_mapping.get(rel_path.to_str().unwrap()) {
-            (PathBuf::from(p.as_str().unwrap()), true)
-        } else {
-            (rel_path, false)
-        };
 
         // Get absolute path to source file.
         let abs_path = if rel_path.is_relative() {
@@ -1129,7 +1124,7 @@ fn test_rewrite_paths() {
     // Rewrite path using mapping and remove prefix.
     let mut result_map: CovResultMap = HashMap::new();
     result_map.insert("/home/worker/src/workspace/rewritten/main.cpp".to_string(), empty_result.clone());
-    let results = rewrite_paths(result_map, Some(json!({"rewritten/main.cpp": "tests/class/main.cpp"})), "", "/home/worker/src/workspace", false, true, None);
+    let results = rewrite_paths(result_map, Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), "", "/home/worker/src/workspace", false, true, None);
     let mut count = 0;
     for (abs_path, rel_path, result) in results {
        count += 1;
@@ -1143,7 +1138,7 @@ fn test_rewrite_paths() {
     // Rewrite path using mapping and source directory and remove prefix.
     let mut result_map: CovResultMap = HashMap::new();
     result_map.insert("/home/worker/src/workspace/rewritten/main.cpp".to_string(), empty_result.clone());
-    let results = rewrite_paths(result_map, Some(json!({"rewritten/main.cpp": "class/main.cpp"})), "tests", "/home/worker/src/workspace", false, true, None);
+    let results = rewrite_paths(result_map, Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})), "tests", "/home/worker/src/workspace", false, true, None);
     let mut count = 0;
     for (abs_path, rel_path, result) in results {
        count += 1;
