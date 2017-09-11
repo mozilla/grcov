@@ -109,6 +109,7 @@ struct Function {
 #[derive(Debug,Clone,PartialEq)]
 struct CovResult {
     lines: BTreeMap<u32,u64>,
+    branches: BTreeMap<(u32,u32),bool>,
     functions: HashMap<String,Function>,
 }
 
@@ -521,10 +522,17 @@ fn producer(tmp_dir: &Path, paths: &[String], queue: &WorkQueue) -> Option<Vec<u
     }
 }
 
-fn run_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
+fn run_gcov(gcda_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf) {
+    let mut args: Vec<&str> = Vec::new();
+    args.push("-i"); // Generate intermediate gcov format, faster to parse.
+    if branch_enabled {
+        args.push("-b");
+        args.push("-c");
+    }
+
     let mut command = Command::new("gcov");
     let status = command.arg(gcda_path)
-                        .arg("-i") // Generate intermediate gcov format, faster to parse.
+                        .args(args)
                         .current_dir(working_dir)
                         .stdout(Stdio::null())
                         .stderr(Stdio::null());
@@ -544,6 +552,7 @@ fn run_llvm_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
                          .arg("gcov")
                          .arg("-l") // Generate unique names for gcov files.
                          .arg("-b") // Generate function call information.
+                         .arg("-c") // Display branch counts instead of percentages.
                          .arg(gcda_path)
                          .current_dir(working_dir)
                          .stdout(Stdio::null())
@@ -554,10 +563,11 @@ fn run_llvm_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
     assert!(status.success(), "llvm-cov wasn't successfully executed");
 }
 
-fn parse_lcov<T: Read>(lcov_reader: BufReader<T>) -> Vec<(String,CovResult)> {
+fn parse_lcov<T: Read>(lcov_reader: BufReader<T>, branch_enabled: bool) -> Vec<(String,CovResult)> {
     let mut cur_file = String::new();
-    let mut cur_lines: BTreeMap<u32,u64> = BTreeMap::new();
-    let mut cur_functions: HashMap<String,Function> = HashMap::new();
+    let mut cur_lines = BTreeMap::new();
+    let mut cur_branches = BTreeMap::new();
+    let mut cur_functions = HashMap::new();
 
     let mut results = Vec::new();
 
@@ -567,11 +577,13 @@ fn parse_lcov<T: Read>(lcov_reader: BufReader<T>) -> Vec<(String,CovResult)> {
         if l == "end_of_record" {
             results.push((cur_file, CovResult {
                 lines: cur_lines,
+                branches: cur_branches,
                 functions: cur_functions,
             }));
 
             cur_file = String::new();
             cur_lines = BTreeMap::new();
+            cur_branches = BTreeMap::new();
             cur_functions = HashMap::new();
         } else {
             let mut key_value = l.splitn(2, ':');
@@ -591,9 +603,22 @@ fn parse_lcov<T: Read>(lcov_reader: BufReader<T>) -> Vec<(String,CovResult)> {
                     let line_no = values.next().unwrap().parse().unwrap();
                     let execution_count = values.next().unwrap();
                     if execution_count == "0" || execution_count.starts_with('-') {
-                        cur_lines.insert(line_no, 0);
+                        match cur_lines.entry(line_no) {
+                            btree_map::Entry::Occupied(_) => {},
+                            btree_map::Entry::Vacant(v) => {
+                                v.insert(0);
+                            }
+                        };
                     } else {
-                        cur_lines.insert(line_no, execution_count.parse().unwrap());
+                        let execution_count = execution_count.parse().unwrap();
+                        match cur_lines.entry(line_no) {
+                            btree_map::Entry::Occupied(c) => {
+                                *c.into_mut() += execution_count;
+                            },
+                            btree_map::Entry::Vacant(v) => {
+                                v.insert(execution_count);
+                            }
+                        };
                     }
                 },
                 "FN" => {
@@ -610,7 +635,26 @@ fn parse_lcov<T: Read>(lcov_reader: BufReader<T>) -> Vec<(String,CovResult)> {
                     let executed = f_splits.next().unwrap() != "0";
                     let f_name = f_splits.next().unwrap();
                     let f = cur_functions.get_mut(f_name).expect(format!("FN record missing for function {}", f_name).as_str());
-                    f.executed = executed;
+                    f.executed |= executed;
+                },
+                "BRDA" => {
+                    if branch_enabled {
+                        let mut values = value.splitn(4, ',');
+                        let line_no = values.next().unwrap().parse().unwrap();
+                        values.next();
+                        let branch_number = values.next().unwrap().parse().unwrap();
+                        let taken = values.next().unwrap() != "-";
+                        //cur_branches.insert((line_no, branch_number), taken);
+
+                        match cur_branches.entry((line_no, branch_number)) {
+                            btree_map::Entry::Occupied(c) => {
+                                *c.into_mut() |= taken;
+                            },
+                            btree_map::Entry::Vacant(v) => {
+                                v.insert(taken);
+                            }
+                        };
+                    }
                 },
                 _ => {}
             }
@@ -624,13 +668,34 @@ fn parse_lcov<T: Read>(lcov_reader: BufReader<T>) -> Vec<(String,CovResult)> {
 fn test_lcov_parser() {
     let f = File::open("./test/prova.info").expect("Failed to open lcov file");
     let file = BufReader::new(&f);
-    let results = parse_lcov(file);
+    let results = parse_lcov(file, false);
 
     assert_eq!(results.len(), 603);
 
     let ref result = results[0];
     assert_eq!(result.0, "resource://gre/components/MainProcessSingleton.js");
-    assert_eq!(result.1.lines, [(7,1),(9,1),(10,1),(12,1),(13,1),(16,1),(17,1),(18,1),(19,1),(21,1),(22,0),(23,0),(24,0),(28,1),(29,0),(30,0),(32,0),(33,0),(34,0),(35,0),(37,0),(39,0),(41,0),(42,0),(44,0),(45,0),(46,0),(47,0),(49,0),(50,0),(51,0),(52,0),(53,0),(54,0),(55,0),(56,0),(59,0),(60,0),(61,0),(63,0),(65,0),(67,1),(68,2),(70,1),(74,1),(75,1),(76,1),(77,1),(78,1),(83,1),(84,1),(90,1)].iter().cloned().collect());
+    assert_eq!(result.1.lines, [(7,1),(9,1),(10,1),(12,2),(13,1),(16,1),(17,1),(18,2),(19,1),(21,1),(22,0),(23,0),(24,0),(28,1),(29,0),(30,0),(32,0),(33,0),(34,0),(35,0),(37,0),(39,0),(41,0),(42,0),(44,0),(45,0),(46,0),(47,0),(49,0),(50,0),(51,0),(52,0),(53,0),(54,0),(55,0),(56,0),(59,0),(60,0),(61,0),(63,0),(65,0),(67,1),(68,2),(70,1),(74,1),(75,1),(76,1),(77,1),(78,1),(83,1),(84,1),(90,1)].iter().cloned().collect());
+    assert_eq!(result.1.branches, [].iter().cloned().collect());
+    assert!(result.1.functions.contains_key("MainProcessSingleton"));
+    let func = result.1.functions.get("MainProcessSingleton").unwrap();
+    assert_eq!(func.start, 15);
+    assert_eq!(func.executed, true);
+    assert!(result.1.functions.contains_key("logConsoleMessage"));
+    let func = result.1.functions.get("logConsoleMessage").unwrap();
+    assert_eq!(func.start, 21);
+    assert_eq!(func.executed, false);
+
+    // Parse the same file, but with branch parsing enabled.
+    let f = File::open("./test/prova.info").expect("Failed to open lcov file");
+    let file = BufReader::new(&f);
+    let results = parse_lcov(file, true);
+
+    assert_eq!(results.len(), 603);
+
+    let ref result = results[0];
+    assert_eq!(result.0, "resource://gre/components/MainProcessSingleton.js");
+    assert_eq!(result.1.lines, [(7,1),(9,1),(10,1),(12,2),(13,1),(16,1),(17,1),(18,2),(19,1),(21,1),(22,0),(23,0),(24,0),(28,1),(29,0),(30,0),(32,0),(33,0),(34,0),(35,0),(37,0),(39,0),(41,0),(42,0),(44,0),(45,0),(46,0),(47,0),(49,0),(50,0),(51,0),(52,0),(53,0),(54,0),(55,0),(56,0),(59,0),(60,0),(61,0),(63,0),(65,0),(67,1),(68,2),(70,1),(74,1),(75,1),(76,1),(77,1),(78,1),(83,1),(84,1),(90,1)].iter().cloned().collect());
+    assert_eq!(result.1.branches, [((34, 0), false), ((34, 1), false), ((41, 0), false), ((41, 1), false), ((44, 0), false), ((44, 1), false), ((60, 0), false), ((60, 1), false), ((63, 0), false), ((63, 1), false), ((68, 0), true), ((68, 1), true)].iter().cloned().collect());
     assert!(result.1.functions.contains_key("MainProcessSingleton"));
     let func = result.1.functions.get("MainProcessSingleton").unwrap();
     assert_eq!(func.start, 15);
@@ -642,13 +707,13 @@ fn test_lcov_parser() {
 
     let f = File::open("./test/prova_fn_with_commas.info").expect("Failed to open lcov file");
     let file = BufReader::new(&f);
-    let results = parse_lcov(file);
+    let results = parse_lcov(file, true);
 
     assert_eq!(results.len(), 1);
 
     let ref result = results[0];
     assert_eq!(result.0, "aFile.js");
-    assert_eq!(result.1.lines, [(7,1),(9,1),(10,1),(12,1),(13,1),(16,1),(17,1),(18,1),(19,1),(21,1),(22,0),(23,0),(24,0),(28,1),(29,0),(30,0),(32,0),(33,0),(34,0),(35,0),(37,0),(39,0),(41,0),(42,0),(44,0),(45,0),(46,0),(47,0),(49,0),(50,0),(51,0),(52,0),(53,0),(54,0),(55,0),(56,0),(59,0),(60,0),(61,0),(63,0),(65,0),(67,1),(68,2),(70,1),(74,1),(75,1),(76,1),(77,1),(78,1),(83,1),(84,1),(90,1),(95,1),(96,1),(97,1),(98,1),(99,1)].iter().cloned().collect());
+    assert_eq!(result.1.lines, [(7,1),(9,1),(10,1),(12,2),(13,1),(16,1),(17,1),(18,2),(19,1),(21,1),(22,0),(23,0),(24,0),(28,1),(29,0),(30,0),(32,0),(33,0),(34,0),(35,0),(37,0),(39,0),(41,0),(42,0),(44,0),(45,0),(46,0),(47,0),(49,0),(50,0),(51,0),(52,0),(53,0),(54,0),(55,0),(56,0),(59,0),(60,0),(61,0),(63,0),(65,0),(67,1),(68,2),(70,1),(74,1),(75,1),(76,1),(77,1),(78,1),(83,1),(84,1),(90,1),(95,1),(96,1),(97,1),(98,1),(99,1)].iter().cloned().collect());
     assert!(result.1.functions.contains_key("MainProcessSingleton"));
     let func = result.1.functions.get("MainProcessSingleton").unwrap();
     assert_eq!(func.start, 15);
@@ -659,9 +724,10 @@ fn test_lcov_parser() {
     assert_eq!(func.executed, true);
 }
 
-fn parse_old_gcov(gcov_path: &Path) -> (String,CovResult) {
+fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) {
     let mut lines = BTreeMap::new();
-    let mut functions: HashMap<String,Function> = HashMap::new();
+    let mut branches = BTreeMap::new();
+    let mut functions = HashMap::new();
 
     let f = File::open(gcov_path).expect("Failed to open gcov file");
     let mut file = BufReader::new(&f);
@@ -679,16 +745,19 @@ fn parse_old_gcov(gcov_path: &Path) -> (String,CovResult) {
         let l = line.unwrap();
         let splits: Vec<&str> = l.splitn(3, ':').collect();
         if splits.len() == 1 {
-            if !l.starts_with("function ") {
-                continue;
+            if l.starts_with("function ") {
+                let f_splits: Vec<&str> = l.splitn(5, ' ').collect();
+                let execution_count: u64 = f_splits[3].parse().expect(&format!("Failed parsing execution count: {:?}", f_splits));
+                functions.insert(f_splits[1].to_string(), Function {
+                  start: line_no + 1,
+                  executed: execution_count > 0,
+                });
+            } else if branch_enabled && l.starts_with("branch ") {
+                let b_splits: Vec<&str> = l.splitn(5, ' ').collect();
+                let branch_number = b_splits[2].parse().unwrap();
+                let taken = b_splits[4] != "0";
+                branches.insert((line_no, branch_number), taken);
             }
-
-            let f_splits: Vec<&str> = l.splitn(5, ' ').collect();
-            let execution_count: u64 = f_splits[3].parse().expect(&format!("Failed parsing execution count: {:?}", f_splits));
-            functions.insert(f_splits[1].to_string(), Function {
-              start: line_no + 1,
-              executed: execution_count > 0,
-            });
         } else {
             if splits.len() != 3 {
                 println!("{:?}", splits);
@@ -712,14 +781,17 @@ fn parse_old_gcov(gcov_path: &Path) -> (String,CovResult) {
 
     (source_name, CovResult {
       lines: lines,
+      branches: branches,
       functions: functions,
     })
 }
 
 fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
     let mut cur_file = String::new();
-    let mut cur_lines: BTreeMap<u32,u64> = BTreeMap::new();
-    let mut cur_functions: HashMap<String,Function> = HashMap::new();
+    let mut cur_lines = BTreeMap::new();
+    let mut cur_branches = BTreeMap::new();
+    let mut cur_functions = HashMap::new();
+    let mut branch_number = 0;
 
     let mut results = Vec::new();
 
@@ -732,19 +804,25 @@ fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
         let value = key_value.next().unwrap();
         match key {
             "file" => {
+                branch_number = 0;
+
                 if !cur_file.is_empty() && !cur_lines.is_empty() {
                     // println!("{} {} {:?}", gcov_path.display(), cur_file, cur_lines);
                     results.push((cur_file, CovResult {
                         lines: cur_lines,
+                        branches: cur_branches,
                         functions: cur_functions,
                     }));
                 }
 
                 cur_file = value.to_string();
                 cur_lines = BTreeMap::new();
+                cur_branches = BTreeMap::new();
                 cur_functions = HashMap::new();
             },
             "function" => {
+                branch_number = 0;
+
                 let mut f_splits = value.splitn(3, ',');
                 let start = f_splits.next().unwrap().parse().unwrap();
                 let executed = f_splits.next().unwrap() != "0";
@@ -755,6 +833,8 @@ fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
                 });
             },
             "lcount" => {
+                branch_number = 0;
+
                 let mut values = value.splitn(2, ',');
                 let line_no = values.next().unwrap().parse().unwrap();
                 let execution_count = values.next().unwrap();
@@ -764,13 +844,23 @@ fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
                     cur_lines.insert(line_no, execution_count.parse().unwrap());
                 }
             },
-            _ => {}
+            "branch" => {
+                let mut values = value.splitn(2, ',');
+                let line_no = values.next().unwrap().parse().unwrap();
+                let taken = values.next().unwrap() == "taken";
+                cur_branches.insert((line_no, branch_number), taken);
+                branch_number += 1;
+            },
+            _ => {
+                branch_number = 0;
+            }
         }
     }
 
     if !cur_lines.is_empty() {
         results.push((cur_file, CovResult {
             lines: cur_lines,
+            branches: cur_branches,
             functions: cur_functions,
         }));
     }
@@ -867,6 +957,7 @@ fn test_merge_results() {
     });
     let mut result = CovResult {
         lines: [(1, 21),(2, 7),(7,0)].iter().cloned().collect(),
+        branches: BTreeMap::new(),
         functions: functions1,
     };
     let mut functions2: HashMap<String,Function> = HashMap::new();
@@ -880,6 +971,7 @@ fn test_merge_results() {
     });
     let mut result2 = CovResult {
         lines: [(1,21),(3,42),(4,7),(2,0),(8,0)].iter().cloned().collect(),
+        branches: BTreeMap::new(),
         functions: functions2,
     };
 
@@ -979,6 +1071,7 @@ fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, source_d
 fn test_rewrite_paths() {
     let empty_result = CovResult {
         lines: BTreeMap::new(),
+        branches: BTreeMap::new(),
         functions: HashMap::new(),
     };
 
@@ -1302,10 +1395,19 @@ fn output_coveralls(results: CovResultIter, repo_token: &str, service_name: &str
             }
         }
 
+        let mut branches = Vec::new();
+        for (&(line, number), &taken) in &result.branches {
+            branches.push(line);
+            branches.push(0);
+            branches.push(number);
+            branches.push(if taken { 1 } else { 0 });
+        }
+
         source_files.push(json!({
             "name": rel_path,
             "source_digest": get_digest(abs_path),
             "coverage": coverage,
+            "branches": branches,
         }));
     }
 
@@ -1327,7 +1429,7 @@ fn output_coveralls(results: CovResultIter, repo_token: &str, service_name: &str
 }
 
 fn print_usage(program: &str) {
-    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE]", program);
+    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
     println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
@@ -1341,6 +1443,7 @@ fn print_usage(program: &str) {
     println!("By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.");
     println!("The --llvm option must be used when the code coverage information is coming from a llvm build.");
     println!("The --ignore-dir option can be used to ignore a directory.");
+    println!("The --branch option enables parsing branch coverage information.");
 }
 
 fn is_recent_version(gcov_output: &str) -> bool {
@@ -1403,6 +1506,7 @@ fn main() {
     let mut ignore_not_existing = false;
     let mut to_ignore_dir = "";
     let mut is_llvm = false;
+    let mut branch_enabled = false;
     let mut paths = Vec::new();
     let mut i = 1;
     let mut path_mapping_file = "";
@@ -1503,6 +1607,8 @@ fn main() {
 
             path_mapping_file = &args[i + 1];
             i += 1;
+        }  else if args[i] == "--branch" {
+            branch_enabled = true;
         } else {
             paths.push(args[i].clone());
         }
@@ -1591,7 +1697,7 @@ fn main() {
                             /*if cfg!(unix) {
                                 mkfifo(&gcov_path);
                             }*/
-                            run_gcov(gcda_path, &working_dir);
+                            run_gcov(gcda_path, branch_enabled, &working_dir);
 
                             let new_results = parse_gcov(&gcov_path);
                             fs::remove_file(gcov_path).unwrap();
@@ -1606,7 +1712,7 @@ fn main() {
                                 let gcov_path = entry.unwrap();
                                 let gcov_path = gcov_path.path();
 
-                                new_results.push(parse_old_gcov(gcov_path));
+                                new_results.push(parse_old_gcov(gcov_path, branch_enabled));
                                 fs::remove_file(gcov_path).unwrap();
                             }
 
@@ -1618,11 +1724,11 @@ fn main() {
                             ItemType::Path(info_path) => {
                                 let f = File::open(&info_path).expect("Failed to open lcov file");
                                 let file = BufReader::new(&f);
-                                parse_lcov(file)
+                                parse_lcov(file, branch_enabled)
                             },
                             ItemType::Content(info_content) => {
                                 let buffer = BufReader::new(Cursor::new(info_content));
-                                parse_lcov(buffer)
+                                parse_lcov(buffer, branch_enabled)
                             }
                         }
                     }

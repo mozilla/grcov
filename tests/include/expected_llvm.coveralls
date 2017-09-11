@@ -11,21 +11,82 @@
   "service_number": "",
   "source_files": [
     {
+      "branches": [
+        7,
+        0,
+        0,
+        1,
+        7,
+        0,
+        1,
+        0,
+        7,
+        0,
+        2,
+        1,
+        7,
+        0,
+        3,
+        0,
+        7,
+        0,
+        4,
+        1,
+        7,
+        0,
+        5,
+        0,
+        7,
+        0,
+        6,
+        1,
+        7,
+        0,
+        7,
+        1,
+        8,
+        0,
+        0,
+        1,
+        8,
+        0,
+        1,
+        0,
+        11,
+        0,
+        0,
+        0,
+        11,
+        0,
+        1,
+        1,
+        11,
+        0,
+        2,
+        1,
+        11,
+        0,
+        3,
+        1
+      ],
       "coverage": [
         null,
         null,
         null,
-        1,
-        1,
-        null,
         null,
         1,
-        1
+        null,
+        4,
+        1,
+        null,
+        1,
+        2
       ],
-      "name": "file.cpp",
-      "source_digest": "74a2a8e2849b4ebf97c08c3da0d83703"
+      "name": "main.cpp",
+      "source_digest": "3d6c13992a5a8f14b972702307216222"
     },
     {
+      "branches": [],
       "coverage": [
         null,
         null,
@@ -44,21 +105,20 @@
       "source_digest": "d6261acc27f21cbf7b44654ef8db5be9"
     },
     {
+      "branches": [],
       "coverage": [
         null,
         null,
         null,
-        null,
+        1,
         1,
         null,
-        4,
-        1,
         null,
         1,
-        2
+        1
       ],
-      "name": "main.cpp",
-      "source_digest": "3d6c13992a5a8f14b972702307216222"
+      "name": "file.cpp",
+      "source_digest": "74a2a8e2849b4ebf97c08c3da0d83703"
     }
   ]
 }

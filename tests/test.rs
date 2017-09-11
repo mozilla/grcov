@@ -35,20 +35,21 @@ fn read_expected(path: &Path, compiler: &str, format: &str) -> String {
 }
 
 fn run_grcov(path: &Path, llvm: bool, output_format: &str) -> String {
-    let mut args: Vec<String> = Vec::new();
-    args.push("--".to_string());
+    let mut args: Vec<&str> = Vec::new();
+    args.push("--");
     if llvm {
-        args.push("--llvm".to_string());
+        args.push("--llvm");
     }
-    args.push("-t".to_string());
-    args.push(output_format.to_string());
+    args.push("-t");
+    args.push(output_format);
     if output_format == "coveralls" {
-        args.push("--token".to_string());
-        args.push("TOKEN".to_string());
-        args.push("--commit-sha".to_string());
-        args.push("COMMIT".to_string());
-        args.push("-s".to_string());
-        args.push(path.to_str().unwrap().to_string());
+        args.push("--token");
+        args.push("TOKEN");
+        args.push("--commit-sha");
+        args.push("COMMIT");
+        args.push("-s");
+        args.push(path.to_str().unwrap());
+        args.push("--branch");
     }
 
     let output = Command::new("cargo")
@@ -124,6 +125,8 @@ fn check_equal_coveralls(expected_output: &String, output: &String) {
     let expected: Value = serde_json::from_str(expected_output).unwrap();
     let actual: Value = serde_json::from_str(output).unwrap();
 
+    println!("{}", serde_json::to_string_pretty(&actual).unwrap());
+
     assert_eq!(expected["git"]["branch"], actual["git"]["branch"]);
     assert_eq!(expected["git"]["head"]["id"], actual["git"]["head"]["id"]);
     assert_eq!(expected["repo_token"], actual["repo_token"]);
@@ -159,6 +162,7 @@ fn check_equal_coveralls(expected_output: &String, output: &String) {
                 }
             }
         }
+        assert_eq!(exp["branches"], out["branches"], "Got correct branch coverage for {}", exp["name"]);
     }
 
     for out in actual_source_files {
