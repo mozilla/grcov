@@ -121,7 +121,7 @@ fn check_equal_ade(expected_output: &String, output: &String) {
     assert_eq!(expected.len(), actual_len, "Got same number of expected records.");
 }
 
-fn check_equal_coveralls(expected_output: &String, output: &String) {
+fn check_equal_coveralls(expected_output: &String, output: &String, skip_branches: bool) {
     let expected: Value = serde_json::from_str(expected_output).unwrap();
     let actual: Value = serde_json::from_str(output).unwrap();
 
@@ -162,7 +162,9 @@ fn check_equal_coveralls(expected_output: &String, output: &String) {
                 }
             }
         }
-        assert_eq!(exp["branches"], out["branches"], "Got correct branch coverage for {}", exp["name"]);
+        if !skip_line_counts || !skip_branches {
+            assert_eq!(exp["branches"], out["branches"], "Got correct branch coverage for {}", exp["name"]);
+        }
     }
 
     for out in actual_source_files {
@@ -187,7 +189,7 @@ fn test_integration() {
             make(path, "g++");
             run(path);
             check_equal_ade(&read_expected(path, "gcc", "ade"), &run_grcov(path, false, "ade"));
-            check_equal_coveralls(&read_expected(path, "gcc", "coveralls"), &run_grcov(path, false, "coveralls"));
+            check_equal_coveralls(&read_expected(path, "gcc", "coveralls"), &run_grcov(path, false, "coveralls"), path == Path::new("tests/template"));
             make_clean(path);
 
             // On CI, don't test llvm, as there are problems for now.
@@ -198,7 +200,7 @@ fn test_integration() {
             run(path);
             if !skip_llvm {
                 check_equal_ade(&read_expected(path, "llvm", "ade"), &run_grcov(path, true, "ade"));
-                check_equal_coveralls(&read_expected(path, "llvm", "coveralls"), &run_grcov(path, true, "coveralls"));
+                check_equal_coveralls(&read_expected(path, "llvm", "coveralls"), &run_grcov(path, true, "coveralls"), path == Path::new("tests/template"));
             }
             make_clean(path);
         }
