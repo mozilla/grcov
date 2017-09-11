@@ -131,23 +131,11 @@ fn check_equal_coveralls(expected_output: &String, output: &String) {
     assert_eq!(expected["service_name"], actual["service_name"]);
     assert_eq!(expected["service_number"], actual["service_number"]);
 
-    let mut actual_len = 0;
+    // On CI, don't check line counts, as on different compiler versions they are slightly different.
+    let skip_line_counts = env::var("CONTINUOUS_INTEGRATION").is_ok();
 
     let actual_source_files = actual["source_files"].as_array().unwrap();
     let expected_source_files = expected["source_files"].as_array().unwrap();
-
-    for out in actual_source_files {
-        let exp = expected_source_files.iter().find(|&&ref x| x["name"] == out["name"]);
-        assert!(exp.is_some(), "Got unexpected {} - Expected output: {:?}", out, expected_output);
-
-        let exp = exp.unwrap();
-
-        assert_eq!(exp["name"], out["name"]);
-        assert_eq!(exp["source_digest"], out["source_digest"], "Got wrong digest for {}", exp["name"]);
-        assert_eq!(exp["coverage"], out["coverage"], "Got wrong coverage for {}", exp["name"]);
-
-        actual_len += 1;
-    }
 
     for exp in expected_source_files {
         let out = actual_source_files.iter().find(|&&ref x| x["name"] == exp["name"]);
@@ -155,12 +143,30 @@ fn check_equal_coveralls(expected_output: &String, output: &String) {
 
         let out = out.unwrap();
 
-        assert_eq!(out["name"], exp["name"]);
-        assert_eq!(out["source_digest"], exp["source_digest"], "Got wrong digest for {}", out["name"]);
-        assert_eq!(out["coverage"], exp["coverage"], "Got wrong coverage for {}", out["name"]);
+        assert_eq!(exp["name"], out["name"]);
+        assert_eq!(exp["source_digest"], out["source_digest"], "Got correct digest for {}", exp["name"]);
+        if !skip_line_counts {
+            assert_eq!(exp["coverage"], out["coverage"], "Got correct coverage for {}", exp["name"]);
+        } else {
+            let expected_coverage = exp["coverage"].as_array().unwrap();
+            let actual_coverage = out["coverage"].as_array().unwrap();
+            assert_eq!(expected_coverage.len(), actual_coverage.len(), "Got same number of lines.");
+            for i in 0..expected_coverage.len() {
+                if expected_coverage[i].is_null() {
+                    assert!(actual_coverage[i].is_null(), "Got correct coverage at line {} for {}", i, exp["name"]);
+                } else {
+                    assert_eq!(expected_coverage[i].as_i64().unwrap() > 0, actual_coverage[i].as_i64().unwrap() > 0, "Got correct coverage at line {} for {}", i, exp["name"]);
+                }
+            }
+        }
     }
 
-    assert_eq!(expected_source_files.len(), actual_len, "Got same number of source files.");
+    for out in actual_source_files {
+        let exp = expected_source_files.iter().find(|&&ref x| x["name"] == out["name"]);
+        assert!(exp.is_some(), "Got unexpected {} - Expected output: {:?}", out, expected_output);
+    }
+
+    assert_eq!(expected_source_files.len(), actual_source_files.len(), "Got same number of source files.");
 }
 
 #[test]
