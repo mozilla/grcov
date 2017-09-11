@@ -1,0 +1,68 @@
+{
+  "git": {
+    "branch": "master",
+    "head": {
+      "id": "COMMIT"
+    }
+  },
+  "repo_token": "TOKEN",
+  "service_job_number": "",
+  "service_name": "",
+  "service_number": "",
+  "source_files": [
+    {
+      "coverage": [
+        null,
+        null,
+        null,
+        1,
+        1,
+        null,
+        null,
+        1,
+        1
+      ],
+      "name": "file.cpp",
+      "source_digest": "74a2a8e2849b4ebf97c08c3da0d83703"
+    },
+    {
+      "coverage": [
+        null,
+        null,
+        null,
+        null,
+        1,
+        null,
+        4,
+        1,
+        null,
+        2,
+        0,
+        0,
+        null,
+        1,
+        2
+      ],
+      "name": "main.cpp",
+      "source_digest": "d68e8fe54f7c42b3e1cb8bd572ed62a7"
+    },
+    {
+      "coverage": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        2,
+        null,
+        null,
+        null,
+        null,
+        1,
+        1
+      ],
+      "name": "include.h",
+      "source_digest": "d6261acc27f21cbf7b44654ef8db5be9"
+    }
+  ]
+}
