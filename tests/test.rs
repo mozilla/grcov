@@ -183,13 +183,16 @@ fn test_integration() {
         if path.is_dir() {
             println!("\n\n{}", path.display());
 
+            let skip_branches = path == Path::new("tests/template") || path == Path::new("tests/include") ||
+                                path == Path::new("tests/include2") || path == Path::new("tests/class");
+
             make_clean(path);
 
             println!("GCC");
             make(path, "g++");
             run(path);
             check_equal_ade(&read_expected(path, "gcc", "ade"), &run_grcov(path, false, "ade"));
-            check_equal_coveralls(&read_expected(path, "gcc", "coveralls"), &run_grcov(path, false, "coveralls"), path == Path::new("tests/template"));
+            check_equal_coveralls(&read_expected(path, "gcc", "coveralls"), &run_grcov(path, false, "coveralls"), skip_branches);
             make_clean(path);
 
             // On CI, don't test llvm, as there are problems for now.
@@ -200,7 +203,7 @@ fn test_integration() {
             run(path);
             if !skip_llvm {
                 check_equal_ade(&read_expected(path, "llvm", "ade"), &run_grcov(path, true, "ade"));
-                check_equal_coveralls(&read_expected(path, "llvm", "coveralls"), &run_grcov(path, true, "coveralls"), path == Path::new("tests/template"));
+                check_equal_coveralls(&read_expected(path, "llvm", "coveralls"), &run_grcov(path, true, "coveralls"), skip_branches);
             }
             make_clean(path);
         }
