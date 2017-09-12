@@ -934,6 +934,17 @@ fn merge_results(result: &mut CovResult, result2: &mut CovResult) {
         };
     }
 
+    for (&(line_no, number), &taken) in &result2.branches {
+        match result.branches.entry((line_no, number)) {
+            btree_map::Entry::Occupied(c) => {
+                *c.into_mut() |= taken;
+            },
+            btree_map::Entry::Vacant(v) => {
+                v.insert(taken);
+            }
+        };
+    }
+
     for (name, function) in result2.functions.drain() {
         match result.functions.entry(name) {
             hash_map::Entry::Occupied(f) => f.into_mut().executed |= function.executed,
@@ -957,7 +968,7 @@ fn test_merge_results() {
     });
     let mut result = CovResult {
         lines: [(1, 21),(2, 7),(7,0)].iter().cloned().collect(),
-        branches: BTreeMap::new(),
+        branches: [((1, 0), false), ((1, 1), false), ((2, 0), false), ((2, 1), true), ((4, 0), true)].iter().cloned().collect(),
         functions: functions1,
     };
     let mut functions2: HashMap<String,Function> = HashMap::new();
@@ -971,12 +982,13 @@ fn test_merge_results() {
     });
     let mut result2 = CovResult {
         lines: [(1,21),(3,42),(4,7),(2,0),(8,0)].iter().cloned().collect(),
-        branches: BTreeMap::new(),
+        branches: [((1, 0), false), ((1, 1), false), ((2, 0), true), ((2, 1), false), ((3, 0), true)].iter().cloned().collect(),
         functions: functions2,
     };
 
     merge_results(&mut result, &mut result2);
     assert_eq!(result.lines, [(1,42),(2,7),(3,42),(4,7),(7,0),(8,0)].iter().cloned().collect());
+    assert_eq!(result.branches, [((1, 0), false), ((1, 1), false), ((2, 0), true), ((2, 1), true), ((3, 0), true), ((4, 0), true)].iter().cloned().collect());
     assert!(result.functions.contains_key("f1"));
     assert!(result.functions.contains_key("f2"));
     let mut func = result.functions.get("f1").unwrap();
