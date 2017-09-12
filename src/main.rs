@@ -523,16 +523,14 @@ fn producer(tmp_dir: &Path, paths: &[String], queue: &WorkQueue) -> Option<Vec<u
 }
 
 fn run_gcov(gcda_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf) {
-    let mut args: Vec<&str> = Vec::new();
-    args.push("-i"); // Generate intermediate gcov format, faster to parse.
-    if branch_enabled {
-        args.push("-b");
-        args.push("-c");
-    }
-
     let mut command = Command::new("gcov");
+    let mut command = if branch_enabled {
+        command.arg("-b").arg("-c")
+    } else {
+        &mut command
+    };
     let status = command.arg(gcda_path)
-                        .args(args)
+                        .arg("-i")
                         .current_dir(working_dir)
                         .stdout(Stdio::null())
                         .stderr(Stdio::null());
