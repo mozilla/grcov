@@ -530,7 +530,7 @@ fn run_gcov(gcda_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf) {
         &mut command
     };
     let status = command.arg(gcda_path)
-                        .arg("-i")
+                        .arg("-i") // Generate intermediate gcov format, faster to parse.
                         .current_dir(working_dir)
                         .stdout(Stdio::null())
                         .stderr(Stdio::null());
@@ -642,8 +642,6 @@ fn parse_lcov<T: Read>(lcov_reader: BufReader<T>, branch_enabled: bool) -> Vec<(
                         values.next();
                         let branch_number = values.next().unwrap().parse().unwrap();
                         let taken = values.next().unwrap() != "-";
-                        //cur_branches.insert((line_no, branch_number), taken);
-
                         match cur_branches.entry((line_no, branch_number)) {
                             btree_map::Entry::Occupied(c) => {
                                 *c.into_mut() |= taken;
@@ -802,8 +800,6 @@ fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
         let value = key_value.next().unwrap();
         match key {
             "file" => {
-                branch_number = 0;
-
                 if !cur_file.is_empty() && !cur_lines.is_empty() {
                     // println!("{} {} {:?}", gcov_path.display(), cur_file, cur_lines);
                     results.push((cur_file, CovResult {
@@ -819,8 +815,6 @@ fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
                 cur_functions = HashMap::new();
             },
             "function" => {
-                branch_number = 0;
-
                 let mut f_splits = value.splitn(3, ',');
                 let start = f_splits.next().unwrap().parse().unwrap();
                 let executed = f_splits.next().unwrap() != "0";
@@ -849,9 +843,7 @@ fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
                 cur_branches.insert((line_no, branch_number), taken);
                 branch_number += 1;
             },
-            _ => {
-                branch_number = 0;
-            }
+            _ => {}
         }
     }
 
