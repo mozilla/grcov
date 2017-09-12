@@ -35,20 +35,21 @@ fn read_expected(path: &Path, compiler: &str, format: &str) -> String {
 }
 
 fn run_grcov(path: &Path, llvm: bool, output_format: &str) -> String {
-    let mut args: Vec<String> = Vec::new();
-    args.push("--".to_string());
+    let mut args: Vec<&str> = Vec::new();
+    args.push("--");
     if llvm {
-        args.push("--llvm".to_string());
+        args.push("--llvm");
     }
-    args.push("-t".to_string());
-    args.push(output_format.to_string());
+    args.push("-t");
+    args.push(output_format);
     if output_format == "coveralls" {
-        args.push("--token".to_string());
-        args.push("TOKEN".to_string());
-        args.push("--commit-sha".to_string());
-        args.push("COMMIT".to_string());
-        args.push("-s".to_string());
-        args.push(path.to_str().unwrap().to_string());
+        args.push("--token");
+        args.push("TOKEN");
+        args.push("--commit-sha");
+        args.push("COMMIT");
+        args.push("-s");
+        args.push(path.to_str().unwrap());
+        args.push("--branch");
     }
 
     let output = Command::new("cargo")
@@ -120,9 +121,11 @@ fn check_equal_ade(expected_output: &String, output: &String) {
     assert_eq!(expected.len(), actual_len, "Got same number of expected records.");
 }
 
-fn check_equal_coveralls(expected_output: &String, output: &String) {
+fn check_equal_coveralls(expected_output: &String, output: &String, skip_branches: bool) {
     let expected: Value = serde_json::from_str(expected_output).unwrap();
     let actual: Value = serde_json::from_str(output).unwrap();
+
+    println!("{}", serde_json::to_string_pretty(&actual).unwrap());
 
     assert_eq!(expected["git"]["branch"], actual["git"]["branch"]);
     assert_eq!(expected["git"]["head"]["id"], actual["git"]["head"]["id"]);
@@ -159,6 +162,9 @@ fn check_equal_coveralls(expected_output: &String, output: &String) {
                 }
             }
         }
+        if !skip_line_counts || !skip_branches {
+            assert_eq!(exp["branches"], out["branches"], "Got correct branch coverage for {}", exp["name"]);
+        }
     }
 
     for out in actual_source_files {
@@ -177,13 +183,16 @@ fn test_integration() {
         if path.is_dir() {
             println!("\n\n{}", path.display());
 
+            let skip_branches = path == Path::new("tests/template") || path == Path::new("tests/include") ||
+                                path == Path::new("tests/include2") || path == Path::new("tests/class");
+
             make_clean(path);
 
             println!("GCC");
             make(path, "g++");
             run(path);
             check_equal_ade(&read_expected(path, "gcc", "ade"), &run_grcov(path, false, "ade"));
-            check_equal_coveralls(&read_expected(path, "gcc", "coveralls"), &run_grcov(path, false, "coveralls"));
+            check_equal_coveralls(&read_expected(path, "gcc", "coveralls"), &run_grcov(path, false, "coveralls"), skip_branches);
             make_clean(path);
 
             // On CI, don't test llvm, as there are problems for now.
@@ -194,7 +203,7 @@ fn test_integration() {
             run(path);
             if !skip_llvm {
                 check_equal_ade(&read_expected(path, "llvm", "ade"), &run_grcov(path, true, "ade"));
-                check_equal_coveralls(&read_expected(path, "llvm", "coveralls"), &run_grcov(path, true, "coveralls"));
+                check_equal_coveralls(&read_expected(path, "llvm", "coveralls"), &run_grcov(path, true, "coveralls"), skip_branches);
             }
             make_clean(path);
         }
