@@ -60,8 +60,7 @@ fn run_grcov(path: &Path, llvm: bool, output_format: &str) -> String {
                          .expect("Failed to run grcov");
     let err = String::from_utf8(output.stderr).unwrap();
     println!("{}", err);
-    let s = String::from_utf8(output.stdout).unwrap();
-    s
+    String::from_utf8(output.stdout).unwrap()
 }
 
 fn make_clean(path: &Path) {
@@ -90,7 +89,7 @@ fn check_equal_inner(a: &Value, b: &Value, skip_methods: bool) -> bool {
     a["file"]["total_uncovered"] == b["file"]["total_uncovered"]
 }
 
-fn check_equal_ade(expected_output: &String, output: &String) {
+fn check_equal_ade(expected_output: &str, output: &str) {
     let mut expected: Vec<Value> = Vec::new();
     for line in expected_output.lines() {
         expected.push(serde_json::from_str(line).unwrap());
@@ -111,19 +110,19 @@ fn check_equal_ade(expected_output: &String, output: &String) {
         }
         actual_len += 1;
 
-        let exp = expected.iter().find(|&&ref x| check_equal_inner(x, out, skip_methods));
+        let exp = expected.iter().find(|x| check_equal_inner(x, out, skip_methods));
         assert!(exp.is_some(), "Got unexpected {} - Expected output: {:?}", out, expected_output);
     }
 
     for exp in &expected {
-        let out = actual.iter().find(|&&ref x| check_equal_inner(x, exp, skip_methods));
+        let out = actual.iter().find(|x| check_equal_inner(x, exp, skip_methods));
         assert!(out.is_some(), "Missing {} - Full output: {:?}", exp, output);
     }
 
     assert_eq!(expected.len(), actual_len, "Got same number of expected records.");
 }
 
-fn check_equal_coveralls(expected_output: &String, output: &String, skip_branches: bool) {
+fn check_equal_coveralls(expected_output: &str, output: &str, skip_branches: bool) {
     let expected: Value = serde_json::from_str(expected_output).unwrap();
     let actual: Value = serde_json::from_str(output).unwrap();
 
@@ -143,7 +142,7 @@ fn check_equal_coveralls(expected_output: &String, output: &String, skip_branche
     let expected_source_files = expected["source_files"].as_array().unwrap();
 
     for exp in expected_source_files {
-        let out = actual_source_files.iter().find(|&&ref x| x["name"] == exp["name"]);
+        let out = actual_source_files.iter().find(|x| x["name"] == exp["name"]);
         assert!(out.is_some(), "Missing {} - Full output: {:?}", exp, output);
 
         let out = out.unwrap();
@@ -170,7 +169,7 @@ fn check_equal_coveralls(expected_output: &String, output: &String, skip_branche
     }
 
     for out in actual_source_files {
-        let exp = expected_source_files.iter().find(|&&ref x| x["name"] == out["name"]);
+        let exp = expected_source_files.iter().find(|x| x["name"] == out["name"]);
         assert!(exp.is_some(), "Got unexpected {} - Expected output: {:?}", out, expected_output);
     }
 

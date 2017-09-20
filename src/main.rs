@@ -524,7 +524,7 @@ fn producer(tmp_dir: &Path, paths: &[String], queue: &WorkQueue) -> Option<Vec<u
 
 fn run_gcov(gcda_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf) {
     let mut command = Command::new("gcov");
-    let mut command = if branch_enabled {
+    let command = if branch_enabled {
         command.arg("-b").arg("-c")
     } else {
         &mut command
@@ -1653,15 +1653,15 @@ fn main() {
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
 
-    let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(HashMap::with_capacity(20000)));
+    let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(HashMap::with_capacity(20_000)));
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
     let path_mapping: Arc<Mutex<Option<Value>>> = Arc::new(Mutex::new(None));
 
     let producer = {
-        let queue = queue.clone();
+        let queue = Arc::clone(&queue);
         let tmp_path = tmp_path.clone();
         let path_mapping_file = path_mapping_file.to_owned();
-        let path_mapping = path_mapping.clone();
+        let path_mapping = Arc::clone(&path_mapping);
 
         thread::spawn(move || {
             let producer_path_mapping_buf = producer(&tmp_path, &paths, &queue);
@@ -1683,8 +1683,8 @@ fn main() {
     let num_threads = num_cpus::get() * 2;
 
     for i in 0..num_threads {
-        let queue = queue.clone();
-        let result_map = result_map.clone();
+        let queue = Arc::clone(&queue);
+        let result_map = Arc::clone(&result_map);
         let working_dir = tmp_path.join(format!("{}", i));
 
         let t = thread::spawn(move || {
