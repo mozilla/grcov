@@ -731,14 +731,14 @@ fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) 
 
     let mut first_line = String::new();
     file.read_line(&mut first_line).unwrap();
-    // TODO: Don't collect in a Vec when parsing to avoid malloc overhead, both here and next.
-    let splits: Vec<&str> = first_line.splitn(4, ':').collect();
-    let mut source_name = splits[3].to_string();
+    let mut splits = first_line.splitn(4, ':');
+    let mut source_name = splits.nth(3).unwrap().to_string();
     let len = source_name.len();
     source_name.truncate(len - 1);
 
     for line in file.lines() {
         let l = line.unwrap();
+        // TODO: Don't collect in a Vec when parsing to avoid malloc overhead.
         let splits: Vec<&str> = l.splitn(3, ':').collect();
         if splits.len() == 1 {
             if l.starts_with("function ") {
