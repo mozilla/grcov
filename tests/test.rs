@@ -58,6 +58,8 @@ fn run_grcov(path: &Path, llvm: bool, output_format: &str) -> String {
                          .args(args)
                          .output()
                          .expect("Failed to run grcov");
+    let err = String::from_utf8(output.stderr).unwrap();
+    println!("{}", err);
     let s = String::from_utf8(output.stdout).unwrap();
     s
 }
