@@ -741,7 +741,7 @@ fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) 
         if l.starts_with("function") {
             let mut f_splits = l.splitn(5, ' ');
             let function_name = f_splits.nth(1).unwrap().to_string();
-            let execution_count: u64 = f_splits.nth(1).unwrap().parse().expect(&format!("Failed parsing execution count: {:?}", f_splits));
+            let execution_count: u64 = f_splits.nth(1).unwrap().parse().expect(&format!("Failed parsing execution count: {}", l));
             functions.insert(function_name, Function {
               start: line_no + 1,
               executed: execution_count > 0,
@@ -752,18 +752,19 @@ fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) 
             let taken = b_splits.nth(1).unwrap() != "0";
             branches.insert((line_no, branch_number), taken);
         } else {
-            // TODO: Don't collect in a Vec when parsing to avoid malloc overhead.
-            let splits: Vec<&str> = l.splitn(3, ':').collect();
-            if splits.len() == 1 {
+            let mut splits = l.splitn(3, ':');
+            let first_elem = splits.next();
+            let second_elem = splits.next();
+            if second_elem.is_none() {
                 continue;
             }
-            if splits.len() != 3 {
-                panic!("GCOV lines should be in the format STRING:STRING:STRING, {:?}", splits);
+            if splits.count() != 1 {
+                panic!("GCOV lines should be in the format STRING:STRING:STRING, {}", l);
             }
 
-            line_no = splits[1].trim().parse().unwrap();
+            line_no = second_elem.unwrap().trim().parse().unwrap();
 
-            let cover = splits[0].trim();
+            let cover = first_elem.unwrap().trim();
             if cover == "-" {
                 continue;
             }
