@@ -747,9 +747,9 @@ fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) 
               executed: execution_count > 0,
             });
         } else if branch_enabled && l.starts_with("branch ") {
-            let b_splits: Vec<&str> = l.splitn(5, ' ').collect();
-            let branch_number = b_splits[2].parse().unwrap();
-            let taken = b_splits[4] != "0";
+            let mut b_splits = l.splitn(5, ' ');
+            let branch_number = b_splits.nth(2).unwrap().parse().unwrap();
+            let taken = b_splits.nth(1).unwrap() != "0";
             branches.insert((line_no, branch_number), taken);
         } else {
             // TODO: Don't collect in a Vec when parsing to avoid malloc overhead.
