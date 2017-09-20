@@ -738,23 +738,21 @@ fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) 
 
     for line in file.lines() {
         let l = line.unwrap();
-        // TODO: Don't collect in a Vec when parsing to avoid malloc overhead.
-        let splits: Vec<&str> = l.splitn(3, ':').collect();
-        if splits.len() == 1 {
-            if l.starts_with("function ") {
-                let f_splits: Vec<&str> = l.splitn(5, ' ').collect();
-                let execution_count: u64 = f_splits[3].parse().expect(&format!("Failed parsing execution count: {:?}", f_splits));
-                functions.insert(f_splits[1].to_string(), Function {
-                  start: line_no + 1,
-                  executed: execution_count > 0,
-                });
-            } else if branch_enabled && l.starts_with("branch ") {
-                let b_splits: Vec<&str> = l.splitn(5, ' ').collect();
-                let branch_number = b_splits[2].parse().unwrap();
-                let taken = b_splits[4] != "0";
-                branches.insert((line_no, branch_number), taken);
-            }
-        } else {
+        if l.starts_with("function") {
+            let f_splits: Vec<&str> = l.splitn(5, ' ').collect();
+            let execution_count: u64 = f_splits[3].parse().expect(&format!("Failed parsing execution count: {:?}", f_splits));
+            functions.insert(f_splits[1].to_string(), Function {
+              start: line_no + 1,
+              executed: execution_count > 0,
+            });
+        } else if branch_enabled && l.starts_with("branch ") {
+            let b_splits: Vec<&str> = l.splitn(5, ' ').collect();
+            let branch_number = b_splits[2].parse().unwrap();
+            let taken = b_splits[4] != "0";
+            branches.insert((line_no, branch_number), taken);
+        else {
+            // TODO: Don't collect in a Vec when parsing to avoid malloc overhead.
+            let splits: Vec<&str> = l.splitn(3, ':').collect();
             if splits.len() != 3 {
                 println!("{:?}", splits);
                 panic!("GCOV lines should be in the format STRING:STRING:STRING");
