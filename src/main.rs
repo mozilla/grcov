@@ -750,12 +750,14 @@ fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) 
             let branch_number = b_splits[2].parse().unwrap();
             let taken = b_splits[4] != "0";
             branches.insert((line_no, branch_number), taken);
-        else {
+        } else {
             // TODO: Don't collect in a Vec when parsing to avoid malloc overhead.
             let splits: Vec<&str> = l.splitn(3, ':').collect();
+            if splits.len() == 1 {
+                continue;
+            }
             if splits.len() != 3 {
-                println!("{:?}", splits);
-                panic!("GCOV lines should be in the format STRING:STRING:STRING");
+                panic!("GCOV lines should be in the format STRING:STRING:STRING, {:?}", splits);
             }
 
             line_no = splits[1].trim().parse().unwrap();
