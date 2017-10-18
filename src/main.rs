@@ -330,6 +330,13 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue) -> Opt
         }
     }
 
+    if gcno_archive.is_some() {
+        assert!(gcda_archives.len() > 0);
+    }
+    if gcda_archives.len() > 0 {
+        assert!(gcno_archive.is_some());
+    }
+
     if let Some(mut gcno_archive) = gcno_archive {
         for i in 0..gcno_archive.len() {
             let mut gcno_file = gcno_archive.by_index(i).unwrap();
@@ -560,6 +567,28 @@ fn test_zip_producer() {
 
     check_produced(tmp_path, &queue, expected);
     assert!(mapping.is_none());
+}
+
+// Test passing a gcno archive with no gcda archive makes zip_producer fail.
+#[test]
+#[should_panic]
+fn test_zip_producer_with_gcno_archive_and_no_gcda_archive() {
+    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+    let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+    let tmp_path = tmp_dir.path().to_owned();
+    zip_producer(&tmp_path, &vec![&"test/no_gcda/main.gcno.zip".to_string()], &queue);
+}
+
+// Test passing a gcda archive with no gcno archive makes zip_producer fail.
+#[test]
+#[should_panic]
+fn test_zip_producer_with_gcda_archive_and_no_gcno_archive() {
+    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+    let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+    let tmp_path = tmp_dir.path().to_owned();
+    zip_producer(&tmp_path, &vec![&"test/no_gcda/main.gcda.zip".to_string()], &queue);
 }
 
 fn producer(tmp_dir: &Path, paths: &[String], queue: &WorkQueue) -> Option<Vec<u8>> {
