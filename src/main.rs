@@ -1753,7 +1753,7 @@ fn main() {
     }
 
     for parser in parsers {
-        let _ = parser.join();
+        let _ = parser.join().unwrap();
     }
 
     let result_map_mutex = Arc::try_unwrap(result_map).unwrap();
