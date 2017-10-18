@@ -184,7 +184,7 @@ fn dir_producer(directories: &[&String], queue: &WorkQueue) -> Option<Vec<u8>> {
 }
 
 #[cfg(test)]
-fn check_produced(queue: &WorkQueue, expected: Vec<(ItemFormat,bool,&str)>) {
+fn check_produced(directory: PathBuf, queue: &WorkQueue, expected: Vec<(ItemFormat,bool,&str,bool)>) {
     let mut vec: Vec<Option<WorkItem>> = Vec::new();
 
     loop {
@@ -239,20 +239,20 @@ fn check_produced(queue: &WorkQueue, expected: Vec<(ItemFormat,bool,&str)>) {
     // Make sure we haven't generated duplicated entries.
     assert_eq!(vec.len(), expected.len());
 
-    // Assert file exists and file with the same name but with extension .gcno exists.
-    for x in vec.iter() {
-        let x = x.as_ref().unwrap();
+    // Assert file exists and file with the same name but with extension .gcda exists.
+    for x in expected.iter() {
+        if !x.1 {
+            continue;
+        }
 
-        match x.item {
-            ItemType::Content(_) => {
-                continue
-            },
-            ItemType::Path(ref p) => {
-                assert!(p.exists(), "{} doesn't exist", p.display());
-                if x.format == ItemFormat::GCNO {
-                    let gcno = p.with_file_name(format!("{}.gcno", p.file_stem().unwrap().to_str().unwrap()));
-                    assert!(gcno.exists(), "{} doesn't exist", gcno.display());
-                }
+        let p = directory.join(x.2);
+        assert!(p.exists(), "{} doesn't exist", p.display());
+        if x.0 == ItemFormat::GCNO {
+            let gcda = p.with_file_name(format!("{}.gcda", p.file_stem().unwrap().to_str().unwrap()));
+            if x.3 {
+                assert!(gcda.exists(), "{} doesn't exist", gcda.display());
+            } else {
+                assert!(!gcda.exists(), "{} exists", gcda.display());
             }
         }
     }
@@ -264,24 +264,24 @@ fn test_dir_producer() {
 
     let mapping = dir_producer(&vec![&"test".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::GCNO, true, "grcov/test/Platform.gcno"),
-        (ItemFormat::GCNO, true, "grcov/test/sub2/RootAccessibleWrap.gcno"),
-        (ItemFormat::GCNO, true, "grcov/test/nsMaiInterfaceValue.gcno"),
-        (ItemFormat::GCNO, true, "grcov/test/sub/prova2.gcno"),
-        (ItemFormat::GCNO, true, "grcov/test/nsMaiInterfaceDocument.gcno"),
-        (ItemFormat::GCNO, true, "grcov/test/Unified_cpp_netwerk_base0.gcno"),
-        (ItemFormat::GCNO, true, "grcov/test/prova.gcno"),
-        (ItemFormat::GCNO, true, "grcov/test/nsGnomeModule.gcno"),
-        (ItemFormat::GCNO, true, "grcov/test/negative_counts.gcno"),
-        (ItemFormat::GCNO, true, "grcov/test/64bit_count.gcno"),
-        (ItemFormat::GCNO, true, "grcov/test/no_gcda/main.gcno"),
-        (ItemFormat::INFO, true, "grcov/test/1494603973-2977-7.info"),
-        (ItemFormat::INFO, true, "grcov/test/prova.info"),
-        (ItemFormat::INFO, true, "grcov/test/prova_fn_with_commas.info"),
+    let expected = vec![
+        (ItemFormat::GCNO, true, "test/Platform.gcno", true),
+        (ItemFormat::GCNO, true, "test/sub2/RootAccessibleWrap.gcno", true),
+        (ItemFormat::GCNO, true, "test/nsMaiInterfaceValue.gcno", true),
+        (ItemFormat::GCNO, true, "test/sub/prova2.gcno", true),
+        (ItemFormat::GCNO, true, "test/nsMaiInterfaceDocument.gcno", true),
+        (ItemFormat::GCNO, true, "test/Unified_cpp_netwerk_base0.gcno", true),
+        (ItemFormat::GCNO, true, "test/prova.gcno", true),
+        (ItemFormat::GCNO, true, "test/nsGnomeModule.gcno", true),
+        (ItemFormat::GCNO, true, "test/negative_counts.gcno", true),
+        (ItemFormat::GCNO, true, "test/64bit_count.gcno", true),
+        (ItemFormat::GCNO, true, "test/no_gcda/main.gcno", false),
+        (ItemFormat::INFO, true, "test/1494603973-2977-7.info", true),
+        (ItemFormat::INFO, true, "test/prova.info", true),
+        (ItemFormat::INFO, true, "test/prova_fn_with_commas.info", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(PathBuf::from("."), &queue, expected);
     assert!(mapping.is_some());
     let mapping: Value = serde_json::from_slice(&mapping.unwrap()).unwrap();
     assert_eq!(mapping.get("dist/include/zlib.h").unwrap().as_str().unwrap(), "modules/zlib/src/zlib.h");
@@ -291,12 +291,12 @@ fn test_dir_producer() {
 
     let mapping = dir_producer(&vec![&"test/sub".to_string(), &"test/sub2".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::GCNO, true, "grcov/test/sub2/RootAccessibleWrap.gcno"),
-        (ItemFormat::GCNO, true, "grcov/test/sub/prova2.gcno"),
+    let expected = vec![
+        (ItemFormat::GCNO, true, "test/sub2/RootAccessibleWrap.gcno", true),
+        (ItemFormat::GCNO, true, "test/sub/prova2.gcno", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(PathBuf::from("."), &queue, expected);
     assert!(mapping.is_none());
 }
 
@@ -409,22 +409,22 @@ fn test_zip_producer() {
     let tmp_path = tmp_dir.path().to_owned();
     let mapping = zip_producer(&tmp_path, &vec![&"test/gcno.zip".to_string(), &"test/gcda1.zip".to_string(), &"test/gcda2.zip".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::GCNO, true, "Platform_1.gcno"),
-        (ItemFormat::GCNO, true, "Platform_2.gcno"),
-        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno"),
-        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_2.gcno"),
-        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno"),
-        (ItemFormat::GCNO, true, "sub/prova2_1.gcno"),
-        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno"),
-        (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno"),
-        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_2.gcno"),
-        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_2.gcno"),
-        (ItemFormat::GCNO, true, "nsGnomeModule_2.gcno"),
-        (ItemFormat::GCNO, true, "sub/prova2_2.gcno"),
+    let expected = vec![
+        (ItemFormat::GCNO, true, "Platform_1.gcno", true),
+        (ItemFormat::GCNO, true, "Platform_2.gcno", false),
+        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_2.gcno", false),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_2.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_2.gcno", true),
+        (ItemFormat::GCNO, true, "nsGnomeModule_2.gcno", true),
+        (ItemFormat::GCNO, true, "sub/prova2_2.gcno", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(tmp_path, &queue, expected);
     assert!(mapping.is_some());
     let mapping: Value = serde_json::from_slice(&mapping.unwrap()).unwrap();
     assert_eq!(mapping.get("dist/include/zlib.h").unwrap().as_str().unwrap(), "modules/zlib/src/zlib.h");
@@ -437,16 +437,16 @@ fn test_zip_producer() {
     let tmp_path = tmp_dir.path().to_owned();
     let mapping = zip_producer(&tmp_path, &vec![&"test/gcno_no_path_mapping.zip".to_string(), &"test/gcda1.zip".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::GCNO, true, "Platform_1.gcno"),
-        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno"),
-        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno"),
-        (ItemFormat::GCNO, true, "sub/prova2_1.gcno"),
-        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno"),
-        (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno"),
+    let expected = vec![
+        (ItemFormat::GCNO, true, "Platform_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(tmp_path, &queue, expected);
     assert!(mapping.is_none());
 
 
@@ -457,22 +457,22 @@ fn test_zip_producer() {
     let tmp_path = tmp_dir.path().to_owned();
     zip_producer(&tmp_path, &vec![&"test/gcda1.zip".to_string(), &"test/gcno.zip".to_string(), &"test/gcda2.zip".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::GCNO, true, "Platform_1.gcno"),
-        (ItemFormat::GCNO, true, "Platform_2.gcno"),
-        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno"),
-        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_2.gcno"),
-        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno"),
-        (ItemFormat::GCNO, true, "sub/prova2_1.gcno"),
-        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno"),
-        (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno"),
-        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_2.gcno"),
-        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_2.gcno"),
-        (ItemFormat::GCNO, true, "nsGnomeModule_2.gcno"),
-        (ItemFormat::GCNO, true, "sub/prova2_2.gcno"),
+    let expected = vec![
+        (ItemFormat::GCNO, true, "Platform_1.gcno", true),
+        (ItemFormat::GCNO, true, "Platform_2.gcno", false),
+        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_2.gcno", false),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_2.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_2.gcno", true),
+        (ItemFormat::GCNO, true, "nsGnomeModule_2.gcno", true),
+        (ItemFormat::GCNO, true, "sub/prova2_2.gcno", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(tmp_path, &queue, expected);
 
 
     println!("Test extracting info files.");
@@ -482,22 +482,22 @@ fn test_zip_producer() {
     let tmp_path = tmp_dir.path().to_owned();
     zip_producer(&tmp_path, &vec![&"test/info1.zip".to_string(), &"test/info2.zip".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::INFO, false, "1494603967-2977-2_0.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-3_0.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-4_0.info"),
-        (ItemFormat::INFO, false, "1494603968-2977-5_0.info"),
-        (ItemFormat::INFO, false, "1494603972-2977-6_0.info"),
-        (ItemFormat::INFO, false, "1494603973-2977-7_0.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-2_1.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-3_1.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-4_1.info"),
-        (ItemFormat::INFO, false, "1494603968-2977-5_1.info"),
-        (ItemFormat::INFO, false, "1494603972-2977-6_1.info"),
-        (ItemFormat::INFO, false, "1494603973-2977-7_1.info"),
+    let expected = vec![
+        (ItemFormat::INFO, false, "1494603967-2977-2_0.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-3_0.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-4_0.info", true),
+        (ItemFormat::INFO, false, "1494603968-2977-5_0.info", true),
+        (ItemFormat::INFO, false, "1494603972-2977-6_0.info", true),
+        (ItemFormat::INFO, false, "1494603973-2977-7_0.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-2_1.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-3_1.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-4_1.info", true),
+        (ItemFormat::INFO, false, "1494603968-2977-5_1.info", true),
+        (ItemFormat::INFO, false, "1494603972-2977-6_1.info", true),
+        (ItemFormat::INFO, false, "1494603973-2977-7_1.info", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(tmp_path, &queue, expected);
 
 
     println!("Test extracting both info and gcno/gcda files.");
@@ -507,28 +507,28 @@ fn test_zip_producer() {
     let tmp_path = tmp_dir.path().to_owned();
     zip_producer(&tmp_path, &vec![&"test/gcno.zip".to_string(), &"test/gcda1.zip".to_string(), &"test/info1.zip".to_string(), &"test/info2.zip".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::GCNO, true, "Platform_1.gcno"),
-        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno"),
-        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno"),
-        (ItemFormat::GCNO, true, "sub/prova2_1.gcno"),
-        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno"),
-        (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno"),
-        (ItemFormat::INFO, false, "1494603967-2977-2_0.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-3_0.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-4_0.info"),
-        (ItemFormat::INFO, false, "1494603968-2977-5_0.info"),
-        (ItemFormat::INFO, false, "1494603972-2977-6_0.info"),
-        (ItemFormat::INFO, false, "1494603973-2977-7_0.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-2_1.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-3_1.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-4_1.info"),
-        (ItemFormat::INFO, false, "1494603968-2977-5_1.info"),
-        (ItemFormat::INFO, false, "1494603972-2977-6_1.info"),
-        (ItemFormat::INFO, false, "1494603973-2977-7_1.info"),
+    let expected = vec![
+        (ItemFormat::GCNO, true, "Platform_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
+        (ItemFormat::INFO, false, "1494603967-2977-2_0.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-3_0.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-4_0.info", true),
+        (ItemFormat::INFO, false, "1494603968-2977-5_0.info", true),
+        (ItemFormat::INFO, false, "1494603972-2977-6_0.info", true),
+        (ItemFormat::INFO, false, "1494603973-2977-7_0.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-2_1.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-3_1.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-4_1.info", true),
+        (ItemFormat::INFO, false, "1494603968-2977-5_1.info", true),
+        (ItemFormat::INFO, false, "1494603972-2977-6_1.info", true),
+        (ItemFormat::INFO, false, "1494603973-2977-7_1.info", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(tmp_path, &queue, expected);
 
 
     println!("Test extracting gcno with no associated gcda.");
@@ -538,11 +538,11 @@ fn test_zip_producer() {
     let tmp_path = tmp_dir.path().to_owned();
     let mapping = zip_producer(&tmp_path, &vec![&"test/no_gcda/main.gcno.zip".to_string(), &"test/no_gcda/empty.gcda.zip".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::GCNO, true, "main_1.gcno"),
+    let expected = vec![
+        (ItemFormat::GCNO, true, "main_1.gcno", false),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(tmp_path, &queue, expected);
     assert!(mapping.is_none());
 
 
@@ -553,12 +553,12 @@ fn test_zip_producer() {
     let tmp_path = tmp_dir.path().to_owned();
     let mapping = zip_producer(&tmp_path, &vec![&"test/no_gcda/main.gcno.zip".to_string(), &"test/no_gcda/empty.gcda.zip".to_string(),  &"test/no_gcda/main.gcda.zip".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::GCNO, true, "main_1.gcno"),
-        (ItemFormat::GCNO, true, "main_2.gcno"),
+    let expected = vec![
+        (ItemFormat::GCNO, true, "main_1.gcno", false),
+        (ItemFormat::GCNO, true, "main_2.gcno", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(tmp_path, &queue, expected);
     assert!(mapping.is_none());
 }
 
