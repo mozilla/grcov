@@ -72,7 +72,7 @@ fn prova() {
 
 #[derive(Debug,PartialEq)]
 enum ItemFormat {
-    GCDA,
+    GCNO,
     INFO,
 }
 
@@ -147,7 +147,7 @@ fn test_mkfifo() {
 }
 
 fn dir_producer(directories: &[&String], queue: &WorkQueue) -> Option<Vec<u8>> {
-    let gcda_ext = Some(OsStr::new("gcda"));
+    let gcno_ext = Some(OsStr::new("gcno"));
     let info_ext = Some(OsStr::new("info"));
     let json_ext = Some(OsStr::new("json"));
 
@@ -159,8 +159,8 @@ fn dir_producer(directories: &[&String], queue: &WorkQueue) -> Option<Vec<u8>> {
             let path = entry.path();
             if path.is_file() {
                 let ext = path.extension();
-                let format = if ext == gcda_ext {
-                    ItemFormat::GCDA
+                let format = if ext == gcno_ext {
+                    ItemFormat::GCNO
                 } else if ext == info_ext {
                     ItemFormat::INFO
                 } else if ext == json_ext && path.file_name().unwrap() == "linked-files-map.json" {
@@ -184,14 +184,16 @@ fn dir_producer(directories: &[&String], queue: &WorkQueue) -> Option<Vec<u8>> {
 }
 
 #[cfg(test)]
-fn check_produced(queue: &WorkQueue, expected: Vec<(ItemFormat,bool,&str)>) {
+fn check_produced(directory: PathBuf, queue: &WorkQueue, expected: Vec<(ItemFormat,bool,&str,bool)>) {
     let mut vec: Vec<Option<WorkItem>> = Vec::new();
 
-    for _ in 0..expected.len() {
-        vec.push(queue.pop());
+    loop {
+        let elem = queue.try_pop();
+        if elem.is_none() {
+            break;
+        }
+        vec.push(elem.unwrap());
     }
-
-    assert!(queue.try_pop().is_none());
 
     for elem in &expected {
         assert!(vec.iter().any(|x| {
@@ -216,20 +218,41 @@ fn check_produced(queue: &WorkQueue, expected: Vec<(ItemFormat,bool,&str)>) {
         }), "Missing {:?}", elem);
     }
 
-    // Assert file exists and file with the same name but with extension .gcno exists.
-    for x in vec.iter() {
-        let x = x.as_ref().unwrap();
+    for v in &vec {
+        let v = v.as_ref().unwrap();
+        assert!(expected.iter().any(|x| {
+            if v.format != x.0 {
+                return false;
+            }
 
-        match x.item {
-            ItemType::Content(_) => {
-                continue
-            },
-            ItemType::Path(ref p) => {
-                assert!(p.exists(), "{} doesn't exist", p.display());
-                if x.format == ItemFormat::GCDA {
-                    let gcno = p.with_file_name(format!("{}.gcno", p.file_stem().unwrap().to_str().unwrap()));
-                    assert!(gcno.exists(), "{} doesn't exist", gcno.display());
+            match v.item {
+                ItemType::Content(_) => {
+                    !x.1
+                },
+                ItemType::Path(ref p) => {
+                    x.1 && p.ends_with(x.2)
                 }
+            }
+        }), "Unexpected {:?}", v);
+    }
+
+    // Make sure we haven't generated duplicated entries.
+    assert_eq!(vec.len(), expected.len());
+
+    // Assert file exists and file with the same name but with extension .gcda exists.
+    for x in expected.iter() {
+        if !x.1 {
+            continue;
+        }
+
+        let p = directory.join(x.2);
+        assert!(p.exists(), "{} doesn't exist", p.display());
+        if x.0 == ItemFormat::GCNO {
+            let gcda = p.with_file_name(format!("{}.gcda", p.file_stem().unwrap().to_str().unwrap()));
+            if x.3 {
+                assert!(gcda.exists(), "{} doesn't exist", gcda.display());
+            } else {
+                assert!(!gcda.exists(), "{} exists", gcda.display());
             }
         }
     }
@@ -241,38 +264,41 @@ fn test_dir_producer() {
 
     let mapping = dir_producer(&vec![&"test".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::GCDA, true, "grcov/test/Platform.gcda"),
-        (ItemFormat::GCDA, true, "grcov/test/sub2/RootAccessibleWrap.gcda"),
-        (ItemFormat::GCDA, true, "grcov/test/nsMaiInterfaceValue.gcda"),
-        (ItemFormat::GCDA, true, "grcov/test/sub/prova2.gcda"),
-        (ItemFormat::GCDA, true, "grcov/test/nsMaiInterfaceDocument.gcda"),
-        (ItemFormat::GCDA, true, "grcov/test/Unified_cpp_netwerk_base0.gcda"),
-        (ItemFormat::GCDA, true, "grcov/test/prova.gcda"),
-        (ItemFormat::GCDA, true, "grcov/test/nsGnomeModule.gcda"),
-        (ItemFormat::GCDA, true, "grcov/test/negative_counts.gcda"),
-        (ItemFormat::GCDA, true, "grcov/test/64bit_count.gcda"),
-        (ItemFormat::INFO, true, "grcov/test/1494603973-2977-7.info"),
-        (ItemFormat::INFO, true, "grcov/test/prova.info"),
-        (ItemFormat::INFO, true, "grcov/test/prova_fn_with_commas.info"),
+    let expected = vec![
+        (ItemFormat::GCNO, true, "test/Platform.gcno", true),
+        (ItemFormat::GCNO, true, "test/sub2/RootAccessibleWrap.gcno", true),
+        (ItemFormat::GCNO, true, "test/nsMaiInterfaceValue.gcno", true),
+        (ItemFormat::GCNO, true, "test/sub/prova2.gcno", true),
+        (ItemFormat::GCNO, true, "test/nsMaiInterfaceDocument.gcno", true),
+        (ItemFormat::GCNO, true, "test/Unified_cpp_netwerk_base0.gcno", true),
+        (ItemFormat::GCNO, true, "test/prova.gcno", true),
+        (ItemFormat::GCNO, true, "test/nsGnomeModule.gcno", true),
+        (ItemFormat::GCNO, true, "test/negative_counts.gcno", true),
+        (ItemFormat::GCNO, true, "test/64bit_count.gcno", true),
+        (ItemFormat::GCNO, true, "test/no_gcda/main.gcno", false),
+        (ItemFormat::INFO, true, "test/1494603973-2977-7.info", true),
+        (ItemFormat::INFO, true, "test/prova.info", true),
+        (ItemFormat::INFO, true, "test/prova_fn_with_commas.info", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(PathBuf::from("."), &queue, expected);
     assert!(mapping.is_some());
     let mapping: Value = serde_json::from_slice(&mapping.unwrap()).unwrap();
     assert_eq!(mapping.get("dist/include/zlib.h").unwrap().as_str().unwrap(), "modules/zlib/src/zlib.h");
+}
 
-
+#[test]
+fn test_dir_producer_multiple_directories() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let mapping = dir_producer(&vec![&"test/sub".to_string(), &"test/sub2".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::GCDA, true, "grcov/test/sub2/RootAccessibleWrap.gcda"),
-        (ItemFormat::GCDA, true, "grcov/test/sub/prova2.gcda"),
+    let expected = vec![
+        (ItemFormat::GCNO, true, "test/sub2/RootAccessibleWrap.gcno", true),
+        (ItemFormat::GCNO, true, "test/sub/prova2.gcno", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(PathBuf::from("."), &queue, expected);
     assert!(mapping.is_none());
 }
 
@@ -306,6 +332,13 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue) -> Opt
         }
     }
 
+    if gcno_archive.is_some() {
+        assert!(gcda_archives.len() > 0);
+    }
+    if gcda_archives.len() > 0 {
+        assert!(gcno_archive.is_some());
+    }
+
     if let Some(mut gcno_archive) = gcno_archive {
         for i in 0..gcno_archive.len() {
             let mut gcno_file = gcno_archive.by_index(i).unwrap();
@@ -328,28 +361,29 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue) -> Opt
             else {
                 let stem = path.file_stem().unwrap().to_str().unwrap();
 
-                let gcno_path = path.with_file_name(format!("{}_{}.gcno", stem, 1));
-                extract_file(&mut gcno_file, &gcno_path);
+                let physical_gcno_path = path.with_file_name(format!("{}_{}.gcno", stem, 1));
+                extract_file(&mut gcno_file, &physical_gcno_path);
 
                 let gcda_path_in_zip = gcno_path_in_zip.with_extension("gcda");
 
                 for (num, gcda_archive) in gcda_archives.iter_mut().enumerate() {
-                    if let Ok(mut gcda_file) = gcda_archive.by_name(gcda_path_in_zip.to_str().unwrap()) {
-                        // Create symlinks.
-                        if num != 0 {
-                            let link_path = path.with_file_name(format!("{}_{}.gcno", stem, num + 1));
-                            fs::hard_link(&gcno_path, &link_path).expect(format!("Failed to create hardlink {}", link_path.display()).as_str());
-                        }
+                    let gcno_path = path.with_file_name(format!("{}_{}.gcno", stem, num + 1));
 
+                    // Create symlinks.
+                    if num != 0 {
+                        fs::hard_link(&physical_gcno_path, &gcno_path).expect(format!("Failed to create hardlink {}", gcno_path.display()).as_str());
+                    }
+
+                    if let Ok(mut gcda_file) = gcda_archive.by_name(gcda_path_in_zip.to_str().unwrap()) {
                         let gcda_path = path.with_file_name(format!("{}_{}.gcda", stem, num + 1));
 
                         extract_file(&mut gcda_file, &gcda_path);
-
-                        queue.push(Some(WorkItem {
-                            format: ItemFormat::GCDA,
-                            item: ItemType::Path(gcda_path),
-                        }));
                     }
+
+                    queue.push(Some(WorkItem {
+                        format: ItemFormat::GCNO,
+                        item: ItemType::Path(gcno_path),
+                    }));
                 }
             }
         }
@@ -375,127 +409,200 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue) -> Opt
     path_mapping_file
 }
 
+// Test extracting multiple gcda archives.
 #[test]
-fn test_zip_producer() {
-    // Test extracting multiple gcda archives.
+fn test_zip_producer_multiple_gcda_archives() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
     let mapping = zip_producer(&tmp_path, &vec![&"test/gcno.zip".to_string(), &"test/gcda1.zip".to_string(), &"test/gcda2.zip".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::GCDA, true, "Platform_1.gcda"),
-        (ItemFormat::GCDA, true, "sub2/RootAccessibleWrap_1.gcda"),
-        (ItemFormat::GCDA, true, "nsMaiInterfaceValue_1.gcda"),
-        (ItemFormat::GCDA, true, "sub/prova2_1.gcda"),
-        (ItemFormat::GCDA, true, "nsMaiInterfaceDocument_1.gcda"),
-        (ItemFormat::GCDA, true, "nsGnomeModule_1.gcda"),
-        (ItemFormat::GCDA, true, "nsMaiInterfaceValue_2.gcda"),
-        (ItemFormat::GCDA, true, "nsMaiInterfaceDocument_2.gcda"),
-        (ItemFormat::GCDA, true, "nsGnomeModule_2.gcda"),
-        (ItemFormat::GCDA, true, "sub/prova2_2.gcda"),
+    let expected = vec![
+        (ItemFormat::GCNO, true, "Platform_1.gcno", true),
+        (ItemFormat::GCNO, true, "Platform_2.gcno", false),
+        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_2.gcno", false),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_2.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_2.gcno", true),
+        (ItemFormat::GCNO, true, "nsGnomeModule_2.gcno", true),
+        (ItemFormat::GCNO, true, "sub/prova2_2.gcno", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(tmp_path, &queue, expected);
     assert!(mapping.is_some());
     let mapping: Value = serde_json::from_slice(&mapping.unwrap()).unwrap();
     assert_eq!(mapping.get("dist/include/zlib.h").unwrap().as_str().unwrap(), "modules/zlib/src/zlib.h");
+}
 
-    // Test extracting gcno with no path mapping.
+// Test extracting gcno with no path mapping.
+#[test]
+fn test_zip_producer_gcno_with_no_path_mapping() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
     let mapping = zip_producer(&tmp_path, &vec![&"test/gcno_no_path_mapping.zip".to_string(), &"test/gcda1.zip".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::GCDA, true, "Platform_1.gcda"),
-        (ItemFormat::GCDA, true, "sub2/RootAccessibleWrap_1.gcda"),
-        (ItemFormat::GCDA, true, "nsMaiInterfaceValue_1.gcda"),
-        (ItemFormat::GCDA, true, "sub/prova2_1.gcda"),
-        (ItemFormat::GCDA, true, "nsMaiInterfaceDocument_1.gcda"),
-        (ItemFormat::GCDA, true, "nsGnomeModule_1.gcda"),
+    let expected = vec![
+        (ItemFormat::GCNO, true, "Platform_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(tmp_path, &queue, expected);
     assert!(mapping.is_none());
+}
 
-    // Test calling zip_producer with a different order of zip files.
+// Test calling zip_producer with a different order of zip files.
+#[test]
+fn test_zip_producer_different_order_of_zip_files() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
     zip_producer(&tmp_path, &vec![&"test/gcda1.zip".to_string(), &"test/gcno.zip".to_string(), &"test/gcda2.zip".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::GCDA, true, "Platform_1.gcda"),
-        (ItemFormat::GCDA, true, "sub2/RootAccessibleWrap_1.gcda"),
-        (ItemFormat::GCDA, true, "nsMaiInterfaceValue_1.gcda"),
-        (ItemFormat::GCDA, true, "sub/prova2_1.gcda"),
-        (ItemFormat::GCDA, true, "nsMaiInterfaceDocument_1.gcda"),
-        (ItemFormat::GCDA, true, "nsGnomeModule_1.gcda"),
-        (ItemFormat::GCDA, true, "nsMaiInterfaceValue_2.gcda"),
-        (ItemFormat::GCDA, true, "nsMaiInterfaceDocument_2.gcda"),
-        (ItemFormat::GCDA, true, "nsGnomeModule_2.gcda"),
-        (ItemFormat::GCDA, true, "sub/prova2_2.gcda"),
+    let expected = vec![
+        (ItemFormat::GCNO, true, "Platform_1.gcno", true),
+        (ItemFormat::GCNO, true, "Platform_2.gcno", false),
+        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_2.gcno", false),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_2.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_2.gcno", true),
+        (ItemFormat::GCNO, true, "nsGnomeModule_2.gcno", true),
+        (ItemFormat::GCNO, true, "sub/prova2_2.gcno", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(tmp_path, &queue, expected);
+}
 
-    // Test extracting info files.
+// Test extracting info files.
+#[test]
+fn test_zip_producer_info_files() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
     zip_producer(&tmp_path, &vec![&"test/info1.zip".to_string(), &"test/info2.zip".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::INFO, false, "1494603967-2977-2_0.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-3_0.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-4_0.info"),
-        (ItemFormat::INFO, false, "1494603968-2977-5_0.info"),
-        (ItemFormat::INFO, false, "1494603972-2977-6_0.info"),
-        (ItemFormat::INFO, false, "1494603973-2977-7_0.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-2_1.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-3_1.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-4_1.info"),
-        (ItemFormat::INFO, false, "1494603968-2977-5_1.info"),
-        (ItemFormat::INFO, false, "1494603972-2977-6_1.info"),
-        (ItemFormat::INFO, false, "1494603973-2977-7_1.info"),
+    let expected = vec![
+        (ItemFormat::INFO, false, "1494603967-2977-2_0.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-3_0.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-4_0.info", true),
+        (ItemFormat::INFO, false, "1494603968-2977-5_0.info", true),
+        (ItemFormat::INFO, false, "1494603972-2977-6_0.info", true),
+        (ItemFormat::INFO, false, "1494603973-2977-7_0.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-2_1.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-3_1.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-4_1.info", true),
+        (ItemFormat::INFO, false, "1494603968-2977-5_1.info", true),
+        (ItemFormat::INFO, false, "1494603972-2977-6_1.info", true),
+        (ItemFormat::INFO, false, "1494603973-2977-7_1.info", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(tmp_path, &queue, expected);
+}
 
-    // Test extracting both info and gcno/gcda files.
+// Test extracting both info and gcno/gcda files.
+#[test]
+fn test_zip_producer_both_info_and_gcnogcda_files() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
     zip_producer(&tmp_path, &vec![&"test/gcno.zip".to_string(), &"test/gcda1.zip".to_string(), &"test/info1.zip".to_string(), &"test/info2.zip".to_string()], &queue);
 
-    let expected: Vec<(ItemFormat,bool,&str)> = vec![
-        (ItemFormat::GCDA, true, "Platform_1.gcda"),
-        (ItemFormat::GCDA, true, "sub2/RootAccessibleWrap_1.gcda"),
-        (ItemFormat::GCDA, true, "nsMaiInterfaceValue_1.gcda"),
-        (ItemFormat::GCDA, true, "sub/prova2_1.gcda"),
-        (ItemFormat::GCDA, true, "nsMaiInterfaceDocument_1.gcda"),
-        (ItemFormat::GCDA, true, "nsGnomeModule_1.gcda"),
-        (ItemFormat::INFO, false, "1494603967-2977-2_0.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-3_0.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-4_0.info"),
-        (ItemFormat::INFO, false, "1494603968-2977-5_0.info"),
-        (ItemFormat::INFO, false, "1494603972-2977-6_0.info"),
-        (ItemFormat::INFO, false, "1494603973-2977-7_0.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-2_1.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-3_1.info"),
-        (ItemFormat::INFO, false, "1494603967-2977-4_1.info"),
-        (ItemFormat::INFO, false, "1494603968-2977-5_1.info"),
-        (ItemFormat::INFO, false, "1494603972-2977-6_1.info"),
-        (ItemFormat::INFO, false, "1494603973-2977-7_1.info"),
+    let expected = vec![
+        (ItemFormat::GCNO, true, "Platform_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
+        (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno", true),
+        (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
+        (ItemFormat::INFO, false, "1494603967-2977-2_0.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-3_0.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-4_0.info", true),
+        (ItemFormat::INFO, false, "1494603968-2977-5_0.info", true),
+        (ItemFormat::INFO, false, "1494603972-2977-6_0.info", true),
+        (ItemFormat::INFO, false, "1494603973-2977-7_0.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-2_1.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-3_1.info", true),
+        (ItemFormat::INFO, false, "1494603967-2977-4_1.info", true),
+        (ItemFormat::INFO, false, "1494603968-2977-5_1.info", true),
+        (ItemFormat::INFO, false, "1494603972-2977-6_1.info", true),
+        (ItemFormat::INFO, false, "1494603973-2977-7_1.info", true),
     ];
 
-    check_produced(&queue, expected);
+    check_produced(tmp_path, &queue, expected);
+}
+
+// Test extracting gcno with no associated gcda.
+#[test]
+fn test_zip_producer_gcno_with_no_associated_gcda() {
+    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+    let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+    let tmp_path = tmp_dir.path().to_owned();
+    let mapping = zip_producer(&tmp_path, &vec![&"test/no_gcda/main.gcno.zip".to_string(), &"test/no_gcda/empty.gcda.zip".to_string()], &queue);
+
+    let expected = vec![
+        (ItemFormat::GCNO, true, "main_1.gcno", false),
+    ];
+
+    check_produced(tmp_path, &queue, expected);
+    assert!(mapping.is_none());
+}
+
+// Test extracting gcno with an associated gcda file in only one zip file.
+#[test]
+fn test_zip_producer_gcno_with_associated_gcda_in_only_one_archive() {
+    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+    let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+    let tmp_path = tmp_dir.path().to_owned();
+    let mapping = zip_producer(&tmp_path, &vec![&"test/no_gcda/main.gcno.zip".to_string(), &"test/no_gcda/empty.gcda.zip".to_string(),  &"test/no_gcda/main.gcda.zip".to_string()], &queue);
+
+    let expected = vec![
+        (ItemFormat::GCNO, true, "main_1.gcno", false),
+        (ItemFormat::GCNO, true, "main_2.gcno", true),
+    ];
+
+    check_produced(tmp_path, &queue, expected);
+    assert!(mapping.is_none());
+}
+
+// Test passing a gcno archive with no gcda archive makes zip_producer fail.
+#[test]
+#[should_panic]
+fn test_zip_producer_with_gcno_archive_and_no_gcda_archive() {
+    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+    let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+    let tmp_path = tmp_dir.path().to_owned();
+    zip_producer(&tmp_path, &vec![&"test/no_gcda/main.gcno.zip".to_string()], &queue);
+}
+
+// Test passing a gcda archive with no gcno archive makes zip_producer fail.
+#[test]
+#[should_panic]
+fn test_zip_producer_with_gcda_archive_and_no_gcno_archive() {
+    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+    let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+    let tmp_path = tmp_dir.path().to_owned();
+    zip_producer(&tmp_path, &vec![&"test/no_gcda/main.gcda.zip".to_string()], &queue);
 }
 
 fn producer(tmp_dir: &Path, paths: &[String], queue: &WorkQueue) -> Option<Vec<u8>> {
@@ -522,14 +629,14 @@ fn producer(tmp_dir: &Path, paths: &[String], queue: &WorkQueue) -> Option<Vec<u
     }
 }
 
-fn run_gcov(gcda_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf) {
+fn run_gcov(gcno_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf) {
     let mut command = Command::new("gcov");
     let command = if branch_enabled {
         command.arg("-b").arg("-c")
     } else {
         &mut command
     };
-    let status = command.arg(gcda_path)
+    let status = command.arg(gcno_path)
                         .arg("-i") // Generate intermediate gcov format, faster to parse.
                         .current_dir(working_dir)
                         .stdout(Stdio::null())
@@ -541,24 +648,24 @@ fn run_gcov(gcda_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf) {
     } else {*/
         let status = status.status()
                            .expect("Failed to execute gcov process");
-        assert!(status.success(), "gcov wasn't successfully executed on {}", gcda_path.display());
+        assert!(status.success(), "gcov wasn't successfully executed on {}", gcno_path.display());
     //}
 }
 
-fn run_llvm_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
+fn run_llvm_gcov(gcno_path: &PathBuf, working_dir: &PathBuf) {
     let status = Command::new("llvm-cov")
                          .arg("gcov")
                          .arg("-l") // Generate unique names for gcov files.
                          .arg("-b") // Generate function call information.
                          .arg("-c") // Display branch counts instead of percentages.
-                         .arg(gcda_path)
+                         .arg(gcno_path)
                          .current_dir(working_dir)
                          .stdout(Stdio::null())
                          .stderr(Stdio::null())
                          .status()
                          .expect("Failed to execute llvm-cov process");
 
-    assert!(status.success(), "llvm-cov wasn't successfully executed on {}", gcda_path.display());
+    assert!(status.success(), "llvm-cov wasn't successfully executed on {}", gcno_path.display());
 }
 
 fn parse_lcov<T: Read>(lcov_reader: BufReader<T>, branch_enabled: bool) -> Vec<(String,CovResult)> {
@@ -680,7 +787,10 @@ fn test_lcov_parser() {
     let func = result.1.functions.get("logConsoleMessage").unwrap();
     assert_eq!(func.start, 21);
     assert_eq!(func.executed, false);
+}
 
+#[test]
+fn test_lcov_parser_with_branch_parsing() {
     // Parse the same file, but with branch parsing enabled.
     let f = File::open("./test/prova.info").expect("Failed to open lcov file");
     let file = BufReader::new(&f);
@@ -700,7 +810,10 @@ fn test_lcov_parser() {
     let func = result.1.functions.get("logConsoleMessage").unwrap();
     assert_eq!(func.start, 21);
     assert_eq!(func.executed, false);
+}
 
+#[test]
+fn test_lcov_parser_fn_with_commas() {
     let f = File::open("./test/prova_fn_with_commas.info").expect("Failed to open lcov file");
     let file = BufReader::new(&f);
     let results = parse_lcov(file, true);
@@ -897,13 +1010,19 @@ fn test_parser() {
     func = result.1.functions.get("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv").unwrap();
     assert_eq!(func.start, 303);
     assert_eq!(func.executed, true);
+}
 
+#[test]
+fn test_parser_gcov_with_negative_counts() {
     let results = parse_gcov(Path::new("./test/negative_counts.gcov"));
     assert_eq!(results.len(), 118);
     let ref result = results[14];
     assert_eq!(result.0, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/mozilla/Assertions.h");
     assert_eq!(result.1.lines, [(40,0)].iter().cloned().collect());
+}
 
+#[test]
+fn test_parser_gcov_with_64bit_counts() {
     let results = parse_gcov(Path::new("./test/64bit_count.gcov"));
     assert_eq!(results.len(), 46);
     let ref result = results[8];
@@ -1692,23 +1811,23 @@ fn main() {
 
             while let Some(work_item) = queue.pop() {
                 let new_results = match work_item.format {
-                    ItemFormat::GCDA => {
-                        let gcda_path = work_item.path();
+                    ItemFormat::GCNO => {
+                        let gcno_path = work_item.path();
 
                         if !is_llvm {
-                            let gcov_path = working_dir.join(gcda_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov");
+                            let gcov_path = working_dir.join(gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov");
 
                             /*if cfg!(unix) {
                                 mkfifo(&gcov_path);
                             }*/
-                            run_gcov(gcda_path, branch_enabled, &working_dir);
+                            run_gcov(gcno_path, branch_enabled, &working_dir);
 
                             let new_results = parse_gcov(&gcov_path);
                             fs::remove_file(gcov_path).unwrap();
 
                             new_results
                         } else {
-                            run_llvm_gcov(gcda_path, &working_dir);
+                            run_llvm_gcov(gcno_path, &working_dir);
 
                             let mut new_results: Vec<(String,CovResult)> = Vec::new();
 
