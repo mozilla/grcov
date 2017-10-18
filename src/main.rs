@@ -407,9 +407,9 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue) -> Opt
     path_mapping_file
 }
 
+// Test extracting multiple gcda archives.
 #[test]
-fn test_zip_producer() {
-    println!("Test extracting multiple gcda archives.");
+fn test_zip_producer_multiple_gcda_archives() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
@@ -435,9 +435,11 @@ fn test_zip_producer() {
     assert!(mapping.is_some());
     let mapping: Value = serde_json::from_slice(&mapping.unwrap()).unwrap();
     assert_eq!(mapping.get("dist/include/zlib.h").unwrap().as_str().unwrap(), "modules/zlib/src/zlib.h");
+}
 
-
-    println!("Test extracting gcno with no path mapping.");
+// Test extracting gcno with no path mapping.
+#[test]
+fn test_zip_producer_gcno_with_no_path_mapping() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
@@ -455,9 +457,11 @@ fn test_zip_producer() {
 
     check_produced(tmp_path, &queue, expected);
     assert!(mapping.is_none());
+}
 
-
-    println!("Test calling zip_producer with a different order of zip files.");
+// Test calling zip_producer with a different order of zip files.
+#[test]
+fn test_zip_producer_different_order_of_zip_files() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
@@ -480,9 +484,11 @@ fn test_zip_producer() {
     ];
 
     check_produced(tmp_path, &queue, expected);
+}
 
-
-    println!("Test extracting info files.");
+// Test extracting info files.
+#[test]
+fn test_zip_producer_info_files() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
@@ -505,9 +511,11 @@ fn test_zip_producer() {
     ];
 
     check_produced(tmp_path, &queue, expected);
+}
 
-
-    println!("Test extracting both info and gcno/gcda files.");
+// Test extracting both info and gcno/gcda files.
+#[test]
+fn test_zip_producer_both_info_and_gcnogcda_files() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
@@ -536,9 +544,11 @@ fn test_zip_producer() {
     ];
 
     check_produced(tmp_path, &queue, expected);
+}
 
-
-    println!("Test extracting gcno with no associated gcda.");
+// Test extracting gcno with no associated gcda.
+#[test]
+fn test_zip_producer_gcno_with_no_associated_gcda() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
@@ -551,9 +561,11 @@ fn test_zip_producer() {
 
     check_produced(tmp_path, &queue, expected);
     assert!(mapping.is_none());
+}
 
-
-    println!("Test extracting gcno with an associated gcda file in only one zip file.");
+// Test extracting gcno with an associated gcda file in only one zip file.
+#[test]
+fn test_zip_producer_gcno_with_associated_gcda_in_only_one_archive() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
