@@ -1502,7 +1502,7 @@ fn get_digest(path: PathBuf) -> String {
     }
 }
 
-fn output_coveralls(results: CovResultIter, repo_token: &str, service_name: &str, service_number: &str, service_job_number: &str, commit_sha: &str) {
+fn output_coveralls(results: CovResultIter, repo_token: &str, service_name: &str, service_number: &str, service_job_number: &str, commit_sha: &str, with_function_info: bool) {
     let mut source_files = Vec::new();
 
     for (abs_path, rel_path, result) in results {
@@ -1526,12 +1526,31 @@ fn output_coveralls(results: CovResultIter, repo_token: &str, service_name: &str
             branches.push(if taken { 1 } else { 0 });
         }
 
-        source_files.push(json!({
-            "name": rel_path,
-            "source_digest": get_digest(abs_path),
-            "coverage": coverage,
-            "branches": branches,
-        }));
+        if !with_function_info {
+            source_files.push(json!({
+                "name": rel_path,
+                "source_digest": get_digest(abs_path),
+                "coverage": coverage,
+                "branches": branches,
+            }));
+        } else {
+            let mut functions = Vec::new();
+            for (name, function) in &result.functions {
+              functions.push(json!({
+                  "name": name,
+                  "start": function.start,
+                  "exec": function.executed,
+              }));
+            }
+
+            source_files.push(json!({
+                "name": rel_path,
+                "source_digest": get_digest(abs_path),
+                "coverage": coverage,
+                "branches": branches,
+                "functions": functions,
+            }));
+        }
     }
 
     let stdout = io::stdout();
@@ -1558,9 +1577,10 @@ fn print_usage(program: &str) {
     println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
     println!(" - lcov for the lcov INFO format;");
     println!(" - coveralls for the Coveralls specific format.");
+    println!(" - coveralls+ for the Coveralls specific format with function information.");
     println!("SOURCE_ROOT is the root directory of the source files.");
     println!("PREFIX_PATH is a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that generated the code coverage information).");
-    println!("COVERALLS_REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' format.");
+    println!("COVERALLS_REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' format.");
     println!("COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data.");
     println!("By default global includes are ignored. Use --keep-global-includes to keep them.");
     println!("By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.");
@@ -1739,13 +1759,13 @@ fn main() {
         i += 1;
     }
 
-    if output_type != "ade" && output_type != "lcov" && output_type != "coveralls" {
+    if output_type != "ade" && output_type != "lcov" && output_type != "coveralls" && output_type != "coveralls+" {
         println_stderr!("[ERROR]: '{}' output format is not supported.\n", output_type);
         print_usage(&args[0]);
         process::exit(1);
     }
 
-    if output_type == "coveralls" {
+    if output_type == "coveralls" || output_type == "coveralls+" {
         if repo_token == "" {
             println_stderr!("[ERROR]: Repository token is needed when the output format is 'coveralls'.\n");
             print_usage(&args[0]);
@@ -1888,6 +1908,8 @@ fn main() {
     } else if output_type == "lcov" {
         output_lcov(iterator);
     } else if output_type == "coveralls" {
-        output_coveralls(iterator, repo_token, service_name, service_number, service_job_number, commit_sha);
+        output_coveralls(iterator, repo_token, service_name, service_number, service_job_number, commit_sha, false);
+    } else if output_type == "coveralls+" {
+        output_coveralls(iterator, repo_token, service_name, service_number, service_job_number, commit_sha, true);
     }
 }
