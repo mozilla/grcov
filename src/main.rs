@@ -285,8 +285,10 @@ fn test_dir_producer() {
     assert!(mapping.is_some());
     let mapping: Value = serde_json::from_slice(&mapping.unwrap()).unwrap();
     assert_eq!(mapping.get("dist/include/zlib.h").unwrap().as_str().unwrap(), "modules/zlib/src/zlib.h");
+}
 
-
+#[test]
+fn test_dir_producer_multiple_directories() {
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
     let mapping = dir_producer(&vec![&"test/sub".to_string(), &"test/sub2".to_string()], &queue);
@@ -785,7 +787,10 @@ fn test_lcov_parser() {
     let func = result.1.functions.get("logConsoleMessage").unwrap();
     assert_eq!(func.start, 21);
     assert_eq!(func.executed, false);
+}
 
+#[test]
+fn test_lcov_parser_with_branch_parsing() {
     // Parse the same file, but with branch parsing enabled.
     let f = File::open("./test/prova.info").expect("Failed to open lcov file");
     let file = BufReader::new(&f);
@@ -805,7 +810,10 @@ fn test_lcov_parser() {
     let func = result.1.functions.get("logConsoleMessage").unwrap();
     assert_eq!(func.start, 21);
     assert_eq!(func.executed, false);
+}
 
+#[test]
+fn test_lcov_parser_fn_with_commas() {
     let f = File::open("./test/prova_fn_with_commas.info").expect("Failed to open lcov file");
     let file = BufReader::new(&f);
     let results = parse_lcov(file, true);
@@ -1002,13 +1010,19 @@ fn test_parser() {
     func = result.1.functions.get("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv").unwrap();
     assert_eq!(func.start, 303);
     assert_eq!(func.executed, true);
+}
 
+#[test]
+fn test_parser_gcov_with_negative_counts() {
     let results = parse_gcov(Path::new("./test/negative_counts.gcov"));
     assert_eq!(results.len(), 118);
     let ref result = results[14];
     assert_eq!(result.0, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/mozilla/Assertions.h");
     assert_eq!(result.1.lines, [(40,0)].iter().cloned().collect());
+}
 
+#[test]
+fn test_parser_gcov_with_64bit_counts() {
     let results = parse_gcov(Path::new("./test/64bit_count.gcov"));
     assert_eq!(results.len(), 46);
     let ref result = results[8];
