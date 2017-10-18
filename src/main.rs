@@ -188,7 +188,9 @@ fn check_produced(queue: &WorkQueue, expected: Vec<(ItemFormat,bool,&str)>) {
     let mut vec: Vec<Option<WorkItem>> = Vec::new();
 
     for _ in 0..expected.len() {
-        vec.push(queue.pop());
+        let elem = queue.try_pop();
+        assert!(!elem.is_none());
+        vec.push(elem.unwrap());
     }
 
     assert!(queue.try_pop().is_none());
