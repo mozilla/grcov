@@ -541,7 +541,7 @@ fn run_gcov(gcda_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf) {
     } else {*/
         let status = status.status()
                            .expect("Failed to execute gcov process");
-        assert!(status.success(), "gcov wasn't successfully executed");
+        assert!(status.success(), "gcov wasn't successfully executed on {}", gcda_path.display());
     //}
 }
 
@@ -558,7 +558,7 @@ fn run_llvm_gcov(gcda_path: &PathBuf, working_dir: &PathBuf) {
                          .status()
                          .expect("Failed to execute llvm-cov process");
 
-    assert!(status.success(), "llvm-cov wasn't successfully executed");
+    assert!(status.success(), "llvm-cov wasn't successfully executed on {}", gcda_path.display());
 }
 
 fn parse_lcov<T: Read>(lcov_reader: BufReader<T>, branch_enabled: bool) -> Vec<(String,CovResult)> {
