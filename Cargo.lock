@@ -1,6 +1,6 @@
 [root]
 name = "grcov"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "crossbeam 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.22 (registry+https://github.com/rust-lang/crates.io-index)",
