@@ -354,9 +354,9 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue) -> Opt
     }
 
     if gcno_archive.is_some() {
-        assert!(gcda_archives.len() > 0);
+        assert!(!gcda_archives.is_empty());
     }
-    if gcda_archives.len() > 0 {
+    if !gcda_archives.is_empty() {
         assert!(gcno_archive.is_some());
     }
 
@@ -1913,7 +1913,7 @@ fn main() {
     }
 
     for parser in parsers {
-        let _ = parser.join().unwrap();
+        parser.join().unwrap();
     }
 
     let result_map_mutex = Arc::try_unwrap(result_map).unwrap();
