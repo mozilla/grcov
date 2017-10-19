@@ -154,6 +154,9 @@ fn dir_producer(directories: &[&String], queue: &WorkQueue) -> Option<Vec<u8>> {
     let mut path_mapping_file = None;
 
     for directory in directories {
+        let is_dir_relative = PathBuf::from(directory).is_relative();
+        let current_dir = env::current_dir().unwrap();
+
         for entry in WalkDir::new(&directory) {
             let entry = entry.expect(format!("Failed to open directory '{}'.", directory).as_str());
             let path = entry.path();
@@ -172,9 +175,15 @@ fn dir_producer(directories: &[&String], queue: &WorkQueue) -> Option<Vec<u8>> {
                     continue
                 };
 
+                let abs_path = if is_dir_relative {
+                    current_dir.join(path)
+                } else {
+                    path.to_path_buf()
+                };
+
                 queue.push(Some(WorkItem {
                     format: format,
-                    item: ItemType::Path(fs::canonicalize(&path).unwrap()),
+                    item: ItemType::Path(abs_path),
                 }));
             }
         }
