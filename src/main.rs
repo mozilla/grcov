@@ -285,6 +285,8 @@ fn test_dir_producer() {
         (ItemFormat::GCNO, true, "test/negative_counts.gcno", true),
         (ItemFormat::GCNO, true, "test/64bit_count.gcno", true),
         (ItemFormat::GCNO, true, "test/no_gcda/main.gcno", false),
+        (ItemFormat::GCNO, true, "test/gcno_symlink/gcda/main.gcno", true),
+        (ItemFormat::GCNO, true, "test/gcno_symlink/gcno/main.gcno", false),
         (ItemFormat::INFO, true, "test/1494603973-2977-7.info", true),
         (ItemFormat::INFO, true, "test/prova.info", true),
         (ItemFormat::INFO, true, "test/prova_fn_with_commas.info", true),
@@ -305,6 +307,20 @@ fn test_dir_producer_multiple_directories() {
     let expected = vec![
         (ItemFormat::GCNO, true, "test/sub2/RootAccessibleWrap.gcno", true),
         (ItemFormat::GCNO, true, "test/sub/prova2.gcno", true),
+    ];
+
+    check_produced(PathBuf::from("."), &queue, expected);
+    assert!(mapping.is_none());
+}
+
+#[test]
+fn test_dir_producer_directory_with_gcno_symlinks() {
+    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+    let mapping = dir_producer(&vec![&"test/gcno_symlink/gcda".to_string()], &queue);
+
+    let expected = vec![
+        (ItemFormat::GCNO, true, "test/gcno_symlink/gcda/main.gcno", true),
     ];
 
     check_produced(PathBuf::from("."), &queue, expected);
