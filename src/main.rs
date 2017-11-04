@@ -1225,10 +1225,10 @@ fn test_rewrite_paths() {
     let results = rewrite_paths(result_map, None, "", "", false, false, None);
     let mut count = 0;
     for (abs_path, rel_path, result) in results {
-       count += 1;
-       assert_eq!(abs_path, PathBuf::from("main.cpp"));
-       assert_eq!(rel_path, PathBuf::from("main.cpp"));
-       assert_eq!(result, empty_result);
+        count += 1;
+        assert_eq!(abs_path, PathBuf::from("main.cpp"));
+        assert_eq!(rel_path, PathBuf::from("main.cpp"));
+        assert_eq!(result, empty_result);
     }
     assert_eq!(count, 1);
 
@@ -1239,10 +1239,10 @@ fn test_rewrite_paths() {
     let results = rewrite_paths(result_map, None, "", "", true, false, None);
     let mut count = 0;
     for (abs_path, rel_path, result) in results {
-       count += 1;
-       assert_eq!(abs_path, PathBuf::from("main.cpp"));
-       assert_eq!(rel_path, PathBuf::from("main.cpp"));
-       assert_eq!(result, empty_result);
+        count += 1;
+        assert_eq!(abs_path, PathBuf::from("main.cpp"));
+        assert_eq!(rel_path, PathBuf::from("main.cpp"));
+        assert_eq!(result, empty_result);
     }
     assert_eq!(count, 1);
 
@@ -1252,10 +1252,10 @@ fn test_rewrite_paths() {
     let results = rewrite_paths(result_map, None, "", "/home/worker/src/workspace/", false, false, None);
     let mut count = 0;
     for (abs_path, rel_path, result) in results {
-       count += 1;
-       assert_eq!(abs_path, PathBuf::from("main.cpp"));
-       assert_eq!(rel_path, PathBuf::from("main.cpp"));
-       assert_eq!(result, empty_result);
+        count += 1;
+        assert_eq!(abs_path, PathBuf::from("main.cpp"));
+        assert_eq!(rel_path, PathBuf::from("main.cpp"));
+        assert_eq!(result, empty_result);
     }
     assert_eq!(count, 1);
 
@@ -1266,11 +1266,11 @@ fn test_rewrite_paths() {
     let results = rewrite_paths(result_map, None, "", "", false, true, None);
     let mut count = 0;
     for (abs_path, rel_path, result) in results {
-       count += 1;
-       assert!(abs_path.is_absolute());
-       assert!(abs_path.ends_with("tests/class/main.cpp"));
-       assert!(rel_path.ends_with("tests/class/main.cpp"));
-       assert_eq!(result, empty_result);
+        count += 1;
+        assert!(abs_path.is_absolute());
+        assert!(abs_path.ends_with("tests/class/main.cpp"));
+        assert!(rel_path.ends_with("tests/class/main.cpp"));
+        assert_eq!(result, empty_result);
     }
     assert_eq!(count, 1);
 
@@ -1281,10 +1281,10 @@ fn test_rewrite_paths() {
     let results = rewrite_paths(result_map, None, "", "", false, false, Some("mydir".to_string()));
     let mut count = 0;
     for (abs_path, rel_path, result) in results {
-       count += 1;
-       assert_eq!(abs_path, PathBuf::from("main.cpp"));
-       assert_eq!(rel_path, PathBuf::from("main.cpp"));
-       assert_eq!(result, empty_result);
+        count += 1;
+        assert_eq!(abs_path, PathBuf::from("main.cpp"));
+        assert_eq!(rel_path, PathBuf::from("main.cpp"));
+        assert_eq!(result, empty_result);
     }
     assert_eq!(count, 1);
 
@@ -1294,11 +1294,11 @@ fn test_rewrite_paths() {
     let results = rewrite_paths(result_map, None, "tests", "", false, true, None);
     let mut count = 0;
     for (abs_path, rel_path, result) in results {
-       count += 1;
-       assert!(abs_path.is_absolute());
-       assert!(abs_path.ends_with("tests/class/main.cpp"));
-       assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
-       assert_eq!(result, empty_result);
+        count += 1;
+        assert!(abs_path.is_absolute());
+        assert!(abs_path.ends_with("tests/class/main.cpp"));
+        assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
+        assert_eq!(result, empty_result);
     }
     assert_eq!(count, 1);
 
@@ -1308,11 +1308,11 @@ fn test_rewrite_paths() {
     let results = rewrite_paths(result_map, None, fs::canonicalize("tests").unwrap().to_str().unwrap(), "", false, true, None);
     let mut count = 0;
     for (abs_path, rel_path, result) in results {
-       count += 1;
-       assert!(abs_path.is_absolute());
-       assert!(abs_path.ends_with("tests/class/main.cpp"));
-       assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
-       assert_eq!(result, empty_result);
+        count += 1;
+        assert!(abs_path.is_absolute());
+        assert!(abs_path.ends_with("tests/class/main.cpp"));
+        assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
+        assert_eq!(result, empty_result);
     }
     assert_eq!(count, 1);
 
@@ -1322,11 +1322,11 @@ fn test_rewrite_paths() {
     let results = rewrite_paths(result_map, None, "tests", "/home/worker/src/workspace", false, true, None);
     let mut count = 0;
     for (abs_path, rel_path, result) in results {
-       count += 1;
-       assert!(abs_path.is_absolute());
-       assert!(abs_path.ends_with("tests/class/main.cpp"));
-       assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
-       assert_eq!(result, empty_result);
+        count += 1;
+        assert!(abs_path.is_absolute());
+        assert!(abs_path.ends_with("tests/class/main.cpp"));
+        assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
+        assert_eq!(result, empty_result);
     }
     assert_eq!(count, 1);
 
@@ -1336,10 +1336,10 @@ fn test_rewrite_paths() {
     let results = rewrite_paths(result_map, Some(json!({"class/main.cpp": "rewritten/main.cpp"})), "", "", false, false, None);
     let mut count = 0;
     for (abs_path, rel_path, result) in results {
-       count += 1;
-       assert_eq!(abs_path, PathBuf::from("rewritten/main.cpp"));
-       assert_eq!(rel_path, PathBuf::from("rewritten/main.cpp"));
-       assert_eq!(result, empty_result);
+        count += 1;
+        assert_eq!(abs_path, PathBuf::from("rewritten/main.cpp"));
+        assert_eq!(rel_path, PathBuf::from("rewritten/main.cpp"));
+        assert_eq!(result, empty_result);
     }
     assert_eq!(count, 1);
 
@@ -1350,11 +1350,11 @@ fn test_rewrite_paths() {
     let results = rewrite_paths(result_map, Some(json!({"rewritten/main.cpp": "tests/class/main.cpp", "tests/class/main.cpp": "rewritten/main.cpp"})), "", "", false, true, None);
     let mut count = 0;
     for (abs_path, rel_path, result) in results {
-       count += 1;
-       assert!(abs_path.is_absolute());
-       assert!(abs_path.ends_with("tests/class/main.cpp"));
-       assert_eq!(rel_path, PathBuf::from("tests/class/main.cpp"));
-       assert_eq!(result, empty_result);
+        count += 1;
+        assert!(abs_path.is_absolute());
+        assert!(abs_path.ends_with("tests/class/main.cpp"));
+        assert_eq!(rel_path, PathBuf::from("tests/class/main.cpp"));
+        assert_eq!(result, empty_result);
     }
     assert_eq!(count, 1);
 
@@ -1364,11 +1364,11 @@ fn test_rewrite_paths() {
     let results = rewrite_paths(result_map, Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), "", "/home/worker/src/workspace", false, true, None);
     let mut count = 0;
     for (abs_path, rel_path, result) in results {
-       count += 1;
-       assert!(abs_path.is_absolute());
-       assert!(abs_path.ends_with("tests/class/main.cpp"));
-       assert_eq!(rel_path, PathBuf::from("tests/class/main.cpp"));
-       assert_eq!(result, empty_result);
+        count += 1;
+        assert!(abs_path.is_absolute());
+        assert!(abs_path.ends_with("tests/class/main.cpp"));
+        assert_eq!(rel_path, PathBuf::from("tests/class/main.cpp"));
+        assert_eq!(result, empty_result);
     }
     assert_eq!(count, 1);
 
@@ -1378,11 +1378,11 @@ fn test_rewrite_paths() {
     let results = rewrite_paths(result_map, Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})), "tests", "/home/worker/src/workspace", false, true, None);
     let mut count = 0;
     for (abs_path, rel_path, result) in results {
-       count += 1;
-       assert!(abs_path.is_absolute());
-       assert!(abs_path.ends_with("tests/class/main.cpp"));
-       assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
-       assert_eq!(result, empty_result);
+         count += 1;
+         assert!(abs_path.is_absolute());
+         assert!(abs_path.ends_with("tests/class/main.cpp"));
+         assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
+         assert_eq!(result, empty_result);
     }
     assert_eq!(count, 1);
 }
