@@ -1633,23 +1633,29 @@ fn test_is_recent_version() {
     assert!(is_recent_version("gcov (Ubuntu 6.3.0-12ubuntu2) 6.3.0 20170406"));
 }
 
-fn check_gcov_version() -> bool {
-    let output = Command::new("gcov")
-                         .arg("--version")
-                         .output()
-                         .expect("Failed to execute `gcov`. `gcov` is required (it is part of GCC).");
+fn check_gcov_version(is_llvm: bool) -> bool {
+    if !is_llvm {
+        let output = Command::new("gcov")
+                             .arg("--version")
+                             .output()
+                             .expect("Failed to execute `gcov`. `gcov` is required (it is part of GCC).");
 
-    assert!(output.status.success(), "`gcov` failed to execute.");
+        assert!(output.status.success(), "`gcov` failed to execute.");
 
-    is_recent_version(&String::from_utf8(output.stdout).unwrap())
+        is_recent_version(&String::from_utf8(output.stdout).unwrap())
+    } else {
+        let output = Command::new("llvm-cov")
+                             .arg("--version")
+                             .output()
+                             .expect("Failed to execute `llvm-cov`. `llvm-cov` is required (it is part of LLVM).");
+
+        assert!(output.status.success(), "`llvm-cov` failed to execute.");
+
+        true
+    }
 }
 
 fn main() {
-    if !check_gcov_version() {
-        println_stderr!("[ERROR]: gcov (bundled with GCC) >= 4.9 is required.\n");
-        process::exit(1);
-    }
-
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         println_stderr!("[ERROR]: Missing required directory argument.\n");
@@ -1776,6 +1782,15 @@ fn main() {
         }
 
         i += 1;
+    }
+
+    if !check_gcov_version(is_llvm) {
+        if !is_llvm {
+            println_stderr!("[ERROR]: gcov (bundled with GCC) >= 4.9 is required.\n");
+        } else {
+            println_stderr!("[ERROR]: llvm-cov (bundled with LLVM) is required.\n");
+        }
+        process::exit(1);
     }
 
     if output_type != "ade" && output_type != "lcov" && output_type != "coveralls" && output_type != "coveralls+" {
