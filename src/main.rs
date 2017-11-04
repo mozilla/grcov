@@ -866,9 +866,7 @@ fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) 
     let mut first_line = String::new();
     file.read_line(&mut first_line).unwrap();
     let mut splits = first_line.splitn(4, ':');
-    let mut source_name = splits.nth(3).unwrap().to_string();
-    let len = source_name.len();
-    source_name.truncate(len - 1);
+    let source_name = splits.nth(3).unwrap().trim_right().to_string();
 
     for line in file.lines() {
         let l = line.unwrap();
