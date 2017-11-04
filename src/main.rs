@@ -859,7 +859,7 @@ fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) 
     let mut branches = BTreeMap::new();
     let mut functions = HashMap::new();
 
-    let f = File::open(gcov_path).expect("Failed to open gcov file");
+    let f = File::open(gcov_path).expect(&format!("Failed to open old gcov file {}", gcov_path.display()));
     let mut file = BufReader::new(&f);
     let mut line_no: u32 = 0;
 
@@ -927,7 +927,7 @@ fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
 
     let mut results = Vec::new();
 
-    let f = File::open(&gcov_path).expect("Failed to open gcov file");
+    let f = File::open(&gcov_path).expect(&format!("Failed to open gcov file {}", gcov_path.display()));
     let file = BufReader::new(&f);
     for line in file.lines() {
         let l = line.unwrap();
