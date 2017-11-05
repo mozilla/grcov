@@ -130,7 +130,7 @@ fn mkfifo<P: AsRef<Path>>(path: P) {
 }
 #[cfg(windows)]
 fn mkfifo<P: AsRef<Path>>(path: P) {
-}*/
+}
 
 #[cfg(unix)]
 #[test]
@@ -140,7 +140,7 @@ fn test_mkfifo() {
     mkfifo(test_path);
     assert!(Path::new(test_path).exists());
     fs::remove_file(test_path).unwrap();
-}
+}*/
 
 fn dir_producer(directories: &[&String], queue: &WorkQueue) -> Option<Vec<u8>> {
     let gcno_ext = Some(OsStr::new("gcno"));
@@ -1143,6 +1143,16 @@ fn add_results(mut results: Vec<(String,CovResult)>, result_map: &SyncCovResultM
     }
 }
 
+fn to_lowercase_first(s: &str) -> String {
+    let mut c = s.chars();
+    c.next().unwrap().to_lowercase().collect::<String>() + c.as_str()
+}
+
+fn to_uppercase_first(s: &str) -> String {
+    let mut c = s.chars();
+    c.next().unwrap().to_uppercase().collect::<String>() + c.as_str()
+}
+
 fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, source_dir: &str, prefix_dir: &str, ignore_global: bool, ignore_not_existing: bool, to_ignore_dir: Option<String>) -> CovResultIter {
     let source_dir = if source_dir != "" {
         fs::canonicalize(&source_dir).expect("Source directory does not exist.")
@@ -1159,10 +1169,12 @@ fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, source_d
     let prefix_dir = prefix_dir.to_owned();
 
     Box::new(result_map.into_iter().filter_map(move |(path, result)| {
-        let path = PathBuf::from(path);
+        let path = PathBuf::from(path.replace("\\", "/"));
 
         // Get path from the mapping, or remove prefix from path.
-        let (rel_path, found_in_mapping) = if let Some(p) = path_mapping.get(path.to_str().unwrap()) {
+        let (rel_path, found_in_mapping) = if let Some(p) = path_mapping.get(to_lowercase_first(path.to_str().unwrap())) {
+            (PathBuf::from(p.as_str().unwrap()), true)
+        } else if let Some(p) = path_mapping.get(to_uppercase_first(path.to_str().unwrap())) {
             (PathBuf::from(p.as_str().unwrap()), true)
         } else if path.starts_with(&prefix_dir) {
             (path.strip_prefix(&prefix_dir).unwrap().to_path_buf(), false)
@@ -1178,7 +1190,11 @@ fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, source_d
 
         // Get absolute path to source file.
         let abs_path = if rel_path.is_relative() {
-            PathBuf::from(&source_dir).join(&rel_path)
+            if !cfg!(windows) {
+                PathBuf::from(&source_dir).join(&rel_path)
+            } else {
+                PathBuf::from(&source_dir).join(&rel_path.to_str().unwrap().replace("/", "\\"))
+            }
         } else {
             rel_path.clone()
         };
@@ -1403,6 +1419,19 @@ fn test_rewrite_paths() {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("C:\\Users\\worker\\src\\workspace\\main.cpp".to_string(), empty_result.clone());
         let results = rewrite_paths(result_map, None, "", "C:\\Users\\worker\\src\\workspace\\", false, false, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
+
+        // Remove prefix with /.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("C:/Users/worker/src/workspace/main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, "", "C:/Users/worker/src/workspace/", false, false, None);
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
