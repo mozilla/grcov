@@ -1217,172 +1217,356 @@ fn test_rewrite_paths() {
         functions: HashMap::new(),
     };
 
-    // Basic test.
-    let mut result_map: CovResultMap = HashMap::new();
-    result_map.insert("main.cpp".to_string(), empty_result.clone());
-    let results = rewrite_paths(result_map, None, "", "", false, false, None);
-    let mut count = 0;
-    for (abs_path, rel_path, result) in results {
-        count += 1;
-        assert_eq!(abs_path, PathBuf::from("main.cpp"));
-        assert_eq!(rel_path, PathBuf::from("main.cpp"));
-        assert_eq!(result, empty_result);
-    }
-    assert_eq!(count, 1);
+    if !cfg!(windows) {
+        // Basic test.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, "", "", false, false, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
 
-    // Ignore global files.
-    let mut result_map: CovResultMap = HashMap::new();
-    result_map.insert("main.cpp".to_string(), empty_result.clone());
-    result_map.insert("/usr/include/prova.h".to_string(), empty_result.clone());
-    let results = rewrite_paths(result_map, None, "", "", true, false, None);
-    let mut count = 0;
-    for (abs_path, rel_path, result) in results {
-        count += 1;
-        assert_eq!(abs_path, PathBuf::from("main.cpp"));
-        assert_eq!(rel_path, PathBuf::from("main.cpp"));
-        assert_eq!(result, empty_result);
-    }
-    assert_eq!(count, 1);
+        // Ignore global files.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("main.cpp".to_string(), empty_result.clone());
+        result_map.insert("/usr/include/prova.h".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, "", "", true, false, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
 
-    // Remove prefix.
-    let mut result_map: CovResultMap = HashMap::new();
-    result_map.insert("/home/worker/src/workspace/main.cpp".to_string(), empty_result.clone());
-    let results = rewrite_paths(result_map, None, "", "/home/worker/src/workspace/", false, false, None);
-    let mut count = 0;
-    for (abs_path, rel_path, result) in results {
-        count += 1;
-        assert_eq!(abs_path, PathBuf::from("main.cpp"));
-        assert_eq!(rel_path, PathBuf::from("main.cpp"));
-        assert_eq!(result, empty_result);
-    }
-    assert_eq!(count, 1);
+        // Remove prefix.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("/home/worker/src/workspace/main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, "", "/home/worker/src/workspace/", false, false, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
 
-    // Ignore non existing files.
-    let mut result_map: CovResultMap = HashMap::new();
-    result_map.insert("tests/class/main.cpp".to_string(), empty_result.clone());
-    result_map.insert("tests/class/doesntexist.cpp".to_string(), empty_result.clone());
-    let results = rewrite_paths(result_map, None, "", "", false, true, None);
-    let mut count = 0;
-    for (abs_path, rel_path, result) in results {
-        count += 1;
-        assert!(abs_path.is_absolute());
-        assert!(abs_path.ends_with("tests/class/main.cpp"));
-        assert!(rel_path.ends_with("tests/class/main.cpp"));
-        assert_eq!(result, empty_result);
-    }
-    assert_eq!(count, 1);
+        // Ignore non existing files.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("tests/class/main.cpp".to_string(), empty_result.clone());
+        result_map.insert("tests/class/doesntexist.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, "", "", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests/class/main.cpp"));
+            assert!(rel_path.ends_with("tests/class/main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
 
-    // Ignore a directory.
-    let mut result_map: CovResultMap = HashMap::new();
-    result_map.insert("main.cpp".to_string(), empty_result.clone());
-    result_map.insert("mydir/prova.h".to_string(), empty_result.clone());
-    let results = rewrite_paths(result_map, None, "", "", false, false, Some("mydir".to_string()));
-    let mut count = 0;
-    for (abs_path, rel_path, result) in results {
-        count += 1;
-        assert_eq!(abs_path, PathBuf::from("main.cpp"));
-        assert_eq!(rel_path, PathBuf::from("main.cpp"));
-        assert_eq!(result, empty_result);
-    }
-    assert_eq!(count, 1);
+        // Ignore a directory.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("main.cpp".to_string(), empty_result.clone());
+        result_map.insert("mydir/prova.h".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, "", "", false, false, Some("mydir".to_string()));
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
 
-    // Rewrite path using relative source directory.
-    let mut result_map: CovResultMap = HashMap::new();
-    result_map.insert("class/main.cpp".to_string(), empty_result.clone());
-    let results = rewrite_paths(result_map, None, "tests", "", false, true, None);
-    let mut count = 0;
-    for (abs_path, rel_path, result) in results {
-        count += 1;
-        assert!(abs_path.is_absolute());
-        assert!(abs_path.ends_with("tests/class/main.cpp"));
-        assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
-        assert_eq!(result, empty_result);
-    }
-    assert_eq!(count, 1);
+        // Rewrite path using relative source directory.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("class/main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, "tests", "", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests/class/main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
 
-    // Rewrite path using absolute source directory.
-    let mut result_map: CovResultMap = HashMap::new();
-    result_map.insert("class/main.cpp".to_string(), empty_result.clone());
-    let results = rewrite_paths(result_map, None, fs::canonicalize("tests").unwrap().to_str().unwrap(), "", false, true, None);
-    let mut count = 0;
-    for (abs_path, rel_path, result) in results {
-        count += 1;
-        assert!(abs_path.is_absolute());
-        assert!(abs_path.ends_with("tests/class/main.cpp"));
-        assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
-        assert_eq!(result, empty_result);
-    }
-    assert_eq!(count, 1);
+        // Rewrite path using absolute source directory.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("class/main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, fs::canonicalize("tests").unwrap().to_str().unwrap(), "", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests/class/main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
 
-    // Rewrite path and remove prefix.
-    let mut result_map: CovResultMap = HashMap::new();
-    result_map.insert("/home/worker/src/workspace/class/main.cpp".to_string(), empty_result.clone());
-    let results = rewrite_paths(result_map, None, "tests", "/home/worker/src/workspace", false, true, None);
-    let mut count = 0;
-    for (abs_path, rel_path, result) in results {
-        count += 1;
-        assert!(abs_path.is_absolute());
-        assert!(abs_path.ends_with("tests/class/main.cpp"));
-        assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
-        assert_eq!(result, empty_result);
-    }
-    assert_eq!(count, 1);
+        // Rewrite path and remove prefix.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("/home/worker/src/workspace/class/main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, "tests", "/home/worker/src/workspace", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests/class/main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
 
-    // Rewrite path using mapping.
-    let mut result_map: CovResultMap = HashMap::new();
-    result_map.insert("class/main.cpp".to_string(), empty_result.clone());
-    let results = rewrite_paths(result_map, Some(json!({"class/main.cpp": "rewritten/main.cpp"})), "", "", false, false, None);
-    let mut count = 0;
-    for (abs_path, rel_path, result) in results {
-        count += 1;
-        assert_eq!(abs_path, PathBuf::from("rewritten/main.cpp"));
-        assert_eq!(rel_path, PathBuf::from("rewritten/main.cpp"));
-        assert_eq!(result, empty_result);
-    }
-    assert_eq!(count, 1);
+        // Rewrite path using mapping.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("class/main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, Some(json!({"class/main.cpp": "rewritten/main.cpp"})), "", "", false, false, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("rewritten/main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("rewritten/main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
 
-    // Rewrite path using mapping, ignore not existing.
-    let mut result_map: CovResultMap = HashMap::new();
-    result_map.insert("rewritten/main.cpp".to_string(), empty_result.clone());
-    result_map.insert("tests/class/main.cpp".to_string(), empty_result.clone());
-    let results = rewrite_paths(result_map, Some(json!({"rewritten/main.cpp": "tests/class/main.cpp", "tests/class/main.cpp": "rewritten/main.cpp"})), "", "", false, true, None);
-    let mut count = 0;
-    for (abs_path, rel_path, result) in results {
-        count += 1;
-        assert!(abs_path.is_absolute());
-        assert!(abs_path.ends_with("tests/class/main.cpp"));
-        assert_eq!(rel_path, PathBuf::from("tests/class/main.cpp"));
-        assert_eq!(result, empty_result);
-    }
-    assert_eq!(count, 1);
+        // Rewrite path using mapping, ignore not existing.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("rewritten/main.cpp".to_string(), empty_result.clone());
+        result_map.insert("tests/class/main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, Some(json!({"rewritten/main.cpp": "tests/class/main.cpp", "tests/class/main.cpp": "rewritten/main.cpp"})), "", "", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests/class/main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("tests/class/main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
 
-    // Rewrite path using mapping and remove prefix.
-    let mut result_map: CovResultMap = HashMap::new();
-    result_map.insert("/home/worker/src/workspace/rewritten/main.cpp".to_string(), empty_result.clone());
-    let results = rewrite_paths(result_map, Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), "", "/home/worker/src/workspace", false, true, None);
-    let mut count = 0;
-    for (abs_path, rel_path, result) in results {
-        count += 1;
-        assert!(abs_path.is_absolute());
-        assert!(abs_path.ends_with("tests/class/main.cpp"));
-        assert_eq!(rel_path, PathBuf::from("tests/class/main.cpp"));
-        assert_eq!(result, empty_result);
-    }
-    assert_eq!(count, 1);
+        // Rewrite path using mapping and remove prefix.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("/home/worker/src/workspace/rewritten/main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), "", "/home/worker/src/workspace", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests/class/main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("tests/class/main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
 
-    // Rewrite path using mapping and source directory and remove prefix.
-    let mut result_map: CovResultMap = HashMap::new();
-    result_map.insert("/home/worker/src/workspace/rewritten/main.cpp".to_string(), empty_result.clone());
-    let results = rewrite_paths(result_map, Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})), "tests", "/home/worker/src/workspace", false, true, None);
-    let mut count = 0;
-    for (abs_path, rel_path, result) in results {
-         count += 1;
-         assert!(abs_path.is_absolute());
-         assert!(abs_path.ends_with("tests/class/main.cpp"));
-         assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
-         assert_eq!(result, empty_result);
+        // Rewrite path using mapping and source directory and remove prefix.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("/home/worker/src/workspace/rewritten/main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})), "tests", "/home/worker/src/workspace", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+             count += 1;
+             assert!(abs_path.is_absolute());
+             assert!(abs_path.ends_with("tests/class/main.cpp"));
+             assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
+             assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
+    } else {
+        // Ignore global files.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("main.cpp".to_string(), empty_result.clone());
+        result_map.insert("C:\\usr\\include\\prova.h".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, "", "", true, false, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
+
+        // Remove prefix.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("C:\\Users\\worker\\src\\workspace\\main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, "", "C:\\Users\\worker\\src\\workspace\\", false, false, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
+
+        // Ignore non existing files.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("tests\\class\\main.cpp".to_string(), empty_result.clone());
+        result_map.insert("tests\\class\\doesntexist.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, "", "", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
+            assert!(rel_path.ends_with("tests\\class\\main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
+
+        // Ignore a directory.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("main.cpp".to_string(), empty_result.clone());
+        result_map.insert("mydir\\prova.h".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, "", "", false, false, Some("mydir".to_string()));
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
+
+        // Rewrite path using relative source directory.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("class\\main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, "tests", "", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("class\\main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
+
+        // Rewrite path using absolute source directory.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("class\\main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, fs::canonicalize("tests").unwrap().to_str().unwrap(), "", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("class\\main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
+
+        // Rewrite path and remove prefix.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("C:\\Users\\worker\\src\\workspace\\class\\main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, None, "tests", "C:\\Users\\worker\\src\\workspace", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("class\\main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
+
+        // Rewrite path using mapping.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("class\\main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, Some(json!({"class/main.cpp": "rewritten/main.cpp"})), "", "", false, false, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("rewritten\\main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("rewritten\\main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
+
+        // Rewrite path using mapping, ignore not existing.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("rewritten\\main.cpp".to_string(), empty_result.clone());
+        result_map.insert("tests\\class\\main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, Some(json!({"rewritten/main.cpp": "tests/class/main.cpp", "tests/class/main.cpp": "rewritten/main.cpp"})), "", "", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("tests\\class\\main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
+
+        // Rewrite path using mapping and remove prefix.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("C:\\Users\\worker\\src\\workspace\\rewritten\\main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, Some(json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), "", "C:\\Users\\worker\\src\\workspace", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("tests\\class\\main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
+
+        // Rewrite path using mapping with lowercase disk prefix and remove prefix.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("C:\\Users\\worker\\src\\workspace\\rewritten\\main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, Some(json!({"c:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), "", "C:\\Users\\worker\\src\\workspace", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("tests\\class\\main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
+
+        // Rewrite path using mapping and remove prefix with lowercase disk prefix.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("C:\\Users\\worker\\src\\workspace\\rewritten\\main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, Some(json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), "", "c:\\Users\\worker\\src\\workspace", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("tests\\class\\main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
+
+        // Rewrite path using mapping and source directory and remove prefix.
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("C:\\Users\\worker\\src\\workspace\\rewritten\\main.cpp".to_string(), empty_result.clone());
+        let results = rewrite_paths(result_map, Some(json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})), "tests", "C:\\Users\\worker\\src\\workspace", false, true, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("class\\main.cpp"));
+            assert_eq!(result, empty_result);
+        }
+        assert_eq!(count, 1);
     }
-    assert_eq!(count, 1);
 }
 
 fn to_activedata_etl_vec(normal_vec: &[u32]) -> Vec<Value> {
