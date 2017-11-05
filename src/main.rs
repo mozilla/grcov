@@ -873,6 +873,7 @@ fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) 
         let l = unsafe {
             String::from_utf8_unchecked(l)
         };
+        let l = l.trim_right();
         if l.starts_with("function") {
             let mut f_splits = l.splitn(5, ' ');
             let function_name = f_splits.nth(1).unwrap().to_string();
@@ -920,7 +921,7 @@ fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) 
 }
 
 #[test]
-fn test_parser_gcov_with_encoding_different_from_utf8() {
+fn test_parser_old_gcov_with_encoding_different_from_utf8() {
     let (source_name, result) = parse_old_gcov(Path::new("./test/non-utf-8.gcov"), false);
 
     assert_eq!(source_name, "main.c");
@@ -937,6 +938,22 @@ fn test_parser_gcov_with_encoding_different_from_utf8() {
     let func = result.functions.get("func2").unwrap();
     assert_eq!(func.start, 8);
     assert_eq!(func.executed, false);
+}
+
+#[test]
+fn test_parser_old_gcov_with_branches() {
+    let (source_name, result) = parse_old_gcov(Path::new("./test/old_branches.gcov"), true);
+
+    assert_eq!(source_name, "main.c");
+
+    assert_eq!(result.lines, [(5, 20), (6, 9), (7, 3), (8, 3), (10, 9), (11, 0), (12, 0), (13, 9), (15, 1)].iter().cloned().collect());
+
+    assert_eq!(result.branches, [((5, 0), true), ((5, 1), true), ((6, 0), true), ((6, 1), true), ((10, 0), false), ((10, 1), true)].iter().cloned().collect());
+
+    assert!(result.functions.contains_key("main"));
+    let func = result.functions.get("main").unwrap();
+    assert_eq!(func.start, 3);
+    assert_eq!(func.executed, true);
 }
 
 fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {

@@ -1,0 +1,28 @@
+        -:    0:Source:main.c
+        -:    0:Graph:main.gcno
+        -:    0:Data:main.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:#include <stdio.h>
+        -:    2:
+function main called 1 returned 100% blocks executed 90%
+        -:    3:int main(void)
+        -:    4:{
+       20:    5:  for (int i = 1; i < 10; i++) {
+branch  0 taken 9
+branch  1 taken 1
+        9:    6:      if (i % 3 == 0) {
+branch  0 taken 3
+branch  1 taken 6
+        3:    7:        printf ("%d is divisible by 3\n", i);
+        3:    8:      }
+        -:    9:
+        9:   10:      if (i % 11 == 0) {
+branch  0 taken 0
+branch  1 taken 9
+    #####:   11:        printf ("%d is divisible by 11\n", i);
+    #####:   12:      }
+        9:   13:  }
+        -:   14:
+        1:   15:  return 0;
+        -:   16:}
