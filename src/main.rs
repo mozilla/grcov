@@ -395,7 +395,7 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue) -> Opt
                         fs::hard_link(&physical_gcno_path, &gcno_path).expect(format!("Failed to create hardlink {}", gcno_path.display()).as_str());
                     }
 
-                    if let Ok(mut gcda_file) = gcda_archive.by_name(gcda_path_in_zip.to_str().unwrap()) {
+                    if let Ok(mut gcda_file) = gcda_archive.by_name(&gcda_path_in_zip.to_str().unwrap().replace("\\", "/")) {
                         let gcda_path = path.with_file_name(format!("{}_{}.gcda", stem, num + 1));
 
                         extract_file(&mut gcda_file, &gcda_path);
