@@ -1,0 +1,23 @@
+        -:    0:Source:main.c
+        -:    0:Graph:main.gcno
+        -:    0:Data:main.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:#include <stdio.h>
+        -:    2:
+        -:    3:// Copyright © 2017 Mozilla Foundation
+function func1 called 1 returned 100% blocks executed 100%
+        -:    4:void func1(void) {
+        2:    5:  printf("func1\n");
+        1:    6:}
+        -:    7:
+function func2 called 0 returned 0% blocks executed 0%
+        -:    8:void func2(void) {
+    #####:    9:  printf("func2\n");
+    #####:   10:}
+        -:   11:
+function main called 1 returned 100% blocks executed 100%
+        -:   12:int main(void) {
+        1:   13:  func1();
+        1:   14:  return 0;
+        -:   15:}
