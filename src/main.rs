@@ -31,7 +31,7 @@ use crypto::digest::Digest;
 use tempdir::TempDir;
 use uuid::Uuid;
 #[cfg(unix)]
-use std::ffi::CString;
+//use std::ffi::CString;
 
 /*
 use std::os::raw::c_char;
@@ -119,7 +119,7 @@ macro_rules! println_stderr(
     } }
 );
 
-#[cfg(unix)]
+/*#[cfg(unix)]
 fn mkfifo<P: AsRef<Path>>(path: P) {
     let filename = CString::new(path.as_ref().as_os_str().to_str().unwrap()).unwrap();
     unsafe {
@@ -130,7 +130,7 @@ fn mkfifo<P: AsRef<Path>>(path: P) {
 }
 #[cfg(windows)]
 fn mkfifo<P: AsRef<Path>>(path: P) {
-}
+}*/
 
 #[cfg(unix)]
 #[test]
