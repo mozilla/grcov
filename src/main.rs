@@ -860,15 +860,17 @@ fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) 
     let mut functions = HashMap::new();
 
     let f = File::open(gcov_path).expect(&format!("Failed to open old gcov file {}", gcov_path.display()));
-    let mut file = BufReader::new(&f);
+    let file = BufReader::new(&f);
     let mut line_no: u32 = 0;
 
-    let mut first_line = String::new();
-    file.read_line(&mut first_line).unwrap();
-    let mut splits = first_line.splitn(4, ':');
-    let source_name = splits.nth(3).unwrap().trim_right().to_string();
+    let mut lines_iterator = file.split(b'\n');
 
-    for line in file.split(b'\n') {
+    let first_line = lines_iterator.next().unwrap().unwrap();
+    let first_line = String::from_utf8(first_line).unwrap();
+    let mut splits = first_line.trim_right().splitn(4, ':');
+    let source_name = splits.nth(3).unwrap().to_string();
+
+    for line in lines_iterator {
         let l = line.unwrap();
         let l = unsafe {
             String::from_utf8_unchecked(l)
