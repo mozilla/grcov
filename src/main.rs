@@ -1188,9 +1188,33 @@ fn to_lowercase_first(s: &str) -> String {
     c.next().unwrap().to_lowercase().collect::<String>() + c.as_str()
 }
 
+#[test]
+fn test_to_lowercase_first() {
+  assert_eq!(to_lowercase_first("marco"), "marco");
+  assert_eq!(to_lowercase_first("Marco"), "marco");
+}
+
+#[test]
+#[should_panic]
+fn test_to_lowercase_first_empty() {
+    to_lowercase_first("");
+}
+
 fn to_uppercase_first(s: &str) -> String {
     let mut c = s.chars();
     c.next().unwrap().to_uppercase().collect::<String>() + c.as_str()
+}
+
+#[test]
+fn test_to_uppercase_first() {
+  assert_eq!(to_uppercase_first("marco"), "Marco");
+  assert_eq!(to_uppercase_first("Marco"), "Marco");
+}
+
+#[test]
+#[should_panic]
+fn test_to_uppercase_first_empty() {
+    to_uppercase_first("");
 }
 
 fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, source_dir: &str, prefix_dir: &str, ignore_global: bool, ignore_not_existing: bool, to_ignore_dir: Option<String>) -> CovResultIter {
