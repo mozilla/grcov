@@ -30,8 +30,8 @@ use crypto::md5::Md5;
 use crypto::digest::Digest;
 use tempdir::TempDir;
 use uuid::Uuid;
-#[cfg(unix)]
-//use std::ffi::CString;
+/*#[cfg(unix)]
+use std::ffi::CString;*/
 
 /*
 use std::os::raw::c_char;
