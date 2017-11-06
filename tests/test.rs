@@ -4,7 +4,7 @@ extern crate serde_json;
 use std::env;
 use std::process::Command;
 use walkdir::WalkDir;
-use std::path::Path;
+use std::path::{PathBuf, Path};
 use std::fs::File;
 use std::io::Read;
 use serde_json::Value;
@@ -19,7 +19,13 @@ fn make(path: &Path, compiler: &str) {
 }
 
 fn run(path: &Path) {
-    let status = Command::new("./a.out")
+    let program = if !cfg!(windows) {
+      PathBuf::from("./a.out")
+    } else {
+      path.join("a.exe")
+    };
+
+    let status = Command::new(program)
                          .current_dir(path)
                          .status()
                          .expect("Failed to run");
