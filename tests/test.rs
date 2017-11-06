@@ -195,12 +195,14 @@ fn test_integration() {
 
             make_clean(path);
 
-            println!("GCC");
-            make(path, "g++");
-            run(path);
-            check_equal_ade(&read_expected(path, "gcc", "ade"), &run_grcov(path, false, "ade"));
-            check_equal_coveralls(&read_expected(path, "gcc", "coveralls"), &run_grcov(path, false, "coveralls"), skip_branches);
-            make_clean(path);
+            if !cfg!(windows) {
+                println!("GCC");
+                make(path, "g++");
+                run(path);
+                check_equal_ade(&read_expected(path, "gcc", "ade"), &run_grcov(path, false, "ade"));
+                check_equal_coveralls(&read_expected(path, "gcc", "coveralls"), &run_grcov(path, false, "coveralls"), skip_branches);
+                make_clean(path);
+            }
 
             // On CI, don't test llvm, as there are problems for now.
             let skip_llvm = env::var("CONTINUOUS_INTEGRATION").is_ok();
