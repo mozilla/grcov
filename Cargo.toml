@@ -4,16 +4,16 @@ version = "0.1.28"
 authors = ["Marco Castelluccio <mcastelluccio@mozilla.com>"]
 
 [dependencies]
-crossbeam = "0.2"
-serde_json = "0.9"
-walkdir = "1"
-num_cpus = "1.2.1"
-semver = "0.6"
+crossbeam = "^0.3"
+serde_json = "^1.0"
+walkdir = "^2.0"
+num_cpus = "^1.7"
+semver = "^0.9"
 rust-crypto = "^0.2"
-zip = { version = "0.2.2", default-features = false }
-tempdir = "0.3.5"
-uuid = { version = "0.4", features = ["v4"] }
-libc = "0.2.22"
+zip = { version = "^0.2", default-features = false }
+tempdir = "^0.3"
+uuid = { version = "^0.5", features = ["v4"] }
+libc = "^0.2"
 
 [features]
 # For the system allocator feature.
