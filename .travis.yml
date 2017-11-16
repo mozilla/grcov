@@ -95,7 +95,7 @@ install:
     - ln -s /usr/bin/llvm-config-4.0 symlinks/llvm-config
     - ln -s /usr/bin/gcc-${COMPILER_VER} symlinks/gcc
     - ln -s /usr/bin/g++-${COMPILER_VER} symlinks/g++
-    - ln -s /usr/bin/gcov--${COMPILER_VER} symlinks/gcov
+    - ln -s /usr/bin/gcov-${COMPILER_VER} symlinks/gcov
 script:
     - export PATH=$PWD/symlinks:$PATH
     - gcc --version
