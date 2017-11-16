@@ -1,19 +1,3 @@
-[root]
-name = "grcov"
-version = "0.1.28"
-dependencies = [
- "crossbeam 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)",
- "num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
- "semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "uuid 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "walkdir 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "zip 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
 [[package]]
 name = "bitflags"
 version = "0.7.0"
@@ -63,6 +47,23 @@ dependencies = [
 name = "gcc"
 version = "0.3.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "grcov"
+version = "0.1.28"
+dependencies = [
+ "crossbeam 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gcc 0.3.54 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
+ "semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "uuid 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "walkdir 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "zip 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "itoa"
@@ -175,7 +176,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "serde"
-version = "1.0.19"
+version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -186,7 +187,7 @@ dependencies = [
  "dtoa 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "itoa 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-traits 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.20 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -269,7 +270,7 @@ dependencies = [
 "checksum same-file 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "70a18720d745fb9ca6a041b37cb36d0b21066006b6cff8b5b360142d4b81fb60"
 "checksum semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
 "checksum semver-parser 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
-"checksum serde 1.0.19 (registry+https://github.com/rust-lang/crates.io-index)" = "0c9cab69e16835717c9b8bd13c29f92b6aa34fe32ce2866b1ab481cf2da8442a"
+"checksum serde 1.0.20 (registry+https://github.com/rust-lang/crates.io-index)" = "5a2b181dd2b4a6353e828e44807269a761d3ecbc388a1f5ed3998ea69a516d9c"
 "checksum serde_json 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)" = "e4586746d1974a030c48919731ecffd0ed28d0c40749d0d18d43b3a7d6c9b20e"
 "checksum tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)" = "87974a6f5c1dfb344d733055601650059a3363de2a6104819293baff662132d6"
 "checksum time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)" = "d5d788d3aa77bc0ef3e9621256885555368b47bd495c13dd2e7413c89f845520"

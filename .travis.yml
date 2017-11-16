@@ -1,26 +1,107 @@
-sudo: required
+sudo: false
 language: rust
-rust:
-  - stable
-  - nightly
+matrix:
+  include:
+    - os: linux
+      rust: stable
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - sourceline: 'deb http://apt.llvm.org/precise/ llvm-toolchain-precise-4.0 main'
+              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+            - llvm-4.0-dev
+            - clang-4.0
+            - llvm-4.0
+            - gcc-4.9
+            - g++-4.9
+      env:
+         - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9 && GCOV=gcov-4.9"
+
+    - os: linux
+      rust: nightly
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - sourceline: 'deb http://apt.llvm.org/precise/ llvm-toolchain-precise-4.0 main'
+              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+            - llvm-4.0-dev
+            - clang-4.0
+            - llvm-4.0
+            - gcc-4.9
+            - g++-4.9
+      env:
+         - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9 && GCOV=gcov-4.9"
+
+    - os: linux
+      rust: nightly
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - sourceline: 'deb http://apt.llvm.org/precise/ llvm-toolchain-precise-4.0 main'
+              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+            - llvm-4.0-dev
+            - clang-4.0
+            - llvm-4.0
+            - gcc-5
+            - g++-5
+      env:
+         - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5 && GCOV=gcov-5"
+
+    - os: linux
+      rust: nightly
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - sourceline: 'deb http://apt.llvm.org/precise/ llvm-toolchain-precise-4.0 main'
+              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+            - llvm-4.0-dev
+            - clang-4.0
+            - llvm-4.0
+            - gcc-6
+            - g++-6
+      env:
+        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6 && GCOV=gcov-6"
+
+  allow_failures:
+    - os: linux
+      rust: nightly
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - sourceline: 'deb http://apt.llvm.org/precise/ llvm-toolchain-precise-4.0 main'
+              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+            - llvm-4.0-dev
+            - clang-4.0
+            - llvm-4.0
+            - gcc-7
+            - g++-7
+      env:
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7 && GCOV=gcov-7"
+before_install:
+    - eval "${MATRIX_EVAL}"
+install:
+    - mkdir -p symlinks
+    - ln -s /usr/bin/clang++-4.0 symlinks/clang++
+    - ln -s /usr/bin/clang-4.0 symlinks/clang
+    - ln -s /usr/bin/llvm-cov-4.0 symlinks/llvm-cov
+    - ln -s /usr/bin/llvm-config-4.0 symlinks/llvm-config
+    - ln -s /usr/bin/${CC} symlinks/gcc
+    - ln -s /usr/bin/${CXX} symlinks/g++
+    - ln -s /usr/bin/${GCOV} symlinks/gcov
+    - echo | gcc -Wp,-v -x c++ - -fsyntax-only
 script:
-  - sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
-  - wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-  - sudo apt-add-repository "deb http://apt.llvm.org/precise/ llvm-toolchain-precise-4.0 main"
-  - sudo -E apt-get -yq update &>> ~/apt-get-update.log
-  - sudo -E apt-get -yq --no-install-suggests --no-install-recommends --force-yes install gcc-$COMPILER_VER g++-$COMPILER_VER clang-4.0 llvm-4.0
-  - mkdir -p symlinks
-  - ln -s /usr/bin/g++-$COMPILER_VER symlinks/g++
-  - ln -s /usr/bin/gcc-$COMPILER_VER symlinks/gcc
-  - ln -s /usr/bin/gcov-$COMPILER_VER symlinks/gcov
-  - ln -s /usr/bin/clang++-4.0 symlinks/clang
-  - ln -s /usr/bin/llvm-cov-4.0 symlinks/llvm-cov
-  - export PATH=$PWD/symlinks:$PATH
-  - g++ --version
-  - clang++ --version
-  - cargo build --verbose
-  - cargo test -- --nocapture
-env:
-  - COMPILER_VER=4.9
-  - COMPILER_VER=5
-  - COMPILER_VER=6
+    - export PATH=$PWD/symlinks:$PATH
+    - ${CC} --version
+    - clang++ --version
+    - cargo build --verbose
+    - cargo test -- --nocapture

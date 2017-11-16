@@ -30,12 +30,9 @@ use crypto::md5::Md5;
 use crypto::digest::Digest;
 use tempdir::TempDir;
 use uuid::Uuid;
-/*#[cfg(unix)]
-use std::ffi::CString;*/
+use std::ffi::CString;
 
 /*
-use std::os::raw::c_char;
-
 #[link(name = "gcov")]
 extern {
     fn __gcov_read_unsigned() -> u32;
@@ -65,6 +62,19 @@ fn prova() {
 
   println!("{:x}", gcov_read_unsigned());
 }*/
+
+#[link(name = "llvmgcov", kind="static")]
+extern {
+    fn parse_llvm_gcno(working_dir: *const libc::c_char, file_stem: *const libc::c_char);
+}
+
+fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str) {
+    let working_dir_c = CString::new(working_dir).unwrap();
+    let file_stem_c = CString::new(file_stem).unwrap();
+    unsafe {
+        parse_llvm_gcno(working_dir_c.as_ptr(), file_stem_c.as_ptr());
+    };
+}
 
 #[derive(Debug,PartialEq)]
 enum ItemFormat {
@@ -671,22 +681,6 @@ fn run_gcov(gcno_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf) {
                            .expect("Failed to execute gcov process");
         assert!(status.success(), "gcov wasn't successfully executed on {}", gcno_path.display());
     //}
-}
-
-fn run_llvm_gcov(gcno_path: &PathBuf, working_dir: &PathBuf) {
-    let status = Command::new("llvm-cov")
-                         .arg("gcov")
-                         .arg("-l") // Generate unique names for gcov files.
-                         .arg("-b") // Generate function call information.
-                         .arg("-c") // Display branch counts instead of percentages.
-                         .arg(gcno_path)
-                         .current_dir(working_dir)
-                         .stdout(Stdio::null())
-                         .stderr(Stdio::null())
-                         .status()
-                         .expect("Failed to execute llvm-cov process");
-
-    assert!(status.success(), "llvm-cov wasn't successfully executed on {}", gcno_path.display());
 }
 
 fn parse_lcov<T: Read>(lcov_reader: BufReader<T>, branch_enabled: bool) -> Vec<(String,CovResult)> {
@@ -2000,26 +1994,15 @@ fn test_is_recent_version() {
     assert!(is_recent_version("gcov (Ubuntu 6.3.0-12ubuntu2) 6.3.0 20170406"));
 }
 
-fn check_gcov_version(is_llvm: bool) -> bool {
-    if !is_llvm {
-        let output = Command::new("gcov")
-                             .arg("--version")
-                             .output()
-                             .expect("Failed to execute `gcov`. `gcov` is required (it is part of GCC).");
+fn check_gcov_version() -> bool {
+    let output = Command::new("gcov")
+                         .arg("--version")
+                         .output()
+                         .expect("Failed to execute `gcov`. `gcov` is required (it is part of GCC).");
 
-        assert!(output.status.success(), "`gcov` failed to execute.");
+    assert!(output.status.success(), "`gcov` failed to execute.");
 
-        is_recent_version(&String::from_utf8(output.stdout).unwrap())
-    } else {
-        let output = Command::new("llvm-cov")
-                             .arg("--version")
-                             .output()
-                             .expect("Failed to execute `llvm-cov`. `llvm-cov` is required (it is part of LLVM).");
-
-        assert!(output.status.success(), "`llvm-cov` failed to execute.");
-
-        true
-    }
+    is_recent_version(&String::from_utf8(output.stdout).unwrap())
 }
 
 fn main() {
@@ -2151,12 +2134,8 @@ fn main() {
         i += 1;
     }
 
-    if !check_gcov_version(is_llvm) {
-        if !is_llvm {
-            println_stderr!("[ERROR]: gcov (bundled with GCC) >= 4.9 is required.\n");
-        } else {
-            println_stderr!("[ERROR]: llvm-cov (bundled with LLVM) is required.\n");
-        }
+    if !is_llvm && !check_gcov_version() {
+        println_stderr!("[ERROR]: gcov (bundled with GCC) >= 4.9 is required.\n");
         process::exit(1);
     }
 
@@ -2248,7 +2227,7 @@ fn main() {
 
                             new_results
                         } else {
-                            run_llvm_gcov(gcno_path, &working_dir);
+                            call_parse_llvm_gcno(working_dir.to_str().unwrap(), gcno_path.parent().unwrap().join(gcno_path.file_stem().unwrap()).to_str().unwrap());
 
                             let mut new_results: Vec<(String,CovResult)> = Vec::new();
 
@@ -2312,5 +2291,7 @@ fn main() {
         output_coveralls(iterator, repo_token, service_name, service_number, service_job_number, commit_sha, false);
     } else if output_type == "coveralls+" {
         output_coveralls(iterator, repo_token, service_name, service_number, service_job_number, commit_sha, true);
+    } else {
+        assert!(false, "{} is not a supported output type", output_type);
     }
 }
