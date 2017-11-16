@@ -1,4 +1,4 @@
-extern crate gcc;
+extern crate cc;
 
 use std::process::Command;
 
@@ -61,7 +61,7 @@ fn get_llvm_libdir() -> String {
 }
 
 fn main() {
-    let mut build = gcc::Build::new();
+    let mut build = cc::Build::new();
 
     build.file("src/c/llvmgcov.cpp");
     build.file("src/c/GCOV.cpp");
