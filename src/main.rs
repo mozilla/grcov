@@ -1281,6 +1281,8 @@ fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, source_d
             return None;
         }
 
+        let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
+
         Some((abs_path, rel_path, result))
     }))
 }
@@ -1390,6 +1392,22 @@ fn test_rewrite_paths_remove_prefix_with_slash() {
             count += 1;
             assert_eq!(abs_path, PathBuf::from("main.cpp"));
             assert_eq!(rel_path, PathBuf::from("main.cpp"));
+            assert_eq!(result, empty_result!());
+        }
+        assert_eq!(count, 1);
+}
+
+#[cfg(windows)]
+#[test]
+fn test_rewrite_paths_remove_prefix_with_slash_longer_path() {
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("C:/Users/worker/src/workspace/main.cpp".to_string(), empty_result!());
+        let results = rewrite_paths(result_map, None, "", "C:/Users/worker/src/", false, false, None);
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("workspace/main.cpp"));
+            assert_eq!(rel_path.to_str().unwrap(), "workspace/main.cpp");
             assert_eq!(result, empty_result!());
         }
         assert_eq!(count, 1);
