@@ -129,29 +129,6 @@ macro_rules! println_stderr(
     } }
 );
 
-/*#[cfg(unix)]
-fn mkfifo<P: AsRef<Path>>(path: P) {
-    let filename = CString::new(path.as_ref().as_os_str().to_str().unwrap()).unwrap();
-    unsafe {
-        if libc::mkfifo(filename.as_ptr(), 0o644) != 0 {
-            panic!("mkfifo fail!");
-        }
-    }
-}
-#[cfg(windows)]
-fn mkfifo<P: AsRef<Path>>(path: P) {
-}
-
-#[cfg(unix)]
-#[test]
-fn test_mkfifo() {
-    let test_path = "/tmp/grcov_mkfifo_test";
-    assert!(!Path::new(test_path).exists());
-    mkfifo(test_path);
-    assert!(Path::new(test_path).exists());
-    fs::remove_file(test_path).unwrap();
-}*/
-
 fn dir_producer(directories: &[&String], queue: &WorkQueue) -> Option<Vec<u8>> {
     let gcno_ext = Some(OsStr::new("gcno"));
     let info_ext = Some(OsStr::new("info"));
@@ -2235,9 +2212,6 @@ fn main() {
                         if !is_llvm {
                             let gcov_path = working_dir.join(gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov");
 
-                            /*if cfg!(unix) {
-                                mkfifo(&gcov_path);
-                            }*/
                             run_gcov(gcno_path, branch_enabled, &working_dir);
 
                             let new_results = parse_gcov(&gcov_path);
