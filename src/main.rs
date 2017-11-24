@@ -2215,22 +2215,29 @@ fn main() {
                             call_parse_llvm_gcno(working_dir.to_str().unwrap(), gcno_path.parent().unwrap().join(gcno_path.file_stem().unwrap()).to_str().unwrap());
                         }
 
-                        let mut new_results: Vec<(String,CovResult)> = Vec::new();
+                        let gcov_path = working_dir.join(gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov");
+                        if !is_llvm && gcov_path.exists() {
+                            let new_results = parse_gcov(&gcov_path);
+                            fs::remove_file(gcov_path).unwrap();
+                            new_results
+                        } else {
+                            let mut new_results: Vec<(String,CovResult)> = Vec::new();
 
-                        for entry in WalkDir::new(&working_dir).min_depth(1) {
-                            let gcov_path = entry.unwrap();
-                            let gcov_path = gcov_path.path();
+                            for entry in WalkDir::new(&working_dir).min_depth(1) {
+                                let gcov_path = entry.unwrap();
+                                let gcov_path = gcov_path.path();
 
-                            if !is_llvm {
-                                new_results.append(&mut parse_gcov(gcov_path));
-                            } else {
-                                new_results.push(parse_old_gcov(gcov_path, branch_enabled));
+                                if !is_llvm {
+                                    new_results.append(&mut parse_gcov(gcov_path));
+                                } else {
+                                    new_results.push(parse_old_gcov(gcov_path, branch_enabled));
+                                }
+
+                                fs::remove_file(gcov_path).unwrap();
                             }
 
-                            fs::remove_file(gcov_path).unwrap();
+                            new_results
                         }
-
-                        new_results
                     },
                     ItemFormat::INFO => {
                         match work_item.item {
