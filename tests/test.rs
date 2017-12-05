@@ -33,7 +33,14 @@ fn run(path: &Path) {
 }
 
 fn read_expected(path: &Path, compiler: &str, format: &str) -> String {
-    let name = format!("expected_{}.{}", compiler, format);
+    let version = env::var("COMPILER_VER").expect("COMPILER_VER env variable is not defined");
+    let name_with_ver = format!("expected_{}_{}.{}", compiler, version, format);
+
+    let name = if path.join(&name_with_ver).exists() {
+        name_with_ver
+    } else {
+        format!("expected_{}.{}", compiler, format)
+    };
     let mut f = File::open(path.join(&name)).expect(format!("{} file not found", name).as_str());
     let mut s = String::new();
     f.read_to_string(&mut s).unwrap();

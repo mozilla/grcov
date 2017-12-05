@@ -70,7 +70,6 @@ matrix:
       env:
         - COMPILER_VER=6
 
-  allow_failures:
     - os: linux
       rust: nightly
       addons:
