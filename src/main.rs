@@ -1,7 +1,6 @@
 #![cfg_attr(feature="alloc_system",feature(alloc_system))]
 #[cfg(feature="alloc_system")]
 extern crate alloc_system;
-#[macro_use]
 extern crate serde_json;
 extern crate crossbeam;
 extern crate walkdir;
@@ -11,10 +10,8 @@ extern crate grcov;
 
 use std::collections::HashMap;
 use std::{env, thread, process};
-use std::ffi::OsStr;
 use std::fs::{self, File};
-use std::io::{self, Cursor, Read, BufReader, Write, BufWriter};
-use std::process::{Command, Stdio};
+use std::io::{self, Cursor, BufReader, Write};
 use std::sync::{Arc, Mutex};
 use crossbeam::sync::MsQueue;
 use walkdir::WalkDir;
