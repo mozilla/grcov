@@ -2,8 +2,23 @@ use std::collections::{BTreeMap, btree_map, HashMap};
 use std::path::{Path};
 use std::fs::File;
 use std::io::{Read, BufRead, BufReader};
+use std::ffi::CString;
+use libc;
 
 use defs::*;
+
+#[link(name = "llvmgcov", kind="static")]
+extern {
+    fn parse_llvm_gcno(working_dir: *const libc::c_char, file_stem: *const libc::c_char);
+}
+
+pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str) {
+    let working_dir_c = CString::new(working_dir).unwrap();
+    let file_stem_c = CString::new(file_stem).unwrap();
+    unsafe {
+        parse_llvm_gcno(working_dir_c.as_ptr(), file_stem_c.as_ptr());
+    };
+}
 
 pub fn parse_lcov<T: Read>(lcov_reader: BufReader<T>, branch_enabled: bool) -> Vec<(String,CovResult)> {
     let mut cur_file = String::new();
