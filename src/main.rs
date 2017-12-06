@@ -3,7 +3,6 @@
 extern crate alloc_system;
 extern crate serde_json;
 extern crate crossbeam;
-extern crate walkdir;
 extern crate num_cpus;
 extern crate tempdir;
 extern crate grcov;
@@ -11,10 +10,9 @@ extern crate grcov;
 use std::collections::HashMap;
 use std::{env, thread, process};
 use std::fs::{self, File};
-use std::io::{self, Cursor, BufReader, Write};
+use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use crossbeam::sync::MsQueue;
-use walkdir::WalkDir;
 use serde_json::Value;
 use tempdir::TempDir;
 
@@ -248,59 +246,7 @@ fn main() {
 
         let t = thread::spawn(move || {
             fs::create_dir(&working_dir).expect("Failed to create working directory");
-
-            while let Some(work_item) = queue.pop() {
-                let new_results = match work_item.format {
-                    ItemFormat::GCNO => {
-                        let gcno_path = work_item.path();
-
-                        if !is_llvm {
-                            run_gcov(gcno_path, branch_enabled, &working_dir);
-                        } else {
-                            call_parse_llvm_gcno(working_dir.to_str().unwrap(), gcno_path.parent().unwrap().join(gcno_path.file_stem().unwrap()).to_str().unwrap());
-                        }
-
-                        let gcov_path = working_dir.join(gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov");
-                        if !is_llvm && gcov_path.exists() {
-                            let new_results = parse_gcov(&gcov_path);
-                            fs::remove_file(gcov_path).unwrap();
-                            new_results
-                        } else {
-                            let mut new_results: Vec<(String,CovResult)> = Vec::new();
-
-                            for entry in WalkDir::new(&working_dir).min_depth(1) {
-                                let gcov_path = entry.unwrap();
-                                let gcov_path = gcov_path.path();
-
-                                if !is_llvm {
-                                    new_results.append(&mut parse_gcov(gcov_path));
-                                } else {
-                                    new_results.push(parse_old_gcov(gcov_path, branch_enabled));
-                                }
-
-                                fs::remove_file(gcov_path).unwrap();
-                            }
-
-                            new_results
-                        }
-                    },
-                    ItemFormat::INFO => {
-                        match work_item.item {
-                            ItemType::Path(info_path) => {
-                                let f = File::open(&info_path).expect("Failed to open lcov file");
-                                let file = BufReader::new(&f);
-                                parse_lcov(file, branch_enabled)
-                            },
-                            ItemType::Content(info_content) => {
-                                let buffer = BufReader::new(Cursor::new(info_content));
-                                parse_lcov(buffer, branch_enabled)
-                            }
-                        }
-                    }
-                };
-
-                add_results(new_results, &result_map);
-            }
+            consumer(&working_dir, &result_map, &queue, is_llvm, branch_enabled);
         });
 
         parsers.push(t);
