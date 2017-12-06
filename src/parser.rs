@@ -3,18 +3,7 @@ use std::path::{Path};
 use std::fs::File;
 use std::io::{Read, BufRead, BufReader};
 
-#[derive(Debug,Clone,PartialEq)]
-pub struct Function {
-    pub start: u32,
-    pub executed: bool,
-}
-
-#[derive(Debug,Clone,PartialEq)]
-pub struct CovResult {
-    pub lines: BTreeMap<u32,u64>,
-    pub branches: BTreeMap<(u32,u32),bool>,
-    pub functions: HashMap<String,Function>,
-}
+use defs::*;
 
 pub fn parse_lcov<T: Read>(lcov_reader: BufReader<T>, branch_enabled: bool) -> Vec<(String,CovResult)> {
     let mut cur_file = String::new();

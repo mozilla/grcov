@@ -19,7 +19,7 @@ use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{self, Read, Write, BufWriter};
 use std::process::{Command, Stdio};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use zip::ZipArchive;
 use crossbeam::sync::MsQueue;
 use walkdir::WalkDir;
@@ -31,8 +31,11 @@ use tempdir::TempDir;
 use uuid::Uuid;
 use std::ffi::CString;
 
+mod defs;
+pub use defs::*;
+
 mod parser;
-pub use parser::{Function, CovResult, parse_gcov, parse_old_gcov, parse_lcov};
+pub use parser::*;
 
 /*
 #[link(name = "gcov")]
@@ -77,40 +80,6 @@ pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str) {
         parse_llvm_gcno(working_dir_c.as_ptr(), file_stem_c.as_ptr());
     };
 }
-
-#[derive(Debug,PartialEq)]
-pub enum ItemFormat {
-    GCNO,
-    INFO,
-}
-
-#[derive(Debug)]
-pub enum ItemType {
-    Path(PathBuf),
-    Content(Vec<u8>),
-}
-
-#[derive(Debug)]
-pub struct WorkItem {
-    pub format: ItemFormat,
-    pub item: ItemType,
-}
-
-impl WorkItem {
-    pub fn path(&self) -> &PathBuf {
-        if let ItemType::Path(ref p) = self.item {
-            p
-        } else {
-            panic!("Path expected");
-        }
-    }
-}
-
-pub type WorkQueue = MsQueue<Option<WorkItem>>;
-
-type CovResultMap = HashMap<String,CovResult>;
-pub type SyncCovResultMap = Mutex<CovResultMap>;
-type CovResultIter = Box<Iterator<Item=(PathBuf,PathBuf,CovResult)>>;
 
 fn dir_producer(directories: &[&String], queue: &WorkQueue) -> Option<Vec<u8>> {
     let gcno_ext = Some(OsStr::new("gcno"));
