@@ -33,7 +33,7 @@ fn remove_newline(l: &mut Vec<u8>) {
 }
 
 pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) -> Vec<(String,CovResult)> {
-    let mut cur_file = String::new();
+    let mut cur_file = None;
     let mut cur_lines = BTreeMap::new();
     let mut cur_branches = BTreeMap::new();
     let mut cur_functions = HashMap::new();
@@ -56,13 +56,13 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
         };
 
         if l == "end_of_record" {
-            results.push((cur_file, CovResult {
+            results.push((cur_file.unwrap(), CovResult {
                 lines: cur_lines,
                 branches: cur_branches,
                 functions: cur_functions,
             }));
 
-            cur_file = String::new();
+            cur_file = None;
             cur_lines = BTreeMap::new();
             cur_branches = BTreeMap::new();
             cur_functions = HashMap::new();
@@ -77,7 +77,7 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
             let value = value.unwrap();
             match key {
                 "SF" => {
-                    cur_file = value.to_owned();
+                    cur_file = Some(value.to_owned());
                 },
                 "DA" => {
                     let mut values = value.splitn(3, ',');
@@ -223,7 +223,7 @@ pub fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResu
 }
 
 pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
-    let mut cur_file = String::new();
+    let mut cur_file = None;
     let mut cur_lines = BTreeMap::new();
     let mut cur_branches = BTreeMap::new();
     let mut cur_functions = HashMap::new();
@@ -254,16 +254,16 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
 
         match key {
             "file" => {
-                if !cur_file.is_empty() && !cur_lines.is_empty() {
+                if cur_file.is_some() && !cur_lines.is_empty() {
                     // println!("{} {} {:?}", gcov_path.display(), cur_file, cur_lines);
-                    results.push((cur_file, CovResult {
+                    results.push((cur_file.unwrap(), CovResult {
                         lines: cur_lines,
                         branches: cur_branches,
                         functions: cur_functions,
                     }));
                 }
 
-                cur_file = value.to_owned();
+                cur_file = Some(value.to_owned());
                 cur_lines = BTreeMap::new();
                 cur_branches = BTreeMap::new();
                 cur_functions = HashMap::new();
@@ -302,7 +302,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
     }
 
     if !cur_lines.is_empty() {
-        results.push((cur_file, CovResult {
+        results.push((cur_file.unwrap(), CovResult {
             lines: cur_lines,
             branches: cur_branches,
             functions: cur_functions,
