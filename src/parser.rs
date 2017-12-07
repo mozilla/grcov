@@ -21,7 +21,18 @@ pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str) {
     };
 }
 
-pub fn parse_lcov<T: Read>(lcov_reader: BufReader<T>, branch_enabled: bool) -> Vec<(String,CovResult)> {
+fn remove_newline(l: &mut Vec<u8>) {
+    loop {
+        let last = *l.last().unwrap();
+        if last != b'\n' && last != b'\r' {
+            break;
+        }
+
+        l.pop();
+    }
+}
+
+pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) -> Vec<(String,CovResult)> {
     let mut cur_file = String::new();
     let mut cur_lines = BTreeMap::new();
     let mut cur_branches = BTreeMap::new();
@@ -29,8 +40,20 @@ pub fn parse_lcov<T: Read>(lcov_reader: BufReader<T>, branch_enabled: bool) -> V
 
     let mut results = Vec::new();
 
-    for line in lcov_reader.lines() {
-        let l = line.unwrap();
+    let mut l = vec![];
+
+    loop {
+        l.clear();
+
+        let num_bytes = lcov_reader.read_until(b'\n', &mut l).unwrap();
+        if num_bytes == 0 {
+            break;
+        }
+        remove_newline(&mut l);
+
+        let l = unsafe {
+            str::from_utf8_unchecked(&l)
+        };
 
         if l == "end_of_record" {
             results.push((cur_file, CovResult {
@@ -54,7 +77,7 @@ pub fn parse_lcov<T: Read>(lcov_reader: BufReader<T>, branch_enabled: bool) -> V
             let value = value.unwrap();
             match key {
                 "SF" => {
-                    cur_file = value.to_string();
+                    cur_file = value.to_owned();
                 },
                 "DA" => {
                     let mut values = value.splitn(3, ',');
@@ -83,7 +106,7 @@ pub fn parse_lcov<T: Read>(lcov_reader: BufReader<T>, branch_enabled: bool) -> V
                     let mut f_splits = value.splitn(2, ',');
                     let start = f_splits.next().unwrap().parse().unwrap();
                     let f_name = f_splits.next().unwrap();
-                    cur_functions.insert(f_name.to_string(), Function {
+                    cur_functions.insert(f_name.to_owned(), Function {
                       start: start,
                       executed: false,
                     });
@@ -118,17 +141,6 @@ pub fn parse_lcov<T: Read>(lcov_reader: BufReader<T>, branch_enabled: bool) -> V
     }
 
     results
-}
-
-fn remove_newline(l: &mut Vec<u8>) {
-    loop {
-        let last = *l.last().unwrap();
-        if last != b'\n' && last != b'\r' {
-            break;
-        }
-
-        l.pop();
-    }
 }
 
 pub fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) {
