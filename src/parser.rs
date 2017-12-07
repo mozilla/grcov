@@ -120,33 +120,55 @@ pub fn parse_lcov<T: Read>(lcov_reader: BufReader<T>, branch_enabled: bool) -> V
     results
 }
 
+fn remove_newline(l: &mut Vec<u8>) {
+    loop {
+        let last = *l.last().unwrap();
+        if last != b'\n' && last != b'\r' {
+            break;
+        }
+
+        l.pop();
+    }
+}
+
 pub fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) {
     let mut lines = BTreeMap::new();
     let mut branches = BTreeMap::new();
     let mut functions = HashMap::new();
 
     let f = File::open(gcov_path).expect(&format!("Failed to open old gcov file {}", gcov_path.display()));
-    let file = BufReader::new(&f);
+    let mut file = BufReader::new(&f);
     let mut line_no: u32 = 0;
 
-    let mut lines_iterator = file.split(b'\n');
-
-    let first_line = lines_iterator.next().unwrap().unwrap();
-    let first_line = String::from_utf8(first_line).unwrap();
-    let mut splits = first_line.trim_right().splitn(4, ':');
-    let source_name = splits.nth(3).unwrap().to_string();
-
-    for line in lines_iterator {
-        let l = line.unwrap();
+    let mut l = vec![];
+    let source_name = {
+        file.read_until(b'\n', &mut l).unwrap();
+        remove_newline(&mut l);
         let l = unsafe {
-            String::from_utf8_unchecked(l)
+            str::from_utf8_unchecked(&l)
         };
-        let l = l.trim_right();
+        let mut splits = l.splitn(4, ':');
+        splits.nth(3).unwrap().to_owned()
+    };
+
+    loop {
+        l.clear();
+
+        let num_bytes = file.read_until(b'\n', &mut l).unwrap();
+        if num_bytes == 0 {
+            break;
+        }
+        remove_newline(&mut l);
+
+        let l = unsafe {
+            str::from_utf8_unchecked(&l)
+        };
+
         if l.starts_with("function") {
             let mut f_splits = l.splitn(5, ' ');
-            let function_name = f_splits.nth(1).unwrap().to_string();
+            let function_name = f_splits.nth(1).unwrap();
             let execution_count: u64 = f_splits.nth(1).unwrap().parse().expect(&format!("Failed parsing execution count: {}", l));
-            functions.insert(function_name, Function {
+            functions.insert(function_name.to_owned(), Function {
               start: line_no + 1,
               executed: execution_count > 0,
             });
@@ -208,14 +230,18 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
         if num_bytes == 0 {
             break;
         }
-        l.pop(); // Remove new line
+        remove_newline(&mut l);
 
-        let mut key_value = l.splitn(2, |c| *c == b':');
+        let l = unsafe {
+            str::from_utf8_unchecked(&l)
+        };
+
+        let mut key_value = l.splitn(2, ':');
         let key = key_value.next().unwrap();
         let value = key_value.next().unwrap();
 
         match key {
-            b"file" => {
+            "file" => {
                 if !cur_file.is_empty() && !cur_lines.is_empty() {
                     // println!("{} {} {:?}", gcov_path.display(), cur_file, cur_lines);
                     results.push((cur_file, CovResult {
@@ -225,50 +251,37 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
                     }));
                 }
 
-                cur_file = unsafe {
-                    str::from_utf8_unchecked(value)
-                }.to_owned();
+                cur_file = value.to_owned();
                 cur_lines = BTreeMap::new();
                 cur_branches = BTreeMap::new();
                 cur_functions = HashMap::new();
             },
-            b"function" => {
-                let mut f_splits = value.splitn(3, |c| *c == b',');
-                let start = unsafe {
-                    str::from_utf8_unchecked(f_splits.next().unwrap())
-                }.parse().unwrap();
-                let executed = f_splits.next().unwrap() != b"0";
-                let f_name = unsafe {
-                    str::from_utf8_unchecked(f_splits.next().unwrap())
-                };
+            "function" => {
+                let mut f_splits = value.splitn(3, ',');
+                let start = f_splits.next().unwrap().parse().unwrap();
+                let executed = f_splits.next().unwrap() != "0";
+                let f_name = f_splits.next().unwrap();
                 cur_functions.insert(f_name.to_owned(), Function {
                   start: start,
                   executed: executed,
                 });
             },
-            b"lcount" => {
+            "lcount" => {
                 branch_number = 0;
 
-                let mut values = value.splitn(2, |c| *c == b',');
-                let line_no = unsafe {
-                    str::from_utf8_unchecked(values.next().unwrap())
-                }.parse().unwrap();
+                let mut values = value.splitn(2, ',');
+                let line_no = values.next().unwrap().parse().unwrap();
                 let execution_count = values.next().unwrap();
-                if execution_count == b"0" || *execution_count.first().unwrap() == b'-' {
+                if execution_count == "0" || execution_count.starts_with('-') {
                     cur_lines.insert(line_no, 0);
                 } else {
-                    let execution_count = unsafe {
-                        str::from_utf8_unchecked(execution_count)
-                    }.parse().unwrap();
-                    cur_lines.insert(line_no, execution_count);
+                    cur_lines.insert(line_no, execution_count.parse().unwrap());
                 }
             },
-            b"branch" => {
-                let mut values = value.splitn(2, |c| *c == b',');
-                let line_no = unsafe {
-                    str::from_utf8_unchecked(values.next().unwrap())
-                }.parse().unwrap();
-                let taken = values.next().unwrap() == b"taken";
+            "branch" => {
+                let mut values = value.splitn(2, ',');
+                let line_no = values.next().unwrap().parse().unwrap();
+                let taken = values.next().unwrap() == "taken";
                 cur_branches.insert((line_no, branch_number), taken);
                 branch_number += 1;
             },
