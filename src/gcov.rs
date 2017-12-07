@@ -56,7 +56,7 @@ pub fn run_gcov(gcno_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf
     //}
 }
 
-pub fn is_recent_version(gcov_output: &str) -> bool {
+fn is_recent_version(gcov_output: &str) -> bool {
     let min_ver = Version {
         major: 4,
         minor: 9,
@@ -74,13 +74,6 @@ pub fn is_recent_version(gcov_output: &str) -> bool {
     })
 }
 
-#[test]
-fn test_is_recent_version() {
-    assert!(!is_recent_version("gcov (Ubuntu 4.3.0-12ubuntu2) 4.3.0 20170406"));
-    assert!(is_recent_version("gcov (Ubuntu 4.9.0-12ubuntu2) 4.9.0 20170406"));
-    assert!(is_recent_version("gcov (Ubuntu 6.3.0-12ubuntu2) 6.3.0 20170406"));
-}
-
 pub fn check_gcov_version() -> bool {
     let output = Command::new("gcov")
                          .arg("--version")
@@ -90,4 +83,16 @@ pub fn check_gcov_version() -> bool {
     assert!(output.status.success(), "`gcov` failed to execute.");
 
     is_recent_version(&String::from_utf8(output.stdout).unwrap())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_recent_version() {
+        assert!(!is_recent_version("gcov (Ubuntu 4.3.0-12ubuntu2) 4.3.0 20170406"));
+        assert!(is_recent_version("gcov (Ubuntu 4.9.0-12ubuntu2) 4.9.0 20170406"));
+        assert!(is_recent_version("gcov (Ubuntu 6.3.0-12ubuntu2) 6.3.0 20170406"));
+    }
 }
