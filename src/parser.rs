@@ -3,6 +3,7 @@ use std::path::{Path};
 use std::fs::File;
 use std::io::{Read, BufRead, BufReader};
 use std::ffi::CString;
+use std::str;
 use libc;
 
 use defs::*;
@@ -299,14 +300,24 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
     let mut results = Vec::new();
 
     let f = File::open(&gcov_path).expect(&format!("Failed to open gcov file {}", gcov_path.display()));
-    let file = BufReader::new(&f);
-    for line in file.lines() {
-        let l = line.unwrap();
-        let mut key_value = l.splitn(2, ':');
+    let mut file = BufReader::new(&f);
+    let mut l = vec![];
+
+    loop {
+        l.clear();
+
+        let num_bytes = file.read_until(b'\n', &mut l).unwrap();
+        if num_bytes == 0 {
+            break;
+        }
+        l.pop(); // Remove new line
+
+        let mut key_value = l.splitn(2, |c| *c == b':');
         let key = key_value.next().unwrap();
         let value = key_value.next().unwrap();
+
         match key {
-            "file" => {
+            b"file" => {
                 if !cur_file.is_empty() && !cur_lines.is_empty() {
                     // println!("{} {} {:?}", gcov_path.display(), cur_file, cur_lines);
                     results.push((cur_file, CovResult {
@@ -316,37 +327,50 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
                     }));
                 }
 
-                cur_file = value.to_string();
+                cur_file = unsafe {
+                    str::from_utf8_unchecked(value)
+                }.to_owned();
                 cur_lines = BTreeMap::new();
                 cur_branches = BTreeMap::new();
                 cur_functions = HashMap::new();
             },
-            "function" => {
-                let mut f_splits = value.splitn(3, ',');
-                let start = f_splits.next().unwrap().parse().unwrap();
-                let executed = f_splits.next().unwrap() != "0";
-                let f_name = f_splits.next().unwrap();
-                cur_functions.insert(f_name.to_string(), Function {
+            b"function" => {
+                let mut f_splits = value.splitn(3, |c| *c == b',');
+                let start = unsafe {
+                    str::from_utf8_unchecked(f_splits.next().unwrap())
+                }.parse().unwrap();
+                let executed = f_splits.next().unwrap() != b"0";
+                let f_name = unsafe {
+                    str::from_utf8_unchecked(f_splits.next().unwrap())
+                };
+                cur_functions.insert(f_name.to_owned(), Function {
                   start: start,
                   executed: executed,
                 });
             },
-            "lcount" => {
+            b"lcount" => {
                 branch_number = 0;
 
-                let mut values = value.splitn(2, ',');
-                let line_no = values.next().unwrap().parse().unwrap();
+                let mut values = value.splitn(2, |c| *c == b',');
+                let line_no = unsafe {
+                    str::from_utf8_unchecked(values.next().unwrap())
+                }.parse().unwrap();
                 let execution_count = values.next().unwrap();
-                if execution_count == "0" || execution_count.starts_with('-') {
+                if execution_count == b"0" || *execution_count.first().unwrap() == b'-' {
                     cur_lines.insert(line_no, 0);
                 } else {
-                    cur_lines.insert(line_no, execution_count.parse().unwrap());
+                    let execution_count = unsafe {
+                        str::from_utf8_unchecked(execution_count)
+                    }.parse().unwrap();
+                    cur_lines.insert(line_no, execution_count);
                 }
             },
-            "branch" => {
-                let mut values = value.splitn(2, ',');
-                let line_no = values.next().unwrap().parse().unwrap();
-                let taken = values.next().unwrap() == "taken";
+            b"branch" => {
+                let mut values = value.splitn(2, |c| *c == b',');
+                let line_no = unsafe {
+                    str::from_utf8_unchecked(values.next().unwrap())
+                }.parse().unwrap();
+                let taken = values.next().unwrap() == b"taken";
                 cur_branches.insert((line_no, branch_number), taken);
                 branch_number += 1;
             },
