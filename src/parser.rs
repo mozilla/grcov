@@ -551,4 +551,27 @@ mod tests {
         assert_eq!(func.start, 393);
         assert_eq!(func.executed, false);
     }
+
+    #[test]
+    fn test_parser_gcov_rust_generics_with_two_parameters() {
+        let results = parse_gcov(Path::new("./test/rust/generics_with_two_parameters_intermediate.gcov"));
+        assert_eq!(results.len(), 1);
+        let (ref source_name, ref result) = results[0];
+
+        assert_eq!(source_name, "src/main.rs");
+
+        assert_eq!(result.lines, [(4, 3), (5, 3), (6, 1), (9, 2), (10, 1), (11, 1), (12, 2)].iter().cloned().collect());
+
+        assert_eq!(result.branches, [].iter().cloned().collect());
+
+        assert!(result.functions.contains_key("_ZN27rust_code_coverage_sample_24mainE"));
+        let func = result.functions.get("_ZN27rust_code_coverage_sample_24mainE").unwrap();
+        assert_eq!(func.start, 8);
+        assert_eq!(func.executed, true);
+
+        assert!(result.functions.contains_key("_ZN27rust_code_coverage_sample_244compare_types<[i32; 3],alloc::vec::Vec<i32>>E"));
+        let func = result.functions.get("_ZN27rust_code_coverage_sample_244compare_types<[i32; 3],alloc::vec::Vec<i32>>E").unwrap();
+        assert_eq!(func.start, 3);
+        assert_eq!(func.executed, true);
+    }
 }

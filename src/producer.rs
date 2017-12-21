@@ -287,6 +287,7 @@ mod tests {
             (ItemFormat::GCNO, true, "test/no_gcda/main.gcno", false),
             (ItemFormat::GCNO, true, "test/gcno_symlink/gcda/main.gcno", true),
             (ItemFormat::GCNO, true, "test/gcno_symlink/gcno/main.gcno", false),
+            (ItemFormat::GCNO, true, "test/rust/generics_with_two_parameters.gcno", true),
             (ItemFormat::INFO, true, "test/1494603973-2977-7.info", true),
             (ItemFormat::INFO, true, "test/prova.info", true),
             (ItemFormat::INFO, true, "test/prova_fn_with_commas.info", true),
