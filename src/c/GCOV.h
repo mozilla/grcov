@@ -428,6 +428,7 @@ public:
   void setProgramCount(uint32_t Programs) { ProgramCount = Programs; }
   void print(std::string WorkingDir, raw_ostream &OS, StringRef MainFilename, StringRef GCNOFile,
              StringRef GCDAFile);
+  void printIntermediate(std::string WorkingDir, StringRef MainFilename);
 
 private:
   std::string getCoveragePath(StringRef Filename, StringRef MainFilename);

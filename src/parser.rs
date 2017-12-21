@@ -10,14 +10,19 @@ use defs::*;
 
 #[link(name = "llvmgcov", kind="static")]
 extern {
-    fn parse_llvm_gcno(working_dir: *const libc::c_char, file_stem: *const libc::c_char);
+    fn parse_llvm_gcno(working_dir: *const libc::c_char, file_stem: *const libc::c_char, branch_enabled: libc::uint8_t);
 }
 
-pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str) {
+pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str, branch_enabled: bool) {
     let working_dir_c = CString::new(working_dir).unwrap();
     let file_stem_c = CString::new(file_stem).unwrap();
+    let branch_enabled = if branch_enabled {
+        1 as u8
+    } else {
+        0 as u8
+    };
     unsafe {
-        parse_llvm_gcno(working_dir_c.as_ptr(), file_stem_c.as_ptr());
+        parse_llvm_gcno(working_dir_c.as_ptr(), file_stem_c.as_ptr(), branch_enabled);
     };
 }
 
