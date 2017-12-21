@@ -1,0 +1,13 @@
+file:/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/nsExpirationTracker.h
+function:393,0,_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv
+lcount:393,0
+lcount:397,0
+lcount:399,0
+branch:399,notexec
+branch:399,notexec
+lcount:401,1
+branch:401,taken
+branch:401,nottaken
+lcount:402,0
+lcount:403,0
+lcount:405,0
