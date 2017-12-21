@@ -187,8 +187,9 @@ pub fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResu
         } else if branch_enabled && l.starts_with("branch ") {
             let mut b_splits = l.splitn(5, ' ');
             let branch_number = b_splits.nth(2).unwrap().parse().unwrap();
-            let taken = b_splits.nth(1).unwrap() != "0";
-            branches.insert((line_no, branch_number), taken);
+            let taken = b_splits.nth(1).unwrap();
+            let exec_and_taken = taken != "0" && taken != "executed";
+            branches.insert((line_no, branch_number), exec_and_taken);
         } else {
             let mut splits = l.splitn(3, ':');
             let first_elem = splits.next();
