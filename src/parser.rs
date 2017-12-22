@@ -23,9 +23,16 @@ pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str) {
 
 fn remove_newline(l: &mut Vec<u8>) {
     loop {
-        let last = *l.last().unwrap();
-        if last != b'\n' && last != b'\r' {
+        let last = {
+          let last = l.last();
+          if last.is_none() {
             break;
+          }
+          *last.unwrap()
+        };
+
+        if last != b'\n' && last != b'\r' {
+          break;
         }
 
         l.pop();
@@ -318,6 +325,29 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_remove_newline() {
+        let mut l = "Marco".as_bytes().to_vec();
+        remove_newline(&mut l);
+        assert_eq!(l, "Marco".as_bytes().to_vec());
+
+        let mut l = "Marco\n".as_bytes().to_vec();
+        remove_newline(&mut l);
+        assert_eq!(l, "Marco".as_bytes().to_vec());
+
+        let mut l = "Marco\r".as_bytes().to_vec();
+        remove_newline(&mut l);
+        assert_eq!(l, "Marco".as_bytes().to_vec());
+
+        let mut l = "Marco\r\n".as_bytes().to_vec();
+        remove_newline(&mut l);
+        assert_eq!(l, "Marco".as_bytes().to_vec());
+
+        let mut l = "\r\n".as_bytes().to_vec();
+        remove_newline(&mut l);
+        assert_eq!(l, "".as_bytes().to_vec());
+    }
+
+    #[test]
     fn test_lcov_parser() {
         let f = File::open("./test/prova.info").expect("Failed to open lcov file");
         let file = BufReader::new(&f);
@@ -365,6 +395,27 @@ mod tests {
     #[test]
     fn test_lcov_parser_fn_with_commas() {
         let f = File::open("./test/prova_fn_with_commas.info").expect("Failed to open lcov file");
+        let file = BufReader::new(&f);
+        let results = parse_lcov(file, true);
+
+        assert_eq!(results.len(), 1);
+
+        let (ref source_name, ref result) = results[0];
+        assert_eq!(source_name, "aFile.js");
+        assert_eq!(result.lines, [(7,1),(9,1),(10,1),(12,2),(13,1),(16,1),(17,1),(18,2),(19,1),(21,1),(22,0),(23,0),(24,0),(28,1),(29,0),(30,0),(32,0),(33,0),(34,0),(35,0),(37,0),(39,0),(41,0),(42,0),(44,0),(45,0),(46,0),(47,0),(49,0),(50,0),(51,0),(52,0),(53,0),(54,0),(55,0),(56,0),(59,0),(60,0),(61,0),(63,0),(65,0),(67,1),(68,2),(70,1),(74,1),(75,1),(76,1),(77,1),(78,1),(83,1),(84,1),(90,1),(95,1),(96,1),(97,1),(98,1),(99,1)].iter().cloned().collect());
+        assert!(result.functions.contains_key("MainProcessSingleton"));
+        let func = result.functions.get("MainProcessSingleton").unwrap();
+        assert_eq!(func.start, 15);
+        assert_eq!(func.executed, true);
+        assert!(result.functions.contains_key("cubic-bezier(0.0, 0.0, 1.0, 1.0)"));
+        let func = result.functions.get("cubic-bezier(0.0, 0.0, 1.0, 1.0)").unwrap();
+        assert_eq!(func.start, 95);
+        assert_eq!(func.executed, true);
+    }
+
+    #[test]
+    fn test_lcov_parser_regression() {
+        let f = File::open("./test/empty_line.info").expect("Failed to open lcov file");
         let file = BufReader::new(&f);
         let results = parse_lcov(file, true);
 
