@@ -155,86 +155,6 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
     results
 }
 
-pub fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) {
-    let mut lines = BTreeMap::new();
-    let mut branches = BTreeMap::new();
-    let mut functions = HashMap::new();
-
-    let f = File::open(gcov_path).expect(&format!("Failed to open old gcov file {}", gcov_path.display()));
-    let mut file = BufReader::new(&f);
-    let mut line_no: u32 = 0;
-
-    let mut l = vec![];
-    let source_name = {
-        file.read_until(b'\n', &mut l).unwrap();
-        remove_newline(&mut l);
-        let l = unsafe {
-            str::from_utf8_unchecked(&l)
-        };
-        let mut splits = l.splitn(4, ':');
-        splits.nth(3).unwrap().to_owned()
-    };
-
-    loop {
-        l.clear();
-
-        let num_bytes = file.read_until(b'\n', &mut l).unwrap();
-        if num_bytes == 0 {
-            break;
-        }
-        remove_newline(&mut l);
-
-        let l = unsafe {
-            str::from_utf8_unchecked(&l)
-        };
-
-        if l.starts_with("function") {
-            let mut f_splits = l.splitn(5, ' ');
-            let function_name = f_splits.nth(1).unwrap();
-            let execution_count: u64 = f_splits.nth(1).unwrap().parse().expect(&format!("Failed parsing execution count: {}", l));
-            functions.insert(function_name.to_owned(), Function {
-              start: line_no + 1,
-              executed: execution_count > 0,
-            });
-        } else if branch_enabled && l.starts_with("branch ") {
-            let mut b_splits = l.splitn(5, ' ');
-            let branch_number = b_splits.nth(2).unwrap().parse().unwrap();
-            let taken = b_splits.nth(1).unwrap();
-            let exec_and_taken = taken != "0" && taken != "executed";
-            branches.insert((line_no, branch_number), exec_and_taken);
-        } else {
-            let mut splits = l.splitn(3, ':');
-            let first_elem = splits.next();
-            let second_elem = splits.next();
-            if second_elem.is_none() {
-                continue;
-            }
-            if splits.count() != 1 {
-                panic!("GCOV lines should be in the format STRING:STRING:STRING, {}", l);
-            }
-
-            line_no = second_elem.unwrap().trim().parse().unwrap();
-
-            let cover = first_elem.unwrap().trim();
-            if cover == "-" {
-                continue;
-            }
-
-            if cover == "#####" || cover.starts_with('-') {
-                lines.insert(line_no, 0);
-            } else {
-                lines.insert(line_no, cover.parse().unwrap());
-            }
-        }
-    }
-
-    (source_name, CovResult {
-      lines: lines,
-      branches: branches,
-      functions: functions,
-    })
-}
-
 pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
     let mut cur_file = None;
     let mut cur_lines = BTreeMap::new();
@@ -436,42 +356,6 @@ mod tests {
         assert!(result.functions.contains_key("cubic-bezier(0.0, 0.0, 1.0, 1.0)"));
         let func = result.functions.get("cubic-bezier(0.0, 0.0, 1.0, 1.0)").unwrap();
         assert_eq!(func.start, 95);
-        assert_eq!(func.executed, true);
-    }
-
-    #[test]
-    fn test_parser_old_gcov_with_encoding_different_from_utf8() {
-        let (source_name, result) = parse_old_gcov(Path::new("./test/non-utf-8.gcov"), false);
-
-        assert_eq!(source_name, "main.c");
-
-        assert_eq!(result.lines, [(5, 2), (6, 1), (9, 0), (10, 0), (13, 1), (14, 1)].iter().cloned().collect());
-
-        assert_eq!(result.branches, [].iter().cloned().collect());
-
-        assert!(result.functions.contains_key("func1"));
-        let func = result.functions.get("func1").unwrap();
-        assert_eq!(func.start, 4);
-        assert_eq!(func.executed, true);
-        assert!(result.functions.contains_key("func2"));
-        let func = result.functions.get("func2").unwrap();
-        assert_eq!(func.start, 8);
-        assert_eq!(func.executed, false);
-    }
-
-    #[test]
-    fn test_parser_old_gcov_with_branches() {
-        let (source_name, result) = parse_old_gcov(Path::new("./test/old_branches.gcov"), true);
-
-        assert_eq!(source_name, "main.c");
-
-        assert_eq!(result.lines, [(5, 20), (6, 9), (7, 3), (8, 3), (10, 9), (11, 0), (12, 0), (13, 9), (15, 1)].iter().cloned().collect());
-
-        assert_eq!(result.branches, [((5, 0), true), ((5, 1), true), ((6, 0), true), ((6, 1), true), ((10, 0), false), ((10, 1), true)].iter().cloned().collect());
-
-        assert!(result.functions.contains_key("main"));
-        let func = result.functions.get("main").unwrap();
-        assert_eq!(func.start, 3);
         assert_eq!(func.executed, true);
     }
 
