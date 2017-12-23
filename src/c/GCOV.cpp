@@ -838,13 +838,14 @@ void CustomFileInfo::printIntermediate(std::string WorkingDir, StringRef MainFil
 
         CovOS << "lcount:" << (LineIndex + 1) << "," << LineCount << "\n";
 
-        uint32_t BlockNo = 0;
-        uint32_t EdgeNo = 0;
-        for (const CustomGCOVBlock *Block : Blocks) {
-          // Only print block and branch information at the end of the block.
-          if (Block->getLastLine() != LineIndex + 1)
-            continue;
-          if (Options.BranchInfo) {
+        if (Options.BranchInfo) {
+          uint32_t BlockNo = 0;
+          uint32_t EdgeNo = 0;
+          for (const CustomGCOVBlock *Block : Blocks) {
+            // Only print block and branch information at the end of the block.
+            if (Block->getLastLine() != LineIndex + 1)
+              continue;
+
             size_t NumEdges = Block->getNumDstEdges();
             if (NumEdges > 1) {
               uint64_t TotalCounts = 0;
