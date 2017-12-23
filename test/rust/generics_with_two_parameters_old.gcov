@@ -1,0 +1,19 @@
+        -:    0:Source:src/main.rs
+        -:    0:Graph:main.gcno
+        -:    0:Data:main.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:use std::fmt::{Debug, Display};
+        -:    2:
+function _ZN27rust_code_coverage_sample_244compare_types<[i32; 3],alloc::vec::Vec<i32>>E called 1 returned 100% blocks executed 100%
+        -:    3:fn compare_types<T: Debug, U: Debug>(t: &T, u: &U) {
+        3:    4:    println!("t: `{:?}", t);
+        3:    5:    println!("u: `{:?}", u);
+        1:    6:}
+        -:    7:
+function _ZN27rust_code_coverage_sample_24mainE called 1 returned 100% blocks executed 100%
+        -:    8:fn main() {
+        2:    9:    let array = [1, 2, 3];
+        1:   10:    let vec = vec![1, 2, 3];
+        1:   11:    compare_types(&array, &vec);
+        2:   12:}

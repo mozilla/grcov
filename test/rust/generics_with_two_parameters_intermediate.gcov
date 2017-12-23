@@ -1,0 +1,10 @@
+file:src/main.rs
+function:3,1,_ZN27rust_code_coverage_sample_244compare_types<[i32; 3],alloc::vec::Vec<i32>>E
+function:8,1,_ZN27rust_code_coverage_sample_24mainE
+lcount:4,3
+lcount:5,3
+lcount:6,1
+lcount:9,2
+lcount:10,1
+lcount:11,1
+lcount:12,2

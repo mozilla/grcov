@@ -10,14 +10,19 @@ use defs::*;
 
 #[link(name = "llvmgcov", kind="static")]
 extern {
-    fn parse_llvm_gcno(working_dir: *const libc::c_char, file_stem: *const libc::c_char);
+    fn parse_llvm_gcno(working_dir: *const libc::c_char, file_stem: *const libc::c_char, branch_enabled: libc::uint8_t);
 }
 
-pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str) {
+pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str, branch_enabled: bool) {
     let working_dir_c = CString::new(working_dir).unwrap();
     let file_stem_c = CString::new(file_stem).unwrap();
+    let branch_enabled = if branch_enabled {
+        1 as u8
+    } else {
+        0 as u8
+    };
     unsafe {
-        parse_llvm_gcno(working_dir_c.as_ptr(), file_stem_c.as_ptr());
+        parse_llvm_gcno(working_dir_c.as_ptr(), file_stem_c.as_ptr(), branch_enabled);
     };
 }
 
@@ -148,86 +153,6 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
     }
 
     results
-}
-
-pub fn parse_old_gcov(gcov_path: &Path, branch_enabled: bool) -> (String,CovResult) {
-    let mut lines = BTreeMap::new();
-    let mut branches = BTreeMap::new();
-    let mut functions = HashMap::new();
-
-    let f = File::open(gcov_path).expect(&format!("Failed to open old gcov file {}", gcov_path.display()));
-    let mut file = BufReader::new(&f);
-    let mut line_no: u32 = 0;
-
-    let mut l = vec![];
-    let source_name = {
-        file.read_until(b'\n', &mut l).unwrap();
-        remove_newline(&mut l);
-        let l = unsafe {
-            str::from_utf8_unchecked(&l)
-        };
-        let mut splits = l.splitn(4, ':');
-        splits.nth(3).unwrap().to_owned()
-    };
-
-    loop {
-        l.clear();
-
-        let num_bytes = file.read_until(b'\n', &mut l).unwrap();
-        if num_bytes == 0 {
-            break;
-        }
-        remove_newline(&mut l);
-
-        let l = unsafe {
-            str::from_utf8_unchecked(&l)
-        };
-
-        if l.starts_with("function") {
-            let mut f_splits = l.splitn(5, ' ');
-            let function_name = f_splits.nth(1).unwrap();
-            let execution_count: u64 = f_splits.nth(1).unwrap().parse().expect(&format!("Failed parsing execution count: {}", l));
-            functions.insert(function_name.to_owned(), Function {
-              start: line_no + 1,
-              executed: execution_count > 0,
-            });
-        } else if branch_enabled && l.starts_with("branch ") {
-            let mut b_splits = l.splitn(5, ' ');
-            let branch_number = b_splits.nth(2).unwrap().parse().unwrap();
-            let taken = b_splits.nth(1).unwrap();
-            let exec_and_taken = taken != "0" && taken != "executed";
-            branches.insert((line_no, branch_number), exec_and_taken);
-        } else {
-            let mut splits = l.splitn(3, ':');
-            let first_elem = splits.next();
-            let second_elem = splits.next();
-            if second_elem.is_none() {
-                continue;
-            }
-            if splits.count() != 1 {
-                panic!("GCOV lines should be in the format STRING:STRING:STRING, {}", l);
-            }
-
-            line_no = second_elem.unwrap().trim().parse().unwrap();
-
-            let cover = first_elem.unwrap().trim();
-            if cover == "-" {
-                continue;
-            }
-
-            if cover == "#####" || cover.starts_with('-') {
-                lines.insert(line_no, 0);
-            } else {
-                lines.insert(line_no, cover.parse().unwrap());
-            }
-        }
-    }
-
-    (source_name, CovResult {
-      lines: lines,
-      branches: branches,
-      functions: functions,
-    })
 }
 
 pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
@@ -435,42 +360,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parser_old_gcov_with_encoding_different_from_utf8() {
-        let (source_name, result) = parse_old_gcov(Path::new("./test/non-utf-8.gcov"), false);
-
-        assert_eq!(source_name, "main.c");
-
-        assert_eq!(result.lines, [(5, 2), (6, 1), (9, 0), (10, 0), (13, 1), (14, 1)].iter().cloned().collect());
-
-        assert_eq!(result.branches, [].iter().cloned().collect());
-
-        assert!(result.functions.contains_key("func1"));
-        let func = result.functions.get("func1").unwrap();
-        assert_eq!(func.start, 4);
-        assert_eq!(func.executed, true);
-        assert!(result.functions.contains_key("func2"));
-        let func = result.functions.get("func2").unwrap();
-        assert_eq!(func.start, 8);
-        assert_eq!(func.executed, false);
-    }
-
-    #[test]
-    fn test_parser_old_gcov_with_branches() {
-        let (source_name, result) = parse_old_gcov(Path::new("./test/old_branches.gcov"), true);
-
-        assert_eq!(source_name, "main.c");
-
-        assert_eq!(result.lines, [(5, 20), (6, 9), (7, 3), (8, 3), (10, 9), (11, 0), (12, 0), (13, 9), (15, 1)].iter().cloned().collect());
-
-        assert_eq!(result.branches, [((5, 0), true), ((5, 1), true), ((6, 0), true), ((6, 1), true), ((10, 0), false), ((10, 1), true)].iter().cloned().collect());
-
-        assert!(result.functions.contains_key("main"));
-        let func = result.functions.get("main").unwrap();
-        assert_eq!(func.start, 3);
-        assert_eq!(func.executed, true);
-    }
-
-    #[test]
     fn test_parser() {
         let results = parse_gcov(Path::new("./test/prova.gcov"));
 
@@ -545,5 +434,28 @@ mod tests {
         let func = result.functions.get("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv").unwrap();
         assert_eq!(func.start, 393);
         assert_eq!(func.executed, false);
+    }
+
+    #[test]
+    fn test_parser_gcov_rust_generics_with_two_parameters() {
+        let results = parse_gcov(Path::new("./test/rust/generics_with_two_parameters_intermediate.gcov"));
+        assert_eq!(results.len(), 1);
+        let (ref source_name, ref result) = results[0];
+
+        assert_eq!(source_name, "src/main.rs");
+
+        assert_eq!(result.lines, [(4, 3), (5, 3), (6, 1), (9, 2), (10, 1), (11, 1), (12, 2)].iter().cloned().collect());
+
+        assert_eq!(result.branches, [].iter().cloned().collect());
+
+        assert!(result.functions.contains_key("_ZN27rust_code_coverage_sample_24mainE"));
+        let func = result.functions.get("_ZN27rust_code_coverage_sample_24mainE").unwrap();
+        assert_eq!(func.start, 8);
+        assert_eq!(func.executed, true);
+
+        assert!(result.functions.contains_key("_ZN27rust_code_coverage_sample_244compare_types<[i32; 3],alloc::vec::Vec<i32>>E"));
+        let func = result.functions.get("_ZN27rust_code_coverage_sample_244compare_types<[i32; 3],alloc::vec::Vec<i32>>E").unwrap();
+        assert_eq!(func.start, 3);
+        assert_eq!(func.executed, true);
     }
 }

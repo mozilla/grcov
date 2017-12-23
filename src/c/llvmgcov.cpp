@@ -4,12 +4,12 @@
 using namespace llvm;
 
 extern "C"
-void parse_llvm_gcno(char* working_dir, char* file_stem) {
+void parse_llvm_gcno(char* working_dir, char* file_stem, uint8_t branch_enabled) {
   GCOV::Options Options(
     /* AllBlocks */ false,
-    /* BranchProb */ true,
-    /* BranchCount */ true,
-    /* FuncSummary */ false,
+    /* BranchProb (BranchInfo) */ branch_enabled != 0,
+    /* BranchCount */ branch_enabled != 0,
+    /* FuncSummary (FuncCoverage) */ false,
     /* PreservePaths */ false,
     /* UncondBranch */ false,
     /* LongNames */ false,
@@ -51,5 +51,5 @@ void parse_llvm_gcno(char* working_dir, char* file_stem) {
 
   CustomFileInfo FI(Options);
   GF.collectLineCounts(FI);
-  FI.print(working_dir, llvm::outs(), SourceFile, GCNO, GCDA);
+  FI.printIntermediate(working_dir, SourceFile);
 }

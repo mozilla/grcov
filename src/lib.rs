@@ -84,7 +84,18 @@ fn add_results(mut results: Vec<(String,CovResult)>, result_map: &SyncCovResultM
     }
 }
 
+// Some versions of GCC, because of a bug, generate multiple gcov files for each
+// gcno, so we have to support this case too for the time being.
+#[derive(PartialEq, Eq)]
+enum GcovType {
+    Unknown,
+    SingleFile,
+    MultipleFiles,
+}
+
 pub fn consumer(working_dir: &PathBuf, result_map: &SyncCovResultMap, queue: &WorkQueue, is_llvm: bool, branch_enabled: bool) {
+    let mut gcov_type = GcovType::Unknown;
+
     while let Some(work_item) = queue.pop() {
         let new_results = match work_item.format {
             ItemFormat::GCNO => {
@@ -93,11 +104,19 @@ pub fn consumer(working_dir: &PathBuf, result_map: &SyncCovResultMap, queue: &Wo
                 if !is_llvm {
                     run_gcov(gcno_path, branch_enabled, working_dir);
                 } else {
-                    call_parse_llvm_gcno(working_dir.to_str().unwrap(), gcno_path.parent().unwrap().join(gcno_path.file_stem().unwrap()).to_str().unwrap());
+                    call_parse_llvm_gcno(working_dir.to_str().unwrap(), gcno_path.parent().unwrap().join(gcno_path.file_stem().unwrap()).to_str().unwrap(), branch_enabled);
                 }
 
                 let gcov_path = working_dir.join(gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov");
-                if !is_llvm && gcov_path.exists() {
+                if gcov_type == GcovType::Unknown {
+                    gcov_type = if gcov_path.exists() {
+                        GcovType::SingleFile
+                    } else {
+                        GcovType::MultipleFiles
+                    };
+                }
+
+                if gcov_type == GcovType::SingleFile {
                     let new_results = parse_gcov(&gcov_path);
                     fs::remove_file(gcov_path).unwrap();
                     new_results
@@ -108,11 +127,7 @@ pub fn consumer(working_dir: &PathBuf, result_map: &SyncCovResultMap, queue: &Wo
                         let gcov_path = entry.unwrap();
                         let gcov_path = gcov_path.path();
 
-                        if !is_llvm {
-                            new_results.append(&mut parse_gcov(gcov_path));
-                        } else {
-                            new_results.push(parse_old_gcov(gcov_path, branch_enabled));
-                        }
+                        new_results.append(&mut parse_gcov(gcov_path));
 
                         fs::remove_file(gcov_path).unwrap();
                     }
