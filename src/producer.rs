@@ -292,6 +292,7 @@ mod tests {
             (ItemFormat::INFO, true, "test/prova.info", true),
             (ItemFormat::INFO, true, "test/prova_fn_with_commas.info", true),
             (ItemFormat::INFO, true, "test/empty_line.info", true),
+            (ItemFormat::INFO, true, "test/invalid_DA_record.info", true),
         ];
 
         check_produced(PathBuf::from("."), &queue, expected);

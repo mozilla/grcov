@@ -80,21 +80,21 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
             cur_functions = HashMap::new();
         } else {
             let mut key_value = l.splitn(2, ':');
-            let key = key_value.next().unwrap();
+            let key = key_value.next().expect("Missing key in LCOV record");
             let value = key_value.next();
             if value.is_none() {
                 // Ignore lines without a ':' character.
                 continue;
             }
-            let value = value.unwrap();
+            let value = value.expect("Missing value in LCOV record");
             match key {
                 "SF" => {
                     cur_file = Some(value.to_owned());
                 },
                 "DA" => {
                     let mut values = value.splitn(3, ',');
-                    let line_no = values.next().unwrap().parse().unwrap();
-                    let execution_count = values.next().unwrap();
+                    let line_no = values.next().expect("Missing line number in DA record").parse().expect("Line number in DA record is not a valid number");
+                    let execution_count = values.next().expect("Missing execution count in DA record");
                     if execution_count == "0" || execution_count.starts_with('-') {
                         match cur_lines.entry(line_no) {
                             btree_map::Entry::Occupied(_) => {},
@@ -103,7 +103,7 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
                             }
                         };
                     } else {
-                        let execution_count = execution_count.parse().unwrap();
+                        let execution_count = execution_count.parse().expect("Execution count in DA record is not a valid number");
                         match cur_lines.entry(line_no) {
                             btree_map::Entry::Occupied(c) => {
                                 *c.into_mut() += execution_count;
@@ -116,8 +116,8 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
                 },
                 "FN" => {
                     let mut f_splits = value.splitn(2, ',');
-                    let start = f_splits.next().unwrap().parse().unwrap();
-                    let f_name = f_splits.next().unwrap();
+                    let start = f_splits.next().expect("Missing function start line in FN record").parse().expect("Function start number in FN record is not a valid number");
+                    let f_name = f_splits.next().expect("Missing function name in FN record");
                     cur_functions.insert(f_name.to_owned(), Function {
                       start: start,
                       executed: false,
@@ -125,18 +125,18 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
                 },
                 "FNDA" => {
                     let mut f_splits = value.splitn(2, ',');
-                    let executed = f_splits.next().unwrap() != "0";
-                    let f_name = f_splits.next().unwrap();
+                    let executed = f_splits.next().expect("Missing execution count in FNDA record") != "0";
+                    let f_name = f_splits.next().expect("Missing function name in FNDA record");
                     let f = cur_functions.get_mut(f_name).expect(format!("FN record missing for function {}", f_name).as_str());
                     f.executed |= executed;
                 },
                 "BRDA" => {
                     if branch_enabled {
                         let mut values = value.splitn(4, ',');
-                        let line_no = values.next().unwrap().parse().unwrap();
+                        let line_no = values.next().expect("Missing line number in BRDA record").parse().expect("Line number in BRDA record is not a valid number");
                         values.next();
-                        let branch_number = values.next().unwrap().parse().unwrap();
-                        let taken = values.next().unwrap() != "-";
+                        let branch_number = values.next().expect("Missing branch number in BRDA record").parse().expect("Branch number in BRDA record is not a valid number");
+                        let taken = values.next().expect("Missing taken value in BRDA record") != "-";
                         match cur_branches.entry((line_no, branch_number)) {
                             btree_map::Entry::Occupied(c) => {
                                 *c.into_mut() |= taken;
@@ -182,8 +182,8 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
         };
 
         let mut key_value = l.splitn(2, ':');
-        let key = key_value.next().unwrap();
-        let value = key_value.next().unwrap();
+        let key = key_value.next().expect("Missing key in gcov record");
+        let value = key_value.next().expect("Missing value in gcov record");
 
         match key {
             "file" => {
@@ -203,9 +203,9 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
             },
             "function" => {
                 let mut f_splits = value.splitn(3, ',');
-                let start = f_splits.next().unwrap().parse().unwrap();
-                let executed = f_splits.next().unwrap() != "0";
-                let f_name = f_splits.next().unwrap();
+                let start = f_splits.next().expect("Missing function start number in 'function' record").parse().expect("Function start number in 'function' record is not a valid number");
+                let executed = f_splits.next().expect("Missing execution count in 'function' record") != "0";
+                let f_name = f_splits.next().expect("Missing function name in 'function' record");
                 cur_functions.insert(f_name.to_owned(), Function {
                   start: start,
                   executed: executed,
@@ -215,8 +215,8 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
                 branch_number = 0;
 
                 let mut values = value.splitn(2, ',');
-                let line_no = values.next().unwrap().parse().unwrap();
-                let execution_count = values.next().unwrap();
+                let line_no = values.next().expect("Missing line number in 'lcount' record").parse().expect("Line number in 'lcount' record is not a valid number");
+                let execution_count = values.next().expect("Missing execution count in 'lcount' record");
                 if execution_count == "0" || execution_count.starts_with('-') {
                     cur_lines.insert(line_no, 0);
                 } else {
@@ -225,8 +225,8 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
             },
             "branch" => {
                 let mut values = value.splitn(2, ',');
-                let line_no = values.next().unwrap().parse().unwrap();
-                let taken = values.next().unwrap() == "taken";
+                let line_no = values.next().expect("Missing line number in 'branch' record").parse().expect("Line number in 'branch' record is not a valid number");
+                let taken = values.next().expect("Missing taken value in 'branch' record") == "taken";
                 cur_branches.insert((line_no, branch_number), taken);
                 branch_number += 1;
             },
@@ -339,7 +339,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lcov_parser_regression() {
+    fn test_lcov_parser_empty_line() {
         let f = File::open("./test/empty_line.info").expect("Failed to open lcov file");
         let file = BufReader::new(&f);
         let results = parse_lcov(file, true);
@@ -357,6 +357,15 @@ mod tests {
         let func = result.functions.get("cubic-bezier(0.0, 0.0, 1.0, 1.0)").unwrap();
         assert_eq!(func.start, 95);
         assert_eq!(func.executed, true);
+    }
+
+    #[allow(non_snake_case)]
+    #[test]
+    #[should_panic]
+    fn test_lcov_parser_invalid_DA_record() {
+        let f = File::open("./test/invalid_DA_record.info").expect("Failed to open lcov file");
+        let file = BufReader::new(&f);
+        parse_lcov(file, true);
     }
 
     #[test]
