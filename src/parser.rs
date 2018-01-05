@@ -403,11 +403,11 @@ mod tests {
 
     #[allow(non_snake_case)]
     #[test]
-    #[should_panic]
     fn test_lcov_parser_invalid_DA_record() {
         let f = File::open("./test/invalid_DA_record.info").expect("Failed to open lcov file");
         let file = BufReader::new(&f);
-        parse_lcov(file, true).unwrap();
+        let result = parse_lcov(file, true);
+        assert!(result.is_err());
     }
 
     #[test]
