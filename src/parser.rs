@@ -3,6 +3,7 @@ use std::path::{Path};
 use std::fs::File;
 use std::io::{self, Read, BufRead, BufReader};
 use std::ffi::CString;
+use std::fmt;
 use std::str;
 use libc;
 
@@ -18,6 +19,16 @@ pub enum ParserError {
 impl From<io::Error> for ParserError {
     fn from(err: io::Error) -> ParserError {
         ParserError::Io(err)
+    }
+}
+
+impl fmt::Display for ParserError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ParserError::Io(ref err) => write!(f, "IO error: {}", err),
+            ParserError::Parse(ref s) => write!(f, "Record containing invalid integer: '{}'", s),
+            ParserError::InvalidRecord(ref s) => write!(f, "Invalid record: '{}'", s),
+        }
     }
 }
 
