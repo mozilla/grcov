@@ -93,6 +93,17 @@ enum GcovType {
     MultipleFiles,
 }
 
+macro_rules! try_parse {
+    ($v:expr, $f:expr) => (match $v {
+        Ok(val) => val,
+        Err(err) => {
+            println!("Error parsing file {}:", $f);
+            println!("{}", err);
+            std::process::exit(1);
+        }
+    });
+}
+
 pub fn consumer(working_dir: &PathBuf, result_map: &SyncCovResultMap, queue: &WorkQueue, is_llvm: bool, branch_enabled: bool) {
     let mut gcov_type = GcovType::Unknown;
 
@@ -117,7 +128,7 @@ pub fn consumer(working_dir: &PathBuf, result_map: &SyncCovResultMap, queue: &Wo
                 }
 
                 if gcov_type == GcovType::SingleFile {
-                    let new_results = parse_gcov(&gcov_path).unwrap();
+                    let new_results = try_parse!(parse_gcov(&gcov_path), gcov_path.display());
                     fs::remove_file(gcov_path).unwrap();
                     new_results
                 } else {
@@ -127,7 +138,7 @@ pub fn consumer(working_dir: &PathBuf, result_map: &SyncCovResultMap, queue: &Wo
                         let gcov_path = entry.unwrap();
                         let gcov_path = gcov_path.path();
 
-                        new_results.append(&mut parse_gcov(gcov_path).unwrap());
+                        new_results.append(&mut try_parse!(parse_gcov(&gcov_path), gcov_path.display()));
 
                         fs::remove_file(gcov_path).unwrap();
                     }
@@ -140,11 +151,11 @@ pub fn consumer(working_dir: &PathBuf, result_map: &SyncCovResultMap, queue: &Wo
                     ItemType::Path(info_path) => {
                         let f = File::open(&info_path).expect("Failed to open lcov file");
                         let file = BufReader::new(&f);
-                        parse_lcov(file, branch_enabled).unwrap()
+                        try_parse!(parse_lcov(file, branch_enabled), info_path.display())
                     },
                     ItemType::Content(info_content) => {
                         let buffer = BufReader::new(Cursor::new(info_content));
-                        parse_lcov(buffer, branch_enabled).unwrap()
+                        try_parse!(parse_lcov(buffer, branch_enabled), "")
                     }
                 }
             }
