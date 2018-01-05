@@ -1,12 +1,54 @@
 use std::collections::{BTreeMap, btree_map, HashMap};
 use std::path::{Path};
 use std::fs::File;
-use std::io::{Read, BufRead, BufReader};
+use std::io::{self, Read, BufRead, BufReader};
 use std::ffi::CString;
+use std::fmt;
 use std::str;
 use libc;
 
 use defs::*;
+
+#[derive(Debug)]
+pub enum ParserError {
+    Io(io::Error),
+    Parse(String),
+    InvalidRecord(String),
+}
+
+impl From<io::Error> for ParserError {
+    fn from(err: io::Error) -> ParserError {
+        ParserError::Io(err)
+    }
+}
+
+impl fmt::Display for ParserError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ParserError::Io(ref err) => write!(f, "IO error: {}", err),
+            ParserError::Parse(ref s) => write!(f, "Record containing invalid integer: '{}'", s),
+            ParserError::InvalidRecord(ref s) => write!(f, "Invalid record: '{}'", s),
+        }
+    }
+}
+
+macro_rules! try_parse {
+    ($v:expr, $l:expr) => (match $v.parse() {
+        Ok(val) => val,
+        Err(_err) => return Err(ParserError::Parse($l.to_string())),
+    });
+}
+
+macro_rules! try_next {
+    ($v:expr, $l:expr) => (match $v.next() {
+        Some(val) => val,
+        None => return Err(ParserError::InvalidRecord($l.to_string())),
+    });
+}
+
+macro_rules! try_parse_next {
+    ($v:expr, $l:expr) => (try_parse!(try_next!($v, $l), $l););
+}
 
 #[link(name = "llvmgcov", kind="static")]
 extern {
@@ -44,7 +86,7 @@ fn remove_newline(l: &mut Vec<u8>) {
     }
 }
 
-pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) -> Vec<(String,CovResult)> {
+pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) -> Result<Vec<(String,CovResult)>, ParserError> {
     let mut cur_file = None;
     let mut cur_lines = BTreeMap::new();
     let mut cur_branches = BTreeMap::new();
@@ -57,7 +99,7 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
     loop {
         l.clear();
 
-        let num_bytes = lcov_reader.read_until(b'\n', &mut l).unwrap();
+        let num_bytes = try!(lcov_reader.read_until(b'\n', &mut l));
         if num_bytes == 0 {
             break;
         }
@@ -80,21 +122,21 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
             cur_functions = HashMap::new();
         } else {
             let mut key_value = l.splitn(2, ':');
-            let key = key_value.next().expect("Missing key in LCOV record");
+            let key = try_next!(key_value, l);
             let value = key_value.next();
             if value.is_none() {
                 // Ignore lines without a ':' character.
                 continue;
             }
-            let value = value.expect("Missing value in LCOV record");
+            let value = value.unwrap();
             match key {
                 "SF" => {
                     cur_file = Some(value.to_owned());
                 },
                 "DA" => {
                     let mut values = value.splitn(3, ',');
-                    let line_no = values.next().expect("Missing line number in DA record").parse().expect("Line number in DA record is not a valid number");
-                    let execution_count = values.next().expect("Missing execution count in DA record");
+                    let line_no = try_parse_next!(values, l);
+                    let execution_count = try_next!(values, l);
                     if execution_count == "0" || execution_count.starts_with('-') {
                         match cur_lines.entry(line_no) {
                             btree_map::Entry::Occupied(_) => {},
@@ -103,7 +145,7 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
                             }
                         };
                     } else {
-                        let execution_count = execution_count.parse().expect("Execution count in DA record is not a valid number");
+                        let execution_count = try_parse!(execution_count, l);
                         match cur_lines.entry(line_no) {
                             btree_map::Entry::Occupied(c) => {
                                 *c.into_mut() += execution_count;
@@ -116,8 +158,8 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
                 },
                 "FN" => {
                     let mut f_splits = value.splitn(2, ',');
-                    let start = f_splits.next().expect("Missing function start line in FN record").parse().expect("Function start number in FN record is not a valid number");
-                    let f_name = f_splits.next().expect("Missing function name in FN record");
+                    let start = try_parse_next!(f_splits, l);
+                    let f_name = try_next!(f_splits, l);
                     cur_functions.insert(f_name.to_owned(), Function {
                       start: start,
                       executed: false,
@@ -125,18 +167,18 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
                 },
                 "FNDA" => {
                     let mut f_splits = value.splitn(2, ',');
-                    let executed = f_splits.next().expect("Missing execution count in FNDA record") != "0";
-                    let f_name = f_splits.next().expect("Missing function name in FNDA record");
+                    let executed = try_next!(f_splits, l) != "0";
+                    let f_name = try_next!(f_splits, l);
                     let f = cur_functions.get_mut(f_name).expect(format!("FN record missing for function {}", f_name).as_str());
                     f.executed |= executed;
                 },
                 "BRDA" => {
                     if branch_enabled {
                         let mut values = value.splitn(4, ',');
-                        let line_no = values.next().expect("Missing line number in BRDA record").parse().expect("Line number in BRDA record is not a valid number");
+                        let line_no = try_parse_next!(values, l);
                         values.next();
-                        let branch_number = values.next().expect("Missing branch number in BRDA record").parse().expect("Branch number in BRDA record is not a valid number");
-                        let taken = values.next().expect("Missing taken value in BRDA record") != "-";
+                        let branch_number = try_parse_next!(values, l);
+                        let taken = try_next!(values, l) != "-";
                         match cur_branches.entry((line_no, branch_number)) {
                             btree_map::Entry::Occupied(c) => {
                                 *c.into_mut() |= taken;
@@ -152,10 +194,10 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
         }
     }
 
-    results
+    Ok(results)
 }
 
-pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
+pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String,CovResult)>, ParserError> {
     let mut cur_file = None;
     let mut cur_lines = BTreeMap::new();
     let mut cur_branches = BTreeMap::new();
@@ -171,7 +213,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
     loop {
         l.clear();
 
-        let num_bytes = file.read_until(b'\n', &mut l).unwrap();
+        let num_bytes = try!(file.read_until(b'\n', &mut l));
         if num_bytes == 0 {
             break;
         }
@@ -182,8 +224,8 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
         };
 
         let mut key_value = l.splitn(2, ':');
-        let key = key_value.next().expect("Missing key in gcov record");
-        let value = key_value.next().expect("Missing value in gcov record");
+        let key = try_next!(key_value, l);
+        let value = try_next!(key_value, l);
 
         match key {
             "file" => {
@@ -203,9 +245,9 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
             },
             "function" => {
                 let mut f_splits = value.splitn(3, ',');
-                let start = f_splits.next().expect("Missing function start number in 'function' record").parse().expect("Function start number in 'function' record is not a valid number");
-                let executed = f_splits.next().expect("Missing execution count in 'function' record") != "0";
-                let f_name = f_splits.next().expect("Missing function name in 'function' record");
+                let start = try_parse_next!(f_splits, l);
+                let executed = try_next!(f_splits, l) != "0";
+                let f_name = try_next!(f_splits, l);
                 cur_functions.insert(f_name.to_owned(), Function {
                   start: start,
                   executed: executed,
@@ -215,18 +257,18 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
                 branch_number = 0;
 
                 let mut values = value.splitn(2, ',');
-                let line_no = values.next().expect("Missing line number in 'lcount' record").parse().expect("Line number in 'lcount' record is not a valid number");
-                let execution_count = values.next().expect("Missing execution count in 'lcount' record");
+                let line_no = try_parse_next!(values, l);
+                let execution_count = try_next!(values, l);
                 if execution_count == "0" || execution_count.starts_with('-') {
                     cur_lines.insert(line_no, 0);
                 } else {
-                    cur_lines.insert(line_no, execution_count.parse().unwrap());
+                    cur_lines.insert(line_no, try_parse!(execution_count, l));
                 }
             },
             "branch" => {
                 let mut values = value.splitn(2, ',');
-                let line_no = values.next().expect("Missing line number in 'branch' record").parse().expect("Line number in 'branch' record is not a valid number");
-                let taken = values.next().expect("Missing taken value in 'branch' record") == "taken";
+                let line_no = try_parse_next!(values, l);
+                let taken = try_next!(values, l) == "taken";
                 cur_branches.insert((line_no, branch_number), taken);
                 branch_number += 1;
             },
@@ -242,7 +284,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Vec<(String,CovResult)> {
         }));
     }
 
-    results
+    Ok(results)
 }
 
 #[cfg(test)]
@@ -276,7 +318,7 @@ mod tests {
     fn test_lcov_parser() {
         let f = File::open("./test/prova.info").expect("Failed to open lcov file");
         let file = BufReader::new(&f);
-        let results = parse_lcov(file, false);
+        let results = parse_lcov(file, false).unwrap();
 
         assert_eq!(results.len(), 603);
 
@@ -299,7 +341,7 @@ mod tests {
         // Parse the same file, but with branch parsing enabled.
         let f = File::open("./test/prova.info").expect("Failed to open lcov file");
         let file = BufReader::new(&f);
-        let results = parse_lcov(file, true);
+        let results = parse_lcov(file, true).unwrap();
 
         assert_eq!(results.len(), 603);
 
@@ -321,7 +363,7 @@ mod tests {
     fn test_lcov_parser_fn_with_commas() {
         let f = File::open("./test/prova_fn_with_commas.info").expect("Failed to open lcov file");
         let file = BufReader::new(&f);
-        let results = parse_lcov(file, true);
+        let results = parse_lcov(file, true).unwrap();
 
         assert_eq!(results.len(), 1);
 
@@ -342,7 +384,7 @@ mod tests {
     fn test_lcov_parser_empty_line() {
         let f = File::open("./test/empty_line.info").expect("Failed to open lcov file");
         let file = BufReader::new(&f);
-        let results = parse_lcov(file, true);
+        let results = parse_lcov(file, true).unwrap();
 
         assert_eq!(results.len(), 1);
 
@@ -361,16 +403,16 @@ mod tests {
 
     #[allow(non_snake_case)]
     #[test]
-    #[should_panic]
     fn test_lcov_parser_invalid_DA_record() {
         let f = File::open("./test/invalid_DA_record.info").expect("Failed to open lcov file");
         let file = BufReader::new(&f);
-        parse_lcov(file, true);
+        let result = parse_lcov(file, true);
+        assert!(result.is_err());
     }
 
     #[test]
     fn test_parser() {
-        let results = parse_gcov(Path::new("./test/prova.gcov"));
+        let results = parse_gcov(Path::new("./test/prova.gcov")).unwrap();
 
         assert_eq!(results.len(), 10);
 
@@ -409,7 +451,7 @@ mod tests {
 
     #[test]
     fn test_parser_gcov_with_negative_counts() {
-        let results = parse_gcov(Path::new("./test/negative_counts.gcov"));
+        let results = parse_gcov(Path::new("./test/negative_counts.gcov")).unwrap();
         assert_eq!(results.len(), 118);
         let (ref source_name, ref result) = results[14];
         assert_eq!(source_name, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/mozilla/Assertions.h");
@@ -418,7 +460,7 @@ mod tests {
 
     #[test]
     fn test_parser_gcov_with_64bit_counts() {
-        let results = parse_gcov(Path::new("./test/64bit_count.gcov"));
+        let results = parse_gcov(Path::new("./test/64bit_count.gcov")).unwrap();
         assert_eq!(results.len(), 46);
         let (ref source_name, ref result) = results[8];
         assert_eq!(source_name, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/js/HashTable.h");
@@ -429,7 +471,7 @@ mod tests {
 
     #[test]
     fn test_parser_gcov_with_branches() {
-        let results = parse_gcov(Path::new("./test/intermediate_with_branches.gcov"));
+        let results = parse_gcov(Path::new("./test/intermediate_with_branches.gcov")).unwrap();
         assert_eq!(results.len(), 1);
         let (ref source_name, ref result) = results[0];
 
@@ -447,7 +489,7 @@ mod tests {
 
     #[test]
     fn test_parser_gcov_rust_generics_with_two_parameters() {
-        let results = parse_gcov(Path::new("./test/rust/generics_with_two_parameters_intermediate.gcov"));
+        let results = parse_gcov(Path::new("./test/rust/generics_with_two_parameters_intermediate.gcov")).unwrap();
         assert_eq!(results.len(), 1);
         let (ref source_name, ref result) = results[0];
 
