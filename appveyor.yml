@@ -1,0 +1,22 @@
+image: Visual Studio 2017
+platform:
+- x64
+
+environment:
+  matrix:
+    - channel: stable
+    - channel: nightly
+
+install:
+  - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
+  - rustup-init -yv --default-toolchain %channel% --default-host x86_64-pc-windows-msvc
+  - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
+  - set PATH=%PATH%;C:\Libraries\llvm-5.0.0\bin
+  - rustc -vV
+  - cargo -vV
+
+build_script:
+  - cargo build --verbose %cargoflags%
+
+test_script:
+  - cargo test --verbose %cargoflags%
