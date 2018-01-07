@@ -99,8 +99,8 @@ script:
     - export PATH=$PWD/symlinks:$PATH
     - gcc --version
     - clang --version
-    - '[ -z $TRAVIS_TAG ] && cargo build --verbose'
-    - '[ -z $TRAVIS_TAG ] && cargo test -- --nocapture'
+    - if [ -z "$TRAVIS_TAG" ]; then cargo build --verbose; fi
+    - if [ -z "$TRAVIS_TAG" ]; then cargo test -- --nocapture; fi
 before_deploy:
     - cargo build --release --features=alloc_system
     - tar -cvjSf grcov-linux-x86_64.tar.bz2 -C target/release/ grcov

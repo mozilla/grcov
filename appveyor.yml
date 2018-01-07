@@ -16,10 +16,18 @@ install:
   - cargo -vV
 
 build_script:
-  - cargo build --verbose
-  - cargo build --release --features=alloc_system
-  - 7z a grcov-win-x86_64.tar target\release\grcov.exe "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.12.25810\x64\Microsoft.VC141.CRT\msvcp140.dll" "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.12.25810\x64\Microsoft.VC141.CRT\vcruntime140.dll"
-  - 7z a grcov-win-x86_64.tar.bz2 grcov-win-x86_64.tar
+  - if [%APPVEYOR_REPO_TAG%]==[false] (
+      cargo build --verbose
+    )
+  - if [%APPVEYOR_REPO_TAG%]==[true] if [%channel%]==[nightly] (
+      cargo build --release --features=alloc_system
+    )
+  - if [%APPVEYOR_REPO_TAG%]==[true] if [%channel%]==[nightly] (
+      7z a grcov-win-x86_64.tar .\target\release\grcov.exe "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.12.25810\x64\Microsoft.VC141.CRT\msvcp140.dll" "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.12.25810\x64\Microsoft.VC141.CRT\vcruntime140.dll"
+    )
+  - if [%APPVEYOR_REPO_TAG%]==[true] if [%channel%]==[nightly] (
+      7z a grcov-win-x86_64.tar.bz2 grcov-win-x86_64.tar
+    )
 
 test_script:
   - if [%APPVEYOR_REPO_TAG%]==[false] (
