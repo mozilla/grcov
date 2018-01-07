@@ -22,7 +22,9 @@ build_script:
   - 7z a grcov-win-x86_64.tar.bz2 grcov-win-x86_64.tar
 
 test_script:
-  - cargo test --verbose %cargoflags%
+  - if [%APPVEYOR_REPO_TAG%]==[false] (
+      cargo test --verbose %cargoflags%
+    )
 
 artifacts:
   - path: grcov-win-x86_64.tar.bz2
