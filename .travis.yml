@@ -101,3 +101,16 @@ script:
     - clang --version
     - cargo build --verbose
     - cargo test -- --nocapture
+before_deploy:
+    - cargo build --release --features=alloc_system
+    - tar -cvjSf grcov-linux-x86_64.tar.bz2 -C target/release/ grcov
+deploy:
+  api_key:
+    secure: by7CZhF9PTfQMbIlOIO/AuhnNv6YhgXLgDuMJurW0Z/3fDuAQG0zRHYAdvgbvwVa0KTQWamJbo1HD9LYGdACwNyO4uJWN+Zek3p/OM+axTk3/UZlr3UnGizk3UHM/Z1+awHsMYghk4UoGc8795x3iZs+PF2+lqMHGgBfpWRP5IP5PHCX93D7W0myTi4c2hu8Ufb5rC44vQ2EvuThYiX3UQ2BQVv0jaRdp9hT5XChJH8fmGZRq46yK7XCpCWSKN+29dn3/5/4b2mLN7DaTQB60DFaQPZKORva4ISUByk4EnzI7JAW9/6yT2tsiwvUkZuKoPNyv4yPGqu/QdROriUajFeu8bLVfAkxzKjVYNU0Cu4NCC84VVf2rP6YxZwUXBnBRL9qTHYgZZ8MLRC43bPF9s4mI8XR02DQtC/xajgnusxL3qEovxNnETCC0xXdMqw063o37IQLa8XkdAvQ5fB4QBeiX+8YBZwIFZO3wXKFbCkbx7ocigpfBTMh7tNdK457n5o3NILMKL2SyibI0sriXZ7qJUDwUHSoECRfivjdkdgQMBqTaVQAsQIT9Cpm+G2DI1QPXJC8xtCqEpKjExNMQeOUChs43O7XqIt5TffP2U2cAuAQTJKDDrPzJLxWK7tNeU8crmBG1s4tQDJZki4JxPwLBrLInw3YC9TD3A3YA3Y=
+  file: grcov-linux-x86_64.tar.bz2
+  on:
+    rust: nightly
+    tags: true
+    condition: $COMPILER_VER = 7
+  provider: releases
+  skip_cleanup: true
