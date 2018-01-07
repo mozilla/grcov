@@ -17,6 +17,22 @@ install:
 
 build_script:
   - cargo build --verbose %cargoflags%
+  - cargo build --release --features=alloc_system
+  - 7z a grcov-win-x86_64.tar target\release\grcov.exe "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.12.25810\x64\Microsoft.VC141.CRT\msvcp140.dll" "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.12.25810\x64\Microsoft.VC141.CRT\vcruntime140.dll"
+  - 7z a grcov-win-x86_64.tar.bz2 grcov-win-x86_64.tar
 
 test_script:
   - cargo test --verbose %cargoflags%
+
+artifacts:
+  - path: grcov-win-x86_64.tar.bz2
+
+deploy:
+  artifact: grcov-win-x86_64.tar.bz2
+  auth_token:
+    secure: /BjmtIYmmvSDJ5939QEcd857vcA29dIlcb/u6wgbWkAm+Cp4LN2KTi3+cVveoqz+
+  description: ''
+  on:
+    channel: nightly
+    appveyor_repo_tag: true
+  provider: GitHub
