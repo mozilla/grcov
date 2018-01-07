@@ -191,6 +191,11 @@ fn check_equal_coveralls(expected_output: &str, output: &str, skip_branches: boo
 
 #[test]
 fn test_integration() {
+    if cfg!(windows) {
+        println!("Integration tests still not supported under Windows.");
+        return;
+    }
+
     for entry in WalkDir::new("tests").min_depth(1) {
         let entry = entry.unwrap();
         let path = entry.path();
