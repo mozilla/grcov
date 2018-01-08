@@ -1,10 +1,90 @@
 #include "llvm/Support/Errc.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
 #include "GCOV.h"
 
 using namespace llvm;
 
+class CustomFileInfo : public ProtectedFileInfo {
+public:
+  CustomFileInfo(const GCOV::Options &Options) : ProtectedFileInfo(Options) {}
+
+  void printIntermediate(StringRef MainFilename);
+};
+
+/// printIntermediate -  Print source files with collected line count information in the intermediate gcov format.
+void CustomFileInfo::printIntermediate(StringRef MainFilename) {
+  std::string CoveragePath = getCoveragePath(MainFilename, MainFilename);
+  std::unique_ptr<raw_ostream> CovStream = openCoveragePath(CoveragePath);
+  raw_ostream &CovOS = *CovStream;
+
+  SmallVector<StringRef, 4> Filenames;
+  for (const auto &LI : LineInfo)
+    Filenames.push_back(LI.first());
+  std::sort(Filenames.begin(), Filenames.end());
+
+  for (StringRef Filename : Filenames) {
+    CovOS << "file:" << Filename << "\n";
+
+    const LineData &Line = LineInfo[Filename];
+    for (uint32_t LineIndex = 0; LineIndex < Line.LastLine; ++LineIndex) {
+      FunctionLines::const_iterator FuncsIt = Line.Functions.find(LineIndex);
+      if (FuncsIt != Line.Functions.end()) {
+        for (const CustomGCOVFunction *Func : FuncsIt->second) {
+          CovOS << "function:" << (LineIndex + 1) << "," << Func->getEntryCount() << "," << Func->getName() << "\n";
+        }
+      }
+
+      BlockLines::const_iterator BlocksIt = Line.Blocks.find(LineIndex);
+      if (BlocksIt == Line.Blocks.end()) {
+        // No basic blocks are on this line. Not an executable line of code.
+        continue;
+      } else {
+        const BlockVector &Blocks = BlocksIt->second;
+
+        // Add up the block counts to form line counts.
+        DenseMap<const CustomGCOVFunction *, bool> LineExecs;
+        uint64_t LineCount = 0;
+        for (const CustomGCOVBlock *Block : Blocks) {
+          LineCount += Block->getCount();
+        }
+
+        CovOS << "lcount:" << (LineIndex + 1) << "," << LineCount << "\n";
+
+        if (Options.BranchInfo) {
+          for (const CustomGCOVBlock *Block : Blocks) {
+            // Only print block and branch information at the end of the block.
+            if (Block->getLastLine() != LineIndex + 1)
+              continue;
+
+            size_t NumEdges = Block->getNumDstEdges();
+            if (NumEdges > 1) {
+              uint64_t TotalCounts = 0;
+              for (const GCOVEdge *Edge : Block->dsts()) {
+                TotalCounts += Edge->Count;
+              }
+              bool exec = TotalCounts > 0;
+              for (const GCOVEdge *Edge : Block->dsts()) {
+                bool taken = Edge->Count > 0;
+                CovOS << "branch:" << (LineIndex + 1) << ",";
+                if (taken && exec)
+                  CovOS << "taken";
+                else if (exec)
+                  CovOS << "nottaken";
+                else
+                  CovOS << "notexec";
+                CovOS << "\n";
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 extern "C"
-void parse_llvm_gcno(char* working_dir, char* file_stem, uint8_t branch_enabled) {
+void parse_llvm_gcno(char* file_stem, uint8_t branch_enabled) {
   GCOV::Options Options(
     /* AllBlocks */ false,
     /* BranchProb (BranchInfo) */ branch_enabled != 0,
@@ -18,8 +98,7 @@ void parse_llvm_gcno(char* working_dir, char* file_stem, uint8_t branch_enabled)
 
   CustomGCOVFile GF;
 
-  std::string SourceFile = std::string(file_stem) + ".gcno";
-  std::string GCNO = SourceFile;
+  std::string GCNO = std::string(file_stem) + ".gcno";
   std::string GCDA = std::string(file_stem) + ".gcda";
 
   ErrorOr<std::unique_ptr<MemoryBuffer>> GCNO_Buff = MemoryBuffer::getFileOrSTDIN(GCNO);
@@ -51,5 +130,5 @@ void parse_llvm_gcno(char* working_dir, char* file_stem, uint8_t branch_enabled)
 
   CustomFileInfo FI(Options);
   GF.collectLineCounts(FI);
-  FI.printIntermediate(working_dir, SourceFile);
+  FI.printIntermediate(GCNO);
 }

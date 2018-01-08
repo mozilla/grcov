@@ -115,7 +115,7 @@ pub fn consumer(working_dir: &PathBuf, result_map: &SyncCovResultMap, queue: &Wo
                 if !is_llvm {
                     run_gcov(gcno_path, branch_enabled, working_dir);
                 } else {
-                    call_parse_llvm_gcno(working_dir.to_str().unwrap(), gcno_path.parent().unwrap().join(gcno_path.file_stem().unwrap()).to_str().unwrap(), branch_enabled);
+                    call_parse_llvm_gcno(gcno_path.parent().unwrap().join(gcno_path.file_stem().unwrap()).to_str().unwrap(), branch_enabled);
                 }
 
                 let gcov_path = working_dir.join(gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov");
