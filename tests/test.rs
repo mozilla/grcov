@@ -237,17 +237,14 @@ fn test_integration() {
                 make_clean(path);
             }
 
-            // On CI, don't test llvm, as there are problems for now.
-            let skip_llvm = env::var("CONTINUOUS_INTEGRATION").is_ok();
-
-            println!("\nLLVM");
-            make(path, "clang++");
-            run(path);
-            if !skip_llvm {
+            if !cfg!(target_os="macos") {
+                println!("\nLLVM");
+                make(path, "clang++");
+                run(path);
                 check_equal_ade(&read_expected(path, "llvm", &compiler_ver, "ade"), &run_grcov(path, true, "ade"));
                 check_equal_coveralls(&read_expected(path, "llvm", &compiler_ver, "coveralls"), &run_grcov(path, true, "coveralls"), skip_branches);
+                make_clean(path);
             }
-            make_clean(path);
         }
     }
 }
