@@ -1,5 +1,6 @@
 extern crate walkdir;
 extern crate serde_json;
+extern crate semver;
 
 use std::env;
 use std::process::Command;
@@ -8,6 +9,7 @@ use std::path::{PathBuf, Path};
 use std::fs::File;
 use std::io::Read;
 use serde_json::Value;
+use semver::Version;
 
 fn make(path: &Path, compiler: &str) {
     let status = Command::new("make")
@@ -32,9 +34,8 @@ fn run(path: &Path) {
     assert!(status.success());
 }
 
-fn read_expected(path: &Path, compiler: &str, format: &str) -> String {
-    let version = env::var("COMPILER_VER").expect("COMPILER_VER env variable is not defined");
-    let name_with_ver = format!("expected_{}_{}.{}", compiler, version, format);
+fn read_expected(path: &Path, compiler: &str, compiler_ver: &str, format: &str) -> String {
+    let name_with_ver = format!("expected_{}_{}.{}", compiler, compiler_ver, format);
 
     let name = if path.join(&name_with_ver).exists() {
         name_with_ver
@@ -189,12 +190,32 @@ fn check_equal_coveralls(expected_output: &str, output: &str, skip_branches: boo
     assert_eq!(expected_source_files.len(), actual_source_files.len(), "Got same number of source files.");
 }
 
+fn get_gcc_version() -> String {
+    let output = Command::new("gcc")
+                         .arg("-dumpversion")
+                         .output()
+                         .expect("Failed to execute `gcc`.");
+
+    assert!(output.status.success(), "`gcc` failed to execute.");
+
+    let version = String::from_utf8(output.stdout).unwrap();
+    match Version::parse(&version) {
+      Ok(v) => v.major.to_string(),
+      Err(_e) => version.trim().to_string(),
+    }
+}
+
 #[test]
 fn test_integration() {
     if cfg!(windows) {
         println!("Integration tests still not supported under Windows.");
         return;
     }
+
+    let compiler_ver = match env::var("COMPILER_VER") {
+        Ok(v) => v,
+        Err(_e) => get_gcc_version(),
+    };
 
     for entry in WalkDir::new("tests").min_depth(1) {
         let entry = entry.unwrap();
@@ -211,8 +232,8 @@ fn test_integration() {
                 println!("GCC");
                 make(path, "g++");
                 run(path);
-                check_equal_ade(&read_expected(path, "gcc", "ade"), &run_grcov(path, false, "ade"));
-                check_equal_coveralls(&read_expected(path, "gcc", "coveralls"), &run_grcov(path, false, "coveralls"), skip_branches);
+                check_equal_ade(&read_expected(path, "gcc", &compiler_ver, "ade"), &run_grcov(path, false, "ade"));
+                check_equal_coveralls(&read_expected(path, "gcc", &compiler_ver, "coveralls"), &run_grcov(path, false, "coveralls"), skip_branches);
                 make_clean(path);
             }
 
@@ -223,8 +244,8 @@ fn test_integration() {
             make(path, "clang++");
             run(path);
             if !skip_llvm {
-                check_equal_ade(&read_expected(path, "llvm", "ade"), &run_grcov(path, true, "ade"));
-                check_equal_coveralls(&read_expected(path, "llvm", "coveralls"), &run_grcov(path, true, "coveralls"), skip_branches);
+                check_equal_ade(&read_expected(path, "llvm", &compiler_ver, "ade"), &run_grcov(path, true, "ade"));
+                check_equal_coveralls(&read_expected(path, "llvm", &compiler_ver, "coveralls"), &run_grcov(path, true, "coveralls"), skip_branches);
             }
             make_clean(path);
         }
