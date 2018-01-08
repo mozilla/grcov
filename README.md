@@ -39,6 +39,18 @@ genhtml -o report/ --show-details --highlight --ignore-errors source --legend lc
 grcov ~/Documenti/FD/mozilla-central/build -t coveralls -s ~/Documenti/FD/mozilla-central --token YOUR_COVERALLS_TOKEN > coveralls.json
 ```
 
+## Build & Test
+
+```
+cargo build
+# By default, the binary is generated in ./target/debug/grcov
+```
+
+To test the binary:
+```
+cargo test
+```
+
 ## Minimum requirements
 
 - GCC 4.9 or higher is required.
