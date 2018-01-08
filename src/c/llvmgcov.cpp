@@ -9,13 +9,15 @@ class CustomFileInfo : public ProtectedFileInfo {
 public:
   CustomFileInfo(const GCOV::Options &Options) : ProtectedFileInfo(Options) {}
 
-  void printIntermediate(StringRef MainFilename);
+  void printIntermediate(StringRef WorkingDir, StringRef MainFilename);
 };
 
 /// printIntermediate -  Print source files with collected line count information in the intermediate gcov format.
-void CustomFileInfo::printIntermediate(StringRef MainFilename) {
+void CustomFileInfo::printIntermediate(StringRef WorkingDir, StringRef MainFilename) {
   std::string CoveragePath = getCoveragePath(MainFilename, MainFilename);
-  std::unique_ptr<raw_ostream> CovStream = openCoveragePath(CoveragePath);
+  SmallString<128> FullCoveragePath(WorkingDir);
+  sys::path::append(FullCoveragePath, CoveragePath);
+  std::unique_ptr<raw_ostream> CovStream = openCoveragePath(FullCoveragePath);
   raw_ostream &CovOS = *CovStream;
 
   SmallVector<StringRef, 4> Filenames;
@@ -84,7 +86,7 @@ void CustomFileInfo::printIntermediate(StringRef MainFilename) {
 }
 
 extern "C"
-void parse_llvm_gcno(char* file_stem, uint8_t branch_enabled) {
+void parse_llvm_gcno(char* working_dir, char* file_stem, uint8_t branch_enabled) {
   GCOV::Options Options(
     /* AllBlocks */ false,
     /* BranchProb (BranchInfo) */ branch_enabled != 0,
@@ -130,5 +132,5 @@ void parse_llvm_gcno(char* file_stem, uint8_t branch_enabled) {
 
   CustomFileInfo FI(Options);
   GF.collectLineCounts(FI);
-  FI.printIntermediate(GCNO);
+  FI.printIntermediate(working_dir, GCNO);
 }
