@@ -1,7 +1,7 @@
 # grcov
 
 [![Build Status](https://travis-ci.org/marco-c/grcov.svg?branch=master)](https://travis-ci.org/marco-c/grcov)
-[![Build status](https://ci.appveyor.com/api/projects/status/1957u00h26alxey2/branch/master?svg=true)](https://ci.appveyor.com/project/marco-c/grcov/branch/master)
+[![Build status](https://ci.appveyor.com/api/projects/status/1957u00h26alxey2/branch/master?svg=true)](https://ci.appveyor.com/project/marco-c/grcov)
 
 grcov collects and aggregates code coverage information for multiple source files.
 
