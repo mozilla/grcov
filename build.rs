@@ -1,9 +1,15 @@
 extern crate cc;
 
+use std::env;
 use std::process::Command;
 
 fn llvm_config(args: &[&str]) -> String {
-    Command::new("llvm-config")
+    let llvm_config_path = match env::var("LLVM_CONFIG") {
+        Ok(v) => v,
+        Err(_e) => "llvm-config".to_string(),
+    };
+
+    Command::new(llvm_config_path)
         .args(args)
         .arg("--link-static")
         .output()
