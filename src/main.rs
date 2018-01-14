@@ -66,6 +66,7 @@ fn main() {
     let mut paths = Vec::new();
     let mut i = 1;
     let mut path_mapping_file = "";
+    let mut filter_covered = true;
     while i < args.len() {
         if args[i] == "-t" {
             if args.len() <= i + 1 {
@@ -163,8 +164,12 @@ fn main() {
 
             path_mapping_file = &args[i + 1];
             i += 1;
-        }  else if args[i] == "--branch" {
+        } else if args[i] == "--branch" {
             branch_enabled = true;
+        } else if args[i] == "--filter-covered" {
+            filter_covered = true;
+        } else if args[i] == "--filter-uncovered" {
+            filter_covered = false;
         } else {
             paths.push(args[i].clone());
         }
@@ -177,7 +182,7 @@ fn main() {
         process::exit(1);
     }
 
-    if output_type != "ade" && output_type != "lcov" && output_type != "coveralls" && output_type != "coveralls+" {
+    if output_type != "ade" && output_type != "lcov" && output_type != "coveralls" && output_type != "coveralls+" && output_type != "files" {
         println_stderr!("[ERROR]: '{}' output format is not supported.\n", output_type);
         print_usage(&args[0]);
         process::exit(1);
@@ -279,6 +284,8 @@ fn main() {
         output_coveralls(iterator, repo_token, service_name, service_number, service_job_number, commit_sha, false);
     } else if output_type == "coveralls+" {
         output_coveralls(iterator, repo_token, service_name, service_number, service_job_number, commit_sha, true);
+    } else if output_type == "files" {
+        output_files(iterator, filter_covered);
     } else {
         assert!(false, "{} is not a supported output type", output_type);
     }
