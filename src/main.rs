@@ -67,6 +67,7 @@ fn main() {
     let mut i = 1;
     let mut path_mapping_file = "";
     let mut filter_covered = true;
+    let mut num_threads = num_cpus::get() * 2;
     while i < args.len() {
         if args[i] == "-t" {
             if args.len() <= i + 1 {
@@ -170,6 +171,15 @@ fn main() {
             filter_covered = true;
         } else if args[i] == "--filter-uncovered" {
             filter_covered = false;
+        } else if args[i] == "--threads" {
+            if args.len() <= i + 1 {
+                println_stderr!("[ERROR]: Number of threads not specified.\n");
+                print_usage(&args[0]);
+                process::exit(1);
+            }
+
+            num_threads = args[i + 1].parse().expect("Number of threads should be a number");
+            i += 1;
         } else {
             paths.push(args[i].clone());
         }
@@ -241,8 +251,6 @@ fn main() {
     };
 
     let mut parsers = Vec::new();
-
-    let num_threads = num_cpus::get() * 2;
 
     for i in 0..num_threads {
         let queue = Arc::clone(&queue);
