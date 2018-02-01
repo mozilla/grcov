@@ -77,7 +77,7 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue) -> Opt
             gcno_archive = Some(archive);
         } else if zip_file.contains("gcda") {
             gcda_archives.push(archive);
-        } else if zip_file.contains("info") || zip_file.contains("grcov") {
+        } else if zip_file.contains("info") || zip_file.contains("grcov") || zip_file.contains("jsvm") {
             info_archives.push(archive);
         } else {
             panic!("Unsupported archive type.");
