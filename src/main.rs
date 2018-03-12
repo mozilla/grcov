@@ -18,7 +18,7 @@ use tempdir::TempDir;
 
 use grcov::*;
 
-macro_rules! eprintln_stderr(
+macro_rules! println_stderr(
     ($($arg:tt)*) => { {
         writeln!(&mut io::stderr(), $($arg)*).unwrap();
     } }
@@ -46,7 +46,7 @@ fn print_usage(program: &str) {
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        eprintln_stderr!("[ERROR]: Missing required directory argument.\n");
+        println_stderr!("[ERROR]: Missing required directory argument.\n");
         print_usage(&args[0]);
         process::exit(1);
     }
@@ -71,7 +71,7 @@ fn main() {
     while i < args.len() {
         if args[i] == "-t" {
             if args.len() <= i + 1 {
-                eprintln_stderr!("[ERROR]: Output format not specified.\n");
+                println_stderr!("[ERROR]: Output format not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -80,7 +80,7 @@ fn main() {
             i += 1;
         } else if args[i] == "-s" {
             if args.len() <= i + 1 {
-                eprintln_stderr!("[ERROR]: Source root directory not specified.\n");
+                println_stderr!("[ERROR]: Source root directory not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -89,7 +89,7 @@ fn main() {
             i += 1;
         } else if args[i] == "-p" {
             if args.len() <= i + 1 {
-                eprintln_stderr!("[ERROR]: Prefix path not specified.\n");
+                println_stderr!("[ERROR]: Prefix path not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -98,7 +98,7 @@ fn main() {
             i += 1;
         } else if args[i] == "--token" {
             if args.len() <= i + 1 {
-                eprintln_stderr!("[ERROR]: Repository token not specified.\n");
+                println_stderr!("[ERROR]: Repository token not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -107,7 +107,7 @@ fn main() {
             i += 1;
         } else if args[i] == "--service-name" {
             if args.len() <= i + 1 {
-                eprintln_stderr!("[ERROR]: Service name not specified.\n");
+                println_stderr!("[ERROR]: Service name not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -116,7 +116,7 @@ fn main() {
             i += 1;
         } else if args[i] == "--service-number" {
             if args.len() <= i + 1 {
-                eprintln_stderr!("[ERROR]: Service number not specified.\n");
+                println_stderr!("[ERROR]: Service number not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -125,7 +125,7 @@ fn main() {
             i += 1;
         } else if args[i] == "--service-job-number" {
             if args.len() <= i + 1 {
-                eprintln_stderr!("[ERROR]: Service job number not specified.\n");
+                println_stderr!("[ERROR]: Service job number not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -134,7 +134,7 @@ fn main() {
             i += 1;
         } else if args[i] == "--commit-sha" {
             if args.len() <= i + 1 {
-                eprintln_stderr!("[ERROR]: Commit SHA not specified.\n");
+                println_stderr!("[ERROR]: Commit SHA not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -147,7 +147,7 @@ fn main() {
             ignore_not_existing = true;
         } else if args[i] == "--ignore-dir" {
             if args.len() <= i + 1 {
-                eprintln_stderr!("[ERROR]: Directory to ignore not specified.\n");
+                println_stderr!("[ERROR]: Directory to ignore not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -158,7 +158,7 @@ fn main() {
             is_llvm = true;
         } else if args[i] == "--path-mapping" {
             if args.len() <= i + 1 {
-                eprintln_stderr!("[ERROR]: Path mapping file not specified.\n");
+                println_stderr!("[ERROR]: Path mapping file not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -173,7 +173,7 @@ fn main() {
             filter_covered = false;
         } else if args[i] == "--threads" {
             if args.len() <= i + 1 {
-                eprintln_stderr!("[ERROR]: Number of threads not specified.\n");
+                println_stderr!("[ERROR]: Number of threads not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -188,25 +188,25 @@ fn main() {
     }
 
     if !is_llvm && !check_gcov_version() {
-        eprintln_stderr!("[ERROR]: gcov (bundled with GCC) >= 4.9 is required.\n");
+        println_stderr!("[ERROR]: gcov (bundled with GCC) >= 4.9 is required.\n");
         process::exit(1);
     }
 
     if output_type != "ade" && output_type != "lcov" && output_type != "coveralls" && output_type != "coveralls+" && output_type != "files" {
-        eprintln_stderr!("[ERROR]: '{}' output format is not supported.\n", output_type);
+        println_stderr!("[ERROR]: '{}' output format is not supported.\n", output_type);
         print_usage(&args[0]);
         process::exit(1);
     }
 
     if output_type == "coveralls" || output_type == "coveralls+" {
         if repo_token == "" {
-            eprintln_stderr!("[ERROR]: Repository token is needed when the output format is 'coveralls'.\n");
+            println_stderr!("[ERROR]: Repository token is needed when the output format is 'coveralls'.\n");
             print_usage(&args[0]);
             process::exit(1);
         }
 
         if commit_sha == "" {
-            eprintln_stderr!("[ERROR]: Commit SHA is needed when the output format is 'coveralls'.\n");
+            println_stderr!("[ERROR]: Commit SHA is needed when the output format is 'coveralls'.\n");
             print_usage(&args[0]);
             process::exit(1);
         }
