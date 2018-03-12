@@ -73,7 +73,7 @@ fn run_grcov(path: &Path, llvm: bool, output_format: &str) -> String {
                          .output()
                          .expect("Failed to run grcov");
     let err = String::from_utf8(output.stderr).unwrap();
-    println!("{}", err);
+    eprintln!("{}", err);
     String::from_utf8(output.stdout).unwrap()
 }
 
@@ -140,7 +140,7 @@ fn check_equal_coveralls(expected_output: &str, output: &str, skip_branches: boo
     let expected: Value = serde_json::from_str(expected_output).unwrap();
     let actual: Value = serde_json::from_str(output).unwrap();
 
-    println!("{}", serde_json::to_string_pretty(&actual).unwrap());
+    eprintln!("{}", serde_json::to_string_pretty(&actual).unwrap());
 
     assert_eq!(expected["git"]["branch"], actual["git"]["branch"]);
     assert_eq!(expected["git"]["head"]["id"], actual["git"]["head"]["id"]);
@@ -208,7 +208,7 @@ fn get_gcc_version() -> String {
 #[test]
 fn test_integration() {
     if cfg!(windows) {
-        println!("Integration tests still not supported under Windows.");
+        eprintln!("Integration tests still not supported under Windows.");
         return;
     }
 
@@ -221,7 +221,7 @@ fn test_integration() {
         let entry = entry.unwrap();
         let path = entry.path();
         if path.is_dir() {
-            println!("\n\n{}", path.display());
+            eprintln!("\n\n{}", path.display());
 
             let skip_branches = path == Path::new("tests/template") || path == Path::new("tests/include") ||
                                 path == Path::new("tests/include2") || path == Path::new("tests/class");
@@ -229,7 +229,7 @@ fn test_integration() {
             make_clean(path);
 
             if !cfg!(windows) {
-                println!("GCC");
+                eprintln!("GCC");
                 make(path, "g++");
                 run(path);
                 check_equal_ade(&read_expected(path, "gcc", &compiler_ver, "ade"), &run_grcov(path, false, "ade"));
@@ -238,7 +238,7 @@ fn test_integration() {
             }
 
             if !cfg!(target_os="macos") {
-                println!("\nLLVM");
+                eprintln!("\nLLVM");
                 make(path, "clang++");
                 run(path);
                 check_equal_ade(&read_expected(path, "llvm", &compiler_ver, "ade"), &run_grcov(path, true, "ade"));

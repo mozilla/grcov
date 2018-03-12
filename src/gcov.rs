@@ -21,16 +21,16 @@ fn gcov_read_unsigned() -> u32 {
 
 fn prova() {
   if gcov_open("/home/marco/Documenti/workspace/grcov/tests/llvm/main.gcda".to_string()) == 1 {
-    println!("2");
+    eprintln!("2");
   }
 
-  println!("{:x}", gcov_read_unsigned());
+  eprintln!("{:x}", gcov_read_unsigned());
 
   if gcov_open("/home/marco/Documenti/workspace/grcov/tests/basic/main.gcda".to_string()) == 1 {
-    println!("1");
+    eprintln!("1");
   }
 
-  println!("{:x}", gcov_read_unsigned());
+  eprintln!("{:x}", gcov_read_unsigned());
 }*/
 
 pub fn run_gcov(gcno_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf) {

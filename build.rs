@@ -76,12 +76,12 @@ fn main() {
         build.include(include);
     }
 
-    println!("cargo:rustc-link-search=native={}", get_llvm_libdir());
+    eprintln!("cargo:rustc-link-search=native={}", get_llvm_libdir());
     for lib in get_llvm_libs() {
-        println!("cargo:rustc-link-lib=static={}", lib);
+        eprintln!("cargo:rustc-link-lib=static={}", lib);
     }
     for lib in get_llvm_system_libs() {
-        println!("cargo:rustc-link-lib=dylib={}", lib);
+        eprintln!("cargo:rustc-link-lib=dylib={}", lib);
     }
 
     build.cpp(true);

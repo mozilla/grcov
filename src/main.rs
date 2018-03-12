@@ -18,35 +18,35 @@ use tempdir::TempDir;
 
 use grcov::*;
 
-macro_rules! println_stderr(
+macro_rules! eprintln_stderr(
     ($($arg:tt)*) => { {
         writeln!(&mut io::stderr(), $($arg)*).unwrap();
     } }
 );
 
 fn print_usage(program: &str) {
-    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch]", program);
-    println!("You can specify one or more directories, separated by a space.");
-    println!("OUTPUT_TYPE can be one of:");
-    println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
-    println!(" - lcov for the lcov INFO format;");
-    println!(" - coveralls for the Coveralls specific format.");
-    println!(" - coveralls+ for the Coveralls specific format with function information.");
-    println!("SOURCE_ROOT is the root directory of the source files.");
-    println!("PREFIX_PATH is a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that generated the code coverage information).");
-    println!("COVERALLS_REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' format.");
-    println!("COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data.");
-    println!("By default global includes are ignored. Use --keep-global-includes to keep them.");
-    println!("By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.");
-    println!("The --llvm option must be used when the code coverage information is coming from a llvm build.");
-    println!("The --ignore-dir option can be used to ignore a directory.");
-    println!("The --branch option enables parsing branch coverage information.");
+    eprintln!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch]", program);
+    eprintln!("You can specify one or more directories, separated by a space.");
+    eprintln!("OUTPUT_TYPE can be one of:");
+    eprintln!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
+    eprintln!(" - lcov for the lcov INFO format;");
+    eprintln!(" - coveralls for the Coveralls specific format.");
+    eprintln!(" - coveralls+ for the Coveralls specific format with function information.");
+    eprintln!("SOURCE_ROOT is the root directory of the source files.");
+    eprintln!("PREFIX_PATH is a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that generated the code coverage information).");
+    eprintln!("COVERALLS_REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' format.");
+    eprintln!("COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data.");
+    eprintln!("By default global includes are ignored. Use --keep-global-includes to keep them.");
+    eprintln!("By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.");
+    eprintln!("The --llvm option must be used when the code coverage information is coming from a llvm build.");
+    eprintln!("The --ignore-dir option can be used to ignore a directory.");
+    eprintln!("The --branch option enables parsing branch coverage information.");
 }
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        println_stderr!("[ERROR]: Missing required directory argument.\n");
+        eprintln_stderr!("[ERROR]: Missing required directory argument.\n");
         print_usage(&args[0]);
         process::exit(1);
     }
@@ -71,7 +71,7 @@ fn main() {
     while i < args.len() {
         if args[i] == "-t" {
             if args.len() <= i + 1 {
-                println_stderr!("[ERROR]: Output format not specified.\n");
+                eprintln_stderr!("[ERROR]: Output format not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -80,7 +80,7 @@ fn main() {
             i += 1;
         } else if args[i] == "-s" {
             if args.len() <= i + 1 {
-                println_stderr!("[ERROR]: Source root directory not specified.\n");
+                eprintln_stderr!("[ERROR]: Source root directory not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -89,7 +89,7 @@ fn main() {
             i += 1;
         } else if args[i] == "-p" {
             if args.len() <= i + 1 {
-                println_stderr!("[ERROR]: Prefix path not specified.\n");
+                eprintln_stderr!("[ERROR]: Prefix path not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -98,7 +98,7 @@ fn main() {
             i += 1;
         } else if args[i] == "--token" {
             if args.len() <= i + 1 {
-                println_stderr!("[ERROR]: Repository token not specified.\n");
+                eprintln_stderr!("[ERROR]: Repository token not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -107,7 +107,7 @@ fn main() {
             i += 1;
         } else if args[i] == "--service-name" {
             if args.len() <= i + 1 {
-                println_stderr!("[ERROR]: Service name not specified.\n");
+                eprintln_stderr!("[ERROR]: Service name not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -116,7 +116,7 @@ fn main() {
             i += 1;
         } else if args[i] == "--service-number" {
             if args.len() <= i + 1 {
-                println_stderr!("[ERROR]: Service number not specified.\n");
+                eprintln_stderr!("[ERROR]: Service number not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -125,7 +125,7 @@ fn main() {
             i += 1;
         } else if args[i] == "--service-job-number" {
             if args.len() <= i + 1 {
-                println_stderr!("[ERROR]: Service job number not specified.\n");
+                eprintln_stderr!("[ERROR]: Service job number not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -134,7 +134,7 @@ fn main() {
             i += 1;
         } else if args[i] == "--commit-sha" {
             if args.len() <= i + 1 {
-                println_stderr!("[ERROR]: Commit SHA not specified.\n");
+                eprintln_stderr!("[ERROR]: Commit SHA not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -147,7 +147,7 @@ fn main() {
             ignore_not_existing = true;
         } else if args[i] == "--ignore-dir" {
             if args.len() <= i + 1 {
-                println_stderr!("[ERROR]: Directory to ignore not specified.\n");
+                eprintln_stderr!("[ERROR]: Directory to ignore not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -158,7 +158,7 @@ fn main() {
             is_llvm = true;
         } else if args[i] == "--path-mapping" {
             if args.len() <= i + 1 {
-                println_stderr!("[ERROR]: Path mapping file not specified.\n");
+                eprintln_stderr!("[ERROR]: Path mapping file not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -173,7 +173,7 @@ fn main() {
             filter_covered = false;
         } else if args[i] == "--threads" {
             if args.len() <= i + 1 {
-                println_stderr!("[ERROR]: Number of threads not specified.\n");
+                eprintln_stderr!("[ERROR]: Number of threads not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -188,25 +188,25 @@ fn main() {
     }
 
     if !is_llvm && !check_gcov_version() {
-        println_stderr!("[ERROR]: gcov (bundled with GCC) >= 4.9 is required.\n");
+        eprintln_stderr!("[ERROR]: gcov (bundled with GCC) >= 4.9 is required.\n");
         process::exit(1);
     }
 
     if output_type != "ade" && output_type != "lcov" && output_type != "coveralls" && output_type != "coveralls+" && output_type != "files" {
-        println_stderr!("[ERROR]: '{}' output format is not supported.\n", output_type);
+        eprintln_stderr!("[ERROR]: '{}' output format is not supported.\n", output_type);
         print_usage(&args[0]);
         process::exit(1);
     }
 
     if output_type == "coveralls" || output_type == "coveralls+" {
         if repo_token == "" {
-            println_stderr!("[ERROR]: Repository token is needed when the output format is 'coveralls'.\n");
+            eprintln_stderr!("[ERROR]: Repository token is needed when the output format is 'coveralls'.\n");
             print_usage(&args[0]);
             process::exit(1);
         }
 
         if commit_sha == "" {
-            println_stderr!("[ERROR]: Commit SHA is needed when the output format is 'coveralls'.\n");
+            eprintln_stderr!("[ERROR]: Commit SHA is needed when the output format is 'coveralls'.\n");
             print_usage(&args[0]);
             process::exit(1);
         }

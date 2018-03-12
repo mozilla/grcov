@@ -230,7 +230,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String,CovResult)>, ParserErr
         match key {
             "file" => {
                 if cur_file.is_some() && !cur_lines.is_empty() {
-                    // println!("{} {} {:?}", gcov_path.display(), cur_file, cur_lines);
+                    // eprintln!("{} {} {:?}", gcov_path.display(), cur_file, cur_lines);
                     results.push((cur_file.unwrap(), CovResult {
                         lines: cur_lines,
                         branches: cur_branches,
