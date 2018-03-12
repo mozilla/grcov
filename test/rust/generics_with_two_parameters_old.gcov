@@ -7,8 +7,8 @@
         -:    2:
 function _ZN27rust_code_coverage_sample_244compare_types<[i32; 3],alloc::vec::Vec<i32>>E called 1 returned 100% blocks executed 100%
         -:    3:fn compare_types<T: Debug, U: Debug>(t: &T, u: &U) {
-        3:    4:    eprintln!("t: `{:?}", t);
-        3:    5:    eprintln!("u: `{:?}", u);
+        3:    4:    println!("t: `{:?}", t);
+        3:    5:    println!("u: `{:?}", u);
         1:    6:}
         -:    7:
 function _ZN27rust_code_coverage_sample_24mainE called 1 returned 100% blocks executed 100%

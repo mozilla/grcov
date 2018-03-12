@@ -25,22 +25,22 @@ macro_rules! println_stderr(
 );
 
 fn print_usage(program: &str) {
-    eprintln!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch]", program);
-    eprintln!("You can specify one or more directories, separated by a space.");
-    eprintln!("OUTPUT_TYPE can be one of:");
-    eprintln!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
-    eprintln!(" - lcov for the lcov INFO format;");
-    eprintln!(" - coveralls for the Coveralls specific format.");
-    eprintln!(" - coveralls+ for the Coveralls specific format with function information.");
-    eprintln!("SOURCE_ROOT is the root directory of the source files.");
-    eprintln!("PREFIX_PATH is a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that generated the code coverage information).");
-    eprintln!("COVERALLS_REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' format.");
-    eprintln!("COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data.");
-    eprintln!("By default global includes are ignored. Use --keep-global-includes to keep them.");
-    eprintln!("By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.");
-    eprintln!("The --llvm option must be used when the code coverage information is coming from a llvm build.");
-    eprintln!("The --ignore-dir option can be used to ignore a directory.");
-    eprintln!("The --branch option enables parsing branch coverage information.");
+    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch]", program);
+    println!("You can specify one or more directories, separated by a space.");
+    println!("OUTPUT_TYPE can be one of:");
+    println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
+    println!(" - lcov for the lcov INFO format;");
+    println!(" - coveralls for the Coveralls specific format.");
+    println!(" - coveralls+ for the Coveralls specific format with function information.");
+    println!("SOURCE_ROOT is the root directory of the source files.");
+    println!("PREFIX_PATH is a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that generated the code coverage information).");
+    println!("COVERALLS_REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' format.");
+    println!("COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data.");
+    println!("By default global includes are ignored. Use --keep-global-includes to keep them.");
+    println!("By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.");
+    println!("The --llvm option must be used when the code coverage information is coming from a llvm build.");
+    println!("The --ignore-dir option can be used to ignore a directory.");
+    println!("The --branch option enables parsing branch coverage information.");
 }
 
 fn main() {

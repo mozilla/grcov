@@ -140,7 +140,7 @@ fn check_equal_coveralls(expected_output: &str, output: &str, skip_branches: boo
     let expected: Value = serde_json::from_str(expected_output).unwrap();
     let actual: Value = serde_json::from_str(output).unwrap();
 
-    eprintln!("{}", serde_json::to_string_pretty(&actual).unwrap());
+    println!("{}", serde_json::to_string_pretty(&actual).unwrap());
 
     assert_eq!(expected["git"]["branch"], actual["git"]["branch"]);
     assert_eq!(expected["git"]["head"]["id"], actual["git"]["head"]["id"]);
@@ -208,7 +208,7 @@ fn get_gcc_version() -> String {
 #[test]
 fn test_integration() {
     if cfg!(windows) {
-        eprintln!("Integration tests still not supported under Windows.");
+        println!("Integration tests still not supported under Windows.");
         return;
     }
 
@@ -221,7 +221,7 @@ fn test_integration() {
         let entry = entry.unwrap();
         let path = entry.path();
         if path.is_dir() {
-            eprintln!("\n\n{}", path.display());
+            println!("\n\n{}", path.display());
 
             let skip_branches = path == Path::new("tests/template") || path == Path::new("tests/include") ||
                                 path == Path::new("tests/include2") || path == Path::new("tests/class");
@@ -229,7 +229,7 @@ fn test_integration() {
             make_clean(path);
 
             if !cfg!(windows) {
-                eprintln!("GCC");
+                println!("GCC");
                 make(path, "g++");
                 run(path);
                 check_equal_ade(&read_expected(path, "gcc", &compiler_ver, "ade"), &run_grcov(path, false, "ade"));
@@ -238,7 +238,7 @@ fn test_integration() {
             }
 
             if !cfg!(target_os="macos") {
-                eprintln!("\nLLVM");
+                println!("\nLLVM");
                 make(path, "clang++");
                 run(path);
                 check_equal_ade(&read_expected(path, "llvm", &compiler_ver, "ade"), &run_grcov(path, true, "ade"));

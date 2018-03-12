@@ -30,7 +30,7 @@ pub fn output_activedata_etl(results: CovResultIter) {
         start_indexes.sort();
 
         for (name, function) in &result.functions {
-            // eprintln!("{} {} {}", name, function.executed, function.start);
+            // println!("{} {} {}", name, function.executed, function.start);
 
             let mut func_end = end;
 
@@ -55,7 +55,7 @@ pub fn output_activedata_etl(results: CovResultIter) {
                 orphan_uncovered.remove(line);
             }
 
-            eprintln!("{}", json!({
+            println!("{}", json!({
                 "language": "c/c++",
                 "file": {
                     "name": rel_path,
@@ -75,7 +75,7 @@ pub fn output_activedata_etl(results: CovResultIter) {
         let orphan_uncovered: Vec<u32> = orphan_uncovered.into_iter().collect();
 
         // The orphan lines will represent the file as a whole.
-        eprintln!("{}", json!({
+        println!("{}", json!({
             "language": "c/c++",
             "is_file": true,
             "file": {
@@ -104,7 +104,7 @@ pub fn output_lcov(results: CovResultIter) {
     writer.write_all(b"TN:\n").unwrap();
 
     for (_, rel_path, result) in results {
-        // eprintln!("{} {:?}", rel_path, result.lines);
+        // println!("{} {:?}", rel_path, result.lines);
 
         write!(writer, "SF:{}\n", rel_path.display()).unwrap();
 
