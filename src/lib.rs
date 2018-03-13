@@ -97,8 +97,8 @@ macro_rules! try_parse {
     ($v:expr, $f:expr) => (match $v {
         Ok(val) => val,
         Err(err) => {
-            println!("Error parsing file {}:", $f);
-            println!("{}", err);
+            eprintln!("Error parsing file {}:", $f);
+            eprintln!("{}", err);
             std::process::exit(1);
         }
     });
