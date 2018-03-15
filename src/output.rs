@@ -122,7 +122,7 @@ pub fn output_lcov(results: CovResultIter) {
         // branch coverage information
         let mut branch_hit = 0;
         for (&(line, number), &taken) in &result.branches {
-            write!(writer, "BRDA:{},{},{},{}\n", line, 0, number, if taken {"1"} else {"-"}).unwrap();
+            write!(writer, "BRDA:{},{},{},{}\n", line, 0, number, if taken { "1" } else { "-" }).unwrap();
             if taken {
                 branch_hit = branch_hit + 1;
             }
