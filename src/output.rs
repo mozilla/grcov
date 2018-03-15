@@ -118,7 +118,19 @@ pub fn output_lcov(results: CovResultIter) {
             write!(writer, "FNF:{}\n", result.functions.len()).unwrap();
             write!(writer, "FNH:{}\n", result.functions.values().filter(|x| x.executed).count()).unwrap();
         }
-
+        
+        // branch coverage information
+        let mut branch_hit = 0;
+        for (&(line, number), &taken) in &result.branches {
+            write!(writer, "BRDA:{},{},{},{}\n", line, 0, number, if taken { "1" } else { "-" }).unwrap();
+            if taken {
+                branch_hit = branch_hit + 1;
+            }
+        }
+        
+        write!(writer, "BRF:{}\n", result.branches.len()).unwrap();
+        write!(writer, "BRH:{}\n", branch_hit).unwrap();
+        
         for (line, execution_count) in &result.lines {
             write!(writer, "DA:{},{}\n", line, execution_count).unwrap();
         }
