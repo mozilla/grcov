@@ -19,6 +19,7 @@ zip = { version = "^0.2", default-features = false }
 tempdir = "^0.3"
 uuid = { version = "^0.5", features = ["v4"] }
 libc = "^0.2"
+clap = {version = "2.31", features = ["yaml"]}
 
 [features]
 # For the system allocator feature.
