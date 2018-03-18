@@ -1,0 +1,76 @@
+name: CLI
+version: "1.0"
+
+args:
+    - DIRECTORY_OR_ZIP_FILE:
+        help: specify one or more directories, separated by a space.
+        required: true
+        multiple: true
+    - t:
+        short: -t
+        value_name: OUTPUT_TYPE
+        help: specifiy an output type
+        default_value: ade
+        possible_values:
+          - lcov
+          - coveralls
+          - coveralls+
+          - files
+          - ade
+    - s:
+        short: -s
+        value_name: SOURCE_ROOT
+        help: specify the root directory of the source files
+        takes_value: true
+    - p:
+        short: -p
+        value_name: PREFIX_PATH
+        help: specify a prefix to remove from the paths  
+        takes_value: true
+    - token:
+        long: --token
+        value_name: COVERALL_REPO_TOKEN
+        help: required for the 'coveralls' and 'coveralls+' format
+        takes_value: true
+    - service-name:
+        long: --service-name
+        takes_value: true
+    - service-number:
+        long: --service-number
+        takes_value: true
+    - service-job-number:
+        long: --service-job-number
+        takes_value: true
+    - commit-sha:
+        long: --commit-sha
+        value_name: COVERALL_COMMIT_SHA
+        help: SHA of the commit used to generate the code coverage data  
+    - global-includes:
+        long: --keep-global-includes 
+        help: By default global includes are ignored. Use to keep them
+    - ignore-not-existing:
+        long: --ignore-not-existing 
+        help: By default source files not found on the disk are not ignored. Use to ignore them
+    - ignore-dir:
+        long: --ignore-dir
+        value_name: DIRECTORY
+        help: used to ignore a directory
+        takes_value: true
+    - llvm:
+        long: --llvm 
+        help: To specify code coverage information is coming from a llvm build
+    - path-mapping:
+        long: --path-mapping 
+        value_name: PATH_MAPPING_FILE
+        help: To specify path mapping file
+        takes_value: true
+    - filter-covered:
+        long: --filter-covered
+    - filter-uncovered:
+        long: --filter-uncovered
+    - threads:
+        long: --threads
+        takes_value: true      
+    - branch:
+        long: --branch
+        help: enables parsing branch coverage information.
