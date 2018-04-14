@@ -14,6 +14,9 @@ fn to_activedata_etl_vec(normal_vec: &[u32]) -> Vec<Value> {
 }
 
 pub fn output_activedata_etl(results: CovResultIter) {
+    let stdout = io::stdout();
+    let mut writer = BufWriter::new(stdout.lock());
+
     for (_, rel_path, result) in results {
         let covered: Vec<u32> = result.lines.iter().filter(|&(_,v)| *v > 0).map(|(k,_)| k).cloned().collect();
         let uncovered: Vec<u32> = result.lines.iter().filter(|&(_,v)| *v == 0).map(|(k,_)| k).cloned().collect();
@@ -55,7 +58,7 @@ pub fn output_activedata_etl(results: CovResultIter) {
                 orphan_uncovered.remove(line);
             }
 
-            println!("{}", json!({
+            writeln!(writer, "{}", json!({
                 "language": "c/c++",
                 "file": {
                     "name": rel_path,
@@ -68,14 +71,14 @@ pub fn output_activedata_etl(results: CovResultIter) {
                     "total_uncovered": lines_uncovered.len(),
                     "percentage_covered": lines_covered.len() as f32 / (lines_covered.len() + lines_uncovered.len()) as f32,
                 }
-            }));
+            })).unwrap();
         }
 
         let orphan_covered: Vec<u32> = orphan_covered.into_iter().collect();
         let orphan_uncovered: Vec<u32> = orphan_uncovered.into_iter().collect();
 
         // The orphan lines will represent the file as a whole.
-        println!("{}", json!({
+        writeln!(writer, "{}", json!({
             "language": "c/c++",
             "is_file": true,
             "file": {
@@ -93,7 +96,7 @@ pub fn output_activedata_etl(results: CovResultIter) {
                 "total_uncovered": orphan_uncovered.len(),
                 "percentage_covered": orphan_covered.len() as f32 / (orphan_covered.len() + orphan_uncovered.len()) as f32,
             }
-        }));
+        })).unwrap();
     }
 }
 

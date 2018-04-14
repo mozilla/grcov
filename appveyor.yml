@@ -1,6 +1,7 @@
 image: Visual Studio 2017
 platform:
 - x64
+- x86
 
 environment:
   matrix:
@@ -8,8 +9,15 @@ environment:
     - channel: nightly
 
 install:
+  - if [%PLATFORM%]==[x64] (
+      set PLATFORM_PRETTY_NAME=x86_64
+    )
+  - if [%PLATFORM%]==[x86] (
+      set PLATFORM_PRETTY_NAME=i686
+    )
   - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
-  - rustup-init -yv --default-toolchain %channel% --default-host x86_64-pc-windows-msvc
+  - echo %PLATFORM_PRETTY_NAME%
+  - rustup-init -yv --default-toolchain %channel% --default-host %PLATFORM_PRETTY_NAME%-pc-windows-msvc
   - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
   - set PATH=%PATH%;C:\Libraries\llvm-5.0.0\bin
   - rustc -vV
@@ -22,11 +30,12 @@ build_script:
   - if [%APPVEYOR_REPO_TAG%]==[true] if [%channel%]==[nightly] (
       cargo build --release --features=alloc_system
     )
+  - dir C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.12.25810\
   - if [%APPVEYOR_REPO_TAG%]==[true] if [%channel%]==[nightly] (
-      7z a grcov-win-x86_64.tar .\target\release\grcov.exe "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.12.25810\x64\Microsoft.VC141.CRT\msvcp140.dll" "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.12.25810\x64\Microsoft.VC141.CRT\vcruntime140.dll"
+      7z a grcov-win-%PLATFORM_PRETTY_NAME%.tar .\target\release\grcov.exe "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.12.25810\%PLATFORM%\Microsoft.VC141.CRT\msvcp140.dll" "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.12.25810\%PLATFORM%\Microsoft.VC141.CRT\vcruntime140.dll"
     )
   - if [%APPVEYOR_REPO_TAG%]==[true] if [%channel%]==[nightly] (
-      7z a grcov-win-x86_64.tar.bz2 grcov-win-x86_64.tar
+      7z a grcov-win-%PLATFORM_PRETTY_NAME%.tar.bz2 grcov-win-%PLATFORM_PRETTY_NAME%.tar
     )
 
 test_script:
@@ -35,10 +44,10 @@ test_script:
     )
 
 artifacts:
-  - path: grcov-win-x86_64.tar.bz2
+  - path: grcov-win-$(PLATFORM_PRETTY_NAME).tar.bz2
 
 deploy:
-  artifact: grcov-win-x86_64.tar.bz2
+  artifact: grcov-win-$(PLATFORM_PRETTY_NAME).tar.bz2
   auth_token:
     secure: /BjmtIYmmvSDJ5939QEcd857vcA29dIlcb/u6wgbWkAm+Cp4LN2KTi3+cVveoqz+
   description: ''
