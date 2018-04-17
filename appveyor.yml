@@ -26,13 +26,14 @@ install:
   - set PATH=%PATH%;C:\Libraries\llvm-5.0.0\bin
   - rustc -vV
   - cargo -vV
+  - set TARGET=%PLATFORM_TARGET%-pc-windows-msvc
   - if NOT "%PLATFORM_TARGET%" == "x86_64" (
-      rustup target add %PLATFORM_TARGET%-pc-windows-msvc
+      rustup target add %TARGET%
     )
 
 build_script:
-  - cargo build --release --features=%FEATURES% --locked --target %PLATFORM_TARGET%-pc-windows-msvc
-  - 7z a grcov-win-%PLATFORM_TARGET%.tar .\target\release\grcov.exe "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.13.26020\%PLATFORM_VS%\Microsoft.VC141.CRT\msvcp140.dll" "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.13.26020\%PLATFORM_VS%\Microsoft.VC141.CRT\vcruntime140.dll"
+  - cargo build --release --features=%FEATURES% --locked --target %TARGET%
+  - 7z a grcov-win-%PLATFORM_TARGET%.tar .\target\%TARGET%\release\grcov.exe "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.13.26020\%PLATFORM_VS%\Microsoft.VC141.CRT\msvcp140.dll" "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.13.26020\%PLATFORM_VS%\Microsoft.VC141.CRT\vcruntime140.dll"
   - 7z a grcov-win-%PLATFORM_TARGET%.tar.bz2 grcov-win-%PLATFORM_TARGET%.tar
 
 test_script:
