@@ -34,7 +34,7 @@ fn print_usage(program: &str) {
     println!("By default global includes are ignored. Use --keep-global-includes to keep them.");
     println!("By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.");
     println!("The --llvm option must be used when the code coverage information is coming from a llvm build.");
-    println!("The --ignore-dir option can be used to ignore a directory.");
+    println!("The --ignore-dir option can be used to ignore directories.");
     println!("The --branch option enables parsing branch coverage information.");
 }
 
@@ -55,7 +55,7 @@ fn main() {
     let mut service_job_number = "";
     let mut ignore_global = true;
     let mut ignore_not_existing = false;
-    let mut to_ignore_dir = "";
+    let mut to_ignore_dirs = Vec::new();
     let mut is_llvm = false;
     let mut branch_enabled = false;
     let mut paths = Vec::new();
@@ -147,7 +147,7 @@ fn main() {
                 process::exit(1);
             }
 
-            to_ignore_dir = &args[i + 1];
+            to_ignore_dirs.push(args[i + 1].clone());
             i += 1;
         } else if args[i] == "--llvm" {
             is_llvm = true;
@@ -211,12 +211,6 @@ fn main() {
         prefix_dir = source_dir;
     }
 
-    let to_ignore_dir = if to_ignore_dir == "" {
-        None
-    } else {
-        Some(to_ignore_dir.to_owned())
-    };
-
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
 
@@ -277,7 +271,7 @@ fn main() {
     let path_mapping_mutex = Arc::try_unwrap(path_mapping).unwrap();
     let path_mapping = path_mapping_mutex.into_inner().unwrap();
 
-    let iterator = rewrite_paths(result_map, path_mapping, source_dir, prefix_dir, ignore_global, ignore_not_existing, to_ignore_dir);
+    let iterator = rewrite_paths(result_map, path_mapping, source_dir, prefix_dir, ignore_global, ignore_not_existing, to_ignore_dirs);
 
     if output_type == "ade" {
         output_activedata_etl(iterator);
