@@ -11,6 +11,7 @@ extern crate zip;
 extern crate tempdir;
 extern crate libc;
 extern crate uuid;
+extern crate globset;
 
 mod defs;
 pub use defs::*;
