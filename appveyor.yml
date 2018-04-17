@@ -11,20 +11,20 @@ environment:
 
 install:
   - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
-  - rustup-init -yv --default-toolchain %channel% --default-host x86_64-pc-windows-msvc
+  - rustup-init -yv --default-toolchain %CHANNEL% --default-host x86_64-pc-windows-msvc
   - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
   - set PATH=%PATH%;C:\Libraries\llvm-5.0.0\bin
   - rustc -vV
   - cargo -vV
 
 build_script:
-  - if [%channel%]==[nightly] (
+  - if [%CHANNEL%]==[nightly] (
       cargo build --release --features=%FEATURES% --locked
     )
-  - if [%APPVEYOR_REPO_TAG%]==[true] if [%channel%]==[nightly] (
+  - if [%APPVEYOR_REPO_TAG%]==[true] if [%CHANNEL%]==[nightly] (
       7z a grcov-win-x86_64.tar .\target\release\grcov.exe "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.12.25810\x64\Microsoft.VC141.CRT\msvcp140.dll" "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.12.25810\x64\Microsoft.VC141.CRT\vcruntime140.dll"
     )
-  - if [%APPVEYOR_REPO_TAG%]==[true] if [%channel%]==[nightly] (
+  - if [%APPVEYOR_REPO_TAG%]==[true] if [%CHANNEL%]==[nightly] (
       7z a grcov-win-x86_64.tar.bz2 grcov-win-x86_64.tar
     )
 
