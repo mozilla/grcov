@@ -26,6 +26,8 @@ install:
   - set PATH=%PATH%;C:\Libraries\llvm-5.0.0\bin
   - rustc -vV
   - cargo -vV
+  - llvm-config --version
+  - llvm-config --host-target
   - set TARGET=%PLATFORM_TARGET%-pc-windows-msvc
   - if NOT "%PLATFORM_TARGET%" == "x86_64" (
       rustup target add %TARGET%
