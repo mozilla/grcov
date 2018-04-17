@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::fs;
+use globset::{Glob, GlobSetBuilder};
 use serde_json::Value;
 
 use defs::*;
@@ -26,6 +27,12 @@ pub fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, sour
     } else {
         json!({})
     };
+
+    let mut glob_builder = GlobSetBuilder::new();
+    for to_ignore_dir in &to_ignore_dirs {
+        glob_builder.add(Glob::new(to_ignore_dir).unwrap());
+    }
+    let to_ignore_globset = glob_builder.build().unwrap();
 
     let prefix_dir = prefix_dir.to_owned();
 
@@ -74,10 +81,8 @@ pub fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, sour
             abs_path.clone()
         };
 
-        for to_ignore_dir in &to_ignore_dirs {
-            if rel_path.starts_with(to_ignore_dir) {
-                return None;
-            }
+        if to_ignore_globset.is_match(&rel_path) {
+            return None;
         }
 
         if ignore_not_existing && !abs_path.exists() {
@@ -287,7 +292,7 @@ mod tests {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("main.cpp".to_string(), empty_result!());
             result_map.insert("mydir/prova.h".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, "", "", false, false, vec!["mydir".to_string()]);
+            let results = rewrite_paths(result_map, None, "", "", false, false, vec!["mydir/*".to_string()]);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -304,7 +309,7 @@ mod tests {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("main.cpp".to_string(), empty_result!());
             result_map.insert("mydir\\prova.h".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, "", "", false, false, vec!["mydir".to_string()]);
+            let results = rewrite_paths(result_map, None, "", "", false, false, vec!["mydir/*".to_string()]);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -323,7 +328,7 @@ mod tests {
             result_map.insert("main.cpp".to_string(), empty_result!());
             result_map.insert("mydir/prova.h".to_string(), empty_result!());
             result_map.insert("mydir2/prova.h".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, "", "", false, false, vec!["mydir".to_string(), "mydir2".to_string()]);
+            let results = rewrite_paths(result_map, None, "", "", false, false, vec!["mydir/*".to_string(), "mydir2/*".to_string()]);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -341,7 +346,7 @@ mod tests {
             result_map.insert("main.cpp".to_string(), empty_result!());
             result_map.insert("mydir\\prova.h".to_string(), empty_result!());
             result_map.insert("mydir2\\prova.h".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, "", "", false, false, vec!["mydir".to_string(), "mydir2".to_string()]);
+            let results = rewrite_paths(result_map, None, "", "", false, false, vec!["mydir/*".to_string(), "mydir2/*".to_string()]);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
