@@ -10,7 +10,6 @@ extern crate grcov;
 use std::collections::HashMap;
 use std::{env, thread, process};
 use std::fs::{self, File};
-use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use crossbeam::sync::MsQueue;
 use serde_json::Value;
