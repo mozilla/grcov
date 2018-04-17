@@ -30,14 +30,18 @@ install:
   - if NOT "%PLATFORM_TARGET%" == "x86_64" (
       rustup target add %TARGET%
     )
+  - if [%APPVEYOR_REPO_TAG%]==[false] (set BUILD_TYPE=debug)
+  - if [%APPVEYOR_REPO_TAG%]==[true] (set BUILD_TYPE=release)
+  - if [%BUILD_TYPE%]==[debug] (set CARGO_RELEASE_ARG=)
+  - if [%BUILD_TYPE%]==[release] (set CARGO_RELEASE_ARG=--release)
 
 build_script:
-  - cargo build --release --features=%FEATURES% --locked --target %TARGET%
-  - 7z a grcov-win-%PLATFORM_TARGET%.tar .\target\%TARGET%\release\grcov.exe "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.13.26020\%PLATFORM_VS%\Microsoft.VC141.CRT\msvcp140.dll" "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.13.26020\%PLATFORM_VS%\Microsoft.VC141.CRT\vcruntime140.dll"
+  - cargo build %CARGO_RELEASE_ARG% --features=%FEATURES% --locked --target %TARGET%
+  - 7z a grcov-win-%PLATFORM_TARGET%.tar .\target\%TARGET%\%BUILD_TYPE%\grcov.exe "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.13.26020\%PLATFORM_VS%\Microsoft.VC141.CRT\msvcp140.dll" "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.13.26020\%PLATFORM_VS%\Microsoft.VC141.CRT\vcruntime140.dll"
   - 7z a grcov-win-%PLATFORM_TARGET%.tar.bz2 grcov-win-%PLATFORM_TARGET%.tar
 
 test_script:
-  - cargo test --release --verbose
+  - cargo test %CARGO_RELEASE_ARG% --verbose
 
 artifacts:
   - path: grcov-win-$(PLATFORM_TARGET).tar.bz2
