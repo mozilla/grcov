@@ -32,12 +32,8 @@ install:
 
 build_script:
   - cargo build --release --features=%FEATURES% --locked --target %PLATFORM_TARGET%-pc-windows-msvc
-  - if [%APPVEYOR_REPO_TAG%]==[true] if [%CHANNEL%]==[nightly] (
-      7z a grcov-win-%PLATFORM_TARGET%.tar .\target\release\grcov.exe "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.13.26020\%PLATFORM_VS%\Microsoft.VC141.CRT\msvcp140.dll" "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.13.26020\%PLATFORM_VS%\Microsoft.VC141.CRT\vcruntime140.dll"
-    )
-  - if [%APPVEYOR_REPO_TAG%]==[true] if [%CHANNEL%]==[nightly] (
-      7z a grcov-win-%PLATFORM_TARGET%.tar.bz2 grcov-win-%PLATFORM_TARGET%.tar
-    )
+  - 7z a grcov-win-%PLATFORM_TARGET%.tar .\target\release\grcov.exe "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.13.26020\%PLATFORM_VS%\Microsoft.VC141.CRT\msvcp140.dll" "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Redist\MSVC\14.13.26020\%PLATFORM_VS%\Microsoft.VC141.CRT\vcruntime140.dll"
+  - 7z a grcov-win-%PLATFORM_TARGET%.tar.bz2 grcov-win-%PLATFORM_TARGET%.tar
 
 test_script:
   - if [%APPVEYOR_REPO_TAG%]==[false] (
