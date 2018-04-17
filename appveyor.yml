@@ -14,10 +14,11 @@ environment:
       PLATFORM_TARGET: x86_64
       PLATFORM_VS: x64
 
-    - CHANNEL: nightly
-      FEATURES: alloc_system
-      PLATFORM_TARGET: i686
-      PLATFORM_VS: x86
+    # TODO: The i686 build currently doesn't work.
+    # - CHANNEL: nightly
+    #   FEATURES: alloc_system
+    #   PLATFORM_TARGET: i686
+    #   PLATFORM_VS: x86
 
 install:
   - appveyor-retry appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
