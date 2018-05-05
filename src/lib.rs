@@ -25,6 +25,8 @@ pub use gcov::*;
 mod parser;
 pub use parser::*;
 
+mod filter;
+
 mod path_rewriting;
 pub use path_rewriting::*;
 
