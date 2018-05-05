@@ -19,7 +19,7 @@ use grcov::*;
 
 
 fn print_usage(program: &str) {
-    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch]", program);
+    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch] [--filter]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
     println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
@@ -35,6 +35,7 @@ fn print_usage(program: &str) {
     println!("The --llvm option must be used when the code coverage information is coming from a llvm build.");
     println!("The --ignore-dir option can be used to ignore directories.");
     println!("The --branch option enables parsing branch coverage information.");
+    println!("The --filter option allows filtering out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered' to only return uncovered files.");
 }
 
 fn main() {
@@ -60,7 +61,7 @@ fn main() {
     let mut paths = Vec::new();
     let mut i = 1;
     let mut path_mapping_file = "";
-    let mut filter_covered = true;
+    let mut filter_option = None;
     let mut num_threads = num_cpus::get() * 2;
     while i < args.len() {
         if args[i] == "-t" {
@@ -161,10 +162,23 @@ fn main() {
             i += 1;
         } else if args[i] == "--branch" {
             branch_enabled = true;
-        } else if args[i] == "--filter-covered" {
-            filter_covered = true;
-        } else if args[i] == "--filter-uncovered" {
-            filter_covered = false;
+        } else if args[i] == "--filter" {
+            if args.len() <= i + 1 {
+                eprintln!("[ERROR]: Filter option not specified.\n");
+                print_usage(&args[0]);
+                process::exit(1);
+            }
+
+            if args[i + 1] == "covered" {
+                filter_option = Some(true);
+            } else if args[i + 1] == "uncovered" {
+                filter_option = Some(false);
+            } else {
+                eprintln!("[ERROR]: Filter option invalid (should be either 'covered' or 'uncovered')\n");
+                print_usage(&args[0]);
+                process::exit(1);
+            }
+            i += 1;
         } else if args[i] == "--threads" {
             if args.len() <= i + 1 {
                 eprintln!("[ERROR]: Number of threads not specified.\n");
@@ -270,7 +284,7 @@ fn main() {
     let path_mapping_mutex = Arc::try_unwrap(path_mapping).unwrap();
     let path_mapping = path_mapping_mutex.into_inner().unwrap();
 
-    let iterator = rewrite_paths(result_map, path_mapping, source_dir, prefix_dir, ignore_global, ignore_not_existing, to_ignore_dirs);
+    let iterator = rewrite_paths(result_map, path_mapping, source_dir, prefix_dir, ignore_global, ignore_not_existing, to_ignore_dirs, filter_option);
 
     if output_type == "ade" {
         output_activedata_etl(iterator);
@@ -281,7 +295,7 @@ fn main() {
     } else if output_type == "coveralls+" {
         output_coveralls(iterator, repo_token, service_name, service_number, service_job_number, commit_sha, true);
     } else if output_type == "files" {
-        output_files(iterator, filter_covered);
+        output_files(iterator);
     } else {
         assert!(false, "{} is not a supported output type", output_type);
     }
