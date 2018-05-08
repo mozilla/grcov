@@ -121,21 +121,26 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue) -> Opt
                 for (num, gcda_archive) in gcda_archives.iter_mut().enumerate() {
                     let gcno_path = path.with_file_name(format!("{}_{}.gcno", stem, num + 1));
 
-                    // Create symlinks.
-                    if num != 0 {
-                        fs::hard_link(&physical_gcno_path, &gcno_path).expect(format!("Failed to create hardlink {}", gcno_path.display()).as_str());
-                    }
-
                     if let Ok(mut gcda_file) = gcda_archive.by_name(&gcda_path_in_zip.to_str().unwrap().replace("\\", "/")) {
+                        // Create symlinks.
+                        if num != 0 {
+                            fs::hard_link(&physical_gcno_path, &gcno_path).expect(format!("Failed to create hardlink {}", gcno_path.display()).as_str());
+                        }
+
                         let gcda_path = path.with_file_name(format!("{}_{}.gcda", stem, num + 1));
 
                         extract_file(&mut gcda_file, &gcda_path);
-                    }
 
-                    queue.push(Some(WorkItem {
-                        format: ItemFormat::GCNO,
-                        item: ItemType::Path(gcno_path),
-                    }));
+                        queue.push(Some(WorkItem {
+                            format: ItemFormat::GCNO,
+                            item: ItemType::Path(gcno_path),
+                        }));
+                    } else if num == 0 {
+                        queue.push(Some(WorkItem {
+                            format: ItemFormat::GCNO,
+                            item: ItemType::Path(gcno_path),
+                        }));
+                    }
                 }
             }
         }
@@ -341,9 +346,7 @@ mod tests {
 
         let expected = vec![
             (ItemFormat::GCNO, true, "Platform_1.gcno", true),
-            (ItemFormat::GCNO, true, "Platform_2.gcno", false),
             (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno", true),
-            (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_2.gcno", false),
             (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
             (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
             (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno", true),
@@ -393,9 +396,7 @@ mod tests {
 
         let expected = vec![
             (ItemFormat::GCNO, true, "Platform_1.gcno", true),
-            (ItemFormat::GCNO, true, "Platform_2.gcno", false),
             (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno", true),
-            (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_2.gcno", false),
             (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
             (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
             (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno", true),
@@ -524,5 +525,52 @@ mod tests {
         let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
         zip_producer(&tmp_path, &vec![&"test/no_gcda/main.gcda.zip".to_string()], &queue);
+    }
+
+    // Test extracting gcno/gcda archives, where a gcno file exist with no matching gcda file.
+    #[test]
+    fn test_zip_producer_no_matching_gcno() {
+        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+        let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        zip_producer(&tmp_path, &vec![&"test/gcno.zip".to_string(), &"test/gcda2.zip".to_string()], &queue);
+
+        let expected = vec![
+            (ItemFormat::GCNO, true, "Platform_1.gcno", false),
+            (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno", false),
+            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
+            (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+            (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno", true),
+            (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
+        ];
+
+        check_produced(tmp_path, &queue, expected);
+    }
+
+    // Test extracting gcno/gcda archives, where a gcno file exist with no matching gcda file.
+    // The gcno file should be produced only once, not twice.
+    #[test]
+    fn test_zip_producer_no_matching_gcno_two_gcda_archives() {
+        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+        let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        zip_producer(&tmp_path, &vec![&"test/gcno.zip".to_string(), &"test/gcda2.zip".to_string(), &"test/gcda2.zip".to_string()], &queue);
+
+        let expected = vec![
+            (ItemFormat::GCNO, true, "Platform_1.gcno", false),
+            (ItemFormat::GCNO, true, "sub2/RootAccessibleWrap_1.gcno", false),
+            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
+            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_2.gcno", true),
+            (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+            (ItemFormat::GCNO, true, "sub/prova2_2.gcno", true),
+            (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_1.gcno", true),
+            (ItemFormat::GCNO, true, "nsMaiInterfaceDocument_2.gcno", true),
+            (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
+            (ItemFormat::GCNO, true, "nsGnomeModule_2.gcno", true),
+        ];
+
+        check_produced(tmp_path, &queue, expected);
     }
 }
