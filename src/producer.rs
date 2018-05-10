@@ -50,6 +50,7 @@ fn dir_producer(directories: &[&String], queue: &WorkQueue, ignore_orphan_gcno: 
                 queue.push(Some(WorkItem {
                     format: format,
                     item: ItemType::Path(abs_path),
+                    name: path.to_str().unwrap().to_string(),
                 }));
             }
         }
@@ -70,8 +71,8 @@ fn extract_file(zip_file: &mut zip::read::ZipFile, path: &PathBuf) {
 
 fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue, ignore_orphan_gcno: bool) -> Option<Vec<u8>> {
     let mut gcno_archive: Option<ZipArchive<File>> = None;
-    let mut gcda_archives: Vec<ZipArchive<File>> = Vec::new();
-    let mut info_archives: Vec<ZipArchive<File>> = Vec::new();
+    let mut gcda_archives: Vec<(&String,ZipArchive<File>)> = Vec::new();
+    let mut info_archives: Vec<(&String,ZipArchive<File>)> = Vec::new();
 
     let mut path_mapping_file = None;
 
@@ -80,9 +81,9 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue, ignore
         if zip_file.contains("gcno") {
             gcno_archive = Some(archive);
         } else if zip_file.contains("gcda") {
-            gcda_archives.push(archive);
+            gcda_archives.push((zip_file, archive));
         } else if zip_file.contains("info") || zip_file.contains("grcov") || zip_file.contains("jsvm") {
-            info_archives.push(archive);
+            info_archives.push((zip_file, archive));
         } else {
             panic!("Unsupported archive type.");
         }
@@ -122,7 +123,7 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue, ignore
 
                 let gcda_path_in_zip = gcno_path_in_zip.with_extension("gcda");
 
-                for (num, gcda_archive) in gcda_archives.iter_mut().enumerate() {
+                for (num, &mut (gcda_archive_name, ref mut gcda_archive)) in gcda_archives.iter_mut().enumerate() {
                     let gcno_path = path.with_file_name(format!("{}_{}.gcno", stem, num + 1));
 
                     if let Ok(mut gcda_file) = gcda_archive.by_name(&gcda_path_in_zip.to_str().unwrap().replace("\\", "/")) {
@@ -138,11 +139,13 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue, ignore
                         queue.push(Some(WorkItem {
                             format: ItemFormat::GCNO,
                             item: ItemType::Path(gcno_path),
+                            name: gcda_archive_name.to_string(),
                         }));
                     } else if num == 0 && !ignore_orphan_gcno {
                         queue.push(Some(WorkItem {
                             format: ItemFormat::GCNO,
                             item: ItemType::Path(gcno_path),
+                            name: gcda_archive_name.to_string(),
                         }));
                     }
                 }
@@ -150,7 +153,7 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue, ignore
         }
     }
 
-    for archive in &mut info_archives {
+    for &mut (archive_name, ref mut archive) in &mut info_archives {
         for i in 0..archive.len() {
             let mut file = archive.by_index(i).unwrap();
 
@@ -163,6 +166,7 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue, ignore
             queue.push(Some(WorkItem {
                 format: ItemFormat::INFO,
                 item: ItemType::Content(buffer),
+                name: archive_name.to_string(),
             }));
         }
     }

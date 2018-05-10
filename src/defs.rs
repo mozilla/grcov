@@ -32,6 +32,7 @@ pub enum ItemType {
 pub struct WorkItem {
     pub format: ItemFormat,
     pub item: ItemType,
+    pub name: String,
 }
 
 impl WorkItem {
