@@ -73,10 +73,20 @@ fn merge_results(result: &mut CovResult, result2: &mut CovResult) {
     }
 }
 
-fn add_results(mut results: Vec<(String,CovResult)>, result_map: &SyncCovResultMap) {
+fn add_results(mut results: Vec<(String,CovResult)>, result_map: &SyncCovResultMap, source_dir: &PathBuf) {
     let mut map = result_map.lock().unwrap();
     for mut result in results.drain(..) {
-        match map.entry(result.0) {
+        let path = if source_dir.to_str().unwrap().is_empty() {
+            result.0
+        } else {
+            // the goal here is to be able to merge results for paths like foo/./bar and foo/bar
+            match fs::canonicalize(source_dir.join(PathBuf::from(&result.0))) {
+                Ok(p) => String::from(p.to_str().unwrap()),
+                Err(_) => result.0,
+            }
+        };
+
+        match map.entry(path) {
             hash_map::Entry::Occupied(obj) => {
                 merge_results(obj.into_mut(), &mut result.1);
             },
@@ -107,7 +117,7 @@ macro_rules! try_parse {
     });
 }
 
-pub fn consumer(working_dir: &PathBuf, result_map: &SyncCovResultMap, queue: &WorkQueue, is_llvm: bool, branch_enabled: bool) {
+pub fn consumer(working_dir: &PathBuf, source_dir: &PathBuf, result_map: &SyncCovResultMap, queue: &WorkQueue, is_llvm: bool, branch_enabled: bool) {
     let mut gcov_type = GcovType::Unknown;
 
     while let Some(work_item) = queue.pop() {
@@ -164,7 +174,7 @@ pub fn consumer(working_dir: &PathBuf, result_map: &SyncCovResultMap, queue: &Wo
             }
         };
 
-        add_results(new_results, result_map);
+        add_results(new_results, result_map, source_dir);
     }
 }
 
@@ -172,6 +182,7 @@ pub fn consumer(working_dir: &PathBuf, result_map: &SyncCovResultMap, queue: &Wo
 mod tests {
     use super::*;
     use std::collections::HashMap;
+    use std::sync::{Arc, Mutex};
 
     #[test]
     fn test_merge_results() {
@@ -215,5 +226,24 @@ mod tests {
         func = result.functions.get("f2").unwrap();
         assert_eq!(func.start, 2);
         assert_eq!(func.executed, true);
+    }
+
+    #[test]
+    fn test_merge_relative_path() {
+        let f = File::open("./test/relative_path/relative_path.info").expect("Failed to open lcov file");
+        let file = BufReader::new(&f);
+        let results = parse_lcov(file, false).unwrap();
+        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(HashMap::with_capacity(1)));
+        add_results(results, &result_map, &PathBuf::from("./test/relative_path"));
+        let result_map = Arc::try_unwrap(result_map).unwrap().into_inner().unwrap();
+
+        assert!(result_map.len() == 1);
+
+        let cpp_file = fs::canonicalize(PathBuf::from("./test/relative_path/foo/bar/oof.cpp")).unwrap();
+        let cpp_file = cpp_file.to_str().unwrap();
+        let cov_result = result_map.get(cpp_file).unwrap();
+
+        assert_eq!(cov_result.lines, [(1,63), (2,63), (3,84), (4,42)].iter().cloned().collect());
+        assert!(cov_result.functions.contains_key("myfun"));
     }
 }

@@ -10,6 +10,7 @@ extern crate grcov;
 use std::collections::HashMap;
 use std::{env, thread, process};
 use std::fs::{self, File};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use crossbeam::sync::MsQueue;
 use serde_json::Value;
@@ -224,6 +225,12 @@ fn main() {
         prefix_dir = source_dir;
     }
 
+    let source_root = if source_dir != "" {
+        fs::canonicalize(&source_dir).expect("Source directory does not exist.")
+    } else {
+        PathBuf::from("")
+    };
+
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
 
@@ -258,10 +265,11 @@ fn main() {
         let queue = Arc::clone(&queue);
         let result_map = Arc::clone(&result_map);
         let working_dir = tmp_path.join(format!("{}", i));
+        let source_root = source_root.clone();
 
         let t = thread::spawn(move || {
             fs::create_dir(&working_dir).expect("Failed to create working directory");
-            consumer(&working_dir, &result_map, &queue, is_llvm, branch_enabled);
+            consumer(&working_dir, &source_root, &result_map, &queue, is_llvm, branch_enabled);
         });
 
         parsers.push(t);
@@ -284,7 +292,7 @@ fn main() {
     let path_mapping_mutex = Arc::try_unwrap(path_mapping).unwrap();
     let path_mapping = path_mapping_mutex.into_inner().unwrap();
 
-    let iterator = rewrite_paths(result_map, path_mapping, source_dir, prefix_dir, ignore_global, ignore_not_existing, to_ignore_dirs, filter_option);
+    let iterator = rewrite_paths(result_map, path_mapping, source_root, prefix_dir, ignore_global, ignore_not_existing, to_ignore_dirs, filter_option);
 
     if output_type == "ade" {
         output_activedata_etl(iterator);
