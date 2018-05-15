@@ -76,17 +76,16 @@ fn merge_results(result: &mut CovResult, result2: &mut CovResult) {
 fn add_results(mut results: Vec<(String,CovResult)>, result_map: &SyncCovResultMap, source_dir: &Option<PathBuf>) {
     let mut map = result_map.lock().unwrap();
     for mut result in results.drain(..) {
-        let path = if source_dir.is_some() {
-            // the goal here is to be able to merge results for paths like foo/./bar and foo/bar
-            let source_dir = source_dir.clone().unwrap();
-            match fs::canonicalize(source_dir.join(PathBuf::from(&result.0))) {
-                Ok(p) => String::from(p.to_str().unwrap()),
-                Err(_) => result.0,
-            }
-        } else {
-            result.0
+        let path = match source_dir {
+            Some(source_dir) => {
+                // the goal here is to be able to merge results for paths like foo/./bar and foo/bar
+                match fs::canonicalize(source_dir.join(&result.0)) {
+                    Ok(p) => String::from(p.to_str().unwrap()),
+                    Err(_) => result.0,
+                }
+            },
+            None => result.0
         };
-
         match map.entry(path) {
             hash_map::Entry::Occupied(obj) => {
                 merge_results(obj.into_mut(), &mut result.1);
@@ -246,5 +245,17 @@ mod tests {
 
         assert_eq!(cov_result.lines, [(1,63), (2,63), (3,84), (4,42)].iter().cloned().collect());
         assert!(cov_result.functions.contains_key("myfun"));
+    }
+
+    #[test]
+    fn test_ignore_relative_path() {
+        let f = File::open("./test/relative_path/relative_path.info").expect("Failed to open lcov file");
+        let file = BufReader::new(&f);
+        let results = parse_lcov(file, false).unwrap();
+        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(HashMap::with_capacity(3)));
+        add_results(results, &result_map, &None);
+        let result_map = Arc::try_unwrap(result_map).unwrap().into_inner().unwrap();
+
+        assert!(result_map.len() == 3);
     }
 }
