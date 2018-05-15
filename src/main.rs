@@ -10,7 +10,6 @@ extern crate grcov;
 use std::collections::HashMap;
 use std::{env, thread, process};
 use std::fs::{self, File};
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use crossbeam::sync::MsQueue;
 use serde_json::Value;
@@ -226,9 +225,9 @@ fn main() {
     }
 
     let source_root = if source_dir != "" {
-        fs::canonicalize(&source_dir).expect("Source directory does not exist.")
+        Some(fs::canonicalize(&source_dir).expect("Source directory does not exist."))
     } else {
-        PathBuf::from("")
+        None
     };
 
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");

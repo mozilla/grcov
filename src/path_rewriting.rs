@@ -16,11 +16,17 @@ fn to_uppercase_first(s: &str) -> String {
     c.next().unwrap().to_uppercase().collect::<String>() + c.as_str()
 }
 
-pub fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, source_dir: PathBuf, prefix_dir: &str, ignore_global: bool, ignore_not_existing: bool, to_ignore_dirs: Vec<String>, filter_option: Option<bool>) -> CovResultIter {
+pub fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, source_dir: Option<PathBuf>, prefix_dir: &str, ignore_global: bool, ignore_not_existing: bool, to_ignore_dirs: Vec<String>, filter_option: Option<bool>) -> CovResultIter {
     let path_mapping = if path_mapping.is_some() {
         path_mapping.unwrap()
     } else {
         json!({})
+    };
+
+    let source_dir = if source_dir.is_some() {
+        source_dir.unwrap()
+    } else {
+        PathBuf::from("")
     };
 
     let mut glob_builder = GlobSetBuilder::new();
@@ -165,7 +171,7 @@ mod tests {
     fn test_rewrite_paths_basic() {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("main.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(result_map, None, PathBuf::from(""), "", false, false, Vec::new(), None);
+        let results = rewrite_paths(result_map, None, None, "", false, false, Vec::new(), None);
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -182,7 +188,7 @@ mod tests {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("main.cpp".to_string(), empty_result!());
             result_map.insert("/usr/include/prova.h".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, PathBuf::from(""), "", true, false, Vec::new(), None);
+            let results = rewrite_paths(result_map, None, None, "", true, false, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -199,7 +205,7 @@ mod tests {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("main.cpp".to_string(), empty_result!());
             result_map.insert("C:\\usr\\include\\prova.h".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, PathBuf::from(""), "", true, false, Vec::new(), None);
+            let results = rewrite_paths(result_map, None, None, "", true, false, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -215,7 +221,7 @@ mod tests {
     fn test_rewrite_paths_remove_prefix() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("/home/worker/src/workspace/main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, PathBuf::from(""), "/home/worker/src/workspace/", false, false, Vec::new(), None);
+            let results = rewrite_paths(result_map, None, None, "/home/worker/src/workspace/", false, false, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -231,7 +237,7 @@ mod tests {
     fn test_rewrite_paths_remove_prefix() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("C:\\Users\\worker\\src\\workspace\\main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, PathBuf::from(""), "C:\\Users\\worker\\src\\workspace\\", false, false, Vec::new(), None);
+            let results = rewrite_paths(result_map, None, None, "C:\\Users\\worker\\src\\workspace\\", false, false, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -247,7 +253,7 @@ mod tests {
     fn test_rewrite_paths_remove_prefix_with_slash() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("C:/Users/worker/src/workspace/main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, PathBuf::from(""), "C:/Users/worker/src/workspace/", false, false, Vec::new(), None);
+            let results = rewrite_paths(result_map, None, None, "C:/Users/worker/src/workspace/", false, false, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -263,7 +269,7 @@ mod tests {
     fn test_rewrite_paths_remove_prefix_with_slash_longer_path() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("C:/Users/worker/src/workspace/main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, PathBuf::from(""), "C:/Users/worker/src/", false, false, Vec::new(), None);
+            let results = rewrite_paths(result_map, None, None, "C:/Users/worker/src/", false, false, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -280,7 +286,7 @@ mod tests {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("tests/class/main.cpp".to_string(), empty_result!());
             result_map.insert("tests/class/doesntexist.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, PathBuf::from(""), "", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, None, None, "", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -298,7 +304,7 @@ mod tests {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("tests\\class\\main.cpp".to_string(), empty_result!());
             result_map.insert("tests\\class\\doesntexist.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, PathBuf::from(""), "", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, None, None, "", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -316,7 +322,7 @@ mod tests {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("main.cpp".to_string(), empty_result!());
             result_map.insert("mydir/prova.h".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, PathBuf::from(""), "", false, false, vec!["mydir/*".to_string()], None);
+            let results = rewrite_paths(result_map, None, None, "", false, false, vec!["mydir/*".to_string()], None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -333,7 +339,7 @@ mod tests {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("main.cpp".to_string(), empty_result!());
             result_map.insert("mydir\\prova.h".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, PathBuf::from(""), "", false, false, vec!["mydir/*".to_string()], None);
+            let results = rewrite_paths(result_map, None, None, "", false, false, vec!["mydir/*".to_string()], None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -352,7 +358,7 @@ mod tests {
             result_map.insert("main.cpp".to_string(), empty_result!());
             result_map.insert("mydir/prova.h".to_string(), empty_result!());
             result_map.insert("mydir2/prova.h".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, PathBuf::from(""), "", false, false, vec!["mydir/*".to_string(), "mydir2/*".to_string()], None);
+            let results = rewrite_paths(result_map, None, None, "", false, false, vec!["mydir/*".to_string(), "mydir2/*".to_string()], None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -370,7 +376,7 @@ mod tests {
             result_map.insert("main.cpp".to_string(), empty_result!());
             result_map.insert("mydir\\prova.h".to_string(), empty_result!());
             result_map.insert("mydir2\\prova.h".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, PathBuf::from(""), "", false, false, vec!["mydir/*".to_string(), "mydir2/*".to_string()], None);
+            let results = rewrite_paths(result_map, None, None, "", false, false, vec!["mydir/*".to_string(), "mydir2/*".to_string()], None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -386,7 +392,7 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_using_relative_source_directory() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("class/main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, fs::canonicalize("tests").unwrap(), "", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, None, Some(fs::canonicalize("tests").unwrap()), "", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -403,7 +409,7 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_using_relative_source_directory() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("class\\main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, fs::canonicalize("tests").unwrap(), "", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, None, Some(fs::canonicalize("tests").unwrap()), "", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -420,7 +426,7 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_using_absolute_source_directory() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("class/main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, fs::canonicalize("tests").unwrap(), "", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, None, Some(fs::canonicalize("tests").unwrap()), "", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -437,7 +443,7 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_using_absolute_source_directory() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("class\\main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, fs::canonicalize("tests").unwrap(), "", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, None, Some(fs::canonicalize("tests").unwrap()), "", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -454,7 +460,7 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_and_remove_prefix() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("/home/worker/src/workspace/class/main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, fs::canonicalize("tests").unwrap(), "/home/worker/src/workspace", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, None, Some(fs::canonicalize("tests").unwrap()), "/home/worker/src/workspace", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -472,7 +478,7 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_and_remove_prefix() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("C:\\Users\\worker\\src\\workspace\\class\\main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, None, fs::canonicalize("tests").unwrap(), "C:\\Users\\worker\\src\\workspace", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, None, Some(fs::canonicalize("tests").unwrap()), "C:\\Users\\worker\\src\\workspace", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -489,7 +495,7 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_using_mapping() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("class/main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, Some(json!({"class/main.cpp": "rewritten/main.cpp"})), PathBuf::from(""), "", false, false, Vec::new(), None);
+            let results = rewrite_paths(result_map, Some(json!({"class/main.cpp": "rewritten/main.cpp"})), None, "", false, false, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -505,7 +511,7 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_using_mapping() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("class\\main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, Some(json!({"class/main.cpp": "rewritten/main.cpp"})), PathBuf::from(""), "", false, false, Vec::new(), None);
+            let results = rewrite_paths(result_map, Some(json!({"class/main.cpp": "rewritten/main.cpp"})), None, "", false, false, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -522,7 +528,7 @@ mod tests {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("rewritten/main.cpp".to_string(), empty_result!());
             result_map.insert("tests/class/main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, Some(json!({"rewritten/main.cpp": "tests/class/main.cpp", "tests/class/main.cpp": "rewritten/main.cpp"})), PathBuf::from(""), "", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, Some(json!({"rewritten/main.cpp": "tests/class/main.cpp", "tests/class/main.cpp": "rewritten/main.cpp"})), None, "", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -540,7 +546,7 @@ mod tests {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("rewritten\\main.cpp".to_string(), empty_result!());
             result_map.insert("tests\\class\\main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, Some(json!({"rewritten/main.cpp": "tests/class/main.cpp", "tests/class/main.cpp": "rewritten/main.cpp"})), PathBuf::from(""), "", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, Some(json!({"rewritten/main.cpp": "tests/class/main.cpp", "tests/class/main.cpp": "rewritten/main.cpp"})), None, "", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -557,7 +563,7 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_using_mapping_and_remove_prefix() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("/home/worker/src/workspace/rewritten/main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), PathBuf::from(""), "/home/worker/src/workspace", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), None, "/home/worker/src/workspace", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -575,7 +581,7 @@ mod tests {
             // Mapping with uppercase disk and prefix with uppercase disk.
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("C:\\Users\\worker\\src\\workspace\\rewritten\\main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, Some(json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), PathBuf::from(""), "C:\\Users\\worker\\src\\workspace", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, Some(json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), None, "C:\\Users\\worker\\src\\workspace", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -589,7 +595,7 @@ mod tests {
             // Mapping with lowercase disk and prefix with uppercase disk.
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("C:\\Users\\worker\\src\\workspace\\rewritten\\main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, Some(json!({"c:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), PathBuf::from(""), "C:\\Users\\worker\\src\\workspace", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, Some(json!({"c:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), None, "C:\\Users\\worker\\src\\workspace", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -603,7 +609,7 @@ mod tests {
             // Mapping with uppercase disk and prefix with lowercase disk.
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("C:\\Users\\worker\\src\\workspace\\rewritten\\main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, Some(json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), PathBuf::from(""), "c:\\Users\\worker\\src\\workspace", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, Some(json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), None, "c:\\Users\\worker\\src\\workspace", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -617,7 +623,7 @@ mod tests {
             // Mapping with lowercase disk and prefix with lowercase disk.
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("C:\\Users\\worker\\src\\workspace\\rewritten\\main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, Some(json!({"c:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), PathBuf::from(""), "c:\\Users\\worker\\src\\workspace", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, Some(json!({"c:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})), None, "c:\\Users\\worker\\src\\workspace", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -634,7 +640,7 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_using_mapping_and_source_directory_and_remove_prefix() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("/home/worker/src/workspace/rewritten/main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})), fs::canonicalize("tests").unwrap(), "/home/worker/src/workspace", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})), Some(fs::canonicalize("tests").unwrap()), "/home/worker/src/workspace", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                  count += 1;
@@ -651,7 +657,7 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_using_mapping_and_source_directory_and_remove_prefix() {
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("C:\\Users\\worker\\src\\workspace\\rewritten\\main.cpp".to_string(), empty_result!());
-            let results = rewrite_paths(result_map, Some(json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})), fs::canonicalize("tests").unwrap(), "C:\\Users\\worker\\src\\workspace", false, true, Vec::new(), None);
+            let results = rewrite_paths(result_map, Some(json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})), Some(fs::canonicalize("tests").unwrap()), "C:\\Users\\worker\\src\\workspace", false, true, Vec::new(), None);
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
                 count += 1;
@@ -668,7 +674,7 @@ mod tests {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("covered.cpp".to_string(), covered_result!());
         result_map.insert("uncovered.cpp".to_string(), uncovered_result!());
-        let results = rewrite_paths(result_map, None, PathBuf::from(""), "", false, false, Vec::new(), Some(true));
+        let results = rewrite_paths(result_map, None, None, "", false, false, Vec::new(), Some(true));
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -684,7 +690,7 @@ mod tests {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("covered.cpp".to_string(), covered_result!());
         result_map.insert("uncovered.cpp".to_string(), uncovered_result!());
-        let results = rewrite_paths(result_map, None, PathBuf::from(""), "", false, false, Vec::new(), Some(false));
+        let results = rewrite_paths(result_map, None, None, "", false, false, Vec::new(), Some(false));
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;

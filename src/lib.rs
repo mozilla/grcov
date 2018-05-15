@@ -73,17 +73,18 @@ fn merge_results(result: &mut CovResult, result2: &mut CovResult) {
     }
 }
 
-fn add_results(mut results: Vec<(String,CovResult)>, result_map: &SyncCovResultMap, source_dir: &PathBuf) {
+fn add_results(mut results: Vec<(String,CovResult)>, result_map: &SyncCovResultMap, source_dir: &Option<PathBuf>) {
     let mut map = result_map.lock().unwrap();
     for mut result in results.drain(..) {
-        let path = if source_dir.to_str().unwrap().is_empty() {
-            result.0
-        } else {
+        let path = if source_dir.is_some() {
             // the goal here is to be able to merge results for paths like foo/./bar and foo/bar
+            let source_dir = source_dir.clone().unwrap();
             match fs::canonicalize(source_dir.join(PathBuf::from(&result.0))) {
                 Ok(p) => String::from(p.to_str().unwrap()),
                 Err(_) => result.0,
             }
+        } else {
+            result.0
         };
 
         match map.entry(path) {
@@ -117,7 +118,7 @@ macro_rules! try_parse {
     });
 }
 
-pub fn consumer(working_dir: &PathBuf, source_dir: &PathBuf, result_map: &SyncCovResultMap, queue: &WorkQueue, is_llvm: bool, branch_enabled: bool) {
+pub fn consumer(working_dir: &PathBuf, source_dir: &Option<PathBuf>, result_map: &SyncCovResultMap, queue: &WorkQueue, is_llvm: bool, branch_enabled: bool) {
     let mut gcov_type = GcovType::Unknown;
 
     while let Some(work_item) = queue.pop() {
@@ -234,7 +235,7 @@ mod tests {
         let file = BufReader::new(&f);
         let results = parse_lcov(file, false).unwrap();
         let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(HashMap::with_capacity(1)));
-        add_results(results, &result_map, &PathBuf::from("./test/relative_path"));
+        add_results(results, &result_map, &Some(PathBuf::from("./test/relative_path")));
         let result_map = Arc::try_unwrap(result_map).unwrap().into_inner().unwrap();
 
         assert!(result_map.len() == 1);
