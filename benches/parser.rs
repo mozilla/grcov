@@ -17,12 +17,6 @@ fn bench_parser_lcov(b: &mut Bencher) {
 }
 
 #[bench]
-fn bench_parser_old_gcov(b: &mut Bencher) {
-    let path = Path::new("./test/old_branches.gcov");
-    b.iter(|| black_box(grcov::parse_old_gcov(path, true)));
-}
-
-#[bench]
 fn bench_parser_gcov(b: &mut Bencher) {
     let path = Path::new("./test/negative_counts.gcov");
     b.iter(|| black_box(grcov::parse_gcov(path)));
