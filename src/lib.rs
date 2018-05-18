@@ -26,6 +26,7 @@ mod parser;
 pub use parser::*;
 
 mod filter;
+pub use filter::*;
 
 mod path_rewriting;
 pub use path_rewriting::*;
