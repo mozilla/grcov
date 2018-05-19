@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use crossbeam::sync::MsQueue;
 
 #[derive(Debug,Clone,PartialEq)]
@@ -23,9 +23,17 @@ pub enum ItemFormat {
 }
 
 #[derive(Debug)]
+pub struct GcnoBuffers {
+    pub stem: String,
+    pub gcno_buf: Arc<Vec<u8>>,
+    pub gcda_buf: Vec<u8>,
+}
+
+#[derive(Debug)]
 pub enum ItemType {
     Path(PathBuf),
     Content(Vec<u8>),
+    Buffers(GcnoBuffers),
 }
 
 #[derive(Debug)]
@@ -33,16 +41,6 @@ pub struct WorkItem {
     pub format: ItemFormat,
     pub item: ItemType,
     pub name: String,
-}
-
-impl WorkItem {
-    pub fn path(&self) -> &PathBuf {
-        if let ItemType::Path(ref p) = self.item {
-            p
-        } else {
-            panic!("Path expected");
-        }
-    }
 }
 
 pub type WorkQueue = MsQueue<Option<WorkItem>>;
