@@ -50,7 +50,6 @@ fn read_expected(path: &Path, compiler: &str, compiler_ver: &str, format: &str) 
 
 fn run_grcov(path: &Path, llvm: bool, output_format: &str) -> String {
     let mut args: Vec<&str> = Vec::new();
-    args.push("--");
     if llvm {
         args.push("--llvm");
     }
