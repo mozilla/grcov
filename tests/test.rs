@@ -189,13 +189,13 @@ fn check_equal_coveralls(expected_output: &str, output: &str, skip_branches: boo
     assert_eq!(expected_source_files.len(), actual_source_files.len(), "Got same number of source files.");
 }
 
-fn get_gcc_version() -> String {
-    let output = Command::new("gcc")
-                         .arg("-dumpversion")
+fn get_version(compiler: &str, version_arg: &str) -> String {
+    let output = Command::new(compiler)
+                         .arg(version_arg)
                          .output()
-                         .expect("Failed to execute `gcc`.");
+                         .expect("Failed to retrieve version.");
 
-    assert!(output.status.success(), "`gcc` failed to execute.");
+    assert!(output.status.success(), "Failed to run program to retrieve version.");
 
     let version = String::from_utf8(output.stdout).unwrap();
     match Version::parse(&version) {
@@ -211,10 +211,8 @@ fn test_integration() {
         return;
     }
 
-    let compiler_ver = match env::var("COMPILER_VER") {
-        Ok(v) => v,
-        Err(_e) => get_gcc_version(),
-    };
+    let gcc_version = get_version("gcc", "-dumpversion");
+    let llvm_version = get_version("llvm-config", "--version");
 
     for entry in WalkDir::new("tests").min_depth(1) {
         let entry = entry.unwrap();
@@ -231,8 +229,8 @@ fn test_integration() {
                 println!("GCC");
                 make(path, "g++");
                 run(path);
-                check_equal_ade(&read_expected(path, "gcc", &compiler_ver, "ade"), &run_grcov(path, false, "ade"));
-                check_equal_coveralls(&read_expected(path, "gcc", &compiler_ver, "coveralls"), &run_grcov(path, false, "coveralls"), skip_branches);
+                check_equal_ade(&read_expected(path, "gcc", &gcc_version, "ade"), &run_grcov(path, false, "ade"));
+                check_equal_coveralls(&read_expected(path, "gcc", &gcc_version, "coveralls"), &run_grcov(path, false, "coveralls"), skip_branches);
                 make_clean(path);
             }
 
@@ -240,8 +238,8 @@ fn test_integration() {
                 println!("\nLLVM");
                 make(path, "clang++");
                 run(path);
-                check_equal_ade(&read_expected(path, "llvm", &compiler_ver, "ade"), &run_grcov(path, true, "ade"));
-                check_equal_coveralls(&read_expected(path, "llvm", &compiler_ver, "coveralls"), &run_grcov(path, true, "coveralls"), skip_branches);
+                check_equal_ade(&read_expected(path, "llvm", &llvm_version, "ade"), &run_grcov(path, true, "ade"));
+                check_equal_coveralls(&read_expected(path, "llvm", &llvm_version, "coveralls"), &run_grcov(path, true, "coveralls"), skip_branches);
                 make_clean(path);
             }
         }
