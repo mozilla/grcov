@@ -123,12 +123,16 @@ extern "C"
 void parse_llvm_gcno(char* working_dir, char* file_stem, uint8_t branch_enabled) {
   std::string GCNO = std::string(file_stem) + ".gcno";
   std::string GCDA = std::string(file_stem) + ".gcda";
+  std::unique_ptr<MemoryBuffer> gcno_buf;
+  std::unique_ptr<MemoryBuffer> gcda_buf;
 
   ErrorOr<std::unique_ptr<MemoryBuffer>> GCNO_Buff = MemoryBuffer::getFileOrSTDIN(GCNO);
   if (std::error_code EC = GCNO_Buff.getError()) {
     errs() << GCNO << ": " << EC.message() << "\n";
     return;
   }
+
+  gcno_buf = std::move(GCNO_Buff.get());
 
   ErrorOr<std::unique_ptr<MemoryBuffer>> GCDA_Buff = MemoryBuffer::getFileOrSTDIN(GCDA);
   if (std::error_code EC = GCDA_Buff.getError()) {
@@ -138,9 +142,12 @@ void parse_llvm_gcno(char* working_dir, char* file_stem, uint8_t branch_enabled)
     }
     // Clear the filename to make it clear we didn't read anything.
     GCDA = "-";
+    gcda_buf = MemoryBuffer::getMemBuffer(StringRef(""));
+  } else {
+    gcda_buf = std::move(GCDA_Buff.get());
   }
 
-  parse_llvm_gcno_mbuf(working_dir, file_stem, GCNO_Buff.get().get(), GCDA_Buff.get().get(), branch_enabled);
+  parse_llvm_gcno_mbuf(working_dir, file_stem, gcno_buf.get(), gcda_buf.get(), branch_enabled);
 }
 
 extern "C"
