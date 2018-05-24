@@ -106,10 +106,12 @@ void parse_llvm_gcno_mbuf(char* working_dir, char* file_stem, MemoryBuffer* GCNO
     return;
   }
 
-  GCOVBuffer GCDA_GB(GCDA_Buff);
-  if (!GF.readGCDA(GCDA_GB)) {
-      errs() << "Invalid .gcda File!\n";
-      return;
+  if (GCDA_Buff->getBufferSize() != 0) {
+      GCOVBuffer GCDA_GB(GCDA_Buff);
+      if (!GF.readGCDA(GCDA_GB)) {
+          errs() << "Invalid .gcda File!\n";
+          return;
+      }
   }
 
   CustomFileInfo FI(Options);

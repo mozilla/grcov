@@ -120,11 +120,11 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue, ignore
                 let stem = path.file_stem().unwrap().to_str().unwrap();
 
                 let physical_gcno_path = path.with_file_name(format!("{}_{}.gcno", stem, 1));
-                let mut gcno_buf: Option<Arc<Vec<u8>>> = None;
+                let mut gcno_buf_opt: Option<Arc<Vec<u8>>> = None;
                 if is_llvm {
                     let mut buffer: Vec<u8> = Vec::new();
                     gcno_file.read_to_end(&mut buffer).expect("Failed to read gcno file");
-                    gcno_buf = Some(Arc::new(buffer));
+                    gcno_buf_opt = Some(Arc::new(buffer));
                 } else {
                     extract_file(&mut gcno_file, &physical_gcno_path);
                 }
@@ -133,42 +133,61 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue, ignore
 
                 for (num, &mut (gcda_archive_name, ref mut gcda_archive)) in gcda_archives.iter_mut().enumerate() {
                     let gcno_path = path.with_file_name(format!("{}_{}.gcno", stem, num + 1));
+
                     if let Ok(mut gcda_file) = gcda_archive.by_name(&gcda_path_in_zip.to_str().unwrap().replace("\\", "/")) {
-                        if is_llvm {
-                            let mut gcda_buf: Vec<u8> = Vec::new();
-                            gcda_file.read_to_end(&mut gcda_buf).expect("Failed to read gcda file");
-                            let gcno_stem = path.with_file_name(format!("{}_{}", stem, num + 1));
-                            let gcno_stem = gcno_stem.to_str().expect("Failed to create stem file string");
+                        match gcno_buf_opt {
+                            Some(ref gcno_buf) => {
+                                let mut gcda_buf: Vec<u8> = Vec::new();
+                                gcda_file.read_to_end(&mut gcda_buf).expect("Failed to read gcda file");
+                                let gcno_stem = path.with_file_name(format!("{}_{}", stem, num + 1));
+                                let gcno_stem = gcno_stem.to_str().expect("Failed to create stem file string");
 
-                            queue.push(Some(WorkItem {
-                                format: ItemFormat::GCNO,
-                                item: ItemType::Buffers(GcnoBuffers {stem: gcno_stem.to_string(),
-                                                                     gcno_buf: Arc::clone(&gcno_buf.clone().unwrap()),
-                                                                     gcda_buf: gcda_buf}),
-                                name: gcda_archive_name.to_string(),
-                            }));
-                        } else {
-                            // Create symlinks.
-                            if num != 0 {
-                                fs::hard_link(&physical_gcno_path, &gcno_path).expect(format!("Failed to create hardlink {}", gcno_path.display()).as_str());
+                                queue.push(Some(WorkItem {
+                                    format: ItemFormat::GCNO,
+                                    item: ItemType::Buffers(GcnoBuffers {stem: gcno_stem.to_string(),
+                                                                         gcno_buf: Arc::clone(gcno_buf),
+                                                                         gcda_buf: gcda_buf}),
+                                    name: gcda_archive_name.to_string(),
+                                }));
+                            },
+                            None => {
+                                // Create symlinks.
+                                if num != 0 {
+                                    fs::hard_link(&physical_gcno_path, &gcno_path).expect(format!("Failed to create hardlink {}", gcno_path.display()).as_str());
+                                }
+
+                                let gcda_path = path.with_file_name(format!("{}_{}.gcda", stem, num + 1));
+
+                                extract_file(&mut gcda_file, &gcda_path);
+
+                                queue.push(Some(WorkItem {
+                                    format: ItemFormat::GCNO,
+                                    item: ItemType::Path(gcno_path),
+                                    name: gcda_archive_name.to_string(),
+                                }));
                             }
-
-                            let gcda_path = path.with_file_name(format!("{}_{}.gcda", stem, num + 1));
-
-                            extract_file(&mut gcda_file, &gcda_path);
-
-                            queue.push(Some(WorkItem {
-                                format: ItemFormat::GCNO,
-                                item: ItemType::Path(gcno_path),
-                                name: gcda_archive_name.to_string(),
-                            }));
-                        }
+                        };
                     } else if num == 0 && !ignore_orphan_gcno {
-                        queue.push(Some(WorkItem {
-                            format: ItemFormat::GCNO,
-                            item: ItemType::Path(gcno_path),
-                            name: gcda_archive_name.to_string(),
-                        }));
+                        match gcno_buf_opt {
+                            Some(ref gcno_buf) => {
+                                let gcno_stem = path.with_file_name(format!("{}_{}", stem, num + 1));
+                                let gcno_stem = gcno_stem.to_str().expect("Failed to create stem file string");
+                                queue.push(Some(WorkItem {
+                                    format: ItemFormat::GCNO,
+                                    item: ItemType::Buffers(GcnoBuffers {stem: gcno_stem.to_string(),
+                                                                         gcno_buf: Arc::clone(gcno_buf),
+                                                                         gcda_buf: Vec::new()}),
+                                    name: gcda_archive_name.to_string(),
+                                }));
+                            },
+                            None => {
+                                queue.push(Some(WorkItem {
+                                    format: ItemFormat::GCNO,
+                                    item: ItemType::Path(gcno_path),
+                                    name: gcda_archive_name.to_string(),
+                                }));
+                            }
+                        }
                     }
                 }
             }
@@ -188,7 +207,7 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue, ignore
             queue.push(Some(WorkItem {
                 format: ItemFormat::INFO,
                 item: ItemType::Content(buffer),
-                name: archive_name.to_string()
+                name: archive_name.to_string(),
             }));
         }
     }
@@ -259,7 +278,7 @@ mod tests {
                         elem.1 && p.ends_with(elem.2)
                     },
                     ItemType::Buffers(_) => {
-                        true
+                        false
                     },
                 }
             }), "Missing {:?}", elem);
