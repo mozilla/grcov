@@ -9,10 +9,6 @@ use uuid::Uuid;
 
 use defs::*;
 
-fn to_activedata_etl_vec(normal_vec: &[u32]) -> Vec<Value> {
-    normal_vec.iter().map(|&x| json!({"line": x})).collect()
-}
-
 pub fn output_activedata_etl(results: CovResultIter) {
     let stdout = io::stdout();
     let mut writer = BufWriter::new(stdout.lock());
@@ -44,11 +40,9 @@ pub fn output_activedata_etl(results: CovResultIter) {
                 }
             }
 
-            let mut lines_covered: Vec<Value> = Vec::new();
+            let mut lines_covered: Vec<u32> = Vec::new();
             for line in covered.iter().filter(|&&x| x >= function.start && x < func_end) {
-                lines_covered.push(json!({
-                    "line": *line
-                }));
+                lines_covered.push(*line);
                 orphan_covered.remove(line);
             }
 
@@ -83,14 +77,14 @@ pub fn output_activedata_etl(results: CovResultIter) {
             "is_file": true,
             "file": {
                 "name": rel_path,
-                "covered": to_activedata_etl_vec(&covered),
+                "covered": covered,
                 "uncovered": uncovered,
                 "total_covered": covered.len(),
                 "total_uncovered": uncovered.len(),
                 "percentage_covered": covered.len() as f32 / (covered.len() + uncovered.len()) as f32,
             },
             "method": {
-                "covered": to_activedata_etl_vec(&orphan_covered),
+                "covered": orphan_covered,
                 "uncovered": orphan_uncovered,
                 "total_covered": orphan_covered.len(),
                 "total_uncovered": orphan_uncovered.len(),
