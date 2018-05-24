@@ -244,7 +244,7 @@ fn main() {
         let path_mapping = Arc::clone(&path_mapping);
 
         thread::spawn(move || {
-            let producer_path_mapping_buf = producer(&tmp_path, &paths, &queue, filter_option.is_some() && filter_option.unwrap());
+            let producer_path_mapping_buf = producer(&tmp_path, &paths, &queue, filter_option.is_some() && filter_option.unwrap(), is_llvm);
 
             let mut path_mapping = path_mapping.lock().unwrap();
             *path_mapping = if path_mapping_file != "" {

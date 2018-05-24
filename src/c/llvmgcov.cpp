@@ -85,8 +85,7 @@ void CustomFileInfo::printIntermediate(StringRef WorkingDir, StringRef MainFilen
   }
 }
 
-extern "C"
-void parse_llvm_gcno(char* working_dir, char* file_stem, uint8_t branch_enabled) {
+void parse_llvm_gcno_mbuf(char* working_dir, char* file_stem, MemoryBuffer* GCNO_Buff, MemoryBuffer* GCDA_Buff, uint8_t branch_enabled) {
   GCOV::Options Options(
     /* AllBlocks */ false,
     /* BranchProb (BranchInfo) */ branch_enabled != 0,
@@ -99,20 +98,41 @@ void parse_llvm_gcno(char* working_dir, char* file_stem, uint8_t branch_enabled)
   );
 
   CustomGCOVFile GF;
+  std::string GCNO = std::string(file_stem) + ".gcno";
 
+  GCOVBuffer GCNO_GB(GCNO_Buff);
+  if (!GF.readGCNO(GCNO_GB)) {
+    errs() << "Invalid .gcno File!\n";
+    return;
+  }
+
+  if (GCDA_Buff->getBufferSize() != 0) {
+      GCOVBuffer GCDA_GB(GCDA_Buff);
+      if (!GF.readGCDA(GCDA_GB)) {
+          errs() << "Invalid .gcda File!\n";
+          return;
+      }
+  }
+
+  CustomFileInfo FI(Options);
+  GF.collectLineCounts(FI);
+  FI.printIntermediate(working_dir, GCNO);
+}
+
+extern "C"
+void parse_llvm_gcno(char* working_dir, char* file_stem, uint8_t branch_enabled) {
   std::string GCNO = std::string(file_stem) + ".gcno";
   std::string GCDA = std::string(file_stem) + ".gcda";
+  std::unique_ptr<MemoryBuffer> gcno_buf;
+  std::unique_ptr<MemoryBuffer> gcda_buf;
 
   ErrorOr<std::unique_ptr<MemoryBuffer>> GCNO_Buff = MemoryBuffer::getFileOrSTDIN(GCNO);
   if (std::error_code EC = GCNO_Buff.getError()) {
     errs() << GCNO << ": " << EC.message() << "\n";
     return;
   }
-  GCOVBuffer GCNO_GB(GCNO_Buff.get().get());
-  if (!GF.readGCNO(GCNO_GB)) {
-    errs() << "Invalid .gcno File!\n";
-    return;
-  }
+
+  gcno_buf = std::move(GCNO_Buff.get());
 
   ErrorOr<std::unique_ptr<MemoryBuffer>> GCDA_Buff = MemoryBuffer::getFileOrSTDIN(GCDA);
   if (std::error_code EC = GCDA_Buff.getError()) {
@@ -122,15 +142,18 @@ void parse_llvm_gcno(char* working_dir, char* file_stem, uint8_t branch_enabled)
     }
     // Clear the filename to make it clear we didn't read anything.
     GCDA = "-";
+    gcda_buf = MemoryBuffer::getMemBuffer(StringRef(""));
   } else {
-    GCOVBuffer GCDA_GB(GCDA_Buff.get().get());
-    if (!GF.readGCDA(GCDA_GB)) {
-      errs() << "Invalid .gcda File!\n";
-      return;
-    }
+    gcda_buf = std::move(GCDA_Buff.get());
   }
 
-  CustomFileInfo FI(Options);
-  GF.collectLineCounts(FI);
-  FI.printIntermediate(working_dir, GCNO);
+  parse_llvm_gcno_mbuf(working_dir, file_stem, gcno_buf.get(), gcda_buf.get(), branch_enabled);
+}
+
+extern "C"
+void parse_llvm_gcno_buf(char* working_dir, char* file_stem, char* gcno_buf, size_t gcno_buf_len, char* gcda_buf, size_t gcda_buf_len, uint8_t branch_enabled) {
+    std::unique_ptr<MemoryBuffer> GCNO_Buff = MemoryBuffer::getMemBuffer(StringRef(gcno_buf, gcno_buf_len));
+    std::unique_ptr<MemoryBuffer> GCDA_Buff = MemoryBuffer::getMemBuffer(StringRef(gcda_buf, gcda_buf_len));
+
+    parse_llvm_gcno_mbuf(working_dir, file_stem, GCNO_Buff.get(), GCDA_Buff.get(), branch_enabled);
 }

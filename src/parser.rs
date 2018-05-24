@@ -53,6 +53,7 @@ macro_rules! try_parse_next {
 #[link(name = "llvmgcov", kind="static")]
 extern {
     fn parse_llvm_gcno(working_dir: *const libc::c_char, file_stem: *const libc::c_char, branch_enabled: libc::uint8_t);
+    fn parse_llvm_gcno_buf(working_dir: *const libc::c_char, file_stem: *const libc::c_char, gcno_buf: *const libc::c_char, gcno_buf_len: libc::size_t, gcda_buf: *const libc::c_char, gcda_buf_len: libc::size_t, branch_enabled: libc::uint8_t);
 }
 
 pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str, branch_enabled: bool) {
@@ -65,6 +66,24 @@ pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str, branch_enabled: 
     };
     unsafe {
         parse_llvm_gcno(working_dir_c.as_ptr(), file_stem_c.as_ptr(), branch_enabled);
+    };
+}
+
+pub fn call_parse_llvm_gcno_buf(working_dir: &str, file_stem: &str, gcno: &Vec<u8>, gcda: &Vec<u8>, branch_enabled: bool) {
+    let working_dir_c = CString::new(working_dir).unwrap();
+    let file_stem_c = CString::new(file_stem).unwrap();
+    let gcno_buf_len = gcno.len();
+    let gcda_buf_len = gcda.len();
+    let branch_enabled = if branch_enabled {
+        1 as u8
+    } else {
+        0 as u8
+    };
+    unsafe {
+        let gcno_buf = CString::from_vec_unchecked(gcno.to_vec());
+        let gcda_buf = CString::from_vec_unchecked(gcda.to_vec());
+
+        parse_llvm_gcno_buf(working_dir_c.as_ptr(), file_stem_c.as_ptr(), gcno_buf.as_ptr(), gcno_buf_len, gcda_buf.as_ptr(), gcda_buf_len, branch_enabled);
     };
 }
 

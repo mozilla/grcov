@@ -123,15 +123,35 @@ pub fn consumer(working_dir: &PathBuf, source_dir: &Option<PathBuf>, result_map:
     while let Some(work_item) = queue.pop() {
         let new_results = match work_item.format {
             ItemFormat::GCNO => {
-                let gcno_path = work_item.path();
+                let gcov_path = match work_item.item {
+                    ItemType::Path(gcno_path) => {
+                        if !is_llvm {
+                            run_gcov(&gcno_path, branch_enabled, working_dir);
+                        } else {
+                            call_parse_llvm_gcno(working_dir.to_str().unwrap(),
+                                                 gcno_path.parent().unwrap().join(gcno_path.file_stem().unwrap()).to_str().unwrap(),
+                                                 branch_enabled);
+                        }
+                        gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov"
+                    },
+                    ItemType::Buffers(buffers) => {
+                        call_parse_llvm_gcno_buf(working_dir.to_str().unwrap(),
+                                                 &buffers.stem,
+                                                 &buffers.gcno_buf,
+                                                 &buffers.gcda_buf,
+                                                 branch_enabled);
 
-                if !is_llvm {
-                    run_gcov(gcno_path, branch_enabled, working_dir);
-                } else {
-                    call_parse_llvm_gcno(working_dir.to_str().unwrap(), gcno_path.parent().unwrap().join(gcno_path.file_stem().unwrap()).to_str().unwrap(), branch_enabled);
-                }
+                        drop(buffers.gcda_buf);
+                        drop(buffers.gcno_buf);
+                        
+                        buffers.stem + ".gcno.gcov"
+                    },
+                    ItemType::Content(_) => {
+                        panic!("Invalid content type");
+                    }
+                };
 
-                let gcov_path = working_dir.join(gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov");
+                let gcov_path = working_dir.join(gcov_path);
                 if gcov_type == GcovType::Unknown {
                     gcov_type = if gcov_path.exists() {
                         GcovType::SingleFile
@@ -169,7 +189,10 @@ pub fn consumer(working_dir: &PathBuf, source_dir: &Option<PathBuf>, result_map:
                     ItemType::Content(info_content) => {
                         let buffer = BufReader::new(Cursor::new(info_content));
                         try_parse!(parse_lcov(buffer, branch_enabled), work_item.name)
-                    }
+                    },
+                    ItemType::Buffers(_) => {
+                        panic!("Not implemented");
+                    },
                 }
             }
         };
