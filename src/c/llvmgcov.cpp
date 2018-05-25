@@ -17,12 +17,12 @@ public:
 };
 
 void CustomFileInfo::printIntermediate(StringRef WorkingDir, StringRef MainFilename) {
-    std::string CoveragePath = getCoveragePath(MainFilename, MainFilename);
-    SmallString<128> FullCoveragePath(WorkingDir);
-    sys::path::append(FullCoveragePath, CoveragePath);
-    std::unique_ptr<raw_ostream> CovOs = openCoveragePath(FullCoveragePath);
-    GCOVOutputStream Output(*CovOs.get());
-    printIntermediate(Output);
+  std::string CoveragePath = getCoveragePath(MainFilename, MainFilename);
+  SmallString<128> FullCoveragePath(WorkingDir);
+  sys::path::append(FullCoveragePath, CoveragePath);
+  std::unique_ptr<raw_ostream> CovOs = openCoveragePath(FullCoveragePath);
+  GCOVOutputStream Output(*CovOs.get());
+  printIntermediate(Output);
 }
 
 /// printIntermediate -  Print source files with collected line count information in the intermediate gcov format.
