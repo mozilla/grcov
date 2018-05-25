@@ -58,12 +58,30 @@ fn run(path: &Path) {
 }
 
 fn read_expected(path: &Path, compiler: &str, compiler_ver: &str, format: &str) -> String {
-    let name_with_ver = format!("expected_{}_{}.{}", compiler, compiler_ver, format);
-
-    let name = if path.join(&name_with_ver).exists() {
-        name_with_ver
+    let os_name = if cfg!(windows) {
+        "win"
+    } else if cfg!(target_os="macos") {
+        "mac"
     } else {
-        format!("expected_{}.{}", compiler, format)
+        "linux"
+    };
+
+    let name_with_ver_and_os = format!("expected_{}_{}_{}.{}", compiler, compiler_ver, os_name, format);
+
+    let name = if path.join(&name_with_ver_and_os).exists() {
+        name_with_ver_and_os
+    } else {
+        let name_with_ver = format!("expected_{}_{}.{}", compiler, compiler_ver, format);
+        if path.join(&name_with_ver).exists() {
+            name_with_ver
+        } else {
+            let name_with_os = format!("expected_{}_{}.{}", compiler, os_name, format);
+            if path.join(&name_with_os).exists() {
+                name_with_os
+            } else {
+                format!("expected_{}.{}", compiler, format)
+            }
+        }
     };
     let mut f = File::open(path.join(&name)).expect(format!("{} file not found", name).as_str());
     let mut s = String::new();
