@@ -1,8 +1,9 @@
 extern crate walkdir;
 extern crate serde_json;
 extern crate semver;
+extern crate globset;
 
-use std::env;
+use std::{env, fs};
 use std::process::Command;
 use walkdir::WalkDir;
 use std::path::{PathBuf, Path};
@@ -10,6 +11,7 @@ use std::fs::File;
 use std::io::Read;
 use serde_json::Value;
 use semver::Version;
+use globset::{Glob, GlobSetBuilder};
 
 fn make(path: &Path, compiler: &str) {
     let status = Command::new("make")
@@ -76,13 +78,22 @@ fn run_grcov(path: &Path, llvm: bool, output_format: &str) -> String {
     String::from_utf8(output.stdout).unwrap()
 }
 
-fn make_clean(path: &Path) {
-    let status = Command::new("make")
-                         .arg("clean")
-                         .current_dir(path)
-                         .status()
-                         .expect("Failed to clean");
-    assert!(status.success());
+fn do_clean(directory: &Path) {
+    let to_remove_globs = vec!["a.out", "a.exe", "*.gcno", "*.gcda", "default.profraw"];
+
+    let mut glob_builder = GlobSetBuilder::new();
+    for to_remove_glob in &to_remove_globs {
+        glob_builder.add(Glob::new(to_remove_glob).unwrap());
+    }
+    let to_remove_globset = glob_builder.build().unwrap();
+
+    for entry in WalkDir::new(&directory) {
+        let entry = entry.expect("Failed to open directory.");
+
+        if to_remove_globset.is_match(&entry.file_name()) {
+            fs::remove_file(entry.path()).unwrap();
+        }
+    }
 }
 
 fn check_equal_inner(a: &Value, b: &Value, skip_methods: bool) -> bool {
@@ -223,7 +234,7 @@ fn test_integration() {
             let skip_branches = path == Path::new("tests/template") || path == Path::new("tests/include") ||
                                 path == Path::new("tests/include2") || path == Path::new("tests/class");
 
-            make_clean(path);
+            do_clean(path);
 
             if !cfg!(windows) && !cfg!(target_os="macos") {
                 println!("GCC");
@@ -231,7 +242,7 @@ fn test_integration() {
                 run(path);
                 check_equal_ade(&read_expected(path, "gcc", &gcc_version, "ade"), &run_grcov(path, false, "ade"));
                 check_equal_coveralls(&read_expected(path, "gcc", &gcc_version, "coveralls"), &run_grcov(path, false, "coveralls"), skip_branches);
-                make_clean(path);
+                do_clean(path);
             }
 
             println!("\nLLVM");
@@ -239,7 +250,7 @@ fn test_integration() {
             run(path);
             check_equal_ade(&read_expected(path, "llvm", &llvm_version, "ade"), &run_grcov(path, true, "ade"));
             check_equal_coveralls(&read_expected(path, "llvm", &llvm_version, "coveralls"), &run_grcov(path, true, "coveralls"), skip_branches);
-            make_clean(path);
+            do_clean(path);
         }
     }
 }
