@@ -2,6 +2,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "GCOV.h"
+#include "GCOVOutput.hxx"
 
 using namespace llvm;
 
@@ -10,30 +11,37 @@ public:
   CustomFileInfo(const GCOV::Options &Options) : ProtectedFileInfo(Options) {}
 
   void printIntermediate(StringRef WorkingDir, StringRef MainFilename);
+
+  template<typename T>
+  void printIntermediate(T &Output);
 };
 
-/// printIntermediate -  Print source files with collected line count information in the intermediate gcov format.
 void CustomFileInfo::printIntermediate(StringRef WorkingDir, StringRef MainFilename) {
   std::string CoveragePath = getCoveragePath(MainFilename, MainFilename);
   SmallString<128> FullCoveragePath(WorkingDir);
   sys::path::append(FullCoveragePath, CoveragePath);
-  std::unique_ptr<raw_ostream> CovStream = openCoveragePath(FullCoveragePath);
-  raw_ostream &CovOS = *CovStream;
+  std::unique_ptr<raw_ostream> CovOs = openCoveragePath(FullCoveragePath);
+  GCOVOutputStream Output(*CovOs.get());
+  printIntermediate(Output);
+}
 
+/// printIntermediate -  Print source files with collected line count information in the intermediate gcov format.
+template<typename T>
+void CustomFileInfo::printIntermediate(T &Output) {
   SmallVector<StringRef, 4> Filenames;
   for (const auto &LI : LineInfo)
     Filenames.push_back(LI.first());
   std::sort(Filenames.begin(), Filenames.end());
 
   for (StringRef Filename : Filenames) {
-    CovOS << "file:" << Filename << "\n";
+    Output.handleFile(Filename);
 
     const LineData &Line = LineInfo[Filename];
     for (uint32_t LineIndex = 0; LineIndex < Line.LastLine; ++LineIndex) {
       FunctionLines::const_iterator FuncsIt = Line.Functions.find(LineIndex);
       if (FuncsIt != Line.Functions.end()) {
         for (const CustomGCOVFunction *Func : FuncsIt->second) {
-          CovOS << "function:" << (LineIndex + 1) << "," << Func->getEntryCount() << "," << Func->getName() << "\n";
+          Output.handleFunction(LineIndex + 1, Func->getEntryCount(), Func->getName());
         }
       }
 
@@ -51,7 +59,7 @@ void CustomFileInfo::printIntermediate(StringRef WorkingDir, StringRef MainFilen
           LineCount += Block->getCount();
         }
 
-        CovOS << "lcount:" << (LineIndex + 1) << "," << LineCount << "\n";
+        Output.handleLcount(LineIndex + 1, LineCount);
 
         if (Options.BranchInfo) {
           for (const CustomGCOVBlock *Block : Blocks) {
@@ -68,14 +76,7 @@ void CustomFileInfo::printIntermediate(StringRef WorkingDir, StringRef MainFilen
               bool exec = TotalCounts > 0;
               for (const GCOVEdge *Edge : Block->dsts()) {
                 bool taken = Edge->Count > 0;
-                CovOS << "branch:" << (LineIndex + 1) << ",";
-                if (taken && exec)
-                  CovOS << "taken";
-                else if (exec)
-                  CovOS << "nottaken";
-                else
-                  CovOS << "notexec";
-                CovOS << "\n";
+                Output.handleBranch(LineIndex + 1, taken, exec);
               }
             }
           }
@@ -85,7 +86,7 @@ void CustomFileInfo::printIntermediate(StringRef WorkingDir, StringRef MainFilen
   }
 }
 
-void parse_llvm_gcno_mbuf(char* working_dir, char* file_stem, MemoryBuffer* GCNO_Buff, MemoryBuffer* GCDA_Buff, uint8_t branch_enabled) {
+void parse_llvm_gcno_mbuf(void* RustHdl, char* working_dir, char* file_stem, MemoryBuffer* GCNO_Buff, MemoryBuffer* GCDA_Buff, uint8_t branch_enabled) {
   GCOV::Options Options(
     /* AllBlocks */ false,
     /* BranchProb (BranchInfo) */ branch_enabled != 0,
@@ -116,11 +117,16 @@ void parse_llvm_gcno_mbuf(char* working_dir, char* file_stem, MemoryBuffer* GCNO
 
   CustomFileInfo FI(Options);
   GF.collectLineCounts(FI);
-  FI.printIntermediate(working_dir, GCNO);
+  if (RustHdl) {
+      GCOVOutputRust Output(RustHdl);
+      FI.printIntermediate(Output);
+  } else {
+      FI.printIntermediate(working_dir, GCNO);
+  }
 }
 
 extern "C"
-void parse_llvm_gcno(char* working_dir, char* file_stem, uint8_t branch_enabled) {
+void parse_llvm_gcno(void* RustHdl, char* working_dir, char* file_stem, uint8_t branch_enabled) {
   std::string GCNO = std::string(file_stem) + ".gcno";
   std::string GCDA = std::string(file_stem) + ".gcda";
   std::unique_ptr<MemoryBuffer> gcno_buf;
@@ -147,13 +153,13 @@ void parse_llvm_gcno(char* working_dir, char* file_stem, uint8_t branch_enabled)
     gcda_buf = std::move(GCDA_Buff.get());
   }
 
-  parse_llvm_gcno_mbuf(working_dir, file_stem, gcno_buf.get(), gcda_buf.get(), branch_enabled);
+  parse_llvm_gcno_mbuf(RustHdl, working_dir, file_stem, gcno_buf.get(), gcda_buf.get(), branch_enabled);
 }
 
 extern "C"
-void parse_llvm_gcno_buf(char* working_dir, char* file_stem, char* gcno_buf, size_t gcno_buf_len, char* gcda_buf, size_t gcda_buf_len, uint8_t branch_enabled) {
+void parse_llvm_gcno_buf(void* RustHdl, char* working_dir, char* file_stem, char* gcno_buf, size_t gcno_buf_len, char* gcda_buf, size_t gcda_buf_len, uint8_t branch_enabled) {
     std::unique_ptr<MemoryBuffer> GCNO_Buff = MemoryBuffer::getMemBuffer(StringRef(gcno_buf, gcno_buf_len));
     std::unique_ptr<MemoryBuffer> GCDA_Buff = MemoryBuffer::getMemBuffer(StringRef(gcda_buf, gcda_buf_len));
 
-    parse_llvm_gcno_mbuf(working_dir, file_stem, GCNO_Buff.get(), GCDA_Buff.get(), branch_enabled);
+    parse_llvm_gcno_mbuf(RustHdl, working_dir, file_stem, GCNO_Buff.get(), GCDA_Buff.get(), branch_enabled);
 }

@@ -356,6 +356,7 @@ mod tests {
             (ItemFormat::INFO, true, "test/empty_line.info", true),
             (ItemFormat::INFO, true, "test/invalid_DA_record.info", true),
             (ItemFormat::INFO, true, "test/relative_path/relative_path.info", false),
+            (ItemFormat::GCNO, true, "test/llvm/file.gcno", true),
         ];
 
         check_produced(PathBuf::from("."), &queue, expected);
