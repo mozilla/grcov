@@ -21,6 +21,9 @@ uuid = { version = "^0.5", features = ["v4"] }
 libc = "^0.2"
 globset = "^0.3"
 
+[dev-dependencies]
+regex = "^0.2"
+
 [features]
 # For the system allocator feature.
 alloc_system = []

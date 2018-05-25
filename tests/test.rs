@@ -1,7 +1,7 @@
 extern crate walkdir;
 extern crate serde_json;
-extern crate semver;
 extern crate globset;
+extern crate regex;
 
 use std::{env, fs};
 use std::process::Command;
@@ -10,8 +10,8 @@ use std::path::{PathBuf, Path};
 use std::fs::File;
 use std::io::Read;
 use serde_json::Value;
-use semver::Version;
 use globset::{Glob, GlobSetBuilder};
+use regex::Regex;
 
 fn make(path: &Path, compiler: &str) {
     let mut args = Vec::new();
@@ -241,18 +241,27 @@ fn check_equal_coveralls(expected_output: &str, output: &str, skip_branches: boo
     assert_eq!(expected_source_files.len(), actual_source_files.len(), "Got same number of source files.");
 }
 
-fn get_version(compiler: &str, version_arg: &str) -> String {
+fn get_version(compiler: &str) -> String {
     let output = Command::new(compiler)
-                         .arg(version_arg)
+                         .arg("--version")
                          .output()
                          .expect("Failed to retrieve version.");
 
     assert!(output.status.success(), "Failed to run program to retrieve version.");
 
     let version = String::from_utf8(output.stdout).unwrap();
-    match Version::parse(&version) {
-      Ok(v) => v.major.to_string(),
-      Err(_e) => version.trim().to_string(),
+    get_compiler_major(&version)
+}
+
+fn get_compiler_major(version: &String) -> String {
+    let re = Regex::new(r"(?:version |(?:gcc \([^\)]+\) )*)([0-9]+)\.[0-9]+\.[0-9]+").unwrap();
+    match re.captures(version) {
+        Some(caps) => {
+            caps.get(1).unwrap().as_str().to_string()
+        },
+        None => {
+            panic!("Compiler version not found")
+        }
     }
 }
 
@@ -276,7 +285,7 @@ fn test_integration() {
 
             if !cfg!(windows) && !cfg!(target_os="macos") {
                 println!("GCC");
-                let gcc_version = get_version("gcc", "-dumpversion");
+                let gcc_version = get_version("gcc");
                 make(path, "g++");
                 run(path);
                 check_equal_ade(&read_expected(path, "gcc", &gcc_version, "ade"), &run_grcov(path, false, "ade"));
@@ -285,7 +294,9 @@ fn test_integration() {
             }
 
             println!("\nLLVM");
-            let llvm_version = get_version("llvm-config", "--version");
+            let llvm_version = get_version("llvm-config");
+            let clang_version = get_version("clang++");
+            assert_eq!(llvm_version, clang_version, "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version", llvm_version, clang_version);
             make(path, "clang++");
             run(path);
             check_equal_ade(&read_expected(path, "llvm", &llvm_version, "ade"), &run_grcov(path, true, "ade"));
