@@ -250,20 +250,17 @@ fn get_version(compiler: &str) -> String {
     assert!(output.status.success(), "Failed to run program to retrieve version.");
 
     let version = String::from_utf8(output.stdout).unwrap();
-    match get_compiler_major(&version) {
-        Ok(v) => v,
-        Err(_e) => version.trim().to_string(),
-    }
+    get_compiler_major(&version)
 }
 
-fn get_compiler_major(version: &String) -> Result<String, &'static str> {
+fn get_compiler_major(version: &String) -> String {
     let re = Regex::new(r"(?:version |(?:gcc \([^\)]+\) )*)([0-9]+)\.[0-9]+\.[0-9]+").unwrap();
     match re.captures(version) {
         Some(caps) => {
-            Ok(caps.get(1).unwrap().as_str().to_string())
+            caps.get(1).unwrap().as_str().to_string()
         },
         None => {
-            Err("Compiler version not found")
+            panic!("Compiler version not found")
         }
     }
 }
@@ -299,7 +296,7 @@ fn test_integration() {
             println!("\nLLVM");
             let llvm_version = get_version("llvm-config");
             let clang_version = get_version("clang++");
-            assert_eq!(llvm_version, clang_version, "llvm-config ({:?}) and clang++ ({:?}) have not the same major version", llvm_version, clang_version);
+            assert_eq!(llvm_version, clang_version, "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version", llvm_version, clang_version);
             make(path, "clang++");
             run(path);
             check_equal_ade(&read_expected(path, "llvm", &llvm_version, "ade"), &run_grcov(path, true, "ade"));
