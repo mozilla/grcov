@@ -243,9 +243,6 @@ fn test_integration() {
         return;
     }
 
-    let gcc_version = get_version("gcc", "-dumpversion");
-    let llvm_version = get_version("llvm-config", "--version");
-
     for entry in WalkDir::new("tests").min_depth(1) {
         let entry = entry.unwrap();
         let path = entry.path();
@@ -259,6 +256,7 @@ fn test_integration() {
 
             if !cfg!(windows) && !cfg!(target_os="macos") {
                 println!("GCC");
+                let gcc_version = get_version("gcc", "-dumpversion");
                 make(path, "g++");
                 run(path);
                 check_equal_ade(&read_expected(path, "gcc", &gcc_version, "ade"), &run_grcov(path, false, "ade"));
@@ -267,6 +265,7 @@ fn test_integration() {
             }
 
             println!("\nLLVM");
+            let llvm_version = get_version("llvm-config", "--version");
             make(path, "clang++");
             run(path);
             check_equal_ade(&read_expected(path, "llvm", &llvm_version, "ade"), &run_grcov(path, true, "ade"));
