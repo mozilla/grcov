@@ -4,7 +4,8 @@ use std::fs::File;
 use std::io::{self, Read, BufRead, BufReader};
 use std::ffi::CString;
 use std::fmt;
-use std::str;
+use std::mem;
+use std::{slice, str};
 use libc;
 
 use defs::*;
@@ -52,11 +53,11 @@ macro_rules! try_parse_next {
 
 #[link(name = "llvmgcov", kind="static")]
 extern {
-    fn parse_llvm_gcno(working_dir: *const libc::c_char, file_stem: *const libc::c_char, branch_enabled: libc::uint8_t);
-    fn parse_llvm_gcno_buf(working_dir: *const libc::c_char, file_stem: *const libc::c_char, gcno_buf: *const libc::c_char, gcno_buf_len: libc::size_t, gcda_buf: *const libc::c_char, gcda_buf_len: libc::size_t, branch_enabled: libc::uint8_t);
+    fn parse_llvm_gcno(hdl: *const GCOVResult, working_dir: *const libc::c_char, file_stem: *const libc::c_char, branch_enabled: libc::uint8_t);
+    fn parse_llvm_gcno_buf(hdl: *const GCOVResult, working_dir: *const libc::c_char, file_stem: *const libc::c_char, gcno_buf: *const libc::c_char, gcno_buf_len: libc::size_t, gcda_buf: *const libc::c_char, gcda_buf_len: libc::size_t, branch_enabled: libc::uint8_t);
 }
 
-pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str, branch_enabled: bool) {
+pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str, branch_enabled: bool) -> Vec<(String,CovResult)> {
     let working_dir_c = CString::new(working_dir).unwrap();
     let file_stem_c = CString::new(file_stem).unwrap();
     let branch_enabled = if branch_enabled {
@@ -64,12 +65,27 @@ pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str, branch_enabled: 
     } else {
         0 as u8
     };
-    unsafe {
-        parse_llvm_gcno(working_dir_c.as_ptr(), file_stem_c.as_ptr(), branch_enabled);
+
+    let mut result: Vec<(String,CovResult)> = Vec::new();
+    let hdl = GCOVResult {
+        ptr: result.as_mut_ptr() as *mut libc::c_void,
+        len: result.len(),
+        capacity: result.capacity(),
+        branch_number: 0
     };
+
+    let res = unsafe {
+        parse_llvm_gcno(&hdl, working_dir_c.as_ptr(), file_stem_c.as_ptr(), branch_enabled);
+        Vec::from_raw_parts(hdl.ptr as *mut (String,CovResult), hdl.len, hdl.capacity)
+    };
+
+    if hdl.ptr != result.as_mut_ptr() as *mut libc::c_void {
+        drop(result);
+    }
+    res
 }
 
-pub fn call_parse_llvm_gcno_buf(working_dir: &str, file_stem: &str, gcno: &Vec<u8>, gcda: &Vec<u8>, branch_enabled: bool) {
+pub fn call_parse_llvm_gcno_buf(working_dir: &str, file_stem: &str, gcno: &Vec<u8>, gcda: &Vec<u8>, branch_enabled: bool) -> Vec<(String,CovResult)>  {
     let working_dir_c = CString::new(working_dir).unwrap();
     let file_stem_c = CString::new(file_stem).unwrap();
     let gcno_buf_len = gcno.len();
@@ -79,12 +95,117 @@ pub fn call_parse_llvm_gcno_buf(working_dir: &str, file_stem: &str, gcno: &Vec<u
     } else {
         0 as u8
     };
-    unsafe {
+
+    let mut result: Vec<(String,CovResult)> = Vec::new();
+    let hdl = GCOVResult {
+        ptr: result.as_mut_ptr() as *mut libc::c_void,
+        len: result.len(),
+        capacity: result.capacity(),
+        branch_number: 0,
+    };
+
+    let res = unsafe {
         let gcno_buf = CString::from_vec_unchecked(gcno.to_vec());
         let gcda_buf = CString::from_vec_unchecked(gcda.to_vec());
 
-        parse_llvm_gcno_buf(working_dir_c.as_ptr(), file_stem_c.as_ptr(), gcno_buf.as_ptr(), gcno_buf_len, gcda_buf.as_ptr(), gcda_buf_len, branch_enabled);
+        parse_llvm_gcno_buf(&hdl, working_dir_c.as_ptr(), file_stem_c.as_ptr(), gcno_buf.as_ptr(), gcno_buf_len, gcda_buf.as_ptr(), gcda_buf_len, branch_enabled);
+        Vec::from_raw_parts(hdl.ptr as *mut (String,CovResult), hdl.len, hdl.capacity)
     };
+
+    if hdl.ptr != result.as_mut_ptr() as *mut libc::c_void {
+        drop(result);
+    }
+    res
+}
+
+#[no_mangle]
+pub extern fn handleFileRust(hdl: *mut GCOVResult, filename: *const libc::c_char, len: libc::size_t) {
+    let res = unsafe {
+        &mut *hdl
+    };
+    let filename = unsafe {
+        str::from_utf8_unchecked(slice::from_raw_parts(filename as *const u8, len))
+    };
+
+    let mut results = unsafe {
+        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity)
+    };
+    results.push((filename.to_string(), CovResult {
+        lines: BTreeMap::new(),
+        branches: BTreeMap::new(),
+        functions: HashMap::new(),
+    }));
+
+    res.ptr = results.as_mut_ptr() as *mut libc::c_void;
+    res.len = results.len();
+    res.capacity = results.capacity();
+
+    mem::forget(results);
+}
+
+#[no_mangle]
+pub extern fn handleFunctionRust(hdl: *mut GCOVResult, index: libc::uint32_t, entrycount: libc::uint64_t, funcname: *const libc::c_char, len: libc::size_t) {
+    let res = unsafe {
+        &mut *hdl
+    };
+    let funcname = unsafe {
+        str::from_utf8_unchecked(slice::from_raw_parts(funcname as *const u8, len))
+    };
+    let mut results = unsafe {
+        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity)
+    };
+    match results.last_mut() {
+        Some(r) => {
+            r.1.functions.insert(funcname.to_string(), Function {
+                start: index,
+                executed: entrycount != 0,
+            });
+        },
+        None => {
+            panic!("Results should not be emtpy");
+        }
+    }
+    mem::forget(results);
+}
+
+#[no_mangle]
+pub extern fn handleLcountRust(hdl: *mut GCOVResult, index: libc::uint32_t, linecount: libc::uint64_t) {
+    let res = unsafe {
+        &mut *hdl
+    };
+    let mut results = unsafe {
+        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity)
+    };
+    match results.last_mut() {
+        Some(r) => {
+            res.branch_number = 0;
+            r.1.lines.insert(index, linecount);
+        },
+        None => {
+            panic!("Results should not be emtpy");
+        }
+    }
+    mem::forget(results);
+}
+
+#[no_mangle]
+pub extern fn handleBranchRust(hdl: *mut GCOVResult, index: libc::uint32_t, taken: libc::uint8_t, _exec: libc::uint8_t) {
+    let res = unsafe {
+        &mut *hdl
+    };
+    let mut results = unsafe {
+        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity)
+    };
+    match results.last_mut() {
+        Some(r) => {
+            r.1.branches.insert((index, res.branch_number), taken != 0);
+            res.branch_number += 1;
+        },
+        None => {
+            panic!("Results should not be emtpy");
+        }
+    }
+    mem::forget(results);
 }
 
 fn remove_newline(l: &mut Vec<u8>) {
@@ -527,5 +648,24 @@ mod tests {
         let func = result.functions.get("_ZN27rust_code_coverage_sample_244compare_types<[i32; 3],alloc::vec::Vec<i32>>E").unwrap();
         assert_eq!(func.start, 3);
         assert_eq!(func.executed, true);
+    }
+
+    #[test]
+    fn test_parser_gcov_with_no_tmp() {
+        let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
+        lines.insert(2, 1);
+        let mut functions: HashMap<String, Function> = HashMap::new();
+        functions.insert(String::from("main"), Function {
+            start: 1,
+            executed: true,
+        });
+        let branches: BTreeMap<(u32,u32),bool> = BTreeMap::new();
+        let expected = vec![(String::from("file.c"), CovResult {
+            lines: lines,
+            branches: branches,
+            functions: functions,
+        })];
+        let result = call_parse_llvm_gcno("test/llvm", "test/llvm/file", true);
+        assert_eq!(result, expected);
     }
 }

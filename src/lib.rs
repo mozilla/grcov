@@ -121,6 +121,7 @@ pub fn consumer(working_dir: &PathBuf, source_dir: &Option<PathBuf>, result_map:
     let mut gcov_type = GcovType::Unknown;
 
     while let Some(work_item) = queue.pop() {
+        let mut result: Option<Vec<(String,CovResult)>> = None;
         let new_results = match work_item.format {
             ItemFormat::GCNO => {
                 let gcov_path = match work_item.item {
@@ -128,18 +129,18 @@ pub fn consumer(working_dir: &PathBuf, source_dir: &Option<PathBuf>, result_map:
                         if !is_llvm {
                             run_gcov(&gcno_path, branch_enabled, working_dir);
                         } else {
-                            call_parse_llvm_gcno(working_dir.to_str().unwrap(),
-                                                 gcno_path.parent().unwrap().join(gcno_path.file_stem().unwrap()).to_str().unwrap(),
-                                                 branch_enabled);
+                            result = Some(call_parse_llvm_gcno(working_dir.to_str().unwrap(),
+                                                               gcno_path.parent().unwrap().join(gcno_path.file_stem().unwrap()).to_str().unwrap(),
+                                                               branch_enabled));
                         }
                         gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov"
                     },
                     ItemType::Buffers(buffers) => {
-                        call_parse_llvm_gcno_buf(working_dir.to_str().unwrap(),
-                                                 &buffers.stem,
-                                                 &buffers.gcno_buf,
-                                                 &buffers.gcda_buf,
-                                                 branch_enabled);
+                        result = Some(call_parse_llvm_gcno_buf(working_dir.to_str().unwrap(),
+                                                               &buffers.stem,
+                                                               &buffers.gcno_buf,
+                                                               &buffers.gcda_buf,
+                                                               branch_enabled));
 
                         drop(buffers.gcda_buf);
                         drop(buffers.gcno_buf);
@@ -151,32 +152,39 @@ pub fn consumer(working_dir: &PathBuf, source_dir: &Option<PathBuf>, result_map:
                     }
                 };
 
-                let gcov_path = working_dir.join(gcov_path);
-                if gcov_type == GcovType::Unknown {
-                    gcov_type = if gcov_path.exists() {
-                        GcovType::SingleFile
-                    } else {
-                        GcovType::MultipleFiles
-                    };
-                }
+                match result {
+                    Some(res) => {
+                        res
+                    },
+                    None => {
+                        let gcov_path = working_dir.join(gcov_path);
+                        if gcov_type == GcovType::Unknown {
+                            gcov_type = if gcov_path.exists() {
+                                GcovType::SingleFile
+                            } else {
+                                GcovType::MultipleFiles
+                            };
+                        }
 
-                if gcov_type == GcovType::SingleFile {
-                    let new_results = try_parse!(parse_gcov(&gcov_path), work_item.name);
-                    fs::remove_file(gcov_path).unwrap();
-                    new_results
-                } else {
-                    let mut new_results: Vec<(String,CovResult)> = Vec::new();
+                        if gcov_type == GcovType::SingleFile {
+                            let new_results = try_parse!(parse_gcov(&gcov_path), work_item.name);
+                            fs::remove_file(gcov_path).unwrap();
+                            new_results
+                        } else {
+                            let mut new_results: Vec<(String,CovResult)> = Vec::new();
 
-                    for entry in WalkDir::new(&working_dir).min_depth(1) {
-                        let gcov_path = entry.unwrap();
-                        let gcov_path = gcov_path.path();
+                            for entry in WalkDir::new(&working_dir).min_depth(1) {
+                                let gcov_path = entry.unwrap();
+                                let gcov_path = gcov_path.path();
 
-                        new_results.append(&mut try_parse!(parse_gcov(&gcov_path), work_item.name));
+                                new_results.append(&mut try_parse!(parse_gcov(&gcov_path), work_item.name));
 
-                        fs::remove_file(gcov_path).unwrap();
+                                fs::remove_file(gcov_path).unwrap();
+                            }
+
+                            new_results
+                        }
                     }
-
-                    new_results
                 }
             },
             ItemFormat::INFO => {
