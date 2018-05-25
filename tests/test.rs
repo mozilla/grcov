@@ -225,7 +225,7 @@ fn test_integration() {
 
             make_clean(path);
 
-            if !cfg!(windows) {
+            if !cfg!(windows) && !cfg!(target_os="macos") {
                 println!("GCC");
                 make(path, "g++");
                 run(path);
@@ -234,14 +234,12 @@ fn test_integration() {
                 make_clean(path);
             }
 
-            if !cfg!(target_os="macos") {
-                println!("\nLLVM");
-                make(path, "clang++");
-                run(path);
-                check_equal_ade(&read_expected(path, "llvm", &llvm_version, "ade"), &run_grcov(path, true, "ade"));
-                check_equal_coveralls(&read_expected(path, "llvm", &llvm_version, "coveralls"), &run_grcov(path, true, "coveralls"), skip_branches);
-                make_clean(path);
-            }
+            println!("\nLLVM");
+            make(path, "clang++");
+            run(path);
+            check_equal_ade(&read_expected(path, "llvm", &llvm_version, "ade"), &run_grcov(path, true, "ade"));
+            check_equal_coveralls(&read_expected(path, "llvm", &llvm_version, "coveralls"), &run_grcov(path, true, "coveralls"), skip_branches);
+            make_clean(path);
         }
     }
 }
