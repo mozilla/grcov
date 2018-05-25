@@ -2,6 +2,7 @@ extern crate walkdir;
 extern crate serde_json;
 extern crate semver;
 extern crate globset;
+extern crate regex;
 
 use std::{env, fs};
 use std::process::Command;
@@ -12,6 +13,7 @@ use std::io::Read;
 use serde_json::Value;
 use semver::Version;
 use globset::{Glob, GlobSetBuilder};
+use regex::Regex;
 
 fn make(path: &Path, compiler: &str) {
     let mut args = Vec::new();
@@ -250,9 +252,28 @@ fn get_version(compiler: &str, version_arg: &str) -> String {
     assert!(output.status.success(), "Failed to run program to retrieve version.");
 
     let version = String::from_utf8(output.stdout).unwrap();
-    match Version::parse(&version) {
-      Ok(v) => v.major.to_string(),
-      Err(_e) => version.trim().to_string(),
+    if compiler == "clang++" {
+        match get_clang_major(&version) {
+            Ok(v) => v,
+            Err(_e) => version.trim().to_string(),
+        }
+    } else {
+        match Version::parse(&version) {
+            Ok(v) => v.major.to_string(),
+            Err(_e) => version.trim().to_string(),
+        }
+    }
+}
+
+fn get_clang_major(version: &String) -> Result<String, &'static str> {
+    let re = Regex::new(r"version ([0-9]+)\.[0-9]+\.[0-9]+").unwrap();
+    match re.captures(version) {
+        Some(caps) => {
+            Ok(caps.get(1).unwrap().as_str().to_string())
+        },
+        None => {
+            Err("clang++ version not found")
+        }
     }
 }
 
@@ -286,6 +307,8 @@ fn test_integration() {
 
             println!("\nLLVM");
             let llvm_version = get_version("llvm-config", "--version");
+            let clang_version = get_version("clang++", "--version");
+            assert_eq!(llvm_version, clang_version, "llvm-config ({:?}) and clang++ ({:?}) have not the same major version", llvm_version, clang_version);
             make(path, "clang++");
             run(path);
             check_equal_ade(&read_expected(path, "llvm", &llvm_version, "ade"), &run_grcov(path, true, "ade"));
