@@ -14,8 +14,29 @@ use semver::Version;
 use globset::{Glob, GlobSetBuilder};
 
 fn make(path: &Path, compiler: &str) {
-    let status = Command::new("make")
-                         .arg(format!("COMPILER={}", compiler))
+    let mut args = Vec::new();
+
+    let c_cpp_globs = vec!["*.cpp", "*.c"];
+
+    let mut glob_builder = GlobSetBuilder::new();
+    for c_cpp_glob in &c_cpp_globs {
+        glob_builder.add(Glob::new(c_cpp_glob).unwrap());
+    }
+    let c_cpp_globset = glob_builder.build().unwrap();
+    for entry in WalkDir::new(&path) {
+        let entry = entry.expect("Failed to open directory.");
+
+        if c_cpp_globset.is_match(&entry.file_name()) {
+            args.push(entry.file_name().to_os_string());
+        }
+    }
+
+    let status = Command::new(compiler)
+                         .arg("-fprofile-arcs")
+                         .arg("-ftest-coverage")
+                         .arg("-O0")
+                         .arg("-fno-inline")
+                         .args(args)
                          .current_dir(path)
                          .status()
                          .expect("Failed to build");
