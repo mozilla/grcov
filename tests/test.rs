@@ -142,7 +142,9 @@ fn check_equal_ade(expected_output: &str, output: &str) {
 
     let mut actual: Vec<Value> = Vec::new();
     for line in output.lines() {
-        actual.push(serde_json::from_str(line).unwrap());
+        let parsed = serde_json::from_str(line).unwrap();
+        println!("{}", serde_json::to_string_pretty(&parsed).unwrap());
+        actual.push(parsed);
     }
 
     // On CI, don't check methods, as on different machines names are slightly differently mangled.
