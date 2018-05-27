@@ -1,0 +1,7 @@
+{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[],"name":"_ZN4CiaoD2Ev","percentage_covered":0.0,"total_covered":0,"total_uncovered":1,"uncovered":[6]}}
+{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[],"name":"_ZN4Ciao7setNameENSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE","percentage_covered":0.0,"total_covered":0,"total_uncovered":2,"uncovered":[9,10]}}
+{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[],"name":"_ZN4Ciao8uncalledEv","percentage_covered":0.0,"total_covered":0,"total_uncovered":2,"uncovered":[17,18]}}
+{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[],"name":"_ZN4CiaoC2Ev","percentage_covered":0.0,"total_covered":0,"total_uncovered":1,"uncovered":[6]}}
+{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[],"name":"_ZN4Ciao7getNameB5cxx11Ev","percentage_covered":0.0,"total_covered":0,"total_uncovered":1,"uncovered":[13]}}
+{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[],"name":"main","percentage_covered":0.0,"total_covered":0,"total_uncovered":8,"uncovered":[26,28,29,31,32,33,35,36]}}
+{"file":{"covered":[],"name":"main.cpp","percentage_covered":0.0,"total_covered":0,"total_uncovered":14,"uncovered":[6,9,10,13,17,18,26,28,29,31,32,33,35,36]},"is_file":true,"language":"c/c++","method":{"covered":[],"percentage_covered":null,"total_covered":0,"total_uncovered":0,"uncovered":[]}}
