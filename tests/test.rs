@@ -321,7 +321,7 @@ fn test_integration() {
 
             do_clean(path);
 
-            if !cfg!(windows) && !cfg!(target_os="macos") {
+            if false && !cfg!(windows) && !cfg!(target_os="macos") {
                 println!("GCC");
                 let gcc_version = get_version("gcc");
                 make(path, "g++");
@@ -344,35 +344,54 @@ fn test_integration() {
             check_equal_coveralls(&read_expected(path, "", "llvm", &llvm_version, "coveralls"),
                                   &run_grcov(vec![path], true, path, "coveralls"), skip_branches);
 
-            let gcno_zip_path = PathBuf::from("gcno.zip");
-            let gcda_zip_path = PathBuf::from("gcda.zip");
-            let gcda0_zip_path = PathBuf::from("gcda0.zip");
-            let gcda1_zip_path = PathBuf::from("gcda1.zip");
-
-            create_zip(&gcno_zip_path, path, "*.gcno");
-            create_zip(&gcda_zip_path, path, "*.gcda");
-            create_zip(&gcda0_zip_path, path, "");
-
-            let gcno_zip_path = path.join(gcno_zip_path);
-            let gcda_zip_path = path.join(gcda_zip_path);
-            let gcda0_zip_path = path.join(gcda0_zip_path);
-            let gcda1_zip_path = path.join(gcda1_zip_path);
-
-            // no gcda
-            check_equal_ade(&read_expected(path, "_no_gcda", "llvm", &llvm_version, "ade"),
-                            &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], true, &PathBuf::from(""), "ade"));
-
-            // one gcda
-            check_equal_ade(&read_expected(path, "", "llvm", &llvm_version, "ade"),
-                            &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], true, &PathBuf::from(""), "ade"));
-
-            std::fs::copy(&gcda_zip_path, &gcda1_zip_path)
-                .expect(&format!("Failed to copy {:?}", &gcda_zip_path));
-            // two gcdas
-            check_equal_ade(&read_expected(path, "_two_gcda", "llvm", &llvm_version, "ade"),
-                            &run_grcov(vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path], true, &PathBuf::from(""), "ade"));
-
             do_clean(path);
         }
     }
+}
+
+#[test]
+fn test_integration_zip() {
+    if cfg!(windows) {
+        println!("Integration tests still not supported under Windows.");
+        return;
+    }
+
+    println!("\nLLVM");
+    let path = &PathBuf::from("tests/basic");
+    let llvm_version = get_version("llvm-config");
+    let clang_version = get_version("clang++");
+    assert_eq!(llvm_version, clang_version, "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version", llvm_version, clang_version);
+    make(path, "clang++");
+    run(path);
+
+    let gcno_zip_path = PathBuf::from("gcno.zip");
+    let gcda_zip_path = PathBuf::from("gcda.zip");
+    let gcda0_zip_path = PathBuf::from("gcda0.zip");
+    let gcda1_zip_path = PathBuf::from("gcda1.zip");
+
+    create_zip(&gcno_zip_path, path, "*.gcno");
+    create_zip(&gcda_zip_path, path, "*.gcda");
+    create_zip(&gcda0_zip_path, path, "");
+
+    let gcno_zip_path = path.join(gcno_zip_path);
+    let gcda_zip_path = path.join(gcda_zip_path);
+    let gcda0_zip_path = path.join(gcda0_zip_path);
+    let gcda1_zip_path = path.join(gcda1_zip_path);
+
+    // no gcda
+    check_equal_ade(&read_expected(path, "_no_gcda", "llvm", &llvm_version, "ade"),
+                    &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], true, &PathBuf::from(""), "ade"));
+
+    // one gcda
+    check_equal_ade(&read_expected(path, "", "llvm", &llvm_version, "ade"),
+                    &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], true, &PathBuf::from(""), "ade"));
+
+    // two gcdas
+    std::fs::copy(&gcda_zip_path, &gcda1_zip_path)
+        .expect(&format!("Failed to copy {:?}", &gcda_zip_path));
+
+    check_equal_ade(&read_expected(path, "_two_gcda", "llvm", &llvm_version, "ade"),
+                    &run_grcov(vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path], true, &PathBuf::from(""), "ade"));
+
+    do_clean(path);
 }
