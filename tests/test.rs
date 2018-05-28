@@ -388,6 +388,10 @@ fn test_integration_zip() {
             assert_eq!(llvm_version, clang_version, "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version", llvm_version, clang_version);
             clang_version
         } else {
+            if cfg!(target_os="macos") {
+                // skip the gcc test for mac
+                continue;
+            }
             get_version("g++")
         };
 
