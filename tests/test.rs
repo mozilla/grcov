@@ -2,16 +2,19 @@ extern crate walkdir;
 extern crate serde_json;
 extern crate globset;
 extern crate regex;
+extern crate zip;
 
 use std::{env, fs};
 use std::process::Command;
 use walkdir::WalkDir;
 use std::path::{PathBuf, Path};
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Write};
 use serde_json::Value;
 use globset::{Glob, GlobSetBuilder};
 use regex::Regex;
+use zip::ZipWriter;
+use zip::write::FileOptions;
 
 fn make(path: &Path, compiler: &str) {
     let mut args = Vec::new();
@@ -57,6 +60,13 @@ fn run(path: &Path) {
     assert!(status.success());
 }
 
+fn read_file(path: &Path) -> String {
+    let mut f = File::open(path).expect(format!("{:?} file not found", path.file_name()).as_str());
+    let mut s = String::new();
+    f.read_to_string(&mut s).unwrap();
+    s
+}
+
 fn read_expected(path: &Path, compiler: &str, compiler_ver: &str, format: &str) -> String {
     let os_name = if cfg!(windows) {
         "win"
@@ -83,14 +93,15 @@ fn read_expected(path: &Path, compiler: &str, compiler_ver: &str, format: &str) 
             }
         }
     };
-    let mut f = File::open(path.join(&name)).expect(format!("{} file not found", name).as_str());
-    let mut s = String::new();
-    f.read_to_string(&mut s).unwrap();
-    s
+    read_file(&path.join(&name))
 }
 
-fn run_grcov(path: &Path, llvm: bool, output_format: &str) -> String {
+fn run_grcov(paths: Vec<&Path>, llvm: bool, source_root: &Path, output_format: &str) -> String {
     let mut args: Vec<&str> = Vec::new();
+
+    for path in &paths {
+        args.push(path.to_str().unwrap());
+    }
     if llvm {
         args.push("--llvm");
     }
@@ -102,13 +113,17 @@ fn run_grcov(path: &Path, llvm: bool, output_format: &str) -> String {
         args.push("--commit-sha");
         args.push("COMMIT");
         args.push("-s");
-        args.push(path.to_str().unwrap());
+        args.push(source_root.to_str().unwrap());
         args.push("--branch");
     }
 
-    let output = Command::new("cargo")
-                         .arg("run")
-                         .arg(path)
+    let cmd_path = if cfg!(windows) {
+        ".\\target\\debug\\grcov.exe"
+    } else {
+        "./target/debug/grcov"
+    };
+
+    let output = Command::new(cmd_path)
                          .args(args)
                          .output()
                          .expect("Failed to run grcov");
@@ -118,7 +133,7 @@ fn run_grcov(path: &Path, llvm: bool, output_format: &str) -> String {
 }
 
 fn do_clean(directory: &Path) {
-    let to_remove_globs = vec!["a.out", "a.exe", "*.gcno", "*.gcda", "default.profraw"];
+    let to_remove_globs = vec!["a.out", "a.exe", "*.gcno", "*.gcda", "*.zip", "default.profraw"];
 
     let mut glob_builder = GlobSetBuilder::new();
     for to_remove_glob in &to_remove_globs {
@@ -265,6 +280,38 @@ fn get_compiler_major(version: &String) -> String {
     }
 }
 
+fn create_zip(zip_path: &Path, base_dir: &Path, files_glob: &str) {
+    let mut glob_builder = GlobSetBuilder::new();
+    glob_builder.add(Glob::new(files_glob).unwrap());
+    let globset = glob_builder.build().unwrap();
+    let mut files: Vec<PathBuf> = Vec::new();
+    for entry in WalkDir::new(base_dir) {
+        let entry = entry.expect("Failed to open directory.");
+        if globset.is_match(&entry.file_name()) {
+            files.push(entry.path().to_path_buf());
+        }
+    }
+
+    let zipfile = File::create(base_dir.join(zip_path))
+        .expect(&format!("Cannot create file {:?}", zip_path));
+    let mut zip = ZipWriter::new(zipfile);
+    for ref file_path in files {
+        let mut file = File::open(file_path)
+            .expect(&format!("Cannot open file {:?}", file_path));
+        let file_size = file.metadata()
+            .expect(&format!("Cannot get metadata for {:?}", file_path)).len() as usize;
+        let mut content: Vec<u8> = Vec::with_capacity(file_size + 1);
+        file.read_to_end(&mut content)
+            .expect(&format!("Cannot read {:?}", file_path));
+        zip.start_file(file_path.file_name().unwrap().to_str().unwrap(), FileOptions::default())
+            .expect(&format!("Cannot create zip for {:?}", zip_path));
+        zip.write_all(content.as_slice())
+            .expect(&format!("Cannot write {:?}", zip_path));
+    }
+    zip.finish()
+        .expect(&format!("Unable to write zip structure for {:?}", zip_path));
+}
+
 #[test]
 fn test_integration() {
     if cfg!(windows) {
@@ -275,6 +322,11 @@ fn test_integration() {
     for entry in WalkDir::new("tests").min_depth(1) {
         let entry = entry.unwrap();
         let path = entry.path();
+
+        if path == Path::new("tests/basic_zip") {
+            continue;
+        }
+
         if path.is_dir() {
             println!("\n\n{}", path.display());
 
@@ -288,8 +340,10 @@ fn test_integration() {
                 let gcc_version = get_version("gcc");
                 make(path, "g++");
                 run(path);
-                check_equal_ade(&read_expected(path, "gcc", &gcc_version, "ade"), &run_grcov(path, false, "ade"));
-                check_equal_coveralls(&read_expected(path, "gcc", &gcc_version, "coveralls"), &run_grcov(path, false, "coveralls"), skip_branches);
+                check_equal_ade(&read_expected(path, "gcc", &gcc_version, "ade"),
+                                &run_grcov(vec![path], false, &PathBuf::from(""), "ade"));
+                check_equal_coveralls(&read_expected(path, "gcc", &gcc_version, "coveralls"),
+                                      &run_grcov(vec![path], false, path, "coveralls"), skip_branches);
                 do_clean(path);
             }
 
@@ -299,9 +353,62 @@ fn test_integration() {
             assert_eq!(llvm_version, clang_version, "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version", llvm_version, clang_version);
             make(path, "clang++");
             run(path);
-            check_equal_ade(&read_expected(path, "llvm", &llvm_version, "ade"), &run_grcov(path, true, "ade"));
-            check_equal_coveralls(&read_expected(path, "llvm", &llvm_version, "coveralls"), &run_grcov(path, true, "coveralls"), skip_branches);
+            check_equal_ade(&read_expected(path, "llvm", &llvm_version, "ade"),
+                            &run_grcov(vec![path], true, &PathBuf::from(""), "ade"));
+            check_equal_coveralls(&read_expected(path, "llvm", &llvm_version, "coveralls"),
+                                  &run_grcov(vec![path], true, path, "coveralls"), skip_branches);
+
             do_clean(path);
         }
     }
+}
+
+#[test]
+fn test_integration_zip() {
+    if cfg!(windows) {
+        println!("Integration tests still not supported under Windows.");
+        return;
+    }
+
+    println!("\nLLVM");
+    let path = &PathBuf::from("tests/basic_zip");
+    let llvm_version = get_version("llvm-config");
+    let clang_version = get_version("clang++");
+    assert_eq!(llvm_version, clang_version, "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version", llvm_version, clang_version);
+    make(path, "clang++");
+    run(path);
+
+    let gcno_zip_path = PathBuf::from("gcno.zip");
+    let gcda_zip_path = PathBuf::from("gcda.zip");
+    let gcda0_zip_path = PathBuf::from("gcda0.zip");
+    let gcda1_zip_path = PathBuf::from("gcda1.zip");
+
+    create_zip(&gcno_zip_path, path, "*.gcno");
+    create_zip(&gcda_zip_path, path, "*.gcda");
+    create_zip(&gcda0_zip_path, path, "");
+
+    let gcno_zip_path = path.join(gcno_zip_path);
+    let gcda_zip_path = path.join(gcda_zip_path);
+    let gcda0_zip_path = path.join(gcda0_zip_path);
+    let gcda1_zip_path = path.join(gcda1_zip_path);
+
+    // no gcda
+    check_equal_coveralls(&read_file(&path.join(PathBuf::from("expected_no_gcda_llvm.coveralls"))),
+                          &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], true, path, "coveralls"),
+                          false);
+
+    // one gcda
+    check_equal_coveralls(&read_expected(path, "llvm", &llvm_version, "coveralls"),
+                          &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], true, path, "coveralls"),
+                          false);
+
+    // two gcdas
+    std::fs::copy(&gcda_zip_path, &gcda1_zip_path)
+        .expect(&format!("Failed to copy {:?}", &gcda_zip_path));
+
+    check_equal_coveralls(&read_file(&path.join(PathBuf::from("expected_two_gcda_llvm.coveralls"))),
+                          &run_grcov(vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path], true, path, "coveralls"),
+                          false);
+
+    do_clean(path);
 }
