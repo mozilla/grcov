@@ -335,7 +335,7 @@ fn test_integration() {
 
             do_clean(path);
 
-            if !cfg!(windows) && !cfg!(target_os="macos") {
+            if !cfg!(windows) {
                 println!("GCC");
                 let gcc_version = get_version("gcc");
                 make(path, "g++");
