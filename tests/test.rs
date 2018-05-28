@@ -323,7 +323,7 @@ fn test_integration() {
         let entry = entry.unwrap();
         let path = entry.path();
 
-        if path == Path::new("tests/basic_llvm") {
+        if path == Path::new("tests/basic_zip") {
             continue;
         }
 
@@ -371,7 +371,7 @@ fn test_integration_zip() {
     }
 
     println!("\nLLVM");
-    let path = &PathBuf::from("tests/basic_llvm");
+    let path = &PathBuf::from("tests/basic_zip");
     let llvm_version = get_version("llvm-config");
     let clang_version = get_version("clang++");
     assert_eq!(llvm_version, clang_version, "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version", llvm_version, clang_version);
