@@ -117,7 +117,13 @@ fn run_grcov(paths: Vec<&Path>, llvm: bool, source_root: &Path, output_format: &
         args.push("--branch");
     }
 
-    let output = Command::new("./target/debug/grcov")
+    let cmd_path = if cfg!(windows) {
+        ".\\target\\debug\\grcov.exe"
+    } else {
+        "./target/debug/grcov"
+    };
+
+    let output = Command::new(cmd_path)
                          .args(args)
                          .output()
                          .expect("Failed to run grcov");
@@ -316,6 +322,11 @@ fn test_integration() {
     for entry in WalkDir::new("tests").min_depth(1) {
         let entry = entry.unwrap();
         let path = entry.path();
+
+        if path == Path::new("tests/basic_llvm") {
+            continue;
+        }
+
         if path.is_dir() {
             println!("\n\n{}", path.display());
 
@@ -360,7 +371,7 @@ fn test_integration_zip() {
     }
 
     println!("\nLLVM");
-    let path = &PathBuf::from("tests/basic");
+    let path = &PathBuf::from("tests/basic_llvm");
     let llvm_version = get_version("llvm-config");
     let clang_version = get_version("clang++");
     assert_eq!(llvm_version, clang_version, "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version", llvm_version, clang_version);
