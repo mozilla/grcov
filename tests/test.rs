@@ -117,8 +117,7 @@ fn run_grcov(paths: Vec<&Path>, llvm: bool, source_root: &Path, output_format: &
         args.push("--branch");
     }
 
-    let output = Command::new("cargo")
-                         .arg("run")
+    let output = Command::new("./target/debug/grcov")
                          .args(args)
                          .output()
                          .expect("Failed to run grcov");
