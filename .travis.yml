@@ -93,7 +93,7 @@ matrix:
         - COMPILER_VER=7
 install:
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew cask uninstall --force oclint; fi
-    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install gcc; fi
+    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install gcc@${COMPILER_VER}; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install llvm@4 && brew link --overwrite --force llvm@4; fi
     - mkdir -p symlinks
     - ln -s /usr/bin/clang-4.0 symlinks/clang
