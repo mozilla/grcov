@@ -370,45 +370,63 @@ fn test_integration_zip() {
         return;
     }
 
-    println!("\nLLVM");
-    let path = &PathBuf::from("tests/basic_zip");
-    let llvm_version = get_version("llvm-config");
-    let clang_version = get_version("clang++");
-    assert_eq!(llvm_version, clang_version, "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version", llvm_version, clang_version);
-    make(path, "clang++");
-    run(path);
+    let compilers = vec!["g++", "clang++"];
 
-    let gcno_zip_path = PathBuf::from("gcno.zip");
-    let gcda_zip_path = PathBuf::from("gcda.zip");
-    let gcda0_zip_path = PathBuf::from("gcda0.zip");
-    let gcda1_zip_path = PathBuf::from("gcda1.zip");
+    for compiler in compilers {
+        let is_llvm = compiler == "clang++";
+        let name = if is_llvm {
+            "llvm"
+        } else {
+            "gcc"
+        };
+        let path = &PathBuf::from("tests/basic_zip");
 
-    create_zip(&gcno_zip_path, path, "*.gcno");
-    create_zip(&gcda_zip_path, path, "*.gcda");
-    create_zip(&gcda0_zip_path, path, "");
+        println!("\n{}", name.to_uppercase());
+        let compiler_version = if is_llvm {
+            let llvm_version = get_version("llvm-config");
+            let clang_version = get_version("clang++");
+            assert_eq!(llvm_version, clang_version, "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version", llvm_version, clang_version);
+            clang_version
+        } else {
+            get_version("g++")
+        };
 
-    let gcno_zip_path = path.join(gcno_zip_path);
-    let gcda_zip_path = path.join(gcda_zip_path);
-    let gcda0_zip_path = path.join(gcda0_zip_path);
-    let gcda1_zip_path = path.join(gcda1_zip_path);
+        make(path, compiler);
+        run(path);
 
-    // no gcda
-    check_equal_coveralls(&read_file(&path.join(PathBuf::from("expected_no_gcda_llvm.coveralls"))),
-                          &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], true, path, "coveralls"),
-                          false);
+        let gcno_zip_path = PathBuf::from("gcno.zip");
+        let gcda_zip_path = PathBuf::from("gcda.zip");
+        let gcda0_zip_path = PathBuf::from("gcda0.zip");
+        let gcda1_zip_path = PathBuf::from("gcda1.zip");
 
-    // one gcda
-    check_equal_coveralls(&read_expected(path, "llvm", &llvm_version, "coveralls"),
-                          &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], true, path, "coveralls"),
-                          false);
+        create_zip(&gcno_zip_path, path, "*.gcno");
+        create_zip(&gcda_zip_path, path, "*.gcda");
+        create_zip(&gcda0_zip_path, path, "");
 
-    // two gcdas
-    std::fs::copy(&gcda_zip_path, &gcda1_zip_path)
-        .expect(&format!("Failed to copy {:?}", &gcda_zip_path));
+        let gcno_zip_path = path.join(gcno_zip_path);
+        let gcda_zip_path = path.join(gcda_zip_path);
+        let gcda0_zip_path = path.join(gcda0_zip_path);
+        let gcda1_zip_path = path.join(gcda1_zip_path);
 
-    check_equal_coveralls(&read_file(&path.join(PathBuf::from("expected_two_gcda_llvm.coveralls"))),
-                          &run_grcov(vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path], true, path, "coveralls"),
-                          false);
+        // no gcda
+        let path_expected = path.join(PathBuf::from(format!("expected_no_gcda_{}.coveralls", name)));
+        check_equal_coveralls(&read_file(&path_expected),
+                              &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], is_llvm, path, "coveralls"),
+                              false);
 
-    do_clean(path);
+        // one gcda
+        check_equal_coveralls(&read_expected(path, &name, &compiler_version, "coveralls"),
+                              &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], is_llvm, path, "coveralls"),
+                              false);
+
+        // two gcdas
+        std::fs::copy(&gcda_zip_path, &gcda1_zip_path)
+            .expect(&format!("Failed to copy {:?}", &gcda_zip_path));
+        let path_expected = path.join(PathBuf::from(format!("expected_two_gcda_{}.coveralls", name)));
+        check_equal_coveralls(&read_file(&path_expected),
+                              &run_grcov(vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path], is_llvm, path, "coveralls"),
+                              false);
+
+        do_clean(path);
+    }
 }
