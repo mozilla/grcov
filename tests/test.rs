@@ -271,9 +271,9 @@ fn get_compiler_major(version: &String) -> String {
     }
 }
 
-fn create_zip(zip_path: &Path, base_dir: &Path, files_pat: &str) {
+fn create_zip(zip_path: &Path, base_dir: &Path, files_glob: &str) {
     let mut glob_builder = GlobSetBuilder::new();
-    glob_builder.add(Glob::new(files_pat).unwrap());
+    glob_builder.add(Glob::new(files_glob).unwrap());
     let globset = glob_builder.build().unwrap();
     let mut files: Vec<PathBuf> = Vec::new();
     for entry in WalkDir::new(base_dir) {
@@ -379,19 +379,22 @@ fn test_integration_zip() {
     let gcda1_zip_path = path.join(gcda1_zip_path);
 
     // no gcda
-    check_equal_ade(&read_expected(path, "_no_gcda", "llvm", &llvm_version, "ade"),
-                    &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], true, &PathBuf::from(""), "ade"));
+    check_equal_coveralls(&read_expected(path, "_no_gcda", "llvm", &llvm_version, "coveralls"),
+                          &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], true, path, "coveralls"),
+                          false);
 
     // one gcda
-    check_equal_ade(&read_expected(path, "", "llvm", &llvm_version, "ade"),
-                    &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], true, &PathBuf::from(""), "ade"));
+    check_equal_coveralls(&read_expected(path, "", "llvm", &llvm_version, "coveralls"),
+                          &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], true, path, "coveralls"),
+                          false);
 
     // two gcdas
     std::fs::copy(&gcda_zip_path, &gcda1_zip_path)
         .expect(&format!("Failed to copy {:?}", &gcda_zip_path));
 
-    check_equal_ade(&read_expected(path, "_two_gcda", "llvm", &llvm_version, "ade"),
-                    &run_grcov(vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path], true, &PathBuf::from(""), "ade"));
+    check_equal_coveralls(&read_expected(path, "_two_gcda", "llvm", &llvm_version, "coveralls"),
+                          &run_grcov(vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path], true, path, "coveralls"),
+                          false);
 
     do_clean(path);
 }
