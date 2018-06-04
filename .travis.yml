@@ -14,27 +14,10 @@ matrix:
             - llvm-4.0-dev
             - clang-4.0
             - llvm-4.0
-            - gcc-4.9
-            - g++-4.9
+            - gcc-5
+            - g++-5
       env:
-        - COMPILER_VER=4.9
-
-    - os: linux
-      rust: nightly
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - sourceline: 'deb http://apt.llvm.org/precise/ llvm-toolchain-precise-4.0 main'
-              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
-          packages:
-            - llvm-4.0-dev
-            - clang-4.0
-            - llvm-4.0
-            - gcc-4.9
-            - g++-4.9
-      env:
-        - COMPILER_VER=4.9
+        - COMPILER_VER=5
 
     - os: linux
       rust: nightly
