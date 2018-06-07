@@ -38,6 +38,12 @@ pub fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, sour
     let prefix_dir = prefix_dir.to_owned();
 
     Box::new(result_map.into_iter().filter_map(move |(path, result)| {
+        let path = if path.starts_with(r"\\?\") {
+            path[r"\\?\".len()..].to_string()
+        } else {
+            path
+        };
+
         let path = PathBuf::from(path.replace("\\", "/"));
 
         // Get path from the mapping, or remove prefix from path.
