@@ -121,7 +121,7 @@ pub fn output_lcov(results: CovResultIter) {
         for (&(line, number), &taken) in &result.branches {
             writeln!(writer, "BRDA:{},0,{},{}", line, number, if taken { "1" } else { "-" }).unwrap();
             if taken {
-                branch_hit = branch_hit + 1;
+                branch_hit += 1;
             }
         }
         
