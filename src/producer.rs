@@ -120,14 +120,14 @@ fn zip_producer(tmp_dir: &Path, zip_files: &[&String], queue: &WorkQueue, ignore
                 let stem = path.file_stem().unwrap().to_str().unwrap();
 
                 let physical_gcno_path = path.with_file_name(format!("{}_{}.gcno", stem, 1));
-                let mut gcno_buf_opt: Option<Arc<Vec<u8>>> = None;
-                if is_llvm {
+                let mut gcno_buf_opt: Option<Arc<Vec<u8>>> = if is_llvm {
                     let mut buffer: Vec<u8> = Vec::new();
                     gcno_file.read_to_end(&mut buffer).expect("Failed to read gcno file");
-                    gcno_buf_opt = Some(Arc::new(buffer));
+                    Some(Arc::new(buffer))
                 } else {
                     extract_file(&mut gcno_file, &physical_gcno_path);
-                }
+                    None
+                };
 
                 let gcda_path_in_zip = gcno_path_in_zip.with_extension("gcda");
 
