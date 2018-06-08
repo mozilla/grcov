@@ -85,7 +85,7 @@ pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str, branch_enabled: 
     res
 }
 
-pub fn call_parse_llvm_gcno_buf(working_dir: &str, file_stem: &str, gcno: &Vec<u8>, gcda: &Vec<u8>, branch_enabled: bool) -> Vec<(String,CovResult)>  {
+pub fn call_parse_llvm_gcno_buf(working_dir: &str, file_stem: &str, gcno: &[u8], gcda: &[u8], branch_enabled: bool) -> Vec<(String,CovResult)>  {
     let working_dir_c = CString::new(working_dir).unwrap();
     let file_stem_c = CString::new(file_stem).unwrap();
     let gcno_buf_len = gcno.len();
