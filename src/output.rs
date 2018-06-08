@@ -103,36 +103,36 @@ pub fn output_lcov(results: CovResultIter) {
     for (_, rel_path, result) in results {
         // println!("{} {:?}", rel_path, result.lines);
 
-        write!(writer, "SF:{}\n", rel_path.display()).unwrap();
+        writeln!(writer, "SF:{}", rel_path.display()).unwrap();
 
         for (name, function) in &result.functions {
-            write!(writer, "FN:{},{}\n", function.start, name).unwrap();
+            writeln!(writer, "FN:{},{}", function.start, name).unwrap();
         }
         for (name, function) in &result.functions {
-            write!(writer, "FNDA:{},{}\n", if function.executed { 1 } else { 0 }, name).unwrap();
+            writeln!(writer, "FNDA:{},{}", if function.executed { 1 } else { 0 }, name).unwrap();
         }
         if !result.functions.is_empty() {
-            write!(writer, "FNF:{}\n", result.functions.len()).unwrap();
-            write!(writer, "FNH:{}\n", result.functions.values().filter(|x| x.executed).count()).unwrap();
+            writeln!(writer, "FNF:{}", result.functions.len()).unwrap();
+            writeln!(writer, "FNH:{}", result.functions.values().filter(|x| x.executed).count()).unwrap();
         }
         
         // branch coverage information
         let mut branch_hit = 0;
         for (&(line, number), &taken) in &result.branches {
-            write!(writer, "BRDA:{},{},{},{}\n", line, 0, number, if taken { "1" } else { "-" }).unwrap();
+            writeln!(writer, "BRDA:{},0,{},{}", line, number, if taken { "1" } else { "-" }).unwrap();
             if taken {
                 branch_hit = branch_hit + 1;
             }
         }
         
-        write!(writer, "BRF:{}\n", result.branches.len()).unwrap();
-        write!(writer, "BRH:{}\n", branch_hit).unwrap();
+        writeln!(writer, "BRF:{}", result.branches.len()).unwrap();
+        writeln!(writer, "BRH:{}", branch_hit).unwrap();
         
         for (line, execution_count) in &result.lines {
-            write!(writer, "DA:{},{}\n", line, execution_count).unwrap();
+            writeln!(writer, "DA:{},{}", line, execution_count).unwrap();
         }
-        write!(writer, "LF:{}\n", result.lines.len()).unwrap();
-        write!(writer, "LH:{}\n", result.lines.values().filter(|&v| *v > 0).count()).unwrap();
+        writeln!(writer, "LF:{}", result.lines.len()).unwrap();
+        writeln!(writer, "LH:{}", result.lines.values().filter(|&v| *v > 0).count()).unwrap();
         writer.write_all(b"end_of_record\n").unwrap();
     }
 }
@@ -227,6 +227,6 @@ pub fn output_files(results: CovResultIter) {
     let mut writer = BufWriter::new(stdout.lock());
 
     for (_, rel_path, _) in results {
-        write!(writer, "{}\n", rel_path.display()).unwrap();
+        writeln!(writer, "{}", rel_path.display()).unwrap();
     }
 }
