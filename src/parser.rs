@@ -119,17 +119,11 @@ pub fn call_parse_llvm_gcno_buf(working_dir: &str, file_stem: &str, gcno: &Vec<u
 }
 
 #[no_mangle]
-pub extern fn handleFileRust(hdl: *mut GCOVResult, filename: *const libc::c_char, len: libc::size_t) {
-    let res = unsafe {
-        &mut *hdl
-    };
-    let filename = unsafe {
-        str::from_utf8_unchecked(slice::from_raw_parts(filename as *const u8, len))
-    };
+pub unsafe extern fn handleFileRust(hdl: *mut GCOVResult, filename: *const libc::c_char, len: libc::size_t) {
+    let res = &mut *hdl;
+    let filename = str::from_utf8_unchecked(slice::from_raw_parts(filename as *const u8, len));
 
-    let mut results = unsafe {
-        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity)
-    };
+    let mut results = Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
     results.push((filename.to_string(), CovResult {
         lines: BTreeMap::new(),
         branches: BTreeMap::new(),
@@ -144,16 +138,10 @@ pub extern fn handleFileRust(hdl: *mut GCOVResult, filename: *const libc::c_char
 }
 
 #[no_mangle]
-pub extern fn handleFunctionRust(hdl: *mut GCOVResult, index: libc::uint32_t, entrycount: libc::uint64_t, funcname: *const libc::c_char, len: libc::size_t) {
-    let res = unsafe {
-        &mut *hdl
-    };
-    let funcname = unsafe {
-        str::from_utf8_unchecked(slice::from_raw_parts(funcname as *const u8, len))
-    };
-    let mut results = unsafe {
-        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity)
-    };
+pub unsafe extern fn handleFunctionRust(hdl: *mut GCOVResult, index: libc::uint32_t, entrycount: libc::uint64_t, funcname: *const libc::c_char, len: libc::size_t) {
+    let res = &mut *hdl;
+    let funcname = str::from_utf8_unchecked(slice::from_raw_parts(funcname as *const u8, len));
+    let mut results = Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
     match results.last_mut() {
         Some(r) => {
             r.1.functions.insert(funcname.to_string(), Function {
@@ -169,13 +157,9 @@ pub extern fn handleFunctionRust(hdl: *mut GCOVResult, index: libc::uint32_t, en
 }
 
 #[no_mangle]
-pub extern fn handleLcountRust(hdl: *mut GCOVResult, index: libc::uint32_t, linecount: libc::uint64_t) {
-    let res = unsafe {
-        &mut *hdl
-    };
-    let mut results = unsafe {
-        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity)
-    };
+pub unsafe extern fn handleLcountRust(hdl: *mut GCOVResult, index: libc::uint32_t, linecount: libc::uint64_t) {
+    let res = &mut *hdl;
+    let mut results = Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
     match results.last_mut() {
         Some(r) => {
             res.branch_number = 0;
@@ -189,13 +173,9 @@ pub extern fn handleLcountRust(hdl: *mut GCOVResult, index: libc::uint32_t, line
 }
 
 #[no_mangle]
-pub extern fn handleBranchRust(hdl: *mut GCOVResult, index: libc::uint32_t, taken: libc::uint8_t, _exec: libc::uint8_t) {
-    let res = unsafe {
-        &mut *hdl
-    };
-    let mut results = unsafe {
-        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity)
-    };
+pub unsafe extern fn handleBranchRust(hdl: *mut GCOVResult, index: libc::uint32_t, taken: libc::uint8_t, _exec: libc::uint8_t) {
+    let res = &mut *hdl;
+    let mut results = Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
     match results.last_mut() {
         Some(r) => {
             r.1.branches.insert((index, res.branch_number), taken != 0);
