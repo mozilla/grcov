@@ -105,10 +105,10 @@ pub fn call_parse_llvm_gcno_buf(working_dir: &str, file_stem: &str, gcno: &Vec<u
     };
 
     let res = unsafe {
-        let gcno_buf = CString::from_vec_unchecked(gcno.to_vec());
-        let gcda_buf = CString::from_vec_unchecked(gcda.to_vec());
+        let gcno_buf = gcno.as_ptr() as *const libc::c_char;
+        let gcda_buf = gcda.as_ptr() as *const libc::c_char;
 
-        parse_llvm_gcno_buf(&hdl, working_dir_c.as_ptr(), file_stem_c.as_ptr(), gcno_buf.as_ptr(), gcno_buf_len, gcda_buf.as_ptr(), gcda_buf_len, branch_enabled);
+        parse_llvm_gcno_buf(&hdl, working_dir_c.as_ptr(), file_stem_c.as_ptr(), gcno_buf, gcno_buf_len, gcda_buf, gcda_buf_len, branch_enabled);
         Vec::from_raw_parts(hdl.ptr as *mut (String,CovResult), hdl.len, hdl.capacity)
     };
 
