@@ -30,8 +30,8 @@ pub fn rewrite_paths(result_map: CovResultMap, path_mapping: Option<Value>, sour
     };
 
     let mut glob_builder = GlobSetBuilder::new();
-    for to_ignore_dir in &to_ignore_dirs {
-        glob_builder.add(Glob::new(to_ignore_dir).unwrap());
+    for to_ignore_dir in to_ignore_dirs {
+        glob_builder.add(Glob::new(&to_ignore_dir).unwrap());
     }
     let to_ignore_globset = glob_builder.build().unwrap();
 
