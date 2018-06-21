@@ -7,7 +7,7 @@ grcov collects and aggregates code coverage information for multiple source file
 
 ## Usage
 
-1. Download grcov from https://github.com/marco-c/grcov/releases.
+1. Download grcov from https://github.com/mozilla/grcov/releases.
 2. Run grcov:
 
 ```
