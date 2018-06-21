@@ -34,7 +34,7 @@ As the LCOV output is compatible with `lcov`, `genhtml` can be used to generate 
 genhtml -o report/ --show-details --highlight --ignore-errors source --legend lcov.info
 ```
 
-### Coveralls output
+### Coveralls/Codecov output
 
 ```sh
 grcov ~/Documenti/FD/mozilla-central/build -t coveralls -s ~/Documenti/FD/mozilla-central --token YOUR_COVERALLS_TOKEN > coveralls.json
