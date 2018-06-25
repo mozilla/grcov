@@ -148,13 +148,14 @@ impl Archive {
                 }
             },
             ArchiveType::Dir(ref dir) => {
+                // don't use a hard link here because it can fail when src and dst are not on the same device
                 let src_path = dir.join(name);
 
                 #[cfg(unix)]
-                os::unix::fs::symlink(&src_path, path).expect("Failed to create a symlink");
+                os::unix::fs::symlink(&src_path, path).expect(format!("Failed to create a symlink {:?} -> {:?}", src_path, path).as_str());
 
                 #[cfg(windows)]
-                os::windows::fs::symlink_file(&src_path, path).expect("Failed to create a symlink");
+                os::windows::fs::symlink_file(&src_path, path).expect(format!("Failed to create a symlink {:?} -> {:?}", src_path, path).as_str());
 
                 true
             },
