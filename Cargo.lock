@@ -96,7 +96,7 @@ dependencies = [
 
 [[package]]
 name = "grcov"
-version = "0.1.38"
+version = "0.1.39"
 dependencies = [
  "cc 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
