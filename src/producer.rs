@@ -164,14 +164,14 @@ impl Archive {
 }
 
 fn archive_producer(tmp_dir: &Path,
-                    gcno_stem_archives: RefCell<HashMap<String, &Archive>>,
-                    gcda_stem_archives: RefCell<HashMap<String, Vec<&Archive>>>,
+                    gcno_stem_archives: HashMap<String, &Archive>,
+                    gcda_stem_archives: HashMap<String, Vec<&Archive>>,
                     queue: &WorkQueue,
                     ignore_orphan_gcno: bool,
                     is_llvm: bool) {
 
-    for (stem, gcno_archive) in gcno_stem_archives.borrow().iter() {
-        match gcda_stem_archives.borrow().get(stem) {
+    for (stem, gcno_archive) in gcno_stem_archives.iter() {
+        match gcda_stem_archives.get(stem) {
             Some(gcda_archives) => {
                 let gcno_archive = *gcno_archive;
                 let gcno = format!("{}.gcno", stem).to_string();
@@ -255,8 +255,8 @@ fn archive_producer(tmp_dir: &Path,
     }
 }
 
-pub fn info_producer(infos: RefCell<HashMap<String, Vec<&Archive>>>, queue: &WorkQueue) {
-    for (name, archs) in infos.borrow().iter() {
+pub fn info_producer(infos: HashMap<String, Vec<&Archive>>, queue: &WorkQueue) {
+    for (name, archs) in infos.iter() {
         for arch in archs {
             let mut buffer = Vec::new();
             arch.read_in_buffer(name, &mut buffer);
@@ -269,9 +269,9 @@ pub fn info_producer(infos: RefCell<HashMap<String, Vec<&Archive>>>, queue: &Wor
     }
 }
 
-pub fn get_mapping(linkeds: RefCell<HashMap<String, &Archive>>) -> Option<Vec<u8>> {
+pub fn get_mapping(linkeds: HashMap<String, &Archive>) -> Option<Vec<u8>> {
     let mut mapping: Option<Vec<u8>> = None;
-    for (name, arch) in linkeds.borrow().iter() {
+    for (name, arch) in linkeds.iter() {
         let mut buffer = Vec::new();
         arch.read_in_buffer(name, &mut buffer);
         mapping = Some(buffer);
@@ -323,10 +323,10 @@ pub fn producer(tmp_dir: &Path, paths: &[String], queue: &WorkQueue, ignore_orph
         assert!(!infos.borrow().is_empty());
     }
 
-    info_producer(infos, queue);
-    archive_producer(tmp_dir, gcno_stems_archives, gcda_stems_archives, queue, ignore_orphan_gcno, is_llvm);
+    info_producer(infos.into_inner(), queue);
+    archive_producer(tmp_dir, gcno_stems_archives.into_inner(), gcda_stems_archives.into_inner(), queue, ignore_orphan_gcno, is_llvm);
 
-    get_mapping(linkeds)
+    get_mapping(linkeds.into_inner())
 }
 
 #[cfg(test)]
