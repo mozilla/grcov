@@ -37,6 +37,38 @@ impl Archive {
         }
     }
 
+    fn handle_file<'a>(&'a self, path: PathBuf,
+                       gcnos: &RefCell<HashMap<String, &'a Archive>>,
+                       gcdas: &RefCell<HashMap<String, Vec<&'a Archive>>>,
+                       infos: &RefCell<HashMap<String, Vec<&'a Archive>>>,
+                       linkeds: &RefCell<HashMap<String, &'a Archive>>) {
+        match path.extension() {
+            Some(ext) => match ext.to_str().unwrap() {
+                "gcno" => {
+                    let filename = path.with_extension("").to_str().unwrap().to_string();
+                    gcnos.borrow_mut().insert(filename, self);
+                }
+                "gcda" => {
+                    let filename = path.with_extension("").to_str().unwrap().to_string();
+                    self.insert_vec(filename, gcdas);
+                },
+                "info" => {
+                    let filename = path.to_str().unwrap().to_string();
+                    self.insert_vec(filename, infos);
+                },
+                "json" => {
+                    let filename = path.file_name().unwrap();
+                    if filename == "linked-files-map.json" {
+                        let filename = path.to_str().unwrap().to_string();
+                        linkeds.borrow_mut().insert(filename, self);
+                    }
+                },
+                _ => { },
+            },
+            None => { },
+        };
+    }
+
     pub fn get_name(&self) -> &String {
         &self.name
     }
@@ -51,30 +83,8 @@ impl Archive {
                 let mut zip = zip.borrow_mut();
                 for i in 0..zip.len() {
                     let filename = zip.by_index(i).unwrap();
-                    let filename = filename.name();
-                    let path = PathBuf::from(filename);
-                    match path.extension() {
-                        Some(ext) => match ext.to_str().unwrap() {
-                            "gcno" => {
-                                let filename = path.with_extension("").to_str().unwrap().to_string();
-                                gcnos.borrow_mut().insert(filename, self);
-                            }
-                            "gcda" => {
-                                let filename = path.with_extension("").to_str().unwrap().to_string();
-                                self.insert_vec(filename, gcdas);
-                            },
-                            "info" => {
-                                self.insert_vec(filename.to_string(), infos);
-                            },
-                            "json" => {
-                                if path.file_name().unwrap() == "linked-files-map.json" {
-                                    linkeds.borrow_mut().insert(filename.to_string(), self);
-                                }
-                            },
-                            _ => { },
-                        },
-                        None => { },
-                    };
+                    let path = PathBuf::from(filename.name());
+                    self.handle_file(path, gcnos, gcdas, infos, linkeds);
                 }
             },
             ArchiveType::Dir(ref dir) => {
@@ -83,29 +93,7 @@ impl Archive {
                     let path = entry.path();
                     if path.is_file() {
                         let path = path.strip_prefix(dir).unwrap();
-                        match path.extension() {
-                            Some(ext) => match ext.to_str().unwrap() {
-                                "gcno" => {
-                                    let filename = path.with_extension("").to_str().unwrap().to_string();
-                                    gcnos.borrow_mut().insert(filename, self);
-                                }
-                                "gcda" => {
-                                    let filename = path.with_extension("").to_str().unwrap().to_string();
-                                    self.insert_vec(filename, gcdas);
-                                },
-                                "info" => {
-                                    self.insert_vec(path.to_str().unwrap().to_string(), infos);
-;
-                                },
-                                "json" => {
-                                    if path.file_name().unwrap() == "linked-files-map.json" {
-                                        linkeds.borrow_mut().insert(path.to_str().unwrap().to_string(), self);
-                                    }
-                                },
-                                _ => { }
-                            },
-                            None => { }
-                        }
+                        self.handle_file(path.to_path_buf(), gcnos, gcdas, infos, linkeds);
                     }
                 }
             }
