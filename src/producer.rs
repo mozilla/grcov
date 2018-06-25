@@ -89,7 +89,7 @@ impl Archive {
             },
             ArchiveType::Dir(ref dir) => {
                 for entry in WalkDir::new(&dir) {
-                    let entry = entry.expect(format!("Failed to open directory '{:?}'.", dir).as_str());
+                    let entry = entry.expect(&format!("Failed to open directory '{:?}'.", dir));
                     let path = entry.path();
                     if path.is_file() {
                         let path = path.strip_prefix(dir).unwrap();
@@ -152,10 +152,10 @@ impl Archive {
                 let src_path = dir.join(name);
 
                 #[cfg(unix)]
-                os::unix::fs::symlink(&src_path, path).expect(format!("Failed to create a symlink {:?} -> {:?}", src_path, path).as_str());
+                os::unix::fs::symlink(&src_path, path).expect(&format!("Failed to create a symlink {:?} -> {:?}", src_path, path));
 
                 #[cfg(windows)]
-                os::windows::fs::symlink_file(&src_path, path).expect(format!("Failed to create a symlink {:?} -> {:?}", src_path, path).as_str());
+                os::windows::fs::symlink_file(&src_path, path).expect(&format!("Failed to create a symlink {:?} -> {:?}", src_path, path));
 
                 true
             },
@@ -208,7 +208,7 @@ fn archive_producer(tmp_dir: &Path,
                         None => {
                             // Create symlinks.
                             if num != 0 {
-                                fs::hard_link(&physical_gcno_path, &gcno_path).expect(format!("Failed to create hardlink {:?}", gcno_path).as_str());
+                                fs::hard_link(&physical_gcno_path, &gcno_path).expect(&format!("Failed to create hardlink {:?}", gcno_path));
                             }
 
                             let gcda_path = tmp_dir.join(format!("{}_{}.gcda", stem, num + 1));
@@ -281,8 +281,8 @@ pub fn get_mapping(linkeds: HashMap<String, &Archive>) -> Option<Vec<u8>> {
 }
 
 fn open_archive(path: &str) -> ZipArchive<File> {
-    let file = File::open(&path).expect(format!("Failed to open ZIP file '{}'.", path).as_str());
-    ZipArchive::new(file).expect(format!("Failed to parse ZIP file: {}", path).as_str())
+    let file = File::open(&path).expect(&format!("Failed to open ZIP file '{}'.", path));
+    ZipArchive::new(file).expect(&format!("Failed to parse ZIP file: {}", path))
 }
 
 pub fn producer(tmp_dir: &Path, paths: &[String], queue: &WorkQueue, ignore_orphan_gcno: bool, is_llvm: bool) -> Option<Vec<u8>> {
