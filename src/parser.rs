@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, btree_map, HashMap};
+use std::collections::{BTreeMap, btree_map, HashMap, hash_map};
 use std::path::{Path};
 use std::fs::File;
 use std::io::{self, Read, BufRead, BufReader};
@@ -6,6 +6,11 @@ use std::ffi::CString;
 use std::fmt;
 use std::mem;
 use std::{slice, str};
+use std::num::ParseIntError;
+
+use xml::reader::{EventReader, XmlEvent};
+use xml::attribute::OwnedAttribute;
+
 use libc;
 
 use defs::*;
@@ -20,6 +25,12 @@ pub enum ParserError {
 impl From<io::Error> for ParserError {
     fn from(err: io::Error) -> ParserError {
         ParserError::Io(err)
+    }
+}
+
+impl From<ParseIntError> for ParserError {
+    fn from(err: ParseIntError) -> ParserError {
+        ParserError::Parse(err.to_string())
     }
 }
 
@@ -407,6 +418,196 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String,CovResult)>, ParserErr
     Ok(results)
 }
 
+fn get_xml_attribute(attributes: &Vec<OwnedAttribute>, name: &str) -> Result<String, ParserError> {
+    for a in attributes {
+        if a.name.local_name.as_str() == name {
+            return Ok(String::from(a.value.clone()));
+        }
+    }
+    Err(ParserError::InvalidRecord(format!("Attribute {} not found", name)))
+}
+
+fn parse_jacoco_report_sourcefile<T: Read>(parser: &mut EventReader<T>) -> Result<(BTreeMap<u32,u64>, BTreeMap<(u32,u32),bool>), ParserError> {
+    let mut lines: BTreeMap<u32,u64> = BTreeMap::new();
+    let mut branches: BTreeMap<(u32,u32),bool> = BTreeMap::new();
+
+    loop {
+        match parser.next() {
+            Ok(XmlEvent::StartElement {ref name, ref attributes, .. }) if name.local_name.as_str() == "line"=> {
+                let ci = get_xml_attribute(attributes, "ci")?.parse::<u64>()?;
+                let cb = get_xml_attribute(attributes, "cb")?.parse::<u64>()?;
+                let mb = get_xml_attribute(attributes, "mb")?.parse::<u64>()?;
+                let nr = get_xml_attribute(attributes, "nr")?.parse::<u32>()?;
+
+                if mb > 0 || cb > 0 {
+                    // This line is a branch.
+                    for branch in 0..cb {
+                        branches.insert((nr, branch as u32), true);
+                    }
+
+                    for branch in cb..cb+mb{
+                        branches.insert((nr, branch as u32), false);
+                    }
+                } else {
+                    // This line is a statement.
+                    // JaCoCo does not feature execution counts, so we set the
+                    // count to 0 or 1.
+                    let hit = if ci > 0 { 1 } else { 0 };
+                    lines.insert(nr, hit );
+                }
+            }
+            Ok(XmlEvent::EndElement{ref name}) if name.local_name.as_str() == "sourcefile" => break,
+            Err(e) => {
+                return Err(ParserError::Parse(e.to_string()))
+            },
+            _ => {}
+        }
+    }
+
+    Ok((lines, branches))
+}
+
+fn parse_jacoco_report_method<T: Read>(parser: &mut EventReader<T>, start: u32) -> Result<Function, ParserError> {
+    let mut executed = false;
+
+    loop {
+        match parser.next() {
+            Ok(XmlEvent::StartElement {ref name, ref attributes, .. }) if name.local_name.as_str() == "counter" => {
+                if get_xml_attribute(attributes, "type")? == "METHOD" {
+                    executed = get_xml_attribute(attributes, "covered")?.parse::<u32>()? > 0;
+                }
+            },
+            Ok(XmlEvent::EndElement{ref name }) if name.local_name.as_str() == "method" => break,
+            Err(e) => {
+                return Err(ParserError::Parse(e.to_string()))
+            },
+            _ => {},
+        }
+    }
+
+    Ok(Function { start, executed })
+}
+
+fn parse_jacoco_report_class<T: Read>(parser: &mut EventReader<T>, class_name: &str) -> Result<HashMap<String,Function>, ParserError> {
+    let mut functions: HashMap<String, Function> = HashMap::new();
+
+    loop {
+        match parser.next() {
+            Ok(XmlEvent::StartElement {ref name, ref attributes, .. }) if name.local_name.as_str() == "method" => {
+                let name = get_xml_attribute(attributes, "name")?;
+                let full_name = format!("{}#{}", class_name, name);
+
+                let start_line = get_xml_attribute(attributes, "line")?.parse::<u32>()?;
+                let function = parse_jacoco_report_method(parser, start_line)?;
+                functions.insert(full_name, function);
+            },
+            Ok(XmlEvent::EndElement{ref name}) if name.local_name.as_str() == "class" => break,
+            Err(e) => return Err(ParserError::Parse(e.to_string())),
+            _ => {},
+        }
+    }
+
+    Ok(functions)
+}
+
+fn parse_jacoco_report_package<T: Read>(parser: &mut EventReader<T>, package: &str) -> Result<Vec<(String,CovResult)>, ParserError> {
+    let mut results_map: HashMap<String, CovResult> = HashMap::new();
+
+    loop {
+        match parser.next() {
+            Ok(XmlEvent::StartElement { ref name, ref attributes, .. }) => {
+                match name.local_name.as_str() {
+                    "class" => {
+                        // Fully qualified class name: "org/example/Person$Age"
+                        let fq_class = get_xml_attribute(attributes, "name")?;
+                        // Class name: "Person$Age"
+                        let class = fq_class.split('/').last().expect("Failed to parse class name");
+                        // Class name "Person"
+                        let top_class = class.clone().split("$").nth(0).expect("Failed to parse top class name");
+
+                        // Process all <method /> and <counter /> for this class
+                        let functions = parse_jacoco_report_class(parser, class)?;
+
+                        match results_map.entry(top_class.to_string()) {
+                            hash_map::Entry::Occupied(obj) => {
+                                obj.into_mut().functions.extend(functions);
+                            },
+                            hash_map::Entry::Vacant(v) => {
+                                v.insert(CovResult {
+                                    functions,
+                                    lines: BTreeMap::new(),
+                                    branches: BTreeMap::new(),
+                                });
+                            },
+                        };
+                    },
+                    "sourcefile" => {
+                        let sourcefile = get_xml_attribute(attributes, "name")?;
+                        let class = sourcefile.trim_right_matches(".java");
+                        let (lines, branches) = parse_jacoco_report_sourcefile(parser)?;
+
+                        match results_map.entry(class.to_string()) {
+                            hash_map::Entry::Occupied(obj) => {
+                                let obj = obj.into_mut();
+                                obj.lines = lines;
+                                obj.branches = branches;
+                            },
+                            hash_map::Entry::Vacant(v) => {
+                                v.insert(CovResult {
+                                    functions: HashMap::new(),
+                                    lines,
+                                    branches,
+                                });
+                            },
+                        };
+                    },
+                    &_ => {},
+                }
+            },
+            Ok(XmlEvent::EndElement{ref name}) if name.local_name.as_str() == "package" => break,
+            Err(e) => return Err(ParserError::Parse(e.to_string())),
+            _ => {},
+        }
+    }
+
+    for (class, result) in &results_map {
+        if result.lines.is_empty() && result.branches.is_empty() {
+            panic!("Class {}/{} is not the top class in its file.", package, class);
+        }
+    }
+
+    // Change all keys from the class name to the file name and turn the result into a Vec.
+    // If package is the empty string, we have to trim the leading '/' in order to obtain a
+    // relative path.
+    Ok(
+        results_map.into_iter().map(
+            |(class, result)| (format!("{}/{}.java", package, class).trim_left_matches('/').to_string(), result)
+        ).collect()
+    )
+}
+
+pub fn parse_jacoco_xml_report<T: Read>(xml_reader: BufReader<T>) -> Result<Vec<(String,CovResult)>, ParserError> {
+    let mut parser = EventReader::new(xml_reader);
+    let mut results = Vec::new();
+
+    loop {
+        match parser.next() {
+            Ok(XmlEvent::StartElement {ref name, ref attributes, .. }) if name.local_name.as_str() == "package" => {
+                let package = get_xml_attribute(attributes, "name").unwrap();
+                let mut package_results = parse_jacoco_report_package(&mut parser, &package)?;
+                results.append(&mut package_results);
+            },
+            Ok(XmlEvent::EndDocument) => break,
+            Err(e) => {
+                return Err(ParserError::Parse(e.to_string()))
+            },
+            _ => {}
+        }
+    }
+
+    Ok(results)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -647,5 +848,92 @@ mod tests {
         })];
         let result = call_parse_llvm_gcno("test/llvm", "test/llvm/file", true);
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_parser_jacoco_xml_basic() {
+        let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
+        lines.insert(1, 0);
+        lines.insert(4, 1);
+        lines.insert(6, 1);
+        let mut functions: HashMap<String, Function> = HashMap::new();
+        functions.insert(String::from("hello#<init>"), Function {
+            executed: false,
+            start: 1,
+        });
+        functions.insert(String::from("hello#main"), Function {
+            executed: true,
+            start: 3,
+        });
+        let mut branches: BTreeMap<(u32,u32),bool> = BTreeMap::new();
+        branches.insert((3, 0), true);
+        branches.insert((3, 1), true);
+        let expected = vec![(String::from("hello.java"), CovResult {
+            lines: lines,
+            branches: branches,
+            functions: functions,
+        })];
+
+        let f = File::open("./test/jacoco/basic-report.xml").expect("Failed to open xml file");
+        let file = BufReader::new(&f);
+        let results = parse_jacoco_xml_report(file).unwrap();
+
+        assert_eq!(results, expected);
+    }
+
+    #[test]
+    fn test_parser_jacoco_xml_inner_classes() {
+        let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
+        for i in vec![5, 10, 14, 15, 18, 22, 23, 25, 27, 31, 34, 37, 44, 49] {
+            lines.insert(i, 0);
+        }
+        let mut functions: HashMap<String, Function> = HashMap::new();
+
+
+        for (name, start, executed) in vec![
+            ("Person$InnerClassForPerson#getSomethingElse", 31, false),
+            ("Person#getSurname", 10, false),
+            ("Person$InnerClassForPerson#<init>", 25, false),
+            ("Person#setSurname", 14, false),
+            ("Person#getAge", 18, false),
+            ("Person$InnerClassForPerson$InnerInnerClass#<init>", 34, false),
+            ("Person$InnerClassForPerson#getSomething", 27, false),
+            ("Person#<init>", 5, false),
+            ("Person$InnerClassForPerson$InnerInnerClass#everything", 37, false),
+            ("Person#setAge", 22, false),
+        ] {
+            functions.insert(String::from(name), Function {
+                executed,
+                start,
+            });
+        }
+        let branches: BTreeMap<(u32,u32),bool> = BTreeMap::new();
+        let expected = vec![(String::from("org/gradle/Person.java"), CovResult {
+            lines: lines,
+            branches: branches,
+            functions: functions,
+        })];
+
+        let f = File::open("./test/jacoco/inner-classes.xml").expect("Failed to open xml file");
+        let file = BufReader::new(&f);
+        let results = parse_jacoco_xml_report(file).unwrap();
+
+        assert_eq!(results, expected);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_parser_jacoco_xml_non_top_level_classes_panics() {
+        let f = File::open("./test/jacoco/multiple-top-level-classes.xml").expect("Failed to open xml file");
+        let file = BufReader::new(&f);
+        let _results = parse_jacoco_xml_report(file).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_parser_jacoco_xml_full_report_with_non_top_level_classes_panics() {
+        let f = File::open("./test/jacoco/full-junit4-report-multiple-top-level-classes.xml").expect("Failed to open xml file");
+        let file = BufReader::new(&f);
+        let _results = parse_jacoco_xml_report(file).unwrap();
     }
 }
