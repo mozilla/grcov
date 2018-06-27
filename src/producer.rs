@@ -17,10 +17,21 @@ pub enum ArchiveType {
     Dir(PathBuf),
 }
 
+pub enum FilePath<'a> {
+    File(&'a mut Read),
+    Path(&'a Path),
+}
+
 #[derive(Debug)]
 pub struct Archive {
     pub name: String,
     pub item: RefCell<ArchiveType>,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct GCNOStem {
+    pub stem: String,
+    pub llvm: bool,
 }
 
 impl Archive {
@@ -36,16 +47,33 @@ impl Archive {
         }
     }
 
-    fn handle_file<'a>(&'a self, path: PathBuf,
-                       gcno_stem_archives: &RefCell<HashMap<String, &'a Archive>>,
+    fn handle_file<'a>(&'a self, file: FilePath, path: PathBuf,
+                       gcno_stem_archives: &RefCell<HashMap<GCNOStem, &'a Archive>>,
                        gcda_stem_archives: &RefCell<HashMap<String, Vec<&'a Archive>>>,
                        infos: &RefCell<HashMap<String, Vec<&'a Archive>>>,
-                       linked_files_maps: &RefCell<HashMap<String, &'a Archive>>) {
+                       linked_files_maps: &RefCell<HashMap<String, &'a Archive>>,
+                       is_llvm: bool) {
         match path.extension() {
             Some(ext) => match ext.to_str().unwrap() {
                 "gcno" => {
+                    let llvm = is_llvm || match file {
+                        FilePath::File(reader) => {
+                            Archive::is_gcno_llvm(reader)
+                        },
+                        FilePath::Path(path) => {
+                            match File::open(path) {
+                                Ok(mut f) => {
+                                    Archive::is_gcno_llvm(&mut f)
+                                },
+                                Err(_) => false,
+                            }
+                        }
+                    };
                     let filename = path.with_extension("").to_str().unwrap().to_string();
-                    gcno_stem_archives.borrow_mut().insert(filename, self);
+                    gcno_stem_archives.borrow_mut().insert(GCNOStem {
+                        stem: filename,
+                        llvm: llvm,
+                    }, self);
                 }
                 "gcda" => {
                     let filename = path.with_extension("").to_str().unwrap().to_string();
@@ -65,7 +93,19 @@ impl Archive {
                 _ => { },
             },
             None => { },
-        };
+        }
+    }
+
+    fn is_gcno_llvm(reader: &mut Read) -> bool {
+        let mut bytes: [u8; 8] = [0; 8];
+        reader.read_exact(&mut bytes).is_ok() && bytes == ['o' as u8,
+                                                           'n' as u8,
+                                                           'c' as u8,
+                                                           'g' as u8,
+                                                           '*' as u8,
+                                                           '2' as u8,
+                                                           '0' as u8,
+                                                           '4' as u8]
     }
 
     pub fn get_name(&self) -> &String {
@@ -73,26 +113,27 @@ impl Archive {
     }
 
     pub fn explore<'a>(&'a mut self,
-                       gcno_stem_archives: &RefCell<HashMap<String, &'a Archive>>,
+                       gcno_stem_archives: &RefCell<HashMap<GCNOStem, &'a Archive>>,
                        gcda_stem_archives: &RefCell<HashMap<String, Vec<&'a Archive>>>,
                        infos: &RefCell<HashMap<String, Vec<&'a Archive>>>,
-                       linked_files_maps: &RefCell<HashMap<String, &'a Archive>>) {
+                       linked_files_maps: &RefCell<HashMap<String, &'a Archive>>,
+                       is_llvm: bool) {
         match *self.item.borrow() {
             ArchiveType::Zip(ref zip) => {
                 let mut zip = zip.borrow_mut();
                 for i in 0..zip.len() {
-                    let filename = zip.by_index(i).unwrap();
-                    let path = PathBuf::from(filename.name());
-                    self.handle_file(path, gcno_stem_archives, gcda_stem_archives, infos, linked_files_maps);
+                    let mut file = zip.by_index(i).unwrap();
+                    let path = PathBuf::from(file.name());
+                    self.handle_file(FilePath::File(&mut file), path, gcno_stem_archives, gcda_stem_archives, infos, linked_files_maps, is_llvm);
                 }
             },
             ArchiveType::Dir(ref dir) => {
                 for entry in WalkDir::new(&dir) {
                     let entry = entry.expect(&format!("Failed to open directory '{:?}'.", dir));
-                    let path = entry.path();
-                    if path.is_file() {
-                        let path = path.strip_prefix(dir).unwrap();
-                        self.handle_file(path.to_path_buf(), gcno_stem_archives, gcda_stem_archives, infos, linked_files_maps);
+                    let full_path = entry.path();
+                    if full_path.is_file() {
+                        let path = full_path.strip_prefix(dir).unwrap();
+                        self.handle_file(FilePath::Path(full_path), path.to_path_buf(), gcno_stem_archives, gcda_stem_archives, infos, linked_files_maps, is_llvm);
                     }
                 }
             }
@@ -163,24 +204,24 @@ impl Archive {
 }
 
 fn gcno_gcda_producer(tmp_dir: &Path,
-                      gcno_stem_archives: HashMap<String, &Archive>,
+                      gcno_stem_archives: HashMap<GCNOStem, &Archive>,
                       gcda_stem_archives: HashMap<String, Vec<&Archive>>,
                       queue: &WorkQueue,
-                      ignore_orphan_gcno: bool,
-                      is_llvm: bool) {
+                      ignore_orphan_gcno: bool) {
     let push_to_queue  = |item, name| queue.push(Some(WorkItem {
         format: ItemFormat::GCNO,
         item: item,
         name: name,
     }));;
 
-    for (stem, gcno_archive) in gcno_stem_archives.iter() {
+    for (gcno_stem, gcno_archive) in gcno_stem_archives.iter() {
+        let stem = &gcno_stem.stem;
         match gcda_stem_archives.get(stem) {
             Some(gcda_archives) => {
                 let gcno_archive = *gcno_archive;
                 let gcno = format!("{}.gcno", stem).to_string();
                 let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
-                let mut gcno_buf_opt: Option<Arc<Vec<u8>>> = if is_llvm {
+                let mut gcno_buf_opt: Option<Arc<Vec<u8>>> = if gcno_stem.llvm {
                     let mut buffer: Vec<u8> = Vec::new();
                     gcno_archive.read_in_buffer(&gcno, &mut buffer);
                     Some(Arc::new(buffer))
@@ -226,7 +267,7 @@ fn gcno_gcda_producer(tmp_dir: &Path,
                 if !ignore_orphan_gcno {
                     let gcno_archive = *gcno_archive;
                     let gcno = format!("{}.gcno", stem).to_string();
-                    if is_llvm {
+                    if gcno_stem.llvm {
                         let mut buffer: Vec<u8> = Vec::new();
                         gcno_archive.read_in_buffer(&gcno, &mut buffer);
 
@@ -302,13 +343,13 @@ pub fn producer(tmp_dir: &Path, paths: &[String], queue: &WorkQueue, ignore_orph
         }
     }
 
-    let gcno_stems_archives: RefCell<HashMap<String, &Archive>> = RefCell::new(HashMap::new());
+    let gcno_stems_archives: RefCell<HashMap<GCNOStem, &Archive>> = RefCell::new(HashMap::new());
     let gcda_stems_archives: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::new());
     let infos: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::new());
     let linked_files_maps: RefCell<HashMap<String, &Archive>> = RefCell::new(HashMap::new());
 
     for archive in archives.iter_mut() {
-        archive.explore(&gcno_stems_archives, &gcda_stems_archives, &infos, &linked_files_maps);
+        archive.explore(&gcno_stems_archives, &gcda_stems_archives, &infos, &linked_files_maps, is_llvm);
     }
 
     if gcno_stems_archives.borrow().is_empty() {
@@ -316,7 +357,7 @@ pub fn producer(tmp_dir: &Path, paths: &[String], queue: &WorkQueue, ignore_orph
     }
 
     info_producer(infos.into_inner(), queue);
-    gcno_gcda_producer(tmp_dir, gcno_stems_archives.into_inner(), gcda_stems_archives.into_inner(), queue, ignore_orphan_gcno, is_llvm);
+    gcno_gcda_producer(tmp_dir, gcno_stems_archives.into_inner(), gcda_stems_archives.into_inner(), queue, ignore_orphan_gcno);
 
     get_mapping(linked_files_maps.into_inner())
 }
@@ -359,8 +400,8 @@ mod tests {
                     ItemType::Path(ref p) => {
                         elem.1 && p.ends_with(elem.2)
                     },
-                    ItemType::Buffers(_) => {
-                        false
+                    ItemType::Buffers(ref b) => {
+                        b.stem.ends_with(elem.2)
                     },
                 }
             }), "Missing {:?}", elem);
@@ -380,8 +421,8 @@ mod tests {
                     ItemType::Path(ref p) => {
                         x.1 && p.ends_with(x.2)
                     },
-                    ItemType::Buffers(_) => {
-                        true
+                    ItemType::Buffers(ref b) => {
+                        b.stem.ends_with(x.2)
                     },
                 }
             }), "Unexpected {:?}", v);
@@ -433,14 +474,14 @@ mod tests {
             (ItemFormat::GCNO, true, "only_one_gcda/orphan_1.gcno", false),
             (ItemFormat::GCNO, true, "gcno_symlink/gcda/main_1.gcno", true),
             (ItemFormat::GCNO, true, "gcno_symlink/gcno/main_1.gcno", false),
-            (ItemFormat::GCNO, true, "rust/generics_with_two_parameters_1.gcno", true),
+            (ItemFormat::GCNO, false, "rust/generics_with_two_parameters_1", true),
             (ItemFormat::INFO, false, "1494603973-2977-7.info", false),
             (ItemFormat::INFO, false, "prova.info", false),
             (ItemFormat::INFO, false, "prova_fn_with_commas.info", false),
             (ItemFormat::INFO, false, "empty_line.info", false),
             (ItemFormat::INFO, false, "invalid_DA_record.info", false),
             (ItemFormat::INFO, false, "relative_path/relative_path.info", false),
-            (ItemFormat::GCNO, true, "llvm/file_1.gcno", true),
+            (ItemFormat::GCNO, false, "llvm/file_1", true),
         ];
 
         check_produced(tmp_path, &queue, expected);
