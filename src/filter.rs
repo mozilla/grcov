@@ -3,11 +3,17 @@ use defs::*;
 pub fn is_covered(result: &CovResult) -> bool {
     // For C/C++ source files, we can consider a file as being uncovered
     // when all its source lines are uncovered.
-    let any_line_covered = result.lines.values().any(|&execution_count| execution_count != 0);
+    let any_line_covered = result
+        .lines
+        .values()
+        .any(|&execution_count| execution_count != 0);
     // For JavaScript files, we can't do the same, as the top-level is always
     // executed, even if it just contains declarations. So, we need to check if
     // all its functions, except the top-level, are uncovered.
-    let any_function_covered = result.functions.iter().any(|(name, ref function)| function.executed && name != "top-level");
+    let any_function_covered = result
+        .functions
+        .iter()
+        .any(|(name, ref function)| function.executed && name != "top-level");
     any_line_covered && (result.functions.len() <= 1 || any_function_covered)
 }
 
@@ -18,17 +24,23 @@ mod tests {
 
     #[test]
     fn test_covered() {
-        let mut functions: HashMap<String,Function> = HashMap::new();
-        functions.insert("f1".to_string(), Function {
-            start: 1,
-            executed: true,
-        });
-        functions.insert("f2".to_string(), Function {
-            start: 2,
-            executed: false,
-        });
+        let mut functions: HashMap<String, Function> = HashMap::new();
+        functions.insert(
+            "f1".to_string(),
+            Function {
+                start: 1,
+                executed: true,
+            },
+        );
+        functions.insert(
+            "f2".to_string(),
+            Function {
+                start: 2,
+                executed: false,
+            },
+        );
         let result = CovResult {
-            lines: [(1, 21),(2, 7),(7, 0)].iter().cloned().collect(),
+            lines: [(1, 21), (2, 7), (7, 0)].iter().cloned().collect(),
             branches: [].iter().cloned().collect(),
             functions: functions,
         };
@@ -39,7 +51,7 @@ mod tests {
     #[test]
     fn test_covered_no_functions() {
         let result = CovResult {
-            lines: [(1, 21),(2, 7),(7, 0)].iter().cloned().collect(),
+            lines: [(1, 21), (2, 7), (7, 0)].iter().cloned().collect(),
             branches: [].iter().cloned().collect(),
             functions: HashMap::new(),
         };
@@ -49,17 +61,23 @@ mod tests {
 
     #[test]
     fn test_uncovered_no_lines_executed() {
-        let mut functions: HashMap<String,Function> = HashMap::new();
-        functions.insert("f1".to_string(), Function {
-            start: 1,
-            executed: true,
-        });
-        functions.insert("f2".to_string(), Function {
-            start: 2,
-            executed: false,
-        });
+        let mut functions: HashMap<String, Function> = HashMap::new();
+        functions.insert(
+            "f1".to_string(),
+            Function {
+                start: 1,
+                executed: true,
+            },
+        );
+        functions.insert(
+            "f2".to_string(),
+            Function {
+                start: 2,
+                executed: false,
+            },
+        );
         let result = CovResult {
-            lines: [(1, 0),(2, 0),(7, 0)].iter().cloned().collect(),
+            lines: [(1, 0), (2, 0), (7, 0)].iter().cloned().collect(),
             branches: [].iter().cloned().collect(),
             functions: HashMap::new(),
         };
@@ -69,17 +87,23 @@ mod tests {
 
     #[test]
     fn test_covered_functions_executed() {
-        let mut functions: HashMap<String,Function> = HashMap::new();
-        functions.insert("top-level".to_string(), Function {
-            start: 1,
-            executed: true,
-        });
-        functions.insert("f".to_string(), Function {
-            start: 2,
-            executed: true,
-        });
+        let mut functions: HashMap<String, Function> = HashMap::new();
+        functions.insert(
+            "top-level".to_string(),
+            Function {
+                start: 1,
+                executed: true,
+            },
+        );
+        functions.insert(
+            "f".to_string(),
+            Function {
+                start: 2,
+                executed: true,
+            },
+        );
         let result = CovResult {
-            lines: [(1, 21),(2, 7),(7, 0)].iter().cloned().collect(),
+            lines: [(1, 21), (2, 7), (7, 0)].iter().cloned().collect(),
             branches: [].iter().cloned().collect(),
             functions: functions,
         };
@@ -89,13 +113,16 @@ mod tests {
 
     #[test]
     fn test_covered_toplevel_executed() {
-        let mut functions: HashMap<String,Function> = HashMap::new();
-        functions.insert("top-level".to_string(), Function {
-            start: 1,
-            executed: true,
-        });
+        let mut functions: HashMap<String, Function> = HashMap::new();
+        functions.insert(
+            "top-level".to_string(),
+            Function {
+                start: 1,
+                executed: true,
+            },
+        );
         let result = CovResult {
-            lines: [(1, 21),(2, 7),(7, 0)].iter().cloned().collect(),
+            lines: [(1, 21), (2, 7), (7, 0)].iter().cloned().collect(),
             branches: [].iter().cloned().collect(),
             functions: functions,
         };
@@ -105,17 +132,23 @@ mod tests {
 
     #[test]
     fn test_uncovered_functions_not_executed() {
-        let mut functions: HashMap<String,Function> = HashMap::new();
-        functions.insert("top-level".to_string(), Function {
-            start: 1,
-            executed: true,
-        });
-        functions.insert("f".to_string(), Function {
-            start: 7,
-            executed: false,
-        });
+        let mut functions: HashMap<String, Function> = HashMap::new();
+        functions.insert(
+            "top-level".to_string(),
+            Function {
+                start: 1,
+                executed: true,
+            },
+        );
+        functions.insert(
+            "f".to_string(),
+            Function {
+                start: 7,
+                executed: false,
+            },
+        );
         let result = CovResult {
-            lines: [(1, 21),(2, 7),(7, 0)].iter().cloned().collect(),
+            lines: [(1, 21), (2, 7), (7, 0)].iter().cloned().collect(),
             branches: [].iter().cloned().collect(),
             functions: functions,
         };
