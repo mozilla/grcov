@@ -63,24 +63,7 @@ impl Archive {
                         FilePath::Path(path) => {
                             match File::open(path) {
                                 Ok(mut f) => {
-                                    if path.ends_with("generics_with_two_parameters.gcno") {
-                                        let mut bytes: [u8; 8] = [0; 8];
-                                        if f.read_exact(&mut bytes).is_ok() {
-                                            eprintln!("path {:?}, first bytes: {:?}", path, bytes);
-                                        } else {
-                                            eprintln!("path {:?}, cannot read the file", path);
-                                        }
-                                        bytes == ['o' as u8,
-                                                  'n' as u8,
-                                                  'c' as u8,
-                                                  'g' as u8,
-                                                  '*' as u8,
-                                                  '2' as u8,
-                                                  '0' as u8,
-                                                  '4' as u8]
-                                    } else {
-                                        Archive::is_gcno_llvm(&mut f)
-                                    }
+                                    Archive::is_gcno_llvm(&mut f)
                                 },
                                 Err(_) => false,
                             }
@@ -418,7 +401,7 @@ mod tests {
                         elem.1 && p.ends_with(elem.2)
                     },
                     ItemType::Buffers(ref b) => {
-                        b.stem.ends_with(elem.2)
+                        b.stem.replace("\\", "/").ends_with(elem.2)
                     },
                 }
             }), "Missing {:?}", elem);
@@ -439,7 +422,7 @@ mod tests {
                         x.1 && p.ends_with(x.2)
                     },
                     ItemType::Buffers(ref b) => {
-                        b.stem.ends_with(x.2)
+                        b.stem.replace("\\", "/").ends_with(x.2)
                     },
                 }
             }), "Unexpected {:?}", v);
