@@ -12,6 +12,7 @@ extern crate tempdir;
 extern crate libc;
 extern crate uuid;
 extern crate globset;
+extern crate xml;
 
 mod defs;
 pub use defs::*;
