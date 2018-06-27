@@ -1,0 +1,4 @@
+*.out
+*.zip
+*.gcda
+*.gcno
