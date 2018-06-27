@@ -453,7 +453,7 @@ fn parse_jacoco_report_sourcefile<T: Read>(parser: &mut EventReader<T>) -> Resul
                     // JaCoCo does not feature execution counts, so we set the
                     // count to 0 or 1.
                     let hit = if ci > 0 { 1 } else { 0 };
-                    lines.insert(nr, hit );
+                    lines.insert(nr, hit);
                 }
             }
             Ok(XmlEvent::EndElement{ref name}) if name.local_name.as_str() == "sourcefile" => break,
@@ -593,7 +593,7 @@ pub fn parse_jacoco_xml_report<T: Read>(xml_reader: BufReader<T>) -> Result<Vec<
     loop {
         match parser.next() {
             Ok(XmlEvent::StartElement {ref name, ref attributes, .. }) if name.local_name.as_str() == "package" => {
-                let package = get_xml_attribute(attributes, "name").unwrap();
+                let package = get_xml_attribute(attributes, "name")?;
                 let mut package_results = parse_jacoco_report_package(&mut parser, &package)?;
                 results.append(&mut package_results);
             },
