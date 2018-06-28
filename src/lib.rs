@@ -224,6 +224,20 @@ pub fn consumer(
                     panic!("Invalid content type");
                 }
             },
+            ItemFormat::JACOCO_XML => match work_item.item {
+                ItemType::Path(xml_path) => {
+                    let f = File::open(&xml_path).expect("Failed to open lcov file");
+                    let file = BufReader::new(&f);
+                    try_parse!(parse_jacoco_xml_report(file), work_item.name)
+                }
+                ItemType::Content(xml_content) => {
+                    let buffer = BufReader::new(Cursor::new(xml_content));
+                    try_parse!(parse_jacoco_xml_report(buffer), work_item.name)
+                }
+                ItemType::Buffers(_) => {
+                    panic!("Invalid content type");
+                }
+            },
         };
 
         add_results(new_results, result_map, source_dir);

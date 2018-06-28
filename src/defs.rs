@@ -26,10 +26,12 @@ pub struct GCOVResult {
     pub branch_number: libc::uint32_t,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
+#[allow(non_camel_case_types)]
 pub enum ItemFormat {
     GCNO,
     INFO,
+    JACOCO_XML,
 }
 
 #[derive(Debug)]
