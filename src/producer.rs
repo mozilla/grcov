@@ -621,7 +621,7 @@ mod tests {
             (
                 ItemFormat::JACOCO_XML,
                 false,
-                "jacoco/full-junit4-report-multiple-top-level-classes.xml.xml",
+                "jacoco/full-junit4-report-multiple-top-level-classes.xml",
                 false,
             ),
         ];
@@ -960,7 +960,7 @@ mod tests {
 
     // Test extracting jacoco report XML files.
     #[test]
-    fn test_zip_producer_jacoco_xml_files_files() {
+    fn test_zip_producer_jacoco_xml_files() {
         let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
 
         let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
