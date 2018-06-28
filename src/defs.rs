@@ -1,20 +1,20 @@
+use crossbeam::sync::MsQueue;
+use libc;
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use crossbeam::sync::MsQueue;
-use libc;
 
-#[derive(Debug,Clone,PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Function {
     pub start: u32,
     pub executed: bool,
 }
 
-#[derive(Debug,Clone,PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CovResult {
-    pub lines: BTreeMap<u32,u64>,
-    pub branches: BTreeMap<(u32,u32),bool>,
-    pub functions: HashMap<String,Function>,
+    pub lines: BTreeMap<u32, u64>,
+    pub branches: BTreeMap<(u32, u32), bool>,
+    pub functions: HashMap<String, Function>,
 }
 
 #[derive(Debug)]
@@ -26,7 +26,7 @@ pub struct GCOVResult {
     pub branch_number: libc::uint32_t,
 }
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum ItemFormat {
     GCNO,
     INFO,
@@ -55,6 +55,6 @@ pub struct WorkItem {
 
 pub type WorkQueue = MsQueue<Option<WorkItem>>;
 
-pub type CovResultMap = HashMap<String,CovResult>;
+pub type CovResultMap = HashMap<String, CovResult>;
 pub type SyncCovResultMap = Mutex<CovResultMap>;
-pub type CovResultIter = Box<Iterator<Item=(PathBuf,PathBuf,CovResult)>>;
+pub type CovResultIter = Box<Iterator<Item = (PathBuf, PathBuf, CovResult)>>;

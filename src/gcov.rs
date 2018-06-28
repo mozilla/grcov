@@ -1,6 +1,6 @@
+use semver::Version;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use semver::Version;
 
 /*
 #[link(name = "gcov")]
@@ -50,9 +50,12 @@ pub fn run_gcov(gcno_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf
         status.spawn()
               .expect("Failed to execute gcov process");
     } else {*/
-        let status = status.status()
-                           .expect("Failed to execute gcov process");
-        assert!(status.success(), "gcov wasn't successfully executed on {}", gcno_path.display());
+    let status = status.status().expect("Failed to execute gcov process");
+    assert!(
+        status.success(),
+        "gcov wasn't successfully executed on {}",
+        gcno_path.display()
+    );
     //}
 }
 
@@ -61,8 +64,8 @@ fn is_recent_version(gcov_output: &str) -> bool {
         major: 4,
         minor: 9,
         patch: 0,
-        pre: vec!(),
-        build: vec!(),
+        pre: vec![],
+        build: vec![],
     };
 
     gcov_output.split(' ').all(|value| {
@@ -76,9 +79,9 @@ fn is_recent_version(gcov_output: &str) -> bool {
 
 pub fn check_gcov_version() -> bool {
     let output = Command::new("gcov")
-                         .arg("--version")
-                         .output()
-                         .expect("Failed to execute `gcov`. `gcov` is required (it is part of GCC).");
+        .arg("--version")
+        .output()
+        .expect("Failed to execute `gcov`. `gcov` is required (it is part of GCC).");
 
     assert!(output.status.success(), "`gcov` failed to execute.");
 
@@ -91,15 +94,21 @@ mod tests {
 
     #[test]
     fn test_is_recent_version() {
-        assert!(!is_recent_version("gcov (Ubuntu 4.3.0-12ubuntu2) 4.3.0 20170406"));
-        assert!(is_recent_version("gcov (Ubuntu 4.9.0-12ubuntu2) 4.9.0 20170406"));
-        assert!(is_recent_version("gcov (Ubuntu 6.3.0-12ubuntu2) 6.3.0 20170406"));
+        assert!(!is_recent_version(
+            "gcov (Ubuntu 4.3.0-12ubuntu2) 4.3.0 20170406"
+        ));
+        assert!(is_recent_version(
+            "gcov (Ubuntu 4.9.0-12ubuntu2) 4.9.0 20170406"
+        ));
+        assert!(is_recent_version(
+            "gcov (Ubuntu 6.3.0-12ubuntu2) 6.3.0 20170406"
+        ));
     }
 
     #[cfg(unix)]
     #[test]
     fn test_check_gcov_version() {
-        check_gcov_version();    
+        check_gcov_version();
     }
 
     #[cfg(windows)]

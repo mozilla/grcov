@@ -86,10 +86,12 @@ install:
     - ln -s `which gcc-${COMPILER_VER}` symlinks/gcc
     - ln -s `which g++-${COMPILER_VER}` symlinks/g++
     - ln -s `which gcov-${COMPILER_VER}` symlinks/gcov
+    - rustup component add rustfmt-preview
 script:
     - export PATH=$PWD/symlinks:$PATH
     - gcc --version
     - clang --version
+    - if [ -z "$TRAVIS_TAG" ] && [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then cargo fmt --all -- --check; fi
     - if [ -z "$TRAVIS_TAG" ]; then cargo build --verbose; fi
     - if [ -z "$TRAVIS_TAG" ]; then cargo test -- --nocapture; fi
 before_deploy:

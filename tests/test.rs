@@ -1,20 +1,20 @@
-extern crate walkdir;
-extern crate serde_json;
 extern crate globset;
 extern crate regex;
+extern crate serde_json;
+extern crate walkdir;
 extern crate zip;
 
-use std::{env, fs};
-use std::process::Command;
-use walkdir::WalkDir;
-use std::path::{PathBuf, Path};
-use std::fs::File;
-use std::io::{Read, Write};
-use serde_json::Value;
 use globset::{Glob, GlobSetBuilder};
 use regex::Regex;
-use zip::ZipWriter;
+use serde_json::Value;
+use std::fs::File;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::{env, fs};
+use walkdir::WalkDir;
 use zip::write::FileOptions;
+use zip::ZipWriter;
 
 fn make(path: &Path, compiler: &str) {
     let mut args = Vec::new();
@@ -35,28 +35,28 @@ fn make(path: &Path, compiler: &str) {
     }
 
     let status = Command::new(compiler)
-                         .arg("-fprofile-arcs")
-                         .arg("-ftest-coverage")
-                         .arg("-O0")
-                         .arg("-fno-inline")
-                         .args(args)
-                         .current_dir(path)
-                         .status()
-                         .expect("Failed to build");
+        .arg("-fprofile-arcs")
+        .arg("-ftest-coverage")
+        .arg("-O0")
+        .arg("-fno-inline")
+        .args(args)
+        .current_dir(path)
+        .status()
+        .expect("Failed to build");
     assert!(status.success());
 }
 
 fn run(path: &Path) {
     let program = if !cfg!(windows) {
-      PathBuf::from("./a.out")
+        PathBuf::from("./a.out")
     } else {
-      path.join("a.exe")
+        path.join("a.exe")
     };
 
     let status = Command::new(program)
-                         .current_dir(path)
-                         .status()
-                         .expect("Failed to run");
+        .current_dir(path)
+        .status()
+        .expect("Failed to run");
     assert!(status.success());
 }
 
@@ -70,13 +70,16 @@ fn read_file(path: &Path) -> String {
 fn read_expected(path: &Path, compiler: &str, compiler_ver: &str, format: &str) -> String {
     let os_name = if cfg!(windows) {
         "win"
-    } else if cfg!(target_os="macos") {
+    } else if cfg!(target_os = "macos") {
         "mac"
     } else {
         "linux"
     };
 
-    let name_with_ver_and_os = format!("expected_{}_{}_{}.{}", compiler, compiler_ver, os_name, format);
+    let name_with_ver_and_os = format!(
+        "expected_{}_{}_{}.{}",
+        compiler, compiler_ver, os_name, format
+    );
 
     let name = if path.join(&name_with_ver_and_os).exists() {
         name_with_ver_and_os
@@ -124,16 +127,23 @@ fn run_grcov(paths: Vec<&Path>, llvm: bool, source_root: &Path, output_format: &
     };
 
     let output = Command::new(cmd_path)
-                         .args(args)
-                         .output()
-                         .expect("Failed to run grcov");
+        .args(args)
+        .output()
+        .expect("Failed to run grcov");
     let err = String::from_utf8(output.stderr).unwrap();
     eprintln!("{}", err);
     String::from_utf8(output.stdout).unwrap()
 }
 
 fn do_clean(directory: &Path) {
-    let to_remove_globs = vec!["a.out", "a.exe", "*.gcno", "*.gcda", "*.zip", "default.profraw"];
+    let to_remove_globs = vec![
+        "a.out",
+        "a.exe",
+        "*.gcno",
+        "*.gcda",
+        "*.zip",
+        "default.profraw",
+    ];
 
     let mut glob_builder = GlobSetBuilder::new();
     for to_remove_glob in &to_remove_globs {
@@ -151,20 +161,20 @@ fn do_clean(directory: &Path) {
 }
 
 fn check_equal_inner(a: &Value, b: &Value, skip_methods: bool) -> bool {
-    a["is_file"] == b["is_file"] &&
-    a["language"] == b["language"] &&
-    (skip_methods || a["method"]["name"] == b["method"]["name"]) &&
-    a["method"]["covered"] == b["method"]["covered"] &&
-    a["method"]["uncovered"] == b["method"]["uncovered"] &&
-    a["method"]["percentage_covered"] == b["method"]["percentage_covered"] &&
-    a["method"]["total_covered"] == b["method"]["total_covered"] &&
-    a["method"]["total_uncovered"] == b["method"]["total_uncovered"] &&
-    a["file"]["name"] == b["file"]["name"] &&
-    a["file"]["covered"] == b["file"]["covered"] &&
-    a["file"]["uncovered"] == b["file"]["uncovered"] &&
-    a["file"]["percentage_covered"] == b["file"]["percentage_covered"] &&
-    a["file"]["total_covered"] == b["file"]["total_covered"] &&
-    a["file"]["total_uncovered"] == b["file"]["total_uncovered"]
+    a["is_file"] == b["is_file"]
+        && a["language"] == b["language"]
+        && (skip_methods || a["method"]["name"] == b["method"]["name"])
+        && a["method"]["covered"] == b["method"]["covered"]
+        && a["method"]["uncovered"] == b["method"]["uncovered"]
+        && a["method"]["percentage_covered"] == b["method"]["percentage_covered"]
+        && a["method"]["total_covered"] == b["method"]["total_covered"]
+        && a["method"]["total_uncovered"] == b["method"]["total_uncovered"]
+        && a["file"]["name"] == b["file"]["name"]
+        && a["file"]["covered"] == b["file"]["covered"]
+        && a["file"]["uncovered"] == b["file"]["uncovered"]
+        && a["file"]["percentage_covered"] == b["file"]["percentage_covered"]
+        && a["file"]["total_covered"] == b["file"]["total_covered"]
+        && a["file"]["total_uncovered"] == b["file"]["total_uncovered"]
 }
 
 fn check_equal_ade(expected_output: &str, output: &str) {
@@ -190,16 +200,29 @@ fn check_equal_ade(expected_output: &str, output: &str) {
         }
         actual_len += 1;
 
-        let exp = expected.iter().find(|x| check_equal_inner(x, out, skip_methods));
-        assert!(exp.is_some(), "Got unexpected {} - Expected output: {:?}", out, expected_output);
+        let exp = expected
+            .iter()
+            .find(|x| check_equal_inner(x, out, skip_methods));
+        assert!(
+            exp.is_some(),
+            "Got unexpected {} - Expected output: {:?}",
+            out,
+            expected_output
+        );
     }
 
     for exp in &expected {
-        let out = actual.iter().find(|x| check_equal_inner(x, exp, skip_methods));
+        let out = actual
+            .iter()
+            .find(|x| check_equal_inner(x, exp, skip_methods));
         assert!(out.is_some(), "Missing {} - Full output: {:?}", exp, output);
     }
 
-    assert_eq!(expected.len(), actual_len, "Got same number of expected records.");
+    assert_eq!(
+        expected.len(),
+        actual_len,
+        "Got same number of expected records."
+    );
 }
 
 fn check_equal_coveralls(expected_output: &str, output: &str, skip_branches: bool) {
@@ -222,47 +245,90 @@ fn check_equal_coveralls(expected_output: &str, output: &str, skip_branches: boo
     let expected_source_files = expected["source_files"].as_array().unwrap();
 
     for exp in expected_source_files {
-        let out = actual_source_files.iter().find(|x| x["name"] == exp["name"]);
+        let out = actual_source_files
+            .iter()
+            .find(|x| x["name"] == exp["name"]);
         assert!(out.is_some(), "Missing {} - Full output: {:?}", exp, output);
 
         let out = out.unwrap();
 
         assert_eq!(exp["name"], out["name"]);
-        assert_eq!(exp["source_digest"], out["source_digest"], "Got correct digest for {}", exp["name"]);
+        assert_eq!(
+            exp["source_digest"], out["source_digest"],
+            "Got correct digest for {}",
+            exp["name"]
+        );
         if !skip_line_counts {
-            assert_eq!(exp["coverage"], out["coverage"], "Got correct coverage for {}", exp["name"]);
+            assert_eq!(
+                exp["coverage"], out["coverage"],
+                "Got correct coverage for {}",
+                exp["name"]
+            );
         } else {
             let expected_coverage = exp["coverage"].as_array().unwrap();
             let actual_coverage = out["coverage"].as_array().unwrap();
-            assert_eq!(expected_coverage.len(), actual_coverage.len(), "Got same number of lines.");
+            assert_eq!(
+                expected_coverage.len(),
+                actual_coverage.len(),
+                "Got same number of lines."
+            );
             for i in 0..expected_coverage.len() {
                 if expected_coverage[i].is_null() {
-                    assert!(actual_coverage[i].is_null(), "Got correct coverage at line {} for {}", i, exp["name"]);
+                    assert!(
+                        actual_coverage[i].is_null(),
+                        "Got correct coverage at line {} for {}",
+                        i,
+                        exp["name"]
+                    );
                 } else {
-                    assert_eq!(expected_coverage[i].as_i64().unwrap() > 0, actual_coverage[i].as_i64().unwrap() > 0, "Got correct coverage at line {} for {}", i, exp["name"]);
+                    assert_eq!(
+                        expected_coverage[i].as_i64().unwrap() > 0,
+                        actual_coverage[i].as_i64().unwrap() > 0,
+                        "Got correct coverage at line {} for {}",
+                        i,
+                        exp["name"]
+                    );
                 }
             }
         }
         if !skip_line_counts || !skip_branches {
-            assert_eq!(exp["branches"], out["branches"], "Got correct branch coverage for {}", exp["name"]);
+            assert_eq!(
+                exp["branches"], out["branches"],
+                "Got correct branch coverage for {}",
+                exp["name"]
+            );
         }
     }
 
     for out in actual_source_files {
-        let exp = expected_source_files.iter().find(|x| x["name"] == out["name"]);
-        assert!(exp.is_some(), "Got unexpected {} - Expected output: {:?}", out, expected_output);
+        let exp = expected_source_files
+            .iter()
+            .find(|x| x["name"] == out["name"]);
+        assert!(
+            exp.is_some(),
+            "Got unexpected {} - Expected output: {:?}",
+            out,
+            expected_output
+        );
     }
 
-    assert_eq!(expected_source_files.len(), actual_source_files.len(), "Got same number of source files.");
+    assert_eq!(
+        expected_source_files.len(),
+        actual_source_files.len(),
+        "Got same number of source files."
+    );
 }
 
 fn get_version(compiler: &str) -> String {
     let output = Command::new(compiler)
-                         .arg("--version")
-                         .output()
-                         .expect("Failed to retrieve version.");
+        .arg("--version")
+        .output()
+        .expect("Failed to retrieve version.");
 
-    assert!(output.status.success(), "Failed to run program to retrieve version.");
+    assert!(
+        output.status.success(),
+        "Failed to run program to retrieve version."
+    );
 
     let version = String::from_utf8(output.stdout).unwrap();
     get_compiler_major(&version)
@@ -271,12 +337,8 @@ fn get_version(compiler: &str) -> String {
 fn get_compiler_major(version: &String) -> String {
     let re = Regex::new(r"(?:version |(?:gcc \([^\)]+\) )*)([0-9]+)\.[0-9]+\.[0-9]+").unwrap();
     match re.captures(version) {
-        Some(caps) => {
-            caps.get(1).unwrap().as_str().to_string()
-        },
-        None => {
-            panic!("Compiler version not found")
-        }
+        Some(caps) => caps.get(1).unwrap().as_str().to_string(),
+        None => panic!("Compiler version not found"),
     }
 }
 
@@ -292,19 +354,22 @@ fn create_zip(zip_path: &Path, base_dir: &Path, files_glob: &str) {
         }
     }
 
-    let zipfile = File::create(base_dir.join(zip_path))
-        .expect(&format!("Cannot create file {:?}", zip_path));
+    let zipfile =
+        File::create(base_dir.join(zip_path)).expect(&format!("Cannot create file {:?}", zip_path));
     let mut zip = ZipWriter::new(zipfile);
     for ref file_path in files {
-        let mut file = File::open(file_path)
-            .expect(&format!("Cannot open file {:?}", file_path));
-        let file_size = file.metadata()
-            .expect(&format!("Cannot get metadata for {:?}", file_path)).len() as usize;
+        let mut file = File::open(file_path).expect(&format!("Cannot open file {:?}", file_path));
+        let file_size = file
+            .metadata()
+            .expect(&format!("Cannot get metadata for {:?}", file_path))
+            .len() as usize;
         let mut content: Vec<u8> = Vec::with_capacity(file_size + 1);
         file.read_to_end(&mut content)
             .expect(&format!("Cannot read {:?}", file_path));
-        zip.start_file(file_path.file_name().unwrap().to_str().unwrap(), FileOptions::default())
-            .expect(&format!("Cannot create zip for {:?}", zip_path));
+        zip.start_file(
+            file_path.file_name().unwrap().to_str().unwrap(),
+            FileOptions::default(),
+        ).expect(&format!("Cannot create zip for {:?}", zip_path));
         zip.write_all(content.as_slice())
             .expect(&format!("Cannot write {:?}", zip_path));
     }
@@ -330,8 +395,10 @@ fn test_integration() {
         if path.is_dir() {
             println!("\n\n{}", path.display());
 
-            let skip_branches = path == Path::new("tests/template") || path == Path::new("tests/include") ||
-                                path == Path::new("tests/include2") || path == Path::new("tests/class");
+            let skip_branches = path == Path::new("tests/template")
+                || path == Path::new("tests/include")
+                || path == Path::new("tests/include2")
+                || path == Path::new("tests/class");
 
             do_clean(path);
 
@@ -340,23 +407,37 @@ fn test_integration() {
                 let gcc_version = get_version("gcc");
                 make(path, "g++");
                 run(path);
-                check_equal_ade(&read_expected(path, "gcc", &gcc_version, "ade"),
-                                &run_grcov(vec![path], false, &PathBuf::from(""), "ade"));
-                check_equal_coveralls(&read_expected(path, "gcc", &gcc_version, "coveralls"),
-                                      &run_grcov(vec![path], false, path, "coveralls"), skip_branches);
+                check_equal_ade(
+                    &read_expected(path, "gcc", &gcc_version, "ade"),
+                    &run_grcov(vec![path], false, &PathBuf::from(""), "ade"),
+                );
+                check_equal_coveralls(
+                    &read_expected(path, "gcc", &gcc_version, "coveralls"),
+                    &run_grcov(vec![path], false, path, "coveralls"),
+                    skip_branches,
+                );
                 do_clean(path);
             }
 
             println!("\nLLVM");
             let llvm_version = get_version("llvm-config");
             let clang_version = get_version("clang++");
-            assert_eq!(llvm_version, clang_version, "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version", llvm_version, clang_version);
+            assert_eq!(
+                llvm_version, clang_version,
+                "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version",
+                llvm_version, clang_version
+            );
             make(path, "clang++");
             run(path);
-            check_equal_ade(&read_expected(path, "llvm", &llvm_version, "ade"),
-                            &run_grcov(vec![path], true, &PathBuf::from(""), "ade"));
-            check_equal_coveralls(&read_expected(path, "llvm", &llvm_version, "coveralls"),
-                                  &run_grcov(vec![path], true, path, "coveralls"), skip_branches);
+            check_equal_ade(
+                &read_expected(path, "llvm", &llvm_version, "ade"),
+                &run_grcov(vec![path], true, &PathBuf::from(""), "ade"),
+            );
+            check_equal_coveralls(
+                &read_expected(path, "llvm", &llvm_version, "coveralls"),
+                &run_grcov(vec![path], true, path, "coveralls"),
+                skip_branches,
+            );
 
             do_clean(path);
         }
@@ -374,18 +455,18 @@ fn test_integration_zip() {
 
     for compiler in compilers {
         let is_llvm = compiler == "clang++";
-        let name = if is_llvm {
-            "llvm"
-        } else {
-            "gcc"
-        };
+        let name = if is_llvm { "llvm" } else { "gcc" };
         let path = &PathBuf::from("tests/basic_zip");
 
         println!("\n{}", name.to_uppercase());
         let compiler_version = if is_llvm {
             let llvm_version = get_version("llvm-config");
             let clang_version = get_version("clang++");
-            assert_eq!(llvm_version, clang_version, "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version", llvm_version, clang_version);
+            assert_eq!(
+                llvm_version, clang_version,
+                "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version",
+                llvm_version, clang_version
+            );
             clang_version
         } else {
             get_version("g++")
@@ -409,23 +490,50 @@ fn test_integration_zip() {
         let gcda1_zip_path = path.join(gcda1_zip_path);
 
         // no gcda
-        let path_expected = path.join(PathBuf::from(format!("expected_no_gcda_{}.coveralls", name)));
-        check_equal_coveralls(&read_file(&path_expected),
-                              &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], is_llvm, path, "coveralls"),
-                              false);
+        let path_expected = path.join(PathBuf::from(format!(
+            "expected_no_gcda_{}.coveralls",
+            name
+        )));
+        check_equal_coveralls(
+            &read_file(&path_expected),
+            &run_grcov(
+                vec![&gcno_zip_path, &gcda0_zip_path],
+                is_llvm,
+                path,
+                "coveralls",
+            ),
+            false,
+        );
 
         // one gcda
-        check_equal_coveralls(&read_expected(path, &name, &compiler_version, "coveralls"),
-                              &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], is_llvm, path, "coveralls"),
-                              false);
+        check_equal_coveralls(
+            &read_expected(path, &name, &compiler_version, "coveralls"),
+            &run_grcov(
+                vec![&gcno_zip_path, &gcda_zip_path],
+                is_llvm,
+                path,
+                "coveralls",
+            ),
+            false,
+        );
 
         // two gcdas
         std::fs::copy(&gcda_zip_path, &gcda1_zip_path)
             .expect(&format!("Failed to copy {:?}", &gcda_zip_path));
-        let path_expected = path.join(PathBuf::from(format!("expected_two_gcda_{}.coveralls", name)));
-        check_equal_coveralls(&read_file(&path_expected),
-                              &run_grcov(vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path], is_llvm, path, "coveralls"),
-                              false);
+        let path_expected = path.join(PathBuf::from(format!(
+            "expected_two_gcda_{}.coveralls",
+            name
+        )));
+        check_equal_coveralls(
+            &read_file(&path_expected),
+            &run_grcov(
+                vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path],
+                is_llvm,
+                path,
+                "coveralls",
+            ),
+            false,
+        );
 
         do_clean(path);
     }

@@ -13,8 +13,7 @@ fn llvm_config(args: &[&str]) -> String {
         .args(args)
         .arg("--link-static")
         .output()
-        .map(|output| String::from_utf8(output.stdout)
-            .expect("llvm-config output is not UTF-8"))
+        .map(|output| String::from_utf8(output.stdout).expect("llvm-config output is not UTF-8"))
         .expect("Error while running llvm-config")
 }
 

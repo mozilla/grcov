@@ -1,15 +1,15 @@
-use std::collections::{BTreeMap, btree_map, HashMap, hash_map};
-use std::path::{Path};
-use std::fs::File;
-use std::io::{self, Read, BufRead, BufReader};
+use std::collections::{btree_map, hash_map, BTreeMap, HashMap};
 use std::ffi::CString;
 use std::fmt;
+use std::fs::File;
+use std::io::{self, BufRead, BufReader, Read};
 use std::mem;
-use std::{slice, str};
 use std::num::ParseIntError;
+use std::path::Path;
+use std::{slice, str};
 
-use xml::reader::{EventReader, XmlEvent};
 use xml::attribute::OwnedAttribute;
+use xml::reader::{EventReader, XmlEvent};
 
 use libc;
 
@@ -45,49 +45,74 @@ impl fmt::Display for ParserError {
 }
 
 macro_rules! try_parse {
-    ($v:expr, $l:expr) => (match $v.parse() {
-        Ok(val) => val,
-        Err(_err) => return Err(ParserError::Parse($l.to_string())),
-    });
+    ($v:expr, $l:expr) => {
+        match $v.parse() {
+            Ok(val) => val,
+            Err(_err) => return Err(ParserError::Parse($l.to_string())),
+        }
+    };
 }
 
 macro_rules! try_next {
-    ($v:expr, $l:expr) => (match $v.next() {
-        Some(val) => val,
-        None => return Err(ParserError::InvalidRecord($l.to_string())),
-    });
+    ($v:expr, $l:expr) => {
+        match $v.next() {
+            Some(val) => val,
+            None => return Err(ParserError::InvalidRecord($l.to_string())),
+        }
+    };
 }
 
 macro_rules! try_parse_next {
-    ($v:expr, $l:expr) => (try_parse!(try_next!($v, $l), $l););
+    ($v:expr, $l:expr) => {
+        try_parse!(try_next!($v, $l), $l);
+    };
 }
 
-#[link(name = "llvmgcov", kind="static")]
-extern {
-    fn parse_llvm_gcno(hdl: *const GCOVResult, working_dir: *const libc::c_char, file_stem: *const libc::c_char, branch_enabled: libc::uint8_t);
-    fn parse_llvm_gcno_buf(hdl: *const GCOVResult, working_dir: *const libc::c_char, file_stem: *const libc::c_char, gcno_buf: *const libc::c_char, gcno_buf_len: libc::size_t, gcda_buf: *const libc::c_char, gcda_buf_len: libc::size_t, branch_enabled: libc::uint8_t);
+#[link(name = "llvmgcov", kind = "static")]
+extern "C" {
+    fn parse_llvm_gcno(
+        hdl: *const GCOVResult,
+        working_dir: *const libc::c_char,
+        file_stem: *const libc::c_char,
+        branch_enabled: libc::uint8_t,
+    );
+    fn parse_llvm_gcno_buf(
+        hdl: *const GCOVResult,
+        working_dir: *const libc::c_char,
+        file_stem: *const libc::c_char,
+        gcno_buf: *const libc::c_char,
+        gcno_buf_len: libc::size_t,
+        gcda_buf: *const libc::c_char,
+        gcda_buf_len: libc::size_t,
+        branch_enabled: libc::uint8_t,
+    );
 }
 
-pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str, branch_enabled: bool) -> Vec<(String,CovResult)> {
+pub fn call_parse_llvm_gcno(
+    working_dir: &str,
+    file_stem: &str,
+    branch_enabled: bool,
+) -> Vec<(String, CovResult)> {
     let working_dir_c = CString::new(working_dir).unwrap();
     let file_stem_c = CString::new(file_stem).unwrap();
-    let branch_enabled = if branch_enabled {
-        1 as u8
-    } else {
-        0 as u8
-    };
+    let branch_enabled = if branch_enabled { 1 as u8 } else { 0 as u8 };
 
-    let mut result: Vec<(String,CovResult)> = Vec::new();
+    let mut result: Vec<(String, CovResult)> = Vec::new();
     let hdl = GCOVResult {
         ptr: result.as_mut_ptr() as *mut libc::c_void,
         len: result.len(),
         capacity: result.capacity(),
-        branch_number: 0
+        branch_number: 0,
     };
 
     let res = unsafe {
-        parse_llvm_gcno(&hdl, working_dir_c.as_ptr(), file_stem_c.as_ptr(), branch_enabled);
-        Vec::from_raw_parts(hdl.ptr as *mut (String,CovResult), hdl.len, hdl.capacity)
+        parse_llvm_gcno(
+            &hdl,
+            working_dir_c.as_ptr(),
+            file_stem_c.as_ptr(),
+            branch_enabled,
+        );
+        Vec::from_raw_parts(hdl.ptr as *mut (String, CovResult), hdl.len, hdl.capacity)
     };
 
     if hdl.ptr != result.as_mut_ptr() as *mut libc::c_void {
@@ -96,18 +121,20 @@ pub fn call_parse_llvm_gcno(working_dir: &str, file_stem: &str, branch_enabled: 
     res
 }
 
-pub fn call_parse_llvm_gcno_buf(working_dir: &str, file_stem: &str, gcno: &[u8], gcda: &[u8], branch_enabled: bool) -> Vec<(String,CovResult)>  {
+pub fn call_parse_llvm_gcno_buf(
+    working_dir: &str,
+    file_stem: &str,
+    gcno: &[u8],
+    gcda: &[u8],
+    branch_enabled: bool,
+) -> Vec<(String, CovResult)> {
     let working_dir_c = CString::new(working_dir).unwrap();
     let file_stem_c = CString::new(file_stem).unwrap();
     let gcno_buf_len = gcno.len();
     let gcda_buf_len = gcda.len();
-    let branch_enabled = if branch_enabled {
-        1 as u8
-    } else {
-        0 as u8
-    };
+    let branch_enabled = if branch_enabled { 1 as u8 } else { 0 as u8 };
 
-    let mut result: Vec<(String,CovResult)> = Vec::new();
+    let mut result: Vec<(String, CovResult)> = Vec::new();
     let hdl = GCOVResult {
         ptr: result.as_mut_ptr() as *mut libc::c_void,
         len: result.len(),
@@ -119,8 +146,17 @@ pub fn call_parse_llvm_gcno_buf(working_dir: &str, file_stem: &str, gcno: &[u8],
         let gcno_buf = gcno.as_ptr() as *const libc::c_char;
         let gcda_buf = gcda.as_ptr() as *const libc::c_char;
 
-        parse_llvm_gcno_buf(&hdl, working_dir_c.as_ptr(), file_stem_c.as_ptr(), gcno_buf, gcno_buf_len, gcda_buf, gcda_buf_len, branch_enabled);
-        Vec::from_raw_parts(hdl.ptr as *mut (String,CovResult), hdl.len, hdl.capacity)
+        parse_llvm_gcno_buf(
+            &hdl,
+            working_dir_c.as_ptr(),
+            file_stem_c.as_ptr(),
+            gcno_buf,
+            gcno_buf_len,
+            gcda_buf,
+            gcda_buf_len,
+            branch_enabled,
+        );
+        Vec::from_raw_parts(hdl.ptr as *mut (String, CovResult), hdl.len, hdl.capacity)
     };
 
     if hdl.ptr != result.as_mut_ptr() as *mut libc::c_void {
@@ -130,16 +166,24 @@ pub fn call_parse_llvm_gcno_buf(working_dir: &str, file_stem: &str, gcno: &[u8],
 }
 
 #[no_mangle]
-pub unsafe extern fn handleFileRust(hdl: *mut GCOVResult, filename: *const libc::c_char, len: libc::size_t) {
+pub unsafe extern "C" fn handleFileRust(
+    hdl: *mut GCOVResult,
+    filename: *const libc::c_char,
+    len: libc::size_t,
+) {
     let res = &mut *hdl;
     let filename = str::from_utf8_unchecked(slice::from_raw_parts(filename as *const u8, len));
 
-    let mut results = Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
-    results.push((filename.to_string(), CovResult {
-        lines: BTreeMap::new(),
-        branches: BTreeMap::new(),
-        functions: HashMap::new(),
-    }));
+    let mut results =
+        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
+    results.push((
+        filename.to_string(),
+        CovResult {
+            lines: BTreeMap::new(),
+            branches: BTreeMap::new(),
+            functions: HashMap::new(),
+        },
+    ));
 
     res.ptr = results.as_mut_ptr() as *mut libc::c_void;
     res.len = results.len();
@@ -149,17 +193,27 @@ pub unsafe extern fn handleFileRust(hdl: *mut GCOVResult, filename: *const libc:
 }
 
 #[no_mangle]
-pub unsafe extern fn handleFunctionRust(hdl: *mut GCOVResult, index: libc::uint32_t, entrycount: libc::uint64_t, funcname: *const libc::c_char, len: libc::size_t) {
+pub unsafe extern "C" fn handleFunctionRust(
+    hdl: *mut GCOVResult,
+    index: libc::uint32_t,
+    entrycount: libc::uint64_t,
+    funcname: *const libc::c_char,
+    len: libc::size_t,
+) {
     let res = &mut *hdl;
     let funcname = str::from_utf8_unchecked(slice::from_raw_parts(funcname as *const u8, len));
-    let mut results = Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
+    let mut results =
+        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
     match results.last_mut() {
         Some(r) => {
-            r.1.functions.insert(funcname.to_string(), Function {
-                start: index,
-                executed: entrycount != 0,
-            });
-        },
+            r.1.functions.insert(
+                funcname.to_string(),
+                Function {
+                    start: index,
+                    executed: entrycount != 0,
+                },
+            );
+        }
         None => {
             panic!("Results should not be emtpy");
         }
@@ -168,14 +222,19 @@ pub unsafe extern fn handleFunctionRust(hdl: *mut GCOVResult, index: libc::uint3
 }
 
 #[no_mangle]
-pub unsafe extern fn handleLcountRust(hdl: *mut GCOVResult, index: libc::uint32_t, linecount: libc::uint64_t) {
+pub unsafe extern "C" fn handleLcountRust(
+    hdl: *mut GCOVResult,
+    index: libc::uint32_t,
+    linecount: libc::uint64_t,
+) {
     let res = &mut *hdl;
-    let mut results = Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
+    let mut results =
+        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
     match results.last_mut() {
         Some(r) => {
             res.branch_number = 0;
             r.1.lines.insert(index, linecount);
-        },
+        }
         None => {
             panic!("Results should not be emtpy");
         }
@@ -184,14 +243,20 @@ pub unsafe extern fn handleLcountRust(hdl: *mut GCOVResult, index: libc::uint32_
 }
 
 #[no_mangle]
-pub unsafe extern fn handleBranchRust(hdl: *mut GCOVResult, index: libc::uint32_t, taken: libc::uint8_t, _exec: libc::uint8_t) {
+pub unsafe extern "C" fn handleBranchRust(
+    hdl: *mut GCOVResult,
+    index: libc::uint32_t,
+    taken: libc::uint8_t,
+    _exec: libc::uint8_t,
+) {
     let res = &mut *hdl;
-    let mut results = Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
+    let mut results =
+        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
     match results.last_mut() {
         Some(r) => {
             r.1.branches.insert((index, res.branch_number), taken != 0);
             res.branch_number += 1;
-        },
+        }
         None => {
             panic!("Results should not be emtpy");
         }
@@ -202,22 +267,25 @@ pub unsafe extern fn handleBranchRust(hdl: *mut GCOVResult, index: libc::uint32_
 fn remove_newline(l: &mut Vec<u8>) {
     loop {
         let last = {
-          let last = l.last();
-          if last.is_none() {
-            break;
-          }
-          *last.unwrap()
+            let last = l.last();
+            if last.is_none() {
+                break;
+            }
+            *last.unwrap()
         };
 
         if last != b'\n' && last != b'\r' {
-          break;
+            break;
         }
 
         l.pop();
     }
 }
 
-pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) -> Result<Vec<(String,CovResult)>, ParserError> {
+pub fn parse_lcov<T: Read>(
+    mut lcov_reader: BufReader<T>,
+    branch_enabled: bool,
+) -> Result<Vec<(String, CovResult)>, ParserError> {
     let mut cur_file = None;
     let mut cur_lines = BTreeMap::new();
     let mut cur_branches = BTreeMap::new();
@@ -236,16 +304,17 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
         }
         remove_newline(&mut l);
 
-        let l = unsafe {
-            str::from_utf8_unchecked(&l)
-        };
+        let l = unsafe { str::from_utf8_unchecked(&l) };
 
         if l == "end_of_record" {
-            results.push((cur_file.unwrap(), CovResult {
-                lines: cur_lines,
-                branches: cur_branches,
-                functions: cur_functions,
-            }));
+            results.push((
+                cur_file.unwrap(),
+                CovResult {
+                    lines: cur_lines,
+                    branches: cur_branches,
+                    functions: cur_functions,
+                },
+            ));
 
             cur_file = None;
             cur_lines = BTreeMap::new();
@@ -263,14 +332,14 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
             match key {
                 "SF" => {
                     cur_file = Some(value.to_owned());
-                },
+                }
                 "DA" => {
                     let mut values = value.splitn(3, ',');
                     let line_no = try_parse_next!(values, l);
                     let execution_count = try_next!(values, l);
                     if execution_count == "0" || execution_count.starts_with('-') {
                         match cur_lines.entry(line_no) {
-                            btree_map::Entry::Occupied(_) => {},
+                            btree_map::Entry::Occupied(_) => {}
                             btree_map::Entry::Vacant(v) => {
                                 v.insert(0);
                             }
@@ -280,29 +349,34 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
                         match cur_lines.entry(line_no) {
                             btree_map::Entry::Occupied(c) => {
                                 *c.into_mut() += execution_count;
-                            },
+                            }
                             btree_map::Entry::Vacant(v) => {
                                 v.insert(execution_count);
                             }
                         };
                     }
-                },
+                }
                 "FN" => {
                     let mut f_splits = value.splitn(2, ',');
                     let start = try_parse_next!(f_splits, l);
                     let f_name = try_next!(f_splits, l);
-                    cur_functions.insert(f_name.to_owned(), Function {
-                      start: start,
-                      executed: false,
-                    });
-                },
+                    cur_functions.insert(
+                        f_name.to_owned(),
+                        Function {
+                            start: start,
+                            executed: false,
+                        },
+                    );
+                }
                 "FNDA" => {
                     let mut f_splits = value.splitn(2, ',');
                     let executed = try_next!(f_splits, l) != "0";
                     let f_name = try_next!(f_splits, l);
-                    let f = cur_functions.get_mut(f_name).expect(format!("FN record missing for function {}", f_name).as_str());
+                    let f = cur_functions
+                        .get_mut(f_name)
+                        .expect(format!("FN record missing for function {}", f_name).as_str());
                     f.executed |= executed;
-                },
+                }
                 "BRDA" => {
                     if branch_enabled {
                         let mut values = value.splitn(4, ',');
@@ -313,13 +387,13 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
                         match cur_branches.entry((line_no, branch_number)) {
                             btree_map::Entry::Occupied(c) => {
                                 *c.into_mut() |= taken;
-                            },
+                            }
                             btree_map::Entry::Vacant(v) => {
                                 v.insert(taken);
                             }
                         };
                     }
-                },
+                }
                 _ => {}
             }
         }
@@ -328,7 +402,7 @@ pub fn parse_lcov<T: Read>(mut lcov_reader: BufReader<T>, branch_enabled: bool) 
     Ok(results)
 }
 
-pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String,CovResult)>, ParserError> {
+pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserError> {
     let mut cur_file = None;
     let mut cur_lines = BTreeMap::new();
     let mut cur_branches = BTreeMap::new();
@@ -337,7 +411,8 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String,CovResult)>, ParserErr
 
     let mut results = Vec::new();
 
-    let f = File::open(&gcov_path).expect(&format!("Failed to open gcov file {}", gcov_path.display()));
+    let f =
+        File::open(&gcov_path).expect(&format!("Failed to open gcov file {}", gcov_path.display()));
     let mut file = BufReader::new(&f);
     let mut l = vec![];
 
@@ -350,9 +425,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String,CovResult)>, ParserErr
         }
         remove_newline(&mut l);
 
-        let l = unsafe {
-            str::from_utf8_unchecked(&l)
-        };
+        let l = unsafe { str::from_utf8_unchecked(&l) };
 
         let mut key_value = l.splitn(2, ':');
         let key = try_next!(key_value, l);
@@ -362,28 +435,34 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String,CovResult)>, ParserErr
             "file" => {
                 if cur_file.is_some() && !cur_lines.is_empty() {
                     // println!("{} {} {:?}", gcov_path.display(), cur_file, cur_lines);
-                    results.push((cur_file.unwrap(), CovResult {
-                        lines: cur_lines,
-                        branches: cur_branches,
-                        functions: cur_functions,
-                    }));
+                    results.push((
+                        cur_file.unwrap(),
+                        CovResult {
+                            lines: cur_lines,
+                            branches: cur_branches,
+                            functions: cur_functions,
+                        },
+                    ));
                 }
 
                 cur_file = Some(value.to_owned());
                 cur_lines = BTreeMap::new();
                 cur_branches = BTreeMap::new();
                 cur_functions = HashMap::new();
-            },
+            }
             "function" => {
                 let mut f_splits = value.splitn(3, ',');
                 let start = try_parse_next!(f_splits, l);
                 let executed = try_next!(f_splits, l) != "0";
                 let f_name = try_next!(f_splits, l);
-                cur_functions.insert(f_name.to_owned(), Function {
-                  start: start,
-                  executed: executed,
-                });
-            },
+                cur_functions.insert(
+                    f_name.to_owned(),
+                    Function {
+                        start: start,
+                        executed: executed,
+                    },
+                );
+            }
             "lcount" => {
                 branch_number = 0;
 
@@ -395,24 +474,27 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String,CovResult)>, ParserErr
                 } else {
                     cur_lines.insert(line_no, try_parse!(execution_count, l));
                 }
-            },
+            }
             "branch" => {
                 let mut values = value.splitn(2, ',');
                 let line_no = try_parse_next!(values, l);
                 let taken = try_next!(values, l) == "taken";
                 cur_branches.insert((line_no, branch_number), taken);
                 branch_number += 1;
-            },
+            }
             _ => {}
         }
     }
 
     if !cur_lines.is_empty() {
-        results.push((cur_file.unwrap(), CovResult {
-            lines: cur_lines,
-            branches: cur_branches,
-            functions: cur_functions,
-        }));
+        results.push((
+            cur_file.unwrap(),
+            CovResult {
+                lines: cur_lines,
+                branches: cur_branches,
+                functions: cur_functions,
+            },
+        ));
     }
 
     Ok(results)
@@ -424,16 +506,26 @@ fn get_xml_attribute(attributes: &Vec<OwnedAttribute>, name: &str) -> Result<Str
             return Ok(String::from(a.value.clone()));
         }
     }
-    Err(ParserError::InvalidRecord(format!("Attribute {} not found", name)))
+    Err(ParserError::InvalidRecord(format!(
+        "Attribute {} not found",
+        name
+    )))
 }
 
-fn parse_jacoco_report_sourcefile<T: Read>(parser: &mut EventReader<T>) -> Result<(BTreeMap<u32,u64>, BTreeMap<(u32,u32),bool>), ParserError> {
-    let mut lines: BTreeMap<u32,u64> = BTreeMap::new();
-    let mut branches: BTreeMap<(u32,u32),bool> = BTreeMap::new();
+fn parse_jacoco_report_sourcefile<T: Read>(
+    parser: &mut EventReader<T>,
+) -> Result<(BTreeMap<u32, u64>, BTreeMap<(u32, u32), bool>), ParserError> {
+    let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
+    let mut branches: BTreeMap<(u32, u32), bool> = BTreeMap::new();
 
     loop {
         match parser.next() {
-            Ok(XmlEvent::StartElement {ref name, ref attributes, .. }) if name.local_name.as_str() == "line"=> {
+            Ok(XmlEvent::StartElement {
+                ref name,
+                ref attributes,
+                ..
+            }) if name.local_name.as_str() == "line" =>
+            {
                 let ci = get_xml_attribute(attributes, "ci")?.parse::<u64>()?;
                 let cb = get_xml_attribute(attributes, "cb")?.parse::<u64>()?;
                 let mb = get_xml_attribute(attributes, "mb")?.parse::<u64>()?;
@@ -445,7 +537,7 @@ fn parse_jacoco_report_sourcefile<T: Read>(parser: &mut EventReader<T>) -> Resul
                         branches.insert((nr, branch as u32), true);
                     }
 
-                    for branch in cb..cb+mb{
+                    for branch in cb..cb + mb {
                         branches.insert((nr, branch as u32), false);
                     }
                 } else {
@@ -456,10 +548,10 @@ fn parse_jacoco_report_sourcefile<T: Read>(parser: &mut EventReader<T>) -> Resul
                     lines.insert(nr, hit);
                 }
             }
-            Ok(XmlEvent::EndElement{ref name}) if name.local_name.as_str() == "sourcefile" => break,
-            Err(e) => {
-                return Err(ParserError::Parse(e.to_string()))
-            },
+            Ok(XmlEvent::EndElement { ref name }) if name.local_name.as_str() == "sourcefile" => {
+                break
+            }
+            Err(e) => return Err(ParserError::Parse(e.to_string())),
             _ => {}
         }
     }
@@ -467,63 +559,91 @@ fn parse_jacoco_report_sourcefile<T: Read>(parser: &mut EventReader<T>) -> Resul
     Ok((lines, branches))
 }
 
-fn parse_jacoco_report_method<T: Read>(parser: &mut EventReader<T>, start: u32) -> Result<Function, ParserError> {
+fn parse_jacoco_report_method<T: Read>(
+    parser: &mut EventReader<T>,
+    start: u32,
+) -> Result<Function, ParserError> {
     let mut executed = false;
 
     loop {
         match parser.next() {
-            Ok(XmlEvent::StartElement {ref name, ref attributes, .. }) if name.local_name.as_str() == "counter" => {
+            Ok(XmlEvent::StartElement {
+                ref name,
+                ref attributes,
+                ..
+            }) if name.local_name.as_str() == "counter" =>
+            {
                 if get_xml_attribute(attributes, "type")? == "METHOD" {
                     executed = get_xml_attribute(attributes, "covered")?.parse::<u32>()? > 0;
                 }
-            },
-            Ok(XmlEvent::EndElement{ref name }) if name.local_name.as_str() == "method" => break,
-            Err(e) => {
-                return Err(ParserError::Parse(e.to_string()))
-            },
-            _ => {},
+            }
+            Ok(XmlEvent::EndElement { ref name }) if name.local_name.as_str() == "method" => break,
+            Err(e) => return Err(ParserError::Parse(e.to_string())),
+            _ => {}
         }
     }
 
     Ok(Function { start, executed })
 }
 
-fn parse_jacoco_report_class<T: Read>(parser: &mut EventReader<T>, class_name: &str) -> Result<HashMap<String,Function>, ParserError> {
+fn parse_jacoco_report_class<T: Read>(
+    parser: &mut EventReader<T>,
+    class_name: &str,
+) -> Result<HashMap<String, Function>, ParserError> {
     let mut functions: HashMap<String, Function> = HashMap::new();
 
     loop {
         match parser.next() {
-            Ok(XmlEvent::StartElement {ref name, ref attributes, .. }) if name.local_name.as_str() == "method" => {
+            Ok(XmlEvent::StartElement {
+                ref name,
+                ref attributes,
+                ..
+            }) if name.local_name.as_str() == "method" =>
+            {
                 let name = get_xml_attribute(attributes, "name")?;
                 let full_name = format!("{}#{}", class_name, name);
 
                 let start_line = get_xml_attribute(attributes, "line")?.parse::<u32>()?;
                 let function = parse_jacoco_report_method(parser, start_line)?;
                 functions.insert(full_name, function);
-            },
-            Ok(XmlEvent::EndElement{ref name}) if name.local_name.as_str() == "class" => break,
+            }
+            Ok(XmlEvent::EndElement { ref name }) if name.local_name.as_str() == "class" => break,
             Err(e) => return Err(ParserError::Parse(e.to_string())),
-            _ => {},
+            _ => {}
         }
     }
 
     Ok(functions)
 }
 
-fn parse_jacoco_report_package<T: Read>(parser: &mut EventReader<T>, package: &str) -> Result<Vec<(String,CovResult)>, ParserError> {
+fn parse_jacoco_report_package<T: Read>(
+    parser: &mut EventReader<T>,
+    package: &str,
+) -> Result<Vec<(String, CovResult)>, ParserError> {
     let mut results_map: HashMap<String, CovResult> = HashMap::new();
 
     loop {
         match parser.next() {
-            Ok(XmlEvent::StartElement { ref name, ref attributes, .. }) => {
+            Ok(XmlEvent::StartElement {
+                ref name,
+                ref attributes,
+                ..
+            }) => {
                 match name.local_name.as_str() {
                     "class" => {
                         // Fully qualified class name: "org/example/Person$Age"
                         let fq_class = get_xml_attribute(attributes, "name")?;
                         // Class name: "Person$Age"
-                        let class = fq_class.split('/').last().expect("Failed to parse class name");
+                        let class = fq_class
+                            .split('/')
+                            .last()
+                            .expect("Failed to parse class name");
                         // Class name "Person"
-                        let top_class = class.clone().split("$").nth(0).expect("Failed to parse top class name");
+                        let top_class = class
+                            .clone()
+                            .split("$")
+                            .nth(0)
+                            .expect("Failed to parse top class name");
 
                         // Process all <method /> and <counter /> for this class
                         let functions = parse_jacoco_report_class(parser, class)?;
@@ -531,16 +651,16 @@ fn parse_jacoco_report_package<T: Read>(parser: &mut EventReader<T>, package: &s
                         match results_map.entry(top_class.to_string()) {
                             hash_map::Entry::Occupied(obj) => {
                                 obj.into_mut().functions.extend(functions);
-                            },
+                            }
                             hash_map::Entry::Vacant(v) => {
                                 v.insert(CovResult {
                                     functions,
                                     lines: BTreeMap::new(),
                                     branches: BTreeMap::new(),
                                 });
-                            },
+                            }
                         };
-                    },
+                    }
                     "sourcefile" => {
                         let sourcefile = get_xml_attribute(attributes, "name")?;
                         let class = sourcefile.trim_right_matches(".java");
@@ -551,56 +671,70 @@ fn parse_jacoco_report_package<T: Read>(parser: &mut EventReader<T>, package: &s
                                 let obj = obj.into_mut();
                                 obj.lines = lines;
                                 obj.branches = branches;
-                            },
+                            }
                             hash_map::Entry::Vacant(v) => {
                                 v.insert(CovResult {
                                     functions: HashMap::new(),
                                     lines,
                                     branches,
                                 });
-                            },
+                            }
                         };
-                    },
-                    &_ => {},
+                    }
+                    &_ => {}
                 }
-            },
-            Ok(XmlEvent::EndElement{ref name}) if name.local_name.as_str() == "package" => break,
+            }
+            Ok(XmlEvent::EndElement { ref name }) if name.local_name.as_str() == "package" => break,
             Err(e) => return Err(ParserError::Parse(e.to_string())),
-            _ => {},
+            _ => {}
         }
     }
 
     for (class, result) in &results_map {
         if result.lines.is_empty() && result.branches.is_empty() {
-            panic!("Class {}/{} is not the top class in its file.", package, class);
+            panic!(
+                "Class {}/{} is not the top class in its file.",
+                package, class
+            );
         }
     }
 
     // Change all keys from the class name to the file name and turn the result into a Vec.
     // If package is the empty string, we have to trim the leading '/' in order to obtain a
     // relative path.
-    Ok(
-        results_map.into_iter().map(
-            |(class, result)| (format!("{}/{}.java", package, class).trim_left_matches('/').to_string(), result)
-        ).collect()
-    )
+    Ok(results_map
+        .into_iter()
+        .map(|(class, result)| {
+            (
+                format!("{}/{}.java", package, class)
+                    .trim_left_matches('/')
+                    .to_string(),
+                result,
+            )
+        })
+        .collect())
 }
 
-pub fn parse_jacoco_xml_report<T: Read>(xml_reader: BufReader<T>) -> Result<Vec<(String,CovResult)>, ParserError> {
+pub fn parse_jacoco_xml_report<T: Read>(
+    xml_reader: BufReader<T>,
+) -> Result<Vec<(String, CovResult)>, ParserError> {
     let mut parser = EventReader::new(xml_reader);
     let mut results = Vec::new();
 
     loop {
         match parser.next() {
-            Ok(XmlEvent::StartElement {ref name, ref attributes, .. }) if name.local_name.as_str() == "package" => {
+            Ok(XmlEvent::StartElement {
+                ref name,
+                ref attributes,
+                ..
+            }) if name.local_name.as_str() == "package" =>
+            {
                 let package = get_xml_attribute(attributes, "name")?;
                 let mut package_results = parse_jacoco_report_package(&mut parser, &package)?;
                 results.append(&mut package_results);
-            },
+            }
             Ok(XmlEvent::EndDocument) => break,
-            Err(e) => {
-                return Err(ParserError::Parse(e.to_string()))
-            },
+            Err(e) => return Err(ParserError::Parse(e.to_string())),
             _ => {}
         }
     }
@@ -644,8 +778,69 @@ mod tests {
         assert_eq!(results.len(), 603);
 
         let (ref source_name, ref result) = results[0];
-        assert_eq!(source_name, "resource://gre/components/MainProcessSingleton.js");
-        assert_eq!(result.lines, [(7,1),(9,1),(10,1),(12,2),(13,1),(16,1),(17,1),(18,2),(19,1),(21,1),(22,0),(23,0),(24,0),(28,1),(29,0),(30,0),(32,0),(33,0),(34,0),(35,0),(37,0),(39,0),(41,0),(42,0),(44,0),(45,0),(46,0),(47,0),(49,0),(50,0),(51,0),(52,0),(53,0),(54,0),(55,0),(56,0),(59,0),(60,0),(61,0),(63,0),(65,0),(67,1),(68,2),(70,1),(74,1),(75,1),(76,1),(77,1),(78,1),(83,1),(84,1),(90,1)].iter().cloned().collect());
+        assert_eq!(
+            source_name,
+            "resource://gre/components/MainProcessSingleton.js"
+        );
+        assert_eq!(
+            result.lines,
+            [
+                (7, 1),
+                (9, 1),
+                (10, 1),
+                (12, 2),
+                (13, 1),
+                (16, 1),
+                (17, 1),
+                (18, 2),
+                (19, 1),
+                (21, 1),
+                (22, 0),
+                (23, 0),
+                (24, 0),
+                (28, 1),
+                (29, 0),
+                (30, 0),
+                (32, 0),
+                (33, 0),
+                (34, 0),
+                (35, 0),
+                (37, 0),
+                (39, 0),
+                (41, 0),
+                (42, 0),
+                (44, 0),
+                (45, 0),
+                (46, 0),
+                (47, 0),
+                (49, 0),
+                (50, 0),
+                (51, 0),
+                (52, 0),
+                (53, 0),
+                (54, 0),
+                (55, 0),
+                (56, 0),
+                (59, 0),
+                (60, 0),
+                (61, 0),
+                (63, 0),
+                (65, 0),
+                (67, 1),
+                (68, 2),
+                (70, 1),
+                (74, 1),
+                (75, 1),
+                (76, 1),
+                (77, 1),
+                (78, 1),
+                (83, 1),
+                (84, 1),
+                (90, 1)
+            ].iter()
+                .cloned()
+                .collect()
+        );
         assert_eq!(result.branches, [].iter().cloned().collect());
         assert!(result.functions.contains_key("MainProcessSingleton"));
         let func = result.functions.get("MainProcessSingleton").unwrap();
@@ -667,9 +862,88 @@ mod tests {
         assert_eq!(results.len(), 603);
 
         let (ref source_name, ref result) = results[0];
-        assert_eq!(source_name, "resource://gre/components/MainProcessSingleton.js");
-        assert_eq!(result.lines, [(7,1),(9,1),(10,1),(12,2),(13,1),(16,1),(17,1),(18,2),(19,1),(21,1),(22,0),(23,0),(24,0),(28,1),(29,0),(30,0),(32,0),(33,0),(34,0),(35,0),(37,0),(39,0),(41,0),(42,0),(44,0),(45,0),(46,0),(47,0),(49,0),(50,0),(51,0),(52,0),(53,0),(54,0),(55,0),(56,0),(59,0),(60,0),(61,0),(63,0),(65,0),(67,1),(68,2),(70,1),(74,1),(75,1),(76,1),(77,1),(78,1),(83,1),(84,1),(90,1)].iter().cloned().collect());
-        assert_eq!(result.branches, [((34, 0), false), ((34, 1), false), ((41, 0), false), ((41, 1), false), ((44, 0), false), ((44, 1), false), ((60, 0), false), ((60, 1), false), ((63, 0), false), ((63, 1), false), ((68, 0), true), ((68, 1), true)].iter().cloned().collect());
+        assert_eq!(
+            source_name,
+            "resource://gre/components/MainProcessSingleton.js"
+        );
+        assert_eq!(
+            result.lines,
+            [
+                (7, 1),
+                (9, 1),
+                (10, 1),
+                (12, 2),
+                (13, 1),
+                (16, 1),
+                (17, 1),
+                (18, 2),
+                (19, 1),
+                (21, 1),
+                (22, 0),
+                (23, 0),
+                (24, 0),
+                (28, 1),
+                (29, 0),
+                (30, 0),
+                (32, 0),
+                (33, 0),
+                (34, 0),
+                (35, 0),
+                (37, 0),
+                (39, 0),
+                (41, 0),
+                (42, 0),
+                (44, 0),
+                (45, 0),
+                (46, 0),
+                (47, 0),
+                (49, 0),
+                (50, 0),
+                (51, 0),
+                (52, 0),
+                (53, 0),
+                (54, 0),
+                (55, 0),
+                (56, 0),
+                (59, 0),
+                (60, 0),
+                (61, 0),
+                (63, 0),
+                (65, 0),
+                (67, 1),
+                (68, 2),
+                (70, 1),
+                (74, 1),
+                (75, 1),
+                (76, 1),
+                (77, 1),
+                (78, 1),
+                (83, 1),
+                (84, 1),
+                (90, 1)
+            ].iter()
+                .cloned()
+                .collect()
+        );
+        assert_eq!(
+            result.branches,
+            [
+                ((34, 0), false),
+                ((34, 1), false),
+                ((41, 0), false),
+                ((41, 1), false),
+                ((44, 0), false),
+                ((44, 1), false),
+                ((60, 0), false),
+                ((60, 1), false),
+                ((63, 0), false),
+                ((63, 1), false),
+                ((68, 0), true),
+                ((68, 1), true)
+            ].iter()
+                .cloned()
+                .collect()
+        );
         assert!(result.functions.contains_key("MainProcessSingleton"));
         let func = result.functions.get("MainProcessSingleton").unwrap();
         assert_eq!(func.start, 15);
@@ -690,13 +964,83 @@ mod tests {
 
         let (ref source_name, ref result) = results[0];
         assert_eq!(source_name, "aFile.js");
-        assert_eq!(result.lines, [(7,1),(9,1),(10,1),(12,2),(13,1),(16,1),(17,1),(18,2),(19,1),(21,1),(22,0),(23,0),(24,0),(28,1),(29,0),(30,0),(32,0),(33,0),(34,0),(35,0),(37,0),(39,0),(41,0),(42,0),(44,0),(45,0),(46,0),(47,0),(49,0),(50,0),(51,0),(52,0),(53,0),(54,0),(55,0),(56,0),(59,0),(60,0),(61,0),(63,0),(65,0),(67,1),(68,2),(70,1),(74,1),(75,1),(76,1),(77,1),(78,1),(83,1),(84,1),(90,1),(95,1),(96,1),(97,1),(98,1),(99,1)].iter().cloned().collect());
+        assert_eq!(
+            result.lines,
+            [
+                (7, 1),
+                (9, 1),
+                (10, 1),
+                (12, 2),
+                (13, 1),
+                (16, 1),
+                (17, 1),
+                (18, 2),
+                (19, 1),
+                (21, 1),
+                (22, 0),
+                (23, 0),
+                (24, 0),
+                (28, 1),
+                (29, 0),
+                (30, 0),
+                (32, 0),
+                (33, 0),
+                (34, 0),
+                (35, 0),
+                (37, 0),
+                (39, 0),
+                (41, 0),
+                (42, 0),
+                (44, 0),
+                (45, 0),
+                (46, 0),
+                (47, 0),
+                (49, 0),
+                (50, 0),
+                (51, 0),
+                (52, 0),
+                (53, 0),
+                (54, 0),
+                (55, 0),
+                (56, 0),
+                (59, 0),
+                (60, 0),
+                (61, 0),
+                (63, 0),
+                (65, 0),
+                (67, 1),
+                (68, 2),
+                (70, 1),
+                (74, 1),
+                (75, 1),
+                (76, 1),
+                (77, 1),
+                (78, 1),
+                (83, 1),
+                (84, 1),
+                (90, 1),
+                (95, 1),
+                (96, 1),
+                (97, 1),
+                (98, 1),
+                (99, 1)
+            ].iter()
+                .cloned()
+                .collect()
+        );
         assert!(result.functions.contains_key("MainProcessSingleton"));
         let func = result.functions.get("MainProcessSingleton").unwrap();
         assert_eq!(func.start, 15);
         assert_eq!(func.executed, true);
-        assert!(result.functions.contains_key("cubic-bezier(0.0, 0.0, 1.0, 1.0)"));
-        let func = result.functions.get("cubic-bezier(0.0, 0.0, 1.0, 1.0)").unwrap();
+        assert!(
+            result
+                .functions
+                .contains_key("cubic-bezier(0.0, 0.0, 1.0, 1.0)")
+        );
+        let func = result
+            .functions
+            .get("cubic-bezier(0.0, 0.0, 1.0, 1.0)")
+            .unwrap();
         assert_eq!(func.start, 95);
         assert_eq!(func.executed, true);
     }
@@ -711,13 +1055,83 @@ mod tests {
 
         let (ref source_name, ref result) = results[0];
         assert_eq!(source_name, "aFile.js");
-        assert_eq!(result.lines, [(7,1),(9,1),(10,1),(12,2),(13,1),(16,1),(17,1),(18,2),(19,1),(21,1),(22,0),(23,0),(24,0),(28,1),(29,0),(30,0),(32,0),(33,0),(34,0),(35,0),(37,0),(39,0),(41,0),(42,0),(44,0),(45,0),(46,0),(47,0),(49,0),(50,0),(51,0),(52,0),(53,0),(54,0),(55,0),(56,0),(59,0),(60,0),(61,0),(63,0),(65,0),(67,1),(68,2),(70,1),(74,1),(75,1),(76,1),(77,1),(78,1),(83,1),(84,1),(90,1),(95,1),(96,1),(97,1),(98,1),(99,1)].iter().cloned().collect());
+        assert_eq!(
+            result.lines,
+            [
+                (7, 1),
+                (9, 1),
+                (10, 1),
+                (12, 2),
+                (13, 1),
+                (16, 1),
+                (17, 1),
+                (18, 2),
+                (19, 1),
+                (21, 1),
+                (22, 0),
+                (23, 0),
+                (24, 0),
+                (28, 1),
+                (29, 0),
+                (30, 0),
+                (32, 0),
+                (33, 0),
+                (34, 0),
+                (35, 0),
+                (37, 0),
+                (39, 0),
+                (41, 0),
+                (42, 0),
+                (44, 0),
+                (45, 0),
+                (46, 0),
+                (47, 0),
+                (49, 0),
+                (50, 0),
+                (51, 0),
+                (52, 0),
+                (53, 0),
+                (54, 0),
+                (55, 0),
+                (56, 0),
+                (59, 0),
+                (60, 0),
+                (61, 0),
+                (63, 0),
+                (65, 0),
+                (67, 1),
+                (68, 2),
+                (70, 1),
+                (74, 1),
+                (75, 1),
+                (76, 1),
+                (77, 1),
+                (78, 1),
+                (83, 1),
+                (84, 1),
+                (90, 1),
+                (95, 1),
+                (96, 1),
+                (97, 1),
+                (98, 1),
+                (99, 1)
+            ].iter()
+                .cloned()
+                .collect()
+        );
         assert!(result.functions.contains_key("MainProcessSingleton"));
         let func = result.functions.get("MainProcessSingleton").unwrap();
         assert_eq!(func.start, 15);
         assert_eq!(func.executed, true);
-        assert!(result.functions.contains_key("cubic-bezier(0.0, 0.0, 1.0, 1.0)"));
-        let func = result.functions.get("cubic-bezier(0.0, 0.0, 1.0, 1.0)").unwrap();
+        assert!(
+            result
+                .functions
+                .contains_key("cubic-bezier(0.0, 0.0, 1.0, 1.0)")
+        );
+        let func = result
+            .functions
+            .get("cubic-bezier(0.0, 0.0, 1.0, 1.0)")
+            .unwrap();
         assert_eq!(func.start, 95);
         assert_eq!(func.executed, true);
     }
@@ -739,33 +1153,215 @@ mod tests {
 
         let (ref source_name, ref result) = results[0];
         assert_eq!(source_name, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/nsExpirationTracker.h");
-        assert_eq!(result.lines, [(393,0),(397,0),(399,0),(401,0),(402,0),(403,0),(405,0)].iter().cloned().collect());
+        assert_eq!(
+            result.lines,
+            [
+                (393, 0),
+                (397, 0),
+                (399, 0),
+                (401, 0),
+                (402, 0),
+                (403, 0),
+                (405, 0)
+            ].iter()
+                .cloned()
+                .collect()
+        );
         assert!(result.functions.contains_key("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv"));
         let mut func = result.functions.get("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv").unwrap();
         assert_eq!(func.start, 393);
         assert_eq!(func.executed, false);
 
         let (ref source_name, ref result) = results[5];
-        assert_eq!(source_name, "/home/marco/Documenti/FD/mozilla-central/accessible/atk/Platform.cpp");
-        assert_eq!(result.lines, [(81,0),(83,0),(85,0),(87,0),(88,0),(90,0),(94,0),(96,0),(97,0),(98,0),(99,0),(100,0),(101,0),(103,0),(104,0),(108,0),(110,0),(111,0),(112,0),(115,0),(117,0),(118,0),(122,0),(123,0),(124,0),(128,0),(129,0),(130,0),(136,17),(138,17),(141,0),(142,0),(146,0),(147,0),(148,0),(151,0),(152,0),(153,0),(154,0),(155,0),(156,0),(157,0),(161,0),(162,0),(165,0),(166,0),(167,0),(168,0),(169,0),(170,0),(171,0),(172,0),(184,0),(187,0),(189,0),(190,0),(194,0),(195,0),(196,0),(200,0),(201,0),(202,0),(203,0),(207,0),(208,0),(216,17),(218,17),(219,0),(220,0),(221,0),(222,0),(223,0),(226,17),(232,0),(233,0),(234,0),(253,17),(261,11390),(265,11390),(268,373),(274,373),(277,373),(278,373),(281,373),(288,373),(289,373),(293,373),(294,373),(295,373),(298,373),(303,5794),(306,5794),(307,5558),(309,236),(311,236),(312,236),(313,0),(316,236),(317,236),(318,0),(321,236),(322,236),(323,236),(324,236),(327,236),(328,236),(329,236),(330,236),(331,472),(332,472),(333,236),(338,236),(339,236),(340,236),(343,0),(344,0),(345,0),(346,0),(347,0),(352,236),(353,236),(354,236),(355,236),(361,236),(362,236),(364,236),(365,236),(370,0),(372,0),(373,0),(374,0),(376,0)].iter().cloned().collect());
-        assert!(result.functions.contains_key("_ZL13LoadGtkModuleR24GnomeAccessibilityModule"));
-        func = result.functions.get("_ZL13LoadGtkModuleR24GnomeAccessibilityModule").unwrap();
+        assert_eq!(
+            source_name,
+            "/home/marco/Documenti/FD/mozilla-central/accessible/atk/Platform.cpp"
+        );
+        assert_eq!(
+            result.lines,
+            [
+                (81, 0),
+                (83, 0),
+                (85, 0),
+                (87, 0),
+                (88, 0),
+                (90, 0),
+                (94, 0),
+                (96, 0),
+                (97, 0),
+                (98, 0),
+                (99, 0),
+                (100, 0),
+                (101, 0),
+                (103, 0),
+                (104, 0),
+                (108, 0),
+                (110, 0),
+                (111, 0),
+                (112, 0),
+                (115, 0),
+                (117, 0),
+                (118, 0),
+                (122, 0),
+                (123, 0),
+                (124, 0),
+                (128, 0),
+                (129, 0),
+                (130, 0),
+                (136, 17),
+                (138, 17),
+                (141, 0),
+                (142, 0),
+                (146, 0),
+                (147, 0),
+                (148, 0),
+                (151, 0),
+                (152, 0),
+                (153, 0),
+                (154, 0),
+                (155, 0),
+                (156, 0),
+                (157, 0),
+                (161, 0),
+                (162, 0),
+                (165, 0),
+                (166, 0),
+                (167, 0),
+                (168, 0),
+                (169, 0),
+                (170, 0),
+                (171, 0),
+                (172, 0),
+                (184, 0),
+                (187, 0),
+                (189, 0),
+                (190, 0),
+                (194, 0),
+                (195, 0),
+                (196, 0),
+                (200, 0),
+                (201, 0),
+                (202, 0),
+                (203, 0),
+                (207, 0),
+                (208, 0),
+                (216, 17),
+                (218, 17),
+                (219, 0),
+                (220, 0),
+                (221, 0),
+                (222, 0),
+                (223, 0),
+                (226, 17),
+                (232, 0),
+                (233, 0),
+                (234, 0),
+                (253, 17),
+                (261, 11390),
+                (265, 11390),
+                (268, 373),
+                (274, 373),
+                (277, 373),
+                (278, 373),
+                (281, 373),
+                (288, 373),
+                (289, 373),
+                (293, 373),
+                (294, 373),
+                (295, 373),
+                (298, 373),
+                (303, 5794),
+                (306, 5794),
+                (307, 5558),
+                (309, 236),
+                (311, 236),
+                (312, 236),
+                (313, 0),
+                (316, 236),
+                (317, 236),
+                (318, 0),
+                (321, 236),
+                (322, 236),
+                (323, 236),
+                (324, 236),
+                (327, 236),
+                (328, 236),
+                (329, 236),
+                (330, 236),
+                (331, 472),
+                (332, 472),
+                (333, 236),
+                (338, 236),
+                (339, 236),
+                (340, 236),
+                (343, 0),
+                (344, 0),
+                (345, 0),
+                (346, 0),
+                (347, 0),
+                (352, 236),
+                (353, 236),
+                (354, 236),
+                (355, 236),
+                (361, 236),
+                (362, 236),
+                (364, 236),
+                (365, 236),
+                (370, 0),
+                (372, 0),
+                (373, 0),
+                (374, 0),
+                (376, 0)
+            ].iter()
+                .cloned()
+                .collect()
+        );
+        assert!(
+            result
+                .functions
+                .contains_key("_ZL13LoadGtkModuleR24GnomeAccessibilityModule")
+        );
+        func = result
+            .functions
+            .get("_ZL13LoadGtkModuleR24GnomeAccessibilityModule")
+            .unwrap();
         assert_eq!(func.start, 81);
         assert_eq!(func.executed, false);
-        assert!(result.functions.contains_key("_ZN7mozilla4a11y12PlatformInitEv"));
-        func = result.functions.get("_ZN7mozilla4a11y12PlatformInitEv").unwrap();
+        assert!(
+            result
+                .functions
+                .contains_key("_ZN7mozilla4a11y12PlatformInitEv")
+        );
+        func = result
+            .functions
+            .get("_ZN7mozilla4a11y12PlatformInitEv")
+            .unwrap();
         assert_eq!(func.start, 136);
         assert_eq!(func.executed, true);
-        assert!(result.functions.contains_key("_ZN7mozilla4a11y16PlatformShutdownEv"));
-        func = result.functions.get("_ZN7mozilla4a11y16PlatformShutdownEv").unwrap();
+        assert!(
+            result
+                .functions
+                .contains_key("_ZN7mozilla4a11y16PlatformShutdownEv")
+        );
+        func = result
+            .functions
+            .get("_ZN7mozilla4a11y16PlatformShutdownEv")
+            .unwrap();
         assert_eq!(func.start, 216);
         assert_eq!(func.executed, true);
         assert!(result.functions.contains_key("_ZN7mozilla4a11y7PreInitEv"));
         func = result.functions.get("_ZN7mozilla4a11y7PreInitEv").unwrap();
         assert_eq!(func.start, 261);
         assert_eq!(func.executed, true);
-        assert!(result.functions.contains_key("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv"));
-        func = result.functions.get("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv").unwrap();
+        assert!(
+            result
+                .functions
+                .contains_key("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv")
+        );
+        func = result
+            .functions
+            .get("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv")
+            .unwrap();
         assert_eq!(func.start, 303);
         assert_eq!(func.executed, true);
     }
@@ -776,7 +1372,7 @@ mod tests {
         assert_eq!(results.len(), 118);
         let (ref source_name, ref result) = results[14];
         assert_eq!(source_name, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/mozilla/Assertions.h");
-        assert_eq!(result.lines, [(40,0)].iter().cloned().collect());
+        assert_eq!(result.lines, [(40, 0)].iter().cloned().collect());
     }
 
     #[test]
@@ -784,8 +1380,238 @@ mod tests {
         let results = parse_gcov(Path::new("./test/64bit_count.gcov")).unwrap();
         assert_eq!(results.len(), 46);
         let (ref source_name, ref result) = results[8];
-        assert_eq!(source_name, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/js/HashTable.h");
-        assert_eq!(result.lines, [(324,8096),(343,12174),(344,6085),(345,23331),(357,10720),(361,313165934),(399,272539208),(402,31491125),(403,35509735),(420,434104),(709,313172766),(715,272542535),(801,584943263),(822,0),(825,0),(826,0),(828,0),(829,0),(831,0),(834,2210404897),(835,196249666),(838,3764974),(840,516370744),(841,1541684),(842,2253988941),(843,197245483),(844,0),(845,5306658),(846,821426720),(847,47096565),(853,82598134),(854,247796865),(886,272542256),(887,272542256),(904,599154437),(908,584933028),(913,584943263),(916,543534922),(917,584933028),(940,508959481),(945,1084660344),(960,545084512),(989,534593),(990,128435),(1019,427973453),(1029,504065334),(1038,1910289238),(1065,425402),(1075,10613316),(1076,5306658),(1090,392499332),(1112,48208),(1113,48208),(1114,0),(1115,0),(1118,48211),(1119,8009),(1120,48211),(1197,40347),(1202,585715301),(1207,1171430602),(1210,585715301),(1211,910968),(1212,585715301),(1222,30644),(1223,70165),(1225,1647),(1237,4048),(1238,4048),(1240,8096),(1244,6087),(1250,6087),(1257,6085),(1264,6085),(1278,6085),(1279,6085),(1280,0),(1283,6085),(1284,66935),(1285,30425),(1286,30425),(1289,6085),(1293,12171),(1294,6086),(1297,6087),(1299,6087),(1309,4048),(1310,4048),(1316,632104110),(1327,251893735),(1329,251893735),(1330,251893735),(1331,503787470),(1337,528619265),(1344,35325952),(1345,35325952),(1353,26236),(1354,13118),(1364,305520839),(1372,585099705),(1381,585099705),(1382,585099705),(1385,585099705),(1391,1135737600),(1397,242807686),(1400,242807686),(1403,1032741488),(1404,1290630),(1405,1042115),(1407,515080114),(1408,184996962),(1412,516370744),(1414,516370744),(1415,516370744),(1417,154330912),(1420,812664176),(1433,47004405),(1442,47004405),(1443,47004405),(1446,94008810),(1452,9086049),(1456,24497042),(1459,12248521),(1461,12248521),(1462,24497042),(1471,30642),(1474,30642),(1475,30642),(1476,30642),(1477,30642),(1478,30642),(1484,64904),(1485,34260),(1489,34260),(1490,34260),(1491,34260),(1492,34260),(1495,34260),(1496,69792911),(1497,139524496),(1498,94193130),(1499,47096565),(1500,47096565),(1506,61326),(1507,30663),(1513,58000),(1516,35325952),(1518,35325952),(1522,29000),(1527,29000),(1530,29000),(1534,0),(1536,0),(1537,0),(1538,0),(1540,0),(1547,10613316),(1548,1541684),(1549,1541684),(1552,3764974),(1554,5306658),(1571,8009),(1573,8009),(1574,8009),(1575,31345),(1576,5109),(1577,5109),(1580,8009),(1581,1647),(1582,8009),(1589,0),(1592,0),(1593,0),(1594,0),(1596,0),(1597,0),(1599,0),(1600,0),(1601,0),(1604,0),(1605,0),(1606,0),(1607,0),(1609,0),(1610,0),(1611,0),(1615,0),(1616,0),(1625,0),(1693,655507),(1711,35615006),(1730,10720),(1732,10720),(1733,10720),(1735,10720),(1736,10720),(1739,313162046),(1741,313162046),(1743,313162046),(1744,313162046),(1747,272542535),(1749,272542535),(1750,272542535),(1752,272542535),(1753,272542535),(1754,272542256),(1755,272542256),(1759,35509724),(1761,35509724),(1767,71019448),(1772,35505028),(1773,179105),(1776,179105),(1777,179105),(1780,35325923),(1781,35326057),(1785,35326058),(1786,29011),(1789,71010332),(1790,35505166),(1796,35505166)].iter().cloned().collect());
+        assert_eq!(
+            source_name,
+            "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/js/HashTable.h"
+        );
+        assert_eq!(
+            result.lines,
+            [
+                (324, 8096),
+                (343, 12174),
+                (344, 6085),
+                (345, 23331),
+                (357, 10720),
+                (361, 313165934),
+                (399, 272539208),
+                (402, 31491125),
+                (403, 35509735),
+                (420, 434104),
+                (709, 313172766),
+                (715, 272542535),
+                (801, 584943263),
+                (822, 0),
+                (825, 0),
+                (826, 0),
+                (828, 0),
+                (829, 0),
+                (831, 0),
+                (834, 2210404897),
+                (835, 196249666),
+                (838, 3764974),
+                (840, 516370744),
+                (841, 1541684),
+                (842, 2253988941),
+                (843, 197245483),
+                (844, 0),
+                (845, 5306658),
+                (846, 821426720),
+                (847, 47096565),
+                (853, 82598134),
+                (854, 247796865),
+                (886, 272542256),
+                (887, 272542256),
+                (904, 599154437),
+                (908, 584933028),
+                (913, 584943263),
+                (916, 543534922),
+                (917, 584933028),
+                (940, 508959481),
+                (945, 1084660344),
+                (960, 545084512),
+                (989, 534593),
+                (990, 128435),
+                (1019, 427973453),
+                (1029, 504065334),
+                (1038, 1910289238),
+                (1065, 425402),
+                (1075, 10613316),
+                (1076, 5306658),
+                (1090, 392499332),
+                (1112, 48208),
+                (1113, 48208),
+                (1114, 0),
+                (1115, 0),
+                (1118, 48211),
+                (1119, 8009),
+                (1120, 48211),
+                (1197, 40347),
+                (1202, 585715301),
+                (1207, 1171430602),
+                (1210, 585715301),
+                (1211, 910968),
+                (1212, 585715301),
+                (1222, 30644),
+                (1223, 70165),
+                (1225, 1647),
+                (1237, 4048),
+                (1238, 4048),
+                (1240, 8096),
+                (1244, 6087),
+                (1250, 6087),
+                (1257, 6085),
+                (1264, 6085),
+                (1278, 6085),
+                (1279, 6085),
+                (1280, 0),
+                (1283, 6085),
+                (1284, 66935),
+                (1285, 30425),
+                (1286, 30425),
+                (1289, 6085),
+                (1293, 12171),
+                (1294, 6086),
+                (1297, 6087),
+                (1299, 6087),
+                (1309, 4048),
+                (1310, 4048),
+                (1316, 632104110),
+                (1327, 251893735),
+                (1329, 251893735),
+                (1330, 251893735),
+                (1331, 503787470),
+                (1337, 528619265),
+                (1344, 35325952),
+                (1345, 35325952),
+                (1353, 26236),
+                (1354, 13118),
+                (1364, 305520839),
+                (1372, 585099705),
+                (1381, 585099705),
+                (1382, 585099705),
+                (1385, 585099705),
+                (1391, 1135737600),
+                (1397, 242807686),
+                (1400, 242807686),
+                (1403, 1032741488),
+                (1404, 1290630),
+                (1405, 1042115),
+                (1407, 515080114),
+                (1408, 184996962),
+                (1412, 516370744),
+                (1414, 516370744),
+                (1415, 516370744),
+                (1417, 154330912),
+                (1420, 812664176),
+                (1433, 47004405),
+                (1442, 47004405),
+                (1443, 47004405),
+                (1446, 94008810),
+                (1452, 9086049),
+                (1456, 24497042),
+                (1459, 12248521),
+                (1461, 12248521),
+                (1462, 24497042),
+                (1471, 30642),
+                (1474, 30642),
+                (1475, 30642),
+                (1476, 30642),
+                (1477, 30642),
+                (1478, 30642),
+                (1484, 64904),
+                (1485, 34260),
+                (1489, 34260),
+                (1490, 34260),
+                (1491, 34260),
+                (1492, 34260),
+                (1495, 34260),
+                (1496, 69792911),
+                (1497, 139524496),
+                (1498, 94193130),
+                (1499, 47096565),
+                (1500, 47096565),
+                (1506, 61326),
+                (1507, 30663),
+                (1513, 58000),
+                (1516, 35325952),
+                (1518, 35325952),
+                (1522, 29000),
+                (1527, 29000),
+                (1530, 29000),
+                (1534, 0),
+                (1536, 0),
+                (1537, 0),
+                (1538, 0),
+                (1540, 0),
+                (1547, 10613316),
+                (1548, 1541684),
+                (1549, 1541684),
+                (1552, 3764974),
+                (1554, 5306658),
+                (1571, 8009),
+                (1573, 8009),
+                (1574, 8009),
+                (1575, 31345),
+                (1576, 5109),
+                (1577, 5109),
+                (1580, 8009),
+                (1581, 1647),
+                (1582, 8009),
+                (1589, 0),
+                (1592, 0),
+                (1593, 0),
+                (1594, 0),
+                (1596, 0),
+                (1597, 0),
+                (1599, 0),
+                (1600, 0),
+                (1601, 0),
+                (1604, 0),
+                (1605, 0),
+                (1606, 0),
+                (1607, 0),
+                (1609, 0),
+                (1610, 0),
+                (1611, 0),
+                (1615, 0),
+                (1616, 0),
+                (1625, 0),
+                (1693, 655507),
+                (1711, 35615006),
+                (1730, 10720),
+                (1732, 10720),
+                (1733, 10720),
+                (1735, 10720),
+                (1736, 10720),
+                (1739, 313162046),
+                (1741, 313162046),
+                (1743, 313162046),
+                (1744, 313162046),
+                (1747, 272542535),
+                (1749, 272542535),
+                (1750, 272542535),
+                (1752, 272542535),
+                (1753, 272542535),
+                (1754, 272542256),
+                (1755, 272542256),
+                (1759, 35509724),
+                (1761, 35509724),
+                (1767, 71019448),
+                (1772, 35505028),
+                (1773, 179105),
+                (1776, 179105),
+                (1777, 179105),
+                (1780, 35325923),
+                (1781, 35326057),
+                (1785, 35326058),
+                (1786, 29011),
+                (1789, 71010332),
+                (1790, 35505166),
+                (1796, 35505166)
+            ].iter()
+                .cloned()
+                .collect()
+        );
 
         // Assert more stuff.
     }
@@ -798,9 +1624,32 @@ mod tests {
 
         assert_eq!(source_name, "/home/marco/Documenti/FD/mozilla-central/build-cov-gcc/dist/include/nsExpirationTracker.h");
 
-        assert_eq!(result.lines, [(393, 0), (397, 0), (399, 0), (401, 1), (402, 0), (403, 0), (405, 0)].iter().cloned().collect());
+        assert_eq!(
+            result.lines,
+            [
+                (393, 0),
+                (397, 0),
+                (399, 0),
+                (401, 1),
+                (402, 0),
+                (403, 0),
+                (405, 0)
+            ].iter()
+                .cloned()
+                .collect()
+        );
 
-        assert_eq!(result.branches, [((399, 0), false), ((399, 1), false), ((401, 0), true), ((401, 1), false)].iter().cloned().collect());
+        assert_eq!(
+            result.branches,
+            [
+                ((399, 0), false),
+                ((399, 1), false),
+                ((401, 0), true),
+                ((401, 1), false)
+            ].iter()
+                .cloned()
+                .collect()
+        );
 
         assert!(result.functions.contains_key("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv"));
         let func = result.functions.get("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv").unwrap();
@@ -810,23 +1659,43 @@ mod tests {
 
     #[test]
     fn test_parser_gcov_rust_generics_with_two_parameters() {
-        let results = parse_gcov(Path::new("./test/rust/generics_with_two_parameters_intermediate.gcov")).unwrap();
+        let results = parse_gcov(Path::new(
+            "./test/rust/generics_with_two_parameters_intermediate.gcov",
+        )).unwrap();
         assert_eq!(results.len(), 1);
         let (ref source_name, ref result) = results[0];
 
         assert_eq!(source_name, "src/main.rs");
 
-        assert_eq!(result.lines, [(4, 3), (5, 3), (6, 1), (9, 2), (10, 1), (11, 1), (12, 2)].iter().cloned().collect());
+        assert_eq!(
+            result.lines,
+            [(4, 3), (5, 3), (6, 1), (9, 2), (10, 1), (11, 1), (12, 2)]
+                .iter()
+                .cloned()
+                .collect()
+        );
 
         assert_eq!(result.branches, [].iter().cloned().collect());
 
-        assert!(result.functions.contains_key("_ZN27rust_code_coverage_sample_24mainE"));
-        let func = result.functions.get("_ZN27rust_code_coverage_sample_24mainE").unwrap();
+        assert!(
+            result
+                .functions
+                .contains_key("_ZN27rust_code_coverage_sample_24mainE")
+        );
+        let func = result
+            .functions
+            .get("_ZN27rust_code_coverage_sample_24mainE")
+            .unwrap();
         assert_eq!(func.start, 8);
         assert_eq!(func.executed, true);
 
-        assert!(result.functions.contains_key("_ZN27rust_code_coverage_sample_244compare_types<[i32; 3],alloc::vec::Vec<i32>>E"));
-        let func = result.functions.get("_ZN27rust_code_coverage_sample_244compare_types<[i32; 3],alloc::vec::Vec<i32>>E").unwrap();
+        assert!(result.functions.contains_key(
+            "_ZN27rust_code_coverage_sample_244compare_types<[i32; 3],alloc::vec::Vec<i32>>E"
+        ));
+        let func = result
+            .functions
+            .get("_ZN27rust_code_coverage_sample_244compare_types<[i32; 3],alloc::vec::Vec<i32>>E")
+            .unwrap();
         assert_eq!(func.start, 3);
         assert_eq!(func.executed, true);
     }
@@ -836,16 +1705,22 @@ mod tests {
         let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
         lines.insert(2, 1);
         let mut functions: HashMap<String, Function> = HashMap::new();
-        functions.insert(String::from("main"), Function {
-            start: 1,
-            executed: true,
-        });
-        let branches: BTreeMap<(u32,u32),bool> = BTreeMap::new();
-        let expected = vec![(String::from("file.c"), CovResult {
-            lines: lines,
-            branches: branches,
-            functions: functions,
-        })];
+        functions.insert(
+            String::from("main"),
+            Function {
+                start: 1,
+                executed: true,
+            },
+        );
+        let branches: BTreeMap<(u32, u32), bool> = BTreeMap::new();
+        let expected = vec![(
+            String::from("file.c"),
+            CovResult {
+                lines: lines,
+                branches: branches,
+                functions: functions,
+            },
+        )];
         let result = call_parse_llvm_gcno("test/llvm", "test/llvm/file", true);
         assert_eq!(result, expected);
     }
@@ -857,22 +1732,31 @@ mod tests {
         lines.insert(4, 1);
         lines.insert(6, 1);
         let mut functions: HashMap<String, Function> = HashMap::new();
-        functions.insert(String::from("hello#<init>"), Function {
-            executed: false,
-            start: 1,
-        });
-        functions.insert(String::from("hello#main"), Function {
-            executed: true,
-            start: 3,
-        });
-        let mut branches: BTreeMap<(u32,u32),bool> = BTreeMap::new();
+        functions.insert(
+            String::from("hello#<init>"),
+            Function {
+                executed: false,
+                start: 1,
+            },
+        );
+        functions.insert(
+            String::from("hello#main"),
+            Function {
+                executed: true,
+                start: 3,
+            },
+        );
+        let mut branches: BTreeMap<(u32, u32), bool> = BTreeMap::new();
         branches.insert((3, 0), true);
         branches.insert((3, 1), true);
-        let expected = vec![(String::from("hello.java"), CovResult {
-            lines: lines,
-            branches: branches,
-            functions: functions,
-        })];
+        let expected = vec![(
+            String::from("hello.java"),
+            CovResult {
+                lines: lines,
+                branches: branches,
+                functions: functions,
+            },
+        )];
 
         let f = File::open("./test/jacoco/basic-report.xml").expect("Failed to open xml file");
         let file = BufReader::new(&f);
@@ -889,30 +1773,37 @@ mod tests {
         }
         let mut functions: HashMap<String, Function> = HashMap::new();
 
-
         for (name, start, executed) in vec![
             ("Person$InnerClassForPerson#getSomethingElse", 31, false),
             ("Person#getSurname", 10, false),
             ("Person$InnerClassForPerson#<init>", 25, false),
             ("Person#setSurname", 14, false),
             ("Person#getAge", 18, false),
-            ("Person$InnerClassForPerson$InnerInnerClass#<init>", 34, false),
+            (
+                "Person$InnerClassForPerson$InnerInnerClass#<init>",
+                34,
+                false,
+            ),
             ("Person$InnerClassForPerson#getSomething", 27, false),
             ("Person#<init>", 5, false),
-            ("Person$InnerClassForPerson$InnerInnerClass#everything", 37, false),
+            (
+                "Person$InnerClassForPerson$InnerInnerClass#everything",
+                37,
+                false,
+            ),
             ("Person#setAge", 22, false),
         ] {
-            functions.insert(String::from(name), Function {
-                executed,
-                start,
-            });
+            functions.insert(String::from(name), Function { executed, start });
         }
-        let branches: BTreeMap<(u32,u32),bool> = BTreeMap::new();
-        let expected = vec![(String::from("org/gradle/Person.java"), CovResult {
-            lines: lines,
-            branches: branches,
-            functions: functions,
-        })];
+        let branches: BTreeMap<(u32, u32), bool> = BTreeMap::new();
+        let expected = vec![(
+            String::from("org/gradle/Person.java"),
+            CovResult {
+                lines: lines,
+                branches: branches,
+                functions: functions,
+            },
+        )];
 
         let f = File::open("./test/jacoco/inner-classes.xml").expect("Failed to open xml file");
         let file = BufReader::new(&f);
@@ -924,7 +1815,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_parser_jacoco_xml_non_top_level_classes_panics() {
-        let f = File::open("./test/jacoco/multiple-top-level-classes.xml").expect("Failed to open xml file");
+        let f = File::open("./test/jacoco/multiple-top-level-classes.xml")
+            .expect("Failed to open xml file");
         let file = BufReader::new(&f);
         let _results = parse_jacoco_xml_report(file).unwrap();
     }
@@ -932,7 +1824,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_parser_jacoco_xml_full_report_with_non_top_level_classes_panics() {
-        let f = File::open("./test/jacoco/full-junit4-report-multiple-top-level-classes.xml").expect("Failed to open xml file");
+        let f = File::open("./test/jacoco/full-junit4-report-multiple-top-level-classes.xml")
+            .expect("Failed to open xml file");
         let file = BufReader::new(&f);
         let _results = parse_jacoco_xml_report(file).unwrap();
     }

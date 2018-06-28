@@ -1,10 +1,10 @@
 #![feature(test)]
-extern crate test;
 extern crate grcov;
+extern crate test;
 
-use std::path::Path;
 use std::fs::File;
 use std::io::BufReader;
+use std::path::Path;
 use test::{black_box, Bencher};
 
 #[bench]

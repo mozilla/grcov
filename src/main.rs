@@ -1,23 +1,22 @@
-#![cfg_attr(feature="alloc_system",feature(alloc_system))]
-#[cfg(feature="alloc_system")]
+#![cfg_attr(feature = "alloc_system", feature(alloc_system))]
+#[cfg(feature = "alloc_system")]
 extern crate alloc_system;
-extern crate serde_json;
 extern crate crossbeam;
-extern crate num_cpus;
-extern crate tempdir;
 extern crate grcov;
+extern crate num_cpus;
+extern crate serde_json;
+extern crate tempdir;
 
+use crossbeam::sync::MsQueue;
+use serde_json::Value;
 use std::collections::HashMap;
-use std::{env, thread, process};
 use std::fs::{self, File};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use crossbeam::sync::MsQueue;
-use serde_json::Value;
+use std::{env, process, thread};
 use tempdir::TempDir;
 
 use grcov::*;
-
 
 fn print_usage(program: &str) {
     println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch] [--filter]", program);
@@ -30,7 +29,9 @@ fn print_usage(program: &str) {
     println!("SOURCE_ROOT is the root directory of the source files.");
     println!("PREFIX_PATH is a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that generated the code coverage information).");
     println!("COVERALLS_REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' format.");
-    println!("COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data.");
+    println!(
+        "COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data."
+    );
     println!("By default global includes are ignored. Use --keep-global-includes to keep them.");
     println!("By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.");
     println!("The --llvm option must be used when the code coverage information is coming from a llvm build.");
@@ -175,7 +176,9 @@ fn main() {
             } else if args[i + 1] == "uncovered" {
                 filter_option = Some(false);
             } else {
-                eprintln!("[ERROR]: Filter option invalid (should be either 'covered' or 'uncovered')\n");
+                eprintln!(
+                    "[ERROR]: Filter option invalid (should be either 'covered' or 'uncovered')\n"
+                );
                 print_usage(&args[0]);
                 process::exit(1);
             }
@@ -187,7 +190,9 @@ fn main() {
                 process::exit(1);
             }
 
-            num_threads = args[i + 1].parse().expect("Number of threads should be a number");
+            num_threads = args[i + 1]
+                .parse()
+                .expect("Number of threads should be a number");
             i += 1;
         } else {
             paths.push(args[i].clone());
@@ -201,15 +206,25 @@ fn main() {
         process::exit(1);
     }
 
-    if output_type != "ade" && output_type != "lcov" && output_type != "coveralls" && output_type != "coveralls+" && output_type != "files" {
-        eprintln!("[ERROR]: '{}' output format is not supported.\n", output_type);
+    if output_type != "ade"
+        && output_type != "lcov"
+        && output_type != "coveralls"
+        && output_type != "coveralls+"
+        && output_type != "files"
+    {
+        eprintln!(
+            "[ERROR]: '{}' output format is not supported.\n",
+            output_type
+        );
         print_usage(&args[0]);
         process::exit(1);
     }
 
     if output_type == "coveralls" || output_type == "coveralls+" {
         if repo_token == "" {
-            eprintln!("[ERROR]: Repository token is needed when the output format is 'coveralls'.\n");
+            eprintln!(
+                "[ERROR]: Repository token is needed when the output format is 'coveralls'.\n"
+            );
             print_usage(&args[0]);
             process::exit(1);
         }
@@ -247,7 +262,13 @@ fn main() {
         let path_mapping = Arc::clone(&path_mapping);
 
         thread::spawn(move || {
-            let producer_path_mapping_buf = producer(&tmp_path, &paths, &queue, filter_option.is_some() && filter_option.unwrap(), is_llvm);
+            let producer_path_mapping_buf = producer(
+                &tmp_path,
+                &paths,
+                &queue,
+                filter_option.is_some() && filter_option.unwrap(),
+                is_llvm,
+            );
 
             let mut path_mapping = path_mapping.lock().unwrap();
             *path_mapping = if path_mapping_file != "" {
@@ -271,7 +292,14 @@ fn main() {
 
         let t = thread::spawn(move || {
             fs::create_dir(&working_dir).expect("Failed to create working directory");
-            consumer(&working_dir, &source_root, &result_map, &queue, is_llvm, branch_enabled);
+            consumer(
+                &working_dir,
+                &source_root,
+                &result_map,
+                &queue,
+                is_llvm,
+                branch_enabled,
+            );
         });
 
         parsers.push(t);
@@ -294,16 +322,41 @@ fn main() {
     let path_mapping_mutex = Arc::try_unwrap(path_mapping).unwrap();
     let path_mapping = path_mapping_mutex.into_inner().unwrap();
 
-    let iterator = rewrite_paths(result_map, path_mapping, source_root, prefix_dir, ignore_global, ignore_not_existing, to_ignore_dirs, filter_option);
+    let iterator = rewrite_paths(
+        result_map,
+        path_mapping,
+        source_root,
+        prefix_dir,
+        ignore_global,
+        ignore_not_existing,
+        to_ignore_dirs,
+        filter_option,
+    );
 
     if output_type == "ade" {
         output_activedata_etl(iterator);
     } else if output_type == "lcov" {
         output_lcov(iterator);
     } else if output_type == "coveralls" {
-        output_coveralls(iterator, repo_token, service_name, service_number, service_job_number, commit_sha, false);
+        output_coveralls(
+            iterator,
+            repo_token,
+            service_name,
+            service_number,
+            service_job_number,
+            commit_sha,
+            false,
+        );
     } else if output_type == "coveralls+" {
-        output_coveralls(iterator, repo_token, service_name, service_number, service_job_number, commit_sha, true);
+        output_coveralls(
+            iterator,
+            repo_token,
+            service_name,
+            service_number,
+            service_job_number,
+            commit_sha,
+            true,
+        );
     } else if output_type == "files" {
         output_files(iterator);
     } else {
