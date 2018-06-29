@@ -36,7 +36,7 @@ mod output;
 pub use output::*;
 
 use std::collections::{btree_map, hash_map};
-use std::fs::{self, File};
+use std::fs;
 use std::io::{BufReader, Cursor};
 use std::path::PathBuf;
 use walkdir::WalkDir;
@@ -232,6 +232,7 @@ pub fn consumer(
 mod tests {
     use super::*;
     use std::collections::HashMap;
+    use std::fs::File;
     use std::sync::{Arc, Mutex};
 
     #[test]
