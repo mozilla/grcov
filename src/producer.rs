@@ -424,12 +424,12 @@ pub fn producer(
         );
     }
 
-    if gcno_stems_archives.borrow().is_empty()
-        && infos.borrow().is_empty()
-        && xmls.borrow().is_empty()
-    {
-        panic!("No data found");
-    }
+    assert!(
+        !(gcno_stems_archives.borrow().is_empty()
+            && infos.borrow().is_empty()
+            && xmls.borrow().is_empty()),
+        "No input files found"
+    );
 
     file_content_producer(infos.into_inner(), queue, ItemFormat::INFO);
     file_content_producer(xmls.into_inner(), queue, ItemFormat::JACOCO_XML);
