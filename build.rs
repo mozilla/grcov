@@ -68,6 +68,10 @@ fn get_llvm_libdir() -> String {
 fn main() {
     let mut build = cc::Build::new();
 
+    if !cfg!(target_env = "msvc") {
+        build.flag("-Wno-unused-parameter");
+    }
+
     build.file("src/c/llvmgcov.cpp");
     build.file("src/c/GCOV.cpp");
 
