@@ -58,6 +58,7 @@ impl Archive {
         gcno_stem_archives: &RefCell<HashMap<GCNOStem, &'a Archive>>,
         gcda_stem_archives: &RefCell<HashMap<String, Vec<&'a Archive>>>,
         infos: &RefCell<HashMap<String, Vec<&'a Archive>>>,
+        xmls: &RefCell<HashMap<String, Vec<&'a Archive>>>,
         linked_files_maps: &RefCell<HashMap<String, &'a Archive>>,
         is_llvm: bool,
     ) {
@@ -87,6 +88,10 @@ impl Archive {
                 "info" => {
                     let filename = path.to_str().unwrap().to_string();
                     self.insert_vec(filename, infos);
+                }
+                "xml" => {
+                    let filename = path.to_str().unwrap().to_string();
+                    self.insert_vec(filename, xmls);
                 }
                 "json" => {
                     let filename = path.file_name().unwrap();
@@ -120,6 +125,7 @@ impl Archive {
         gcno_stem_archives: &RefCell<HashMap<GCNOStem, &'a Archive>>,
         gcda_stem_archives: &RefCell<HashMap<String, Vec<&'a Archive>>>,
         infos: &RefCell<HashMap<String, Vec<&'a Archive>>>,
+        xmls: &RefCell<HashMap<String, Vec<&'a Archive>>>,
         linked_files_maps: &RefCell<HashMap<String, &'a Archive>>,
         is_llvm: bool,
     ) {
@@ -135,6 +141,7 @@ impl Archive {
                         gcno_stem_archives,
                         gcda_stem_archives,
                         infos,
+                        xmls,
                         linked_files_maps,
                         is_llvm,
                     );
@@ -152,6 +159,7 @@ impl Archive {
                             gcno_stem_archives,
                             gcda_stem_archives,
                             infos,
+                            xmls,
                             linked_files_maps,
                             is_llvm,
                         );
@@ -334,13 +342,17 @@ fn gcno_gcda_producer(
     }
 }
 
-pub fn info_producer(infos: HashMap<String, Vec<&Archive>>, queue: &WorkQueue) {
-    for (name, archives) in infos.iter() {
+fn file_content_producer(
+    files: HashMap<String, Vec<&Archive>>,
+    queue: &WorkQueue,
+    item_format: ItemFormat,
+) {
+    for (name, archives) in files.iter() {
         for archive in archives {
             let mut buffer = Vec::new();
             archive.read_in_buffer(name, &mut buffer);
             queue.push(Some(WorkItem {
-                format: ItemFormat::INFO,
+                format: item_format,
                 item: ItemType::Content(buffer),
                 name: archive.get_name().to_string(),
             }));
@@ -398,6 +410,7 @@ pub fn producer(
     let gcno_stems_archives: RefCell<HashMap<GCNOStem, &Archive>> = RefCell::new(HashMap::new());
     let gcda_stems_archives: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::new());
     let infos: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::new());
+    let xmls: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::new());
     let linked_files_maps: RefCell<HashMap<String, &Archive>> = RefCell::new(HashMap::new());
 
     for archive in archives.iter_mut() {
@@ -405,16 +418,21 @@ pub fn producer(
             &gcno_stems_archives,
             &gcda_stems_archives,
             &infos,
+            &xmls,
             &linked_files_maps,
             is_llvm,
         );
     }
 
-    if gcno_stems_archives.borrow().is_empty() {
-        assert!(!infos.borrow().is_empty());
-    }
+    assert!(
+        !(gcno_stems_archives.borrow().is_empty()
+            && infos.borrow().is_empty()
+            && xmls.borrow().is_empty()),
+        "No input files found"
+    );
 
-    info_producer(infos.into_inner(), queue);
+    file_content_producer(infos.into_inner(), queue, ItemFormat::INFO);
+    file_content_producer(xmls.into_inner(), queue, ItemFormat::JACOCO_XML);
     gcno_gcda_producer(
         tmp_dir,
         gcno_stems_archives.into_inner(),
@@ -582,6 +600,30 @@ mod tests {
                 false,
             ),
             (ItemFormat::GCNO, false, "llvm/file_1", true),
+            (
+                ItemFormat::JACOCO_XML,
+                false,
+                "jacoco/basic-jacoco.xml",
+                false,
+            ),
+            (
+                ItemFormat::JACOCO_XML,
+                false,
+                "jacoco/inner-classes.xml",
+                false,
+            ),
+            (
+                ItemFormat::JACOCO_XML,
+                false,
+                "jacoco/multiple-top-level-classes.xml",
+                false,
+            ),
+            (
+                ItemFormat::JACOCO_XML,
+                false,
+                "jacoco/full-junit4-report-multiple-top-level-classes.xml",
+                false,
+            ),
         ];
 
         check_produced(tmp_path, &queue, expected);
@@ -899,6 +941,82 @@ mod tests {
         );
 
         let expected = vec![
+            (ItemFormat::INFO, false, "1494603967-2977-2_0.info", true),
+            (ItemFormat::INFO, false, "1494603967-2977-3_0.info", true),
+            (ItemFormat::INFO, false, "1494603967-2977-4_0.info", true),
+            (ItemFormat::INFO, false, "1494603968-2977-5_0.info", true),
+            (ItemFormat::INFO, false, "1494603972-2977-6_0.info", true),
+            (ItemFormat::INFO, false, "1494603973-2977-7_0.info", true),
+            (ItemFormat::INFO, false, "1494603967-2977-2_1.info", true),
+            (ItemFormat::INFO, false, "1494603967-2977-3_1.info", true),
+            (ItemFormat::INFO, false, "1494603967-2977-4_1.info", true),
+            (ItemFormat::INFO, false, "1494603968-2977-5_1.info", true),
+            (ItemFormat::INFO, false, "1494603972-2977-6_1.info", true),
+            (ItemFormat::INFO, false, "1494603973-2977-7_1.info", true),
+        ];
+
+        check_produced(tmp_path, &queue, expected);
+    }
+
+    // Test extracting jacoco report XML files.
+    #[test]
+    fn test_zip_producer_jacoco_xml_files() {
+        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+        let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        producer(
+            &tmp_path,
+            &[
+                "test/jacoco1.zip".to_string(),
+                "test/jacoco2.zip".to_string(),
+            ],
+            &queue,
+            false,
+            false,
+        );
+
+        let expected = vec![
+            (
+                ItemFormat::JACOCO_XML,
+                false,
+                "jacoco/basic-jacoco.xml",
+                true,
+            ),
+            (ItemFormat::JACOCO_XML, false, "inner-classes.xml", true),
+        ];
+
+        check_produced(tmp_path, &queue, expected);
+    }
+
+    // Test extracting both jacoco xml and info files.
+    #[test]
+    fn test_zip_producer_both_info_and_jacoco_xml() {
+        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+        let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        producer(
+            &tmp_path,
+            &[
+                "test/jacoco1.zip".to_string(),
+                "test/jacoco2.zip".to_string(),
+                "test/info1.zip".to_string(),
+                "test/info2.zip".to_string(),
+            ],
+            &queue,
+            false,
+            false,
+        );
+
+        let expected = vec![
+            (
+                ItemFormat::JACOCO_XML,
+                false,
+                "jacoco/basic-jacoco.xml",
+                true,
+            ),
+            (ItemFormat::JACOCO_XML, false, "inner-classes.xml", true),
             (ItemFormat::INFO, false, "1494603967-2977-2_0.info", true),
             (ItemFormat::INFO, false, "1494603967-2977-3_0.info", true),
             (ItemFormat::INFO, false, "1494603967-2977-4_0.info", true),
