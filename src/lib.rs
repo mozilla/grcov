@@ -210,34 +210,18 @@ pub fn consumer(
                     }
                 }
             }
-            ItemFormat::INFO => match work_item.item {
-                ItemType::Path(info_path) => {
-                    let f = File::open(&info_path).expect("Failed to open lcov file");
-                    let file = BufReader::new(&f);
-                    try_parse!(parse_lcov(file, branch_enabled), work_item.name)
+            ItemFormat::INFO | ItemFormat::JACOCO_XML => {
+                if let ItemType::Content(content) = work_item.item {
+                    let buffer = BufReader::new(Cursor::new(content));
+                    if work_item.format == ItemFormat::INFO {
+                        try_parse!(parse_lcov(buffer, branch_enabled), work_item.name)
+                    } else {
+                        try_parse!(parse_jacoco_xml_report(buffer), work_item.name)
+                    }
+                } else {
+                    panic!("Invalid content type")
                 }
-                ItemType::Content(info_content) => {
-                    let buffer = BufReader::new(Cursor::new(info_content));
-                    try_parse!(parse_lcov(buffer, branch_enabled), work_item.name)
-                }
-                ItemType::Buffers(_) => {
-                    panic!("Invalid content type");
-                }
-            },
-            ItemFormat::JACOCO_XML => match work_item.item {
-                ItemType::Path(xml_path) => {
-                    let f = File::open(&xml_path).expect("Failed to open lcov file");
-                    let file = BufReader::new(&f);
-                    try_parse!(parse_jacoco_xml_report(file), work_item.name)
-                }
-                ItemType::Content(xml_content) => {
-                    let buffer = BufReader::new(Cursor::new(xml_content));
-                    try_parse!(parse_jacoco_xml_report(buffer), work_item.name)
-                }
-                ItemType::Buffers(_) => {
-                    panic!("Invalid content type");
-                }
-            },
+            }
         };
 
         add_results(new_results, result_map, source_dir);
