@@ -54,7 +54,7 @@ impl Archive {
     fn handle_file<'a>(
         &'a self,
         file: FilePath,
-        path: PathBuf,
+        path: &PathBuf,
         gcno_stem_archives: &RefCell<HashMap<GCNOStem, &'a Archive>>,
         gcda_stem_archives: &RefCell<HashMap<String, Vec<&'a Archive>>>,
         infos: &RefCell<HashMap<String, Vec<&'a Archive>>>,
@@ -62,8 +62,8 @@ impl Archive {
         linked_files_maps: &RefCell<HashMap<String, &'a Archive>>,
         is_llvm: bool,
     ) {
-        match path.extension() {
-            Some(ext) => match ext.to_str().unwrap() {
+        if let Some(ext) = path.extension() {
+            match ext.to_str().unwrap() {
                 "gcno" => {
                     let llvm = is_llvm || match file {
                         FilePath::File(reader) => Archive::is_gcno_llvm(reader),
@@ -101,19 +101,14 @@ impl Archive {
                     }
                 }
                 _ => {}
-            },
-            None => {}
+            }
         }
     }
 
     fn is_gcno_llvm(reader: &mut Read) -> bool {
         let mut bytes: [u8; 8] = [0; 8];
         reader.read_exact(&mut bytes).is_ok()
-            && bytes
-                == [
-                    'o' as u8, 'n' as u8, 'c' as u8, 'g' as u8, '*' as u8, '2' as u8, '0' as u8,
-                    '4' as u8,
-                ]
+            && bytes == [b'o', b'n', b'c', b'g', b'*', b'2', b'0', b'4']
     }
 
     pub fn get_name(&self) -> &String {
@@ -137,7 +132,7 @@ impl Archive {
                     let path = PathBuf::from(file.name());
                     self.handle_file(
                         FilePath::File(&mut file),
-                        path,
+                        &path,
                         gcno_stem_archives,
                         gcda_stem_archives,
                         infos,
@@ -149,13 +144,14 @@ impl Archive {
             }
             ArchiveType::Dir(ref dir) => {
                 for entry in WalkDir::new(&dir) {
-                    let entry = entry.expect(&format!("Failed to open directory '{:?}'.", dir));
+                    let entry =
+                        entry.unwrap_or_else(|_| panic!("Failed to open directory '{:?}'.", dir));
                     let full_path = entry.path();
                     if full_path.is_file() {
                         let path = full_path.strip_prefix(dir).unwrap();
                         self.handle_file(
                             FilePath::Path(full_path),
-                            path.to_path_buf(),
+                            &path.to_path_buf(),
                             gcno_stem_archives,
                             gcda_stem_archives,
                             infos,
@@ -217,16 +213,14 @@ impl Archive {
                 let src_path = dir.join(name);
 
                 #[cfg(unix)]
-                os::unix::fs::symlink(&src_path, path).expect(&format!(
-                    "Failed to create a symlink {:?} -> {:?}",
-                    src_path, path
-                ));
+                os::unix::fs::symlink(&src_path, path).unwrap_or_else(|_| {
+                    panic!("Failed to create a symlink {:?} -> {:?}", src_path, path)
+                });
 
                 #[cfg(windows)]
-                os::windows::fs::symlink_file(&src_path, path).expect(&format!(
-                    "Failed to create a symlink {:?} -> {:?}",
-                    src_path, path
-                ));
+                os::windows::fs::symlink_file(&src_path, path).unwrap_or_else(|_| {
+                    panic!("Failed to create a symlink {:?} -> {:?}", src_path, path)
+                });
 
                 true
             }
@@ -236,8 +230,8 @@ impl Archive {
 
 fn gcno_gcda_producer(
     tmp_dir: &Path,
-    gcno_stem_archives: HashMap<GCNOStem, &Archive>,
-    gcda_stem_archives: HashMap<String, Vec<&Archive>>,
+    gcno_stem_archives: &HashMap<GCNOStem, &Archive>,
+    gcda_stem_archives: &HashMap<String, Vec<&Archive>>,
     queue: &WorkQueue,
     ignore_orphan_gcno: bool,
 ) {
@@ -249,7 +243,7 @@ fn gcno_gcda_producer(
         }))
     };
 
-    for (gcno_stem, gcno_archive) in gcno_stem_archives.iter() {
+    for (gcno_stem, gcno_archive) in gcno_stem_archives {
         let stem = &gcno_stem.stem;
         match gcda_stem_archives.get(stem) {
             Some(gcda_archives) => {
@@ -293,8 +287,9 @@ fn gcno_gcda_producer(
                         None => {
                             // Create symlinks.
                             if num != 0 {
-                                fs::hard_link(&physical_gcno_path, &gcno_path)
-                                    .expect(&format!("Failed to create hardlink {:?}", gcno_path));
+                                fs::hard_link(&physical_gcno_path, &gcno_path).unwrap_or_else(
+                                    |_| panic!("Failed to create hardlink {:?}", gcno_path),
+                                );
                             }
 
                             let gcda_path = tmp_dir.join(format!("{}_{}.gcda", stem, num + 1));
@@ -343,11 +338,11 @@ fn gcno_gcda_producer(
 }
 
 fn file_content_producer(
-    files: HashMap<String, Vec<&Archive>>,
+    files: &HashMap<String, Vec<&Archive>>,
     queue: &WorkQueue,
     item_format: ItemFormat,
 ) {
-    for (name, archives) in files.iter() {
+    for (name, archives) in files {
         for archive in archives {
             let mut buffer = Vec::new();
             archive.read_in_buffer(name, &mut buffer);
@@ -360,20 +355,20 @@ fn file_content_producer(
     }
 }
 
-pub fn get_mapping(linked_files_maps: HashMap<String, &Archive>) -> Option<Vec<u8>> {
-    let mut mapping: Option<Vec<u8>> = None;
-    for (name, archive) in linked_files_maps.iter() {
-        let mut buffer = Vec::new();
-        archive.read_in_buffer(name, &mut buffer);
-        mapping = Some(buffer);
-        break;
+pub fn get_mapping(linked_files_maps: &HashMap<String, &Archive>) -> Option<Vec<u8>> {
+    match linked_files_maps.iter().next() {
+        Some((ref name, archive)) => {
+            let mut buffer = Vec::new();
+            archive.read_in_buffer(name, &mut buffer);
+            Some(buffer)
+        }
+        None => None,
     }
-    mapping
 }
 
 fn open_archive(path: &str) -> ZipArchive<File> {
-    let file = File::open(&path).expect(&format!("Failed to open ZIP file '{}'.", path));
-    ZipArchive::new(file).expect(&format!("Failed to parse ZIP file: {}", path))
+    let file = File::open(&path).unwrap_or_else(|_| panic!("Failed to open ZIP file '{}'.", path));
+    ZipArchive::new(file).unwrap_or_else(|_| panic!("Failed to parse ZIP file: {}", path))
 }
 
 pub fn producer(
@@ -413,7 +408,7 @@ pub fn producer(
     let xmls: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::new());
     let linked_files_maps: RefCell<HashMap<String, &Archive>> = RefCell::new(HashMap::new());
 
-    for archive in archives.iter_mut() {
+    for archive in &mut archives {
         archive.explore(
             &gcno_stems_archives,
             &gcda_stems_archives,
@@ -431,17 +426,17 @@ pub fn producer(
         "No input files found"
     );
 
-    file_content_producer(infos.into_inner(), queue, ItemFormat::INFO);
-    file_content_producer(xmls.into_inner(), queue, ItemFormat::JACOCO_XML);
+    file_content_producer(&infos.into_inner(), queue, ItemFormat::INFO);
+    file_content_producer(&xmls.into_inner(), queue, ItemFormat::JACOCO_XML);
     gcno_gcda_producer(
         tmp_dir,
-        gcno_stems_archives.into_inner(),
-        gcda_stems_archives.into_inner(),
+        &gcno_stems_archives.into_inner(),
+        &gcda_stems_archives.into_inner(),
         queue,
         ignore_orphan_gcno,
     );
 
-    get_mapping(linked_files_maps.into_inner())
+    get_mapping(&linked_files_maps.into_inner())
 }
 
 #[cfg(test)]

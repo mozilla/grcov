@@ -374,7 +374,7 @@ pub fn parse_lcov<T: Read>(
                     let f_name = try_next!(f_splits, l);
                     let f = cur_functions
                         .get_mut(f_name)
-                        .expect(format!("FN record missing for function {}", f_name).as_str());
+                        .unwrap_or_else(|| panic!("FN record missing for function {}", f_name));
                     f.executed |= executed;
                 }
                 "BRDA" => {
@@ -411,8 +411,8 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
 
     let mut results = Vec::new();
 
-    let f =
-        File::open(&gcov_path).expect(&format!("Failed to open gcov file {}", gcov_path.display()));
+    let f = File::open(&gcov_path)
+        .unwrap_or_else(|_| panic!("Failed to open gcov file {}", gcov_path.display()));
     let mut file = BufReader::new(&f);
     let mut l = vec![];
 
@@ -500,10 +500,10 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
     Ok(results)
 }
 
-fn get_xml_attribute(attributes: &Vec<OwnedAttribute>, name: &str) -> Result<String, ParserError> {
+fn get_xml_attribute(attributes: &[OwnedAttribute], name: &str) -> Result<String, ParserError> {
     for a in attributes {
         if a.name.local_name.as_str() == name {
-            return Ok(String::from(a.value.clone()));
+            return Ok(a.value.clone());
         }
     }
     Err(ParserError::InvalidRecord(format!(
@@ -640,8 +640,7 @@ fn parse_jacoco_report_package<T: Read>(
                             .expect("Failed to parse class name");
                         // Class name "Person"
                         let top_class = class
-                            .clone()
-                            .split("$")
+                            .split('$')
                             .nth(0)
                             .expect("Failed to parse top class name");
 
