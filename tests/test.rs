@@ -99,14 +99,11 @@ fn read_expected(path: &Path, compiler: &str, compiler_ver: &str, format: &str) 
     read_file(&path.join(&name))
 }
 
-fn run_grcov(paths: Vec<&Path>, llvm: bool, source_root: &Path, output_format: &str) -> String {
+fn run_grcov(paths: Vec<&Path>, source_root: &Path, output_format: &str) -> String {
     let mut args: Vec<&str> = Vec::new();
 
     for path in &paths {
         args.push(path.to_str().unwrap());
-    }
-    if llvm {
-        args.push("--llvm");
     }
     args.push("-t");
     args.push(output_format);
@@ -409,11 +406,11 @@ fn test_integration() {
                 run(path);
                 check_equal_ade(
                     &read_expected(path, "gcc", &gcc_version, "ade"),
-                    &run_grcov(vec![path], false, &PathBuf::from(""), "ade"),
+                    &run_grcov(vec![path], &PathBuf::from(""), "ade"),
                 );
                 check_equal_coveralls(
                     &read_expected(path, "gcc", &gcc_version, "coveralls"),
-                    &run_grcov(vec![path], false, path, "coveralls"),
+                    &run_grcov(vec![path], path, "coveralls"),
                     skip_branches,
                 );
                 do_clean(path);
@@ -431,11 +428,11 @@ fn test_integration() {
             run(path);
             check_equal_ade(
                 &read_expected(path, "llvm", &llvm_version, "ade"),
-                &run_grcov(vec![path], true, &PathBuf::from(""), "ade"),
+                &run_grcov(vec![path], &PathBuf::from(""), "ade"),
             );
             check_equal_coveralls(
                 &read_expected(path, "llvm", &llvm_version, "coveralls"),
-                &run_grcov(vec![path], true, path, "coveralls"),
+                &run_grcov(vec![path], path, "coveralls"),
                 skip_branches,
             );
 
@@ -496,24 +493,14 @@ fn test_integration_zip_zip() {
         )));
         check_equal_coveralls(
             &read_file(&path_expected),
-            &run_grcov(
-                vec![&gcno_zip_path, &gcda0_zip_path],
-                is_llvm,
-                path,
-                "coveralls",
-            ),
+            &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], path, "coveralls"),
             false,
         );
 
         // one gcda
         check_equal_coveralls(
             &read_expected(path, &name, &compiler_version, "coveralls"),
-            &run_grcov(
-                vec![&gcno_zip_path, &gcda_zip_path],
-                is_llvm,
-                path,
-                "coveralls",
-            ),
+            &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], path, "coveralls"),
             false,
         );
 
@@ -528,7 +515,6 @@ fn test_integration_zip_zip() {
             &read_file(&path_expected),
             &run_grcov(
                 vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path],
-                is_llvm,
                 path,
                 "coveralls",
             ),
@@ -578,7 +564,7 @@ fn test_integration_zip_dir() {
 
         check_equal_coveralls(
             &read_expected(path, &name, &compiler_version, "coveralls"),
-            &run_grcov(vec![&gcno_zip_path, &path], is_llvm, path, "coveralls"),
+            &run_grcov(vec![&gcno_zip_path, &path], path, "coveralls"),
             false,
         );
 
