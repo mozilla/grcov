@@ -85,7 +85,7 @@ fn add_results(
         let path = match source_dir {
             Some(source_dir) => {
                 // the goal here is to be able to merge results for paths like foo/./bar and foo/bar
-                match fs::canonicalize(source_dir.join(&result.0)) {
+                match canonicalize_path(source_dir.join(&result.0)) {
                     Ok(p) => String::from(p.to_str().unwrap()),
                     Err(_) => result.0,
                 }
@@ -345,7 +345,7 @@ mod tests {
         assert!(result_map.len() == 1);
 
         let cpp_file =
-            fs::canonicalize(PathBuf::from("./test/relative_path/foo/bar/oof.cpp")).unwrap();
+            canonicalize_path(PathBuf::from("./test/relative_path/foo/bar/oof.cpp")).unwrap();
         let cpp_file = cpp_file.to_str().unwrap();
         let cov_result = result_map.get(cpp_file).unwrap();
 
