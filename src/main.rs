@@ -314,7 +314,6 @@ fn main() {
                 &source_root,
                 &result_map,
                 &queue,
-                is_llvm,
                 branch_enabled,
             );
         });

@@ -130,7 +130,6 @@ pub fn consumer(
     source_dir: &Option<PathBuf>,
     result_map: &SyncCovResultMap,
     queue: &WorkQueue,
-    is_llvm: bool,
     branch_enabled: bool,
 ) {
     let mut gcov_type = GcovType::Unknown;
@@ -138,75 +137,62 @@ pub fn consumer(
     while let Some(work_item) = queue.pop() {
         let new_results = match work_item.format {
             ItemFormat::GCNO => {
-                if is_llvm {
-                    match work_item.item {
-                        ItemType::Path(gcno_path) => call_parse_llvm_gcno(
-                            working_dir.to_str().unwrap(),
-                            gcno_path
-                                .parent()
-                                .unwrap()
-                                .join(gcno_path.file_stem().unwrap())
-                                .to_str()
-                                .unwrap(),
-                            branch_enabled,
-                        ),
-                        ItemType::Buffers(buffers) => {
-                            let result = call_parse_llvm_gcno_buf(
-                                working_dir.to_str().unwrap(),
-                                &buffers.stem,
-                                &buffers.gcno_buf,
-                                &buffers.gcda_buf,
-                                branch_enabled,
-                            );
+                match work_item.item {
+                    ItemType::Path(gcno_path) => {
+                        // GCC
+                        run_gcov(&gcno_path, branch_enabled, working_dir);
+                        let gcov_path =
+                            gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov";
+                        let gcov_path = working_dir.join(gcov_path);
+                        if gcov_type == GcovType::Unknown {
+                            gcov_type = if gcov_path.exists() {
+                                GcovType::SingleFile
+                            } else {
+                                GcovType::MultipleFiles
+                            };
+                        }
 
-                            drop(buffers.gcda_buf);
-                            drop(buffers.gcno_buf);
-                            result
-                        }
-                        ItemType::Content(_) => {
-                            panic!("Invalid content type");
-                        }
-                    }
-                } else {
-                    let gcov_path = match work_item.item {
-                        ItemType::Path(gcno_path) => {
-                            run_gcov(&gcno_path, branch_enabled, working_dir);
-                            gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov"
-                        }
-                        ItemType::Buffers(_) => {
-                            panic!("Invalid content type");
-                        }
-                        ItemType::Content(_) => {
-                            panic!("Invalid content type");
-                        }
-                    };
-                    let gcov_path = working_dir.join(gcov_path);
-                    if gcov_type == GcovType::Unknown {
-                        gcov_type = if gcov_path.exists() {
-                            GcovType::SingleFile
+                        if gcov_type == GcovType::SingleFile {
+                            let new_results = try_parse!(parse_gcov(&gcov_path), work_item.name);
+                            fs::remove_file(gcov_path).unwrap();
+                            new_results
                         } else {
-                            GcovType::MultipleFiles
-                        };
-                    }
+                            let mut new_results: Vec<(
+                                String,
+                                CovResult,
+                            )> = Vec::new();
 
-                    if gcov_type == GcovType::SingleFile {
-                        let new_results = try_parse!(parse_gcov(&gcov_path), work_item.name);
-                        fs::remove_file(gcov_path).unwrap();
-                        new_results
-                    } else {
-                        let mut new_results: Vec<(String, CovResult)> = Vec::new();
+                            for entry in WalkDir::new(&working_dir).min_depth(1) {
+                                let gcov_path = entry.unwrap();
+                                let gcov_path = gcov_path.path();
 
-                        for entry in WalkDir::new(&working_dir).min_depth(1) {
-                            let gcov_path = entry.unwrap();
-                            let gcov_path = gcov_path.path();
+                                new_results.append(&mut try_parse!(
+                                    parse_gcov(&gcov_path),
+                                    work_item.name
+                                ));
+
+                                fs::remove_file(gcov_path).unwrap();
+                            }
 
                             new_results
-                                .append(&mut try_parse!(parse_gcov(&gcov_path), work_item.name));
-
-                            fs::remove_file(gcov_path).unwrap();
                         }
+                    }
+                    ItemType::Buffers(buffers) => {
+                        // LLVM
+                        let result = call_parse_llvm_gcno_buf(
+                            working_dir.to_str().unwrap(),
+                            &buffers.stem,
+                            &buffers.gcno_buf,
+                            &buffers.gcda_buf,
+                            branch_enabled,
+                        );
 
-                        new_results
+                        drop(buffers.gcda_buf);
+                        drop(buffers.gcno_buf);
+                        result
+                    }
+                    ItemType::Content(_) => {
+                        panic!("Invalid content type");
                     }
                 }
             }
