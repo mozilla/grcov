@@ -388,7 +388,7 @@ fn test_integration() {
         let entry = entry.unwrap();
         let path = entry.path();
 
-        if path == Path::new("tests/basic_zip") {
+        if path == Path::new("tests/basic_zip_zip") || path == Path::new("tests/basic_zip_dir") {
             continue;
         }
 
