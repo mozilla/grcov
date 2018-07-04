@@ -18,18 +18,22 @@ fn to_uppercase_first(s: &str) -> String {
 }
 
 pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
-	let path = fs::canonicalize(path)?;
-	Ok(if cfg!(windows) {
-        let spath = path.clone();
-        let spath = spath.to_str().unwrap();
+    let path = fs::canonicalize(path)?;
+
+    #[cfg(windows)]
+    let path = match {
+        let spath = path.to_str().unwrap();
         if spath.starts_with(r"\\?\") {
-			PathBuf::from(spath[r"\\?\".len()..].to_string())
-		} else {
-			path
-		}
-	} else {
-		path
-	})
+            Some(PathBuf::from(spath[r"\\?\".len()..].to_string()))
+        } else {
+            None
+        }
+    } {
+        Some(p) => p,
+        None => path,
+    };
+
+    Ok(path)
 }
 
 pub fn rewrite_paths(

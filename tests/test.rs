@@ -578,12 +578,7 @@ fn test_integration_zip_dir() {
 
         check_equal_coveralls(
             &read_expected(path, &name, &compiler_version, "coveralls"),
-            &run_grcov(
-                vec![&gcno_zip_path, &path],
-                is_llvm,
-                path,
-                "coveralls",
-            ),
+            &run_grcov(vec![&gcno_zip_path, &path], is_llvm, path, "coveralls"),
             false,
         );
 
