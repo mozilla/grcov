@@ -1,6 +1,7 @@
 use globset::{Glob, GlobSetBuilder};
 use serde_json::Value;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
 use defs::*;
@@ -14,6 +15,25 @@ fn to_lowercase_first(s: &str) -> String {
 fn to_uppercase_first(s: &str) -> String {
     let mut c = s.chars();
     c.next().unwrap().to_uppercase().collect::<String>() + c.as_str()
+}
+
+pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
+    let path = fs::canonicalize(path)?;
+
+    #[cfg(windows)]
+    let path = match {
+        let spath = path.to_str().unwrap();
+        if spath.starts_with(r"\\?\") {
+            Some(PathBuf::from(spath[r"\\?\".len()..].to_string()))
+        } else {
+            None
+        }
+    } {
+        Some(p) => p,
+        None => path,
+    };
+
+    Ok(path)
 }
 
 pub fn rewrite_paths(
@@ -52,12 +72,6 @@ pub fn rewrite_paths(
     };
 
     Box::new(result_map.into_iter().filter_map(move |(path, result)| {
-        let path = if path.starts_with(r"\\?\") {
-            path[r"\\?\".len()..].to_string()
-        } else {
-            path
-        };
-
         let path = if let Some(prepend_path) = &prepend_prefix_dir {
             prepend_path.join(Path::new(&path))
         } else {
@@ -96,7 +110,7 @@ pub fn rewrite_paths(
         };
 
         // Canonicalize, if possible.
-        let abs_path = match fs::canonicalize(&abs_path) {
+        let abs_path = match canonicalize_path(&abs_path) {
             Ok(p) => p,
             Err(_) => abs_path,
         };
@@ -626,7 +640,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(fs::canonicalize("tests").unwrap()),
+            Some(canonicalize_path("tests").unwrap()),
             None,
             None,
             false,
@@ -653,7 +667,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(fs::canonicalize("tests").unwrap()),
+            Some(canonicalize_path("tests").unwrap()),
             None,
             None,
             false,
@@ -680,7 +694,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(fs::canonicalize("tests").unwrap()),
+            Some(canonicalize_path("tests").unwrap()),
             None,
             None,
             false,
@@ -707,7 +721,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(fs::canonicalize("tests").unwrap()),
+            Some(canonicalize_path("tests").unwrap()),
             None,
             None,
             false,
@@ -737,7 +751,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(fs::canonicalize("tests").unwrap()),
+            Some(canonicalize_path("tests").unwrap()),
             Some(PathBuf::from("/home/worker/src/workspace")),
             None,
             false,
@@ -768,7 +782,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(fs::canonicalize("tests").unwrap()),
+            Some(canonicalize_path("tests").unwrap()),
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
             None,
             false,
@@ -1060,7 +1074,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})),
-            Some(fs::canonicalize("tests").unwrap()),
+            Some(canonicalize_path("tests").unwrap()),
             Some(PathBuf::from("/home/worker/src/workspace")),
             None,
             false,
@@ -1090,7 +1104,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             Some(json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})),
-            Some(fs::canonicalize("tests").unwrap()),
+            Some(canonicalize_path("tests").unwrap()),
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
             None,
             false,

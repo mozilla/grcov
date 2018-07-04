@@ -248,7 +248,7 @@ fn main() {
     }
 
     let source_root = if source_dir != "" {
-        Some(fs::canonicalize(&source_dir).expect("Source directory does not exist."))
+        Some(canonicalize_path(&source_dir).expect("Source directory does not exist."))
     } else {
         None
     };

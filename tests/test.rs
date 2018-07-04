@@ -388,7 +388,7 @@ fn test_integration() {
         let entry = entry.unwrap();
         let path = entry.path();
 
-        if path == Path::new("tests/basic_zip") {
+        if path == Path::new("tests/basic_zip_zip") || path == Path::new("tests/basic_zip_dir") {
             continue;
         }
 
@@ -445,7 +445,7 @@ fn test_integration() {
 }
 
 #[test]
-fn test_integration_zip() {
+fn test_integration_zip_zip() {
     if cfg!(windows) {
         println!("Integration tests still not supported under Windows.");
         return;
@@ -456,7 +456,7 @@ fn test_integration_zip() {
     for compiler in compilers {
         let is_llvm = compiler == "clang++";
         let name = if is_llvm { "llvm" } else { "gcc" };
-        let path = &PathBuf::from("tests/basic_zip");
+        let path = &PathBuf::from("tests/basic_zip_zip");
 
         println!("\n{}", name.to_uppercase());
         let compiler_version = if is_llvm {
@@ -532,6 +532,53 @@ fn test_integration_zip() {
                 path,
                 "coveralls",
             ),
+            false,
+        );
+
+        do_clean(path);
+    }
+}
+
+#[test]
+fn test_integration_zip_dir() {
+    if cfg!(windows) {
+        println!("Integration tests still not supported under Windows.");
+        return;
+    }
+
+    let compilers = vec!["g++", "clang++"];
+
+    for compiler in compilers {
+        let is_llvm = compiler == "clang++";
+        let name = if is_llvm { "llvm" } else { "gcc" };
+        let path = &PathBuf::from("tests/basic_zip_dir");
+
+        println!("\n{}", name.to_uppercase());
+        let compiler_version = if is_llvm {
+            let llvm_version = get_version("llvm-config");
+            let clang_version = get_version("clang++");
+            assert_eq!(
+                llvm_version, clang_version,
+                "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version",
+                llvm_version, clang_version
+            );
+            clang_version
+        } else {
+            get_version("g++")
+        };
+
+        make(path, compiler);
+        run(path);
+
+        let gcno_zip_path = PathBuf::from("gcno.zip");
+
+        create_zip(&gcno_zip_path, path, "*.gcno");
+
+        let gcno_zip_path = path.join(gcno_zip_path);
+
+        check_equal_coveralls(
+            &read_expected(path, &name, &compiler_version, "coveralls"),
+            &run_grcov(vec![&gcno_zip_path, &path], is_llvm, path, "coveralls"),
             false,
         );
 
