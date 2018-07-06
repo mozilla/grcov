@@ -392,13 +392,6 @@ fn create_zip(zip_path: &Path, base_dir: &Path, base_dir_in_zip: Option<&str>, f
                 }
                 path = parent.parent();
             }
-
-            /*for ancestor in path.ancestors() {
-				let ancestor = ancestor.to_str().unwrap();
-				if !ancestor.is_empty() {
-					zip.add_directory(ancestor, FileOptions::default());
-				}
-			}*/
         }
         None => {}
     }
