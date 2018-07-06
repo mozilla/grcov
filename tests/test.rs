@@ -408,7 +408,7 @@ fn create_zip(zip_path: &Path, base_dir: &Path, base_dir_in_zip: Option<&str>, f
 }
 
 #[test]
-fn test_integration_x() {
+fn test_integration() {
     if cfg!(windows) {
         println!("Integration tests still not supported under Windows.");
         return;
