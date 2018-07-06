@@ -132,9 +132,11 @@ fn run_grcov(paths: Vec<&Path>, source_root: &Path, output_format: &str) -> Stri
     String::from_utf8(output.stdout).unwrap()
 }
 
-fn rm_files(directory: &Path, files_glob: &str) {
+fn rm_files(directory: &Path, file_globs: Vec<&str>) {
     let mut glob_builder = GlobSetBuilder::new();
-    glob_builder.add(Glob::new(files_glob).unwrap());
+    for file_glob in &file_globs {
+        glob_builder.add(Glob::new(file_glob).unwrap());
+    }
     let to_remove_globset = glob_builder.build().unwrap();
 
     for entry in WalkDir::new(&directory) {
@@ -147,18 +149,17 @@ fn rm_files(directory: &Path, files_glob: &str) {
 }
 
 fn do_clean(directory: &Path) {
-    let to_remove_globs = vec![
-        "a.out",
-        "a.exe",
-        "*.gcno",
-        "*.gcda",
-        "*.zip",
-        "default.profraw",
-    ];
-
-    for to_remove_glob in &to_remove_globs {
-        rm_files(directory, to_remove_glob);
-    }
+    rm_files(
+        directory,
+        vec![
+            "a.out",
+            "a.exe",
+            "*.gcno",
+            "*.gcda",
+            "*.zip",
+            "default.profraw",
+        ],
+    );
 }
 
 fn check_equal_inner(a: &Value, b: &Value, skip_methods: bool) -> bool {
@@ -588,7 +589,7 @@ fn test_integration_zip_dir() {
         create_zip(&gcno_zip_path, path, Some("foo_dir/bar_dir"), "*.gcno");
 
         // remove the gcno
-        rm_files(path, "*.gcno");
+        rm_files(path, vec!["*.gcno"]);
 
         let gcno_zip_path = path.join(gcno_zip_path);
 
