@@ -132,19 +132,10 @@ fn run_grcov(paths: Vec<&Path>, source_root: &Path, output_format: &str) -> Stri
     String::from_utf8(output.stdout).unwrap()
 }
 
-fn do_clean(directory: &Path) {
-    let to_remove_globs = vec![
-        "a.out",
-        "a.exe",
-        "*.gcno",
-        "*.gcda",
-        "*.zip",
-        "default.profraw",
-    ];
-
+fn rm_files(directory: &Path, file_globs: Vec<&str>) {
     let mut glob_builder = GlobSetBuilder::new();
-    for to_remove_glob in &to_remove_globs {
-        glob_builder.add(Glob::new(to_remove_glob).unwrap());
+    for file_glob in &file_globs {
+        glob_builder.add(Glob::new(file_glob).unwrap());
     }
     let to_remove_globset = glob_builder.build().unwrap();
 
@@ -155,6 +146,20 @@ fn do_clean(directory: &Path) {
             fs::remove_file(entry.path()).unwrap();
         }
     }
+}
+
+fn do_clean(directory: &Path) {
+    rm_files(
+        directory,
+        vec![
+            "a.out",
+            "a.exe",
+            "*.gcno",
+            "*.gcda",
+            "*.zip",
+            "default.profraw",
+        ],
+    );
 }
 
 fn check_equal_inner(a: &Value, b: &Value, skip_methods: bool) -> bool {
@@ -339,7 +344,7 @@ fn get_compiler_major(version: &String) -> String {
     }
 }
 
-fn create_zip(zip_path: &Path, base_dir: &Path, files_glob: &str) {
+fn create_zip(zip_path: &Path, base_dir: &Path, base_dir_in_zip: Option<&str>, files_glob: &str) {
     let mut glob_builder = GlobSetBuilder::new();
     glob_builder.add(Glob::new(files_glob).unwrap());
     let globset = glob_builder.build().unwrap();
@@ -363,13 +368,35 @@ fn create_zip(zip_path: &Path, base_dir: &Path, files_glob: &str) {
         let mut content: Vec<u8> = Vec::with_capacity(file_size + 1);
         file.read_to_end(&mut content)
             .expect(&format!("Cannot read {:?}", file_path));
-        zip.start_file(
-            file_path.file_name().unwrap().to_str().unwrap(),
-            FileOptions::default(),
-        ).expect(&format!("Cannot create zip for {:?}", zip_path));
+
+        let filename_in_zip = file_path.file_name().unwrap().to_str().unwrap();
+        let filename_in_zip = match base_dir_in_zip {
+            Some(p) => p.to_owned() + "/" + filename_in_zip,
+            None => filename_in_zip.to_string(),
+        };
+
+        zip.start_file(filename_in_zip, FileOptions::default())
+            .expect(&format!("Cannot create zip for {:?}", zip_path));
         zip.write_all(content.as_slice())
             .expect(&format!("Cannot write {:?}", zip_path));
     }
+
+    match base_dir_in_zip {
+        Some(path) => {
+            let path = PathBuf::from(path);
+            let mut path = Some(path.as_path());
+            while let Some(parent) = path {
+                let ancestor = parent.to_str().unwrap();
+                if !ancestor.is_empty() {
+                    zip.add_directory(ancestor, FileOptions::default())
+                        .expect(&format!("Cannot add a directory"));
+                }
+                path = parent.parent();
+            }
+        }
+        None => {}
+    }
+
     zip.finish()
         .expect(&format!("Unable to write zip structure for {:?}", zip_path));
 }
@@ -385,7 +412,7 @@ fn test_integration() {
         let entry = entry.unwrap();
         let path = entry.path();
 
-        if path == Path::new("tests/basic_zip_zip") || path == Path::new("tests/basic_zip_dir") {
+        if path.starts_with("tests/basic_zip_zip") || path.starts_with("tests/basic_zip_dir") {
             continue;
         }
 
@@ -477,9 +504,9 @@ fn test_integration_zip_zip() {
         let gcda0_zip_path = PathBuf::from("gcda0.zip");
         let gcda1_zip_path = PathBuf::from("gcda1.zip");
 
-        create_zip(&gcno_zip_path, path, "*.gcno");
-        create_zip(&gcda_zip_path, path, "*.gcda");
-        create_zip(&gcda0_zip_path, path, "");
+        create_zip(&gcno_zip_path, path, None, "*.gcno");
+        create_zip(&gcda_zip_path, path, None, "*.gcda");
+        create_zip(&gcda0_zip_path, path, None, "");
 
         let gcno_zip_path = path.join(gcno_zip_path);
         let gcda_zip_path = path.join(gcda_zip_path);
@@ -537,7 +564,8 @@ fn test_integration_zip_dir() {
     for compiler in compilers {
         let is_llvm = compiler == "clang++";
         let name = if is_llvm { "llvm" } else { "gcc" };
-        let path = &PathBuf::from("tests/basic_zip_dir");
+        let base_path = &PathBuf::from("tests/basic_zip_dir");
+        let path = &base_path.join("foo_dir").join("bar_dir");
 
         println!("\n{}", name.to_uppercase());
         let compiler_version = if is_llvm {
@@ -558,13 +586,16 @@ fn test_integration_zip_dir() {
 
         let gcno_zip_path = PathBuf::from("gcno.zip");
 
-        create_zip(&gcno_zip_path, path, "*.gcno");
+        create_zip(&gcno_zip_path, path, Some("foo_dir/bar_dir"), "*.gcno");
+
+        // remove the gcno to avoid to have it when exploring the dir
+        rm_files(path, vec!["*.gcno"]);
 
         let gcno_zip_path = path.join(gcno_zip_path);
 
         check_equal_coveralls(
-            &read_expected(path, &name, &compiler_version, "coveralls"),
-            &run_grcov(vec![&gcno_zip_path, &path], path, "coveralls"),
+            &read_expected(base_path, &name, &compiler_version, "coveralls"),
+            &run_grcov(vec![&gcno_zip_path, &base_path], path, "coveralls"),
             false,
         );
 
