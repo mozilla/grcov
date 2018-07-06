@@ -212,11 +212,6 @@ fn main() {
         i += 1;
     }
 
-    if !is_llvm && !check_gcov_version() {
-        eprintln!("[ERROR]: gcov (bundled with GCC) >= 4.9 is required.\n");
-        process::exit(1);
-    }
-
     if output_type != "ade"
         && output_type != "lcov"
         && output_type != "coveralls"

@@ -34,6 +34,15 @@ pub struct GCNOStem {
     pub llvm: bool,
 }
 
+fn clean_path(path: &PathBuf) -> String {
+    let path = path.to_str().unwrap().to_string();
+
+    #[cfg(windows)]
+    let path = path.replace("\\", "/");
+
+    path
+}
+
 impl Archive {
     fn insert_vec<'a>(
         &'a self,
@@ -72,7 +81,7 @@ impl Archive {
                             Err(_) => false,
                         },
                     };
-                    let filename = path.with_extension("").to_str().unwrap().to_string();
+                    let filename = clean_path(&path.with_extension(""));
                     gcno_stem_archives.borrow_mut().insert(
                         GCNOStem {
                             stem: filename,
@@ -82,21 +91,21 @@ impl Archive {
                     );
                 }
                 "gcda" => {
-                    let filename = path.with_extension("").to_str().unwrap().to_string();
+                    let filename = clean_path(&path.with_extension(""));
                     self.insert_vec(filename, gcda_stem_archives);
                 }
                 "info" => {
-                    let filename = path.to_str().unwrap().to_string();
+                    let filename = clean_path(path);
                     self.insert_vec(filename, infos);
                 }
                 "xml" => {
-                    let filename = path.to_str().unwrap().to_string();
+                    let filename = clean_path(path);
                     self.insert_vec(filename, xmls);
                 }
                 "json" => {
                     let filename = path.file_name().unwrap();
                     if filename == "linked-files-map.json" {
-                        let filename = path.to_str().unwrap().to_string();
+                        let filename = clean_path(path);
                         linked_files_maps.borrow_mut().insert(filename, self);
                     }
                 }
@@ -167,16 +176,13 @@ impl Archive {
 
     pub fn read_in_buffer(&self, name: &str, buf: &mut Vec<u8>) -> bool {
         match *self.item.borrow_mut() {
-            ArchiveType::Zip(ref mut zip) => {
-                let name = name.replace("\\", "/");
-                match zip.borrow_mut().by_name(&name) {
-                    Ok(mut f) => {
-                        f.read_to_end(buf).expect("Failed to read gcda file");
-                        true
-                    }
-                    Err(_) => false,
+            ArchiveType::Zip(ref mut zip) => match zip.borrow_mut().by_name(&name) {
+                Ok(mut f) => {
+                    f.read_to_end(buf).expect("Failed to read gcda file");
+                    true
                 }
-            }
+                Err(_) => false,
+            },
             ArchiveType::Dir(ref dir) => match File::open(dir.join(name)) {
                 Ok(mut f) => {
                     f.read_to_end(buf).expect("Failed to read gcda file");
@@ -197,17 +203,14 @@ impl Archive {
         }
 
         match *self.item.borrow_mut() {
-            ArchiveType::Zip(ref mut zip) => {
-                let name = name.replace("\\", "/");
-                match zip.borrow_mut().by_name(&name) {
-                    Ok(mut f) => {
-                        let mut file = File::create(&path).expect("Failed to create file");
-                        io::copy(&mut f, &mut file).expect("Failed to copy file from ZIP");
-                        true
-                    }
-                    Err(_) => false,
+            ArchiveType::Zip(ref mut zip) => match zip.borrow_mut().by_name(&name) {
+                Ok(mut f) => {
+                    let mut file = File::create(&path).expect("Failed to create file");
+                    io::copy(&mut f, &mut file).expect("Failed to copy file from ZIP");
+                    true
                 }
-            }
+                Err(_) => false,
+            },
             ArchiveType::Dir(ref dir) => {
                 // don't use a hard link here because it can fail when src and dst are not on the same device
                 let src_path = dir.join(name);
