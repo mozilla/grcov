@@ -588,7 +588,7 @@ fn test_integration_zip_dir() {
 
         create_zip(&gcno_zip_path, path, Some("foo_dir/bar_dir"), "*.gcno");
 
-        // remove the gcno
+        // remove the gcno to avoid to have it when exploring the dir
         rm_files(path, vec!["*.gcno"]);
 
         let gcno_zip_path = path.join(gcno_zip_path);
