@@ -7,6 +7,9 @@ pub fn is_covered(result: &CovResult) -> bool {
         .lines
         .values()
         .any(|&execution_count| execution_count != 0);
+    if any_line_covered == false {
+        return false;
+    }
     // For JavaScript files, we can't do the same, as the top-level is always
     // executed, even if it just contains declarations. So, we need to check if
     // all its functions, except the top-level, are uncovered.
