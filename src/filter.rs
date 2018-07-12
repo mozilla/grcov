@@ -7,7 +7,7 @@ pub fn is_covered(result: &CovResult) -> bool {
         .lines
         .values()
         .any(|&execution_count| execution_count != 0);
-    if any_line_covered == false {
+    if !any_line_covered {
         return false;
     }
     // For JavaScript files, we can't do the same, as the top-level is always
@@ -17,7 +17,7 @@ pub fn is_covered(result: &CovResult) -> bool {
         .functions
         .iter()
         .any(|(name, ref function)| function.executed && name != "top-level");
-    any_line_covered && (result.functions.len() <= 1 || any_function_covered)
+    result.functions.len() <= 1 || any_function_covered
 }
 
 #[cfg(test)]
