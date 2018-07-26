@@ -14,6 +14,7 @@
 
 #include "GCOV.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Config/llvm-config.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Format.h"
@@ -25,10 +26,10 @@
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
-// CustomGCOVFile implementation.
+// GCOVFile implementation.
 
 /// readGCNO - Read GCNO buffer.
-bool CustomGCOVFile::readGCNO(GCOVBuffer &Buffer) {
+bool GCOVFile::readGCNO(GCOVBuffer &Buffer) {
   if (!Buffer.readGCNOFormat())
     return false;
   if (!Buffer.readGCOVVersion(Version))
@@ -39,7 +40,7 @@ bool CustomGCOVFile::readGCNO(GCOVBuffer &Buffer) {
   while (true) {
     if (!Buffer.readFunctionTag())
       break;
-    auto GFun = make_unique<CustomGCOVFunction>(*this);
+    auto GFun = make_unique<GCOVFunction>(*this);
     if (!GFun->readGCNO(Buffer, Version))
       return false;
     Functions.push_back(std::move(GFun));
@@ -51,7 +52,7 @@ bool CustomGCOVFile::readGCNO(GCOVBuffer &Buffer) {
 
 /// readGCDA - Read GCDA buffer. It is required that readGCDA() can only be
 /// called after readGCNO().
-bool CustomGCOVFile::readGCDA(GCOVBuffer &Buffer) {
+bool GCOVFile::readGCDA(GCOVBuffer &Buffer) {
   assert(GCNOInitialized && "readGCDA() can only be called after readGCNO()");
   if (!Buffer.readGCDAFormat())
     return false;
@@ -103,21 +104,21 @@ bool CustomGCOVFile::readGCDA(GCOVBuffer &Buffer) {
   return true;
 }
 
-void CustomGCOVFile::print(raw_ostream &OS) const {
+void GCOVFile::print(raw_ostream &OS) const {
   for (const auto &FPtr : Functions)
     FPtr->print(OS);
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-/// dump - Dump CustomGCOVFile content to dbgs() for debugging purposes.
-LLVM_DUMP_METHOD void CustomGCOVFile::dump() const {
+/// dump - Dump GCOVFile content to dbgs() for debugging purposes.
+LLVM_DUMP_METHOD void GCOVFile::dump() const {
   print(dbgs());
 }
 #endif
 
 /// collectLineCounts - Collect line counts. This must be used after
 /// reading .gcno and .gcda files.
-void CustomGCOVFile::collectLineCounts(ProtectedFileInfo &FI) {
+void GCOVFile::collectLineCounts(FileInfo &FI) {
   for (const auto &FPtr : Functions)
     FPtr->collectLineCounts(FI);
   FI.setRunCount(RunCount);
@@ -125,11 +126,11 @@ void CustomGCOVFile::collectLineCounts(ProtectedFileInfo &FI) {
 }
 
 //===----------------------------------------------------------------------===//
-// CustomGCOVFunction implementation.
+// GCOVFunction implementation.
 
 /// readGCNO - Read a function from the GCNO buffer. Return false if an error
 /// occurs.
-bool CustomGCOVFunction::readGCNO(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
+bool GCOVFunction::readGCNO(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
   uint32_t Dummy;
   if (!Buff.readInt(Dummy))
     return false; // Function header length
@@ -165,7 +166,7 @@ bool CustomGCOVFunction::readGCNO(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
   for (uint32_t i = 0, e = BlockCount; i != e; ++i) {
     if (!Buff.readInt(Dummy))
       return false; // Block flags;
-    Blocks.push_back(make_unique<CustomGCOVBlock>(*this, i));
+    Blocks.push_back(make_unique<GCOVBlock>(*this, i));
   }
 
   // read edges.
@@ -211,7 +212,7 @@ bool CustomGCOVFunction::readGCNO(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
              << ").\n";
       return false;
     }
-    CustomGCOVBlock &Block = *Blocks[BlockNo];
+    GCOVBlock &Block = *Blocks[BlockNo];
     // Read the word that pads the beginning of the line table. This may be a
     // flag of some sort, but seems to always be zero.
     if (!Buff.readInt(Dummy))
@@ -252,7 +253,7 @@ bool CustomGCOVFunction::readGCNO(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
 
 /// readGCDA - Read a function from the GCDA buffer. Return false if an error
 /// occurs.
-bool CustomGCOVFunction::readGCDA(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
+bool GCOVFunction::readGCDA(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
   uint32_t HeaderLength;
   if (!Buff.readInt(HeaderLength))
     return false; // Function header length
@@ -319,7 +320,7 @@ bool CustomGCOVFunction::readGCDA(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
     }
     if (BlockNo == Blocks.size() - 1)
       errs() << "(" << Name << ") has arcs from exit block.\n";
-    CustomGCOVBlock &Block = *Blocks[BlockNo];
+    GCOVBlock &Block = *Blocks[BlockNo];
     for (size_t EdgeNo = 0, End = Block.getNumDstEdges(); EdgeNo < End;
          ++EdgeNo) {
       if (Count == 0) {
@@ -339,17 +340,17 @@ bool CustomGCOVFunction::readGCDA(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
 
 /// getEntryCount - Get the number of times the function was called by
 /// retrieving the entry block's count.
-uint64_t CustomGCOVFunction::getEntryCount() const {
+uint64_t GCOVFunction::getEntryCount() const {
   return Blocks.front()->getCount();
 }
 
 /// getExitCount - Get the number of times the function returned by retrieving
 /// the exit block's count.
-uint64_t CustomGCOVFunction::getExitCount() const {
+uint64_t GCOVFunction::getExitCount() const {
   return Blocks.back()->getCount();
 }
 
-void CustomGCOVFunction::print(raw_ostream &OS) const {
+void GCOVFunction::print(raw_ostream &OS) const {
   OS << "===== " << Name << " (" << Ident << ") @ " << Filename << ":"
      << LineNumber << "\n";
   for (const auto &Block : Blocks)
@@ -357,15 +358,15 @@ void CustomGCOVFunction::print(raw_ostream &OS) const {
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-/// dump - Dump CustomGCOVFunction content to dbgs() for debugging purposes.
-LLVM_DUMP_METHOD void CustomGCOVFunction::dump() const {
+/// dump - Dump GCOVFunction content to dbgs() for debugging purposes.
+LLVM_DUMP_METHOD void GCOVFunction::dump() const {
   print(dbgs());
 }
 #endif
 
 /// collectLineCounts - Collect line counts. This must be used after
 /// reading .gcno and .gcda files.
-void CustomGCOVFunction::collectLineCounts(ProtectedFileInfo &FI) {
+void GCOVFunction::collectLineCounts(FileInfo &FI) {
   // If the line number is zero, this is a function that doesn't actually appear
   // in the source file, so there isn't anything we can do with it.
   if (LineNumber == 0)
@@ -377,10 +378,10 @@ void CustomGCOVFunction::collectLineCounts(ProtectedFileInfo &FI) {
 }
 
 //===----------------------------------------------------------------------===//
-// CustomGCOVBlock implementation.
+// GCOVBlock implementation.
 
-/// ~CustomGCOVBlock - Delete CustomGCOVBlock and its content.
-CustomGCOVBlock::~CustomGCOVBlock() {
+/// ~GCOVBlock - Delete GCOVBlock and its content.
+GCOVBlock::~GCOVBlock() {
   SrcEdges.clear();
   DstEdges.clear();
   Lines.clear();
@@ -388,7 +389,7 @@ CustomGCOVBlock::~CustomGCOVBlock() {
 
 /// addCount - Add to block counter while storing the edge count. If the
 /// destination has no outgoing edges, also update that block's count too.
-void CustomGCOVBlock::addCount(size_t DstEdgeNo, uint64_t N) {
+void GCOVBlock::addCount(size_t DstEdgeNo, uint64_t N) {
   assert(DstEdgeNo < DstEdges.size()); // up to caller to ensure EdgeNo is valid
   DstEdges[DstEdgeNo]->Count = N;
   Counter += N;
@@ -398,7 +399,7 @@ void CustomGCOVBlock::addCount(size_t DstEdgeNo, uint64_t N) {
 
 /// sortDstEdges - Sort destination edges by block number, nop if already
 /// sorted. This is required for printing branch info in the correct order.
-void CustomGCOVBlock::sortDstEdges() {
+void GCOVBlock::sortDstEdges() {
   if (!DstEdgesAreSorted) {
     SortDstEdgesFunctor SortEdges;
     std::stable_sort(DstEdges.begin(), DstEdges.end(), SortEdges);
@@ -407,12 +408,12 @@ void CustomGCOVBlock::sortDstEdges() {
 
 /// collectLineCounts - Collect line counts. This must be used after
 /// reading .gcno and .gcda files.
-void CustomGCOVBlock::collectLineCounts(ProtectedFileInfo &FI) {
+void GCOVBlock::collectLineCounts(FileInfo &FI) {
   for (uint32_t N : Lines)
     FI.addBlockLine(Parent.getFilename(), N, this);
 }
 
-void CustomGCOVBlock::print(raw_ostream &OS) const {
+void GCOVBlock::print(raw_ostream &OS) const {
   OS << "Block : " << Number << " Counter : " << Counter << "\n";
   if (!SrcEdges.empty()) {
     OS << "\tSource Edges : ";
@@ -435,14 +436,14 @@ void CustomGCOVBlock::print(raw_ostream &OS) const {
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-/// dump - Dump CustomGCOVBlock content to dbgs() for debugging purposes.
-LLVM_DUMP_METHOD void CustomGCOVBlock::dump() const {
+/// dump - Dump GCOVBlock content to dbgs() for debugging purposes.
+LLVM_DUMP_METHOD void GCOVBlock::dump() const {
   print(dbgs());
 }
 #endif
 
 //===----------------------------------------------------------------------===//
-// ProtectedFileInfo implementation.
+// FileInfo implementation.
 
 // Safe integer division, returns 0 if numerator is 0.
 static uint32_t safeDiv(uint64_t Numerator, uint64_t Divisor) {
@@ -555,7 +556,7 @@ static std::string mangleCoveragePath(StringRef Filename, bool PreservePaths) {
   return Result.str();
 }
 
-std::string ProtectedFileInfo::getCoveragePath(StringRef Filename,
+std::string FileInfo::getCoveragePath(StringRef Filename,
                                       StringRef MainFilename) {
   if (Options.NoOutput)
     // This is probably a bug in gcov, but when -n is specified, paths aren't
@@ -572,7 +573,7 @@ std::string ProtectedFileInfo::getCoveragePath(StringRef Filename,
 }
 
 std::unique_ptr<raw_ostream>
-ProtectedFileInfo::openCoveragePath(StringRef CoveragePath) {
+FileInfo::openCoveragePath(StringRef CoveragePath) {
   if (Options.NoOutput)
     return llvm::make_unique<raw_null_ostream>();
 
@@ -587,7 +588,7 @@ ProtectedFileInfo::openCoveragePath(StringRef CoveragePath) {
 }
 
 /// print -  Print source files with collected line count information.
-void ProtectedFileInfo::print(raw_ostream &InfoOS, StringRef MainFilename,
+void FileInfo::print(raw_ostream &InfoOS, StringRef MainFilename,
                      StringRef GCNOFile, StringRef GCDAFile) {
   SmallVector<StringRef, 4> Filenames;
   for (const auto &LI : LineInfo)
@@ -626,9 +627,9 @@ void ProtectedFileInfo::print(raw_ostream &InfoOS, StringRef MainFilename,
         const BlockVector &Blocks = BlocksIt->second;
 
         // Add up the block counts to form line counts.
-        DenseMap<const CustomGCOVFunction *, bool> LineExecs;
+        DenseMap<const GCOVFunction *, bool> LineExecs;
         uint64_t LineCount = 0;
-        for (const CustomGCOVBlock *Block : Blocks) {
+        for (const GCOVBlock *Block : Blocks) {
           if (Options.AllBlocks) {
             // Only take the highest block count for that line.
             uint64_t BlockCount = Block->getCount();
@@ -650,9 +651,9 @@ void ProtectedFileInfo::print(raw_ostream &InfoOS, StringRef MainFilename,
             // 2) If there are multiple blocks on the same line, ensure that the
             //    number of lines executed is incremented as long as at least
             //    one of the blocks are executed.
-            const CustomGCOVFunction *Function = &Block->getParent();
+            const GCOVFunction *Function = &Block->getParent();
             if (FuncCoverages.find(Function) == FuncCoverages.end()) {
-              std::pair<const CustomGCOVFunction *, GCOVCoverage> KeyValue(
+              std::pair<const GCOVFunction *, GCOVCoverage> KeyValue(
                   Function, GCOVCoverage(Function->getName()));
               FuncCoverages.insert(KeyValue);
             }
@@ -685,7 +686,7 @@ void ProtectedFileInfo::print(raw_ostream &InfoOS, StringRef MainFilename,
 
         uint32_t BlockNo = 0;
         uint32_t EdgeNo = 0;
-        for (const CustomGCOVBlock *Block : Blocks) {
+        for (const GCOVBlock *Block : Blocks) {
           // Only print block and branch information at the end of the block.
           if (Block->getLastLine() != LineIndex + 1)
             continue;
@@ -712,12 +713,12 @@ void ProtectedFileInfo::print(raw_ostream &InfoOS, StringRef MainFilename,
 }
 
 /// printFunctionSummary - Print function and block summary.
-void ProtectedFileInfo::printFunctionSummary(raw_ostream &OS,
+void FileInfo::printFunctionSummary(raw_ostream &OS,
                                     const FunctionVector &Funcs) const {
-  for (const CustomGCOVFunction *Func : Funcs) {
+  for (const GCOVFunction *Func : Funcs) {
     uint64_t EntryCount = Func->getEntryCount();
     uint32_t BlocksExec = 0;
-    for (const CustomGCOVBlock &Block : Func->blocks())
+    for (const GCOVBlock &Block : Func->blocks())
       if (Block.getNumDstEdges() && Block.getCount())
         ++BlocksExec;
 
@@ -729,7 +730,7 @@ void ProtectedFileInfo::printFunctionSummary(raw_ostream &OS,
 }
 
 /// printBlockInfo - Output counts for each block.
-void ProtectedFileInfo::printBlockInfo(raw_ostream &OS, const CustomGCOVBlock &Block,
+void FileInfo::printBlockInfo(raw_ostream &OS, const GCOVBlock &Block,
                               uint32_t LineIndex, uint32_t &BlockNo) const {
   if (Block.getCount() == 0)
     OS << "    $$$$$:";
@@ -739,7 +740,7 @@ void ProtectedFileInfo::printBlockInfo(raw_ostream &OS, const CustomGCOVBlock &B
 }
 
 /// printBranchInfo - Print conditional branch probabilities.
-void ProtectedFileInfo::printBranchInfo(raw_ostream &OS, const CustomGCOVBlock &Block,
+void FileInfo::printBranchInfo(raw_ostream &OS, const GCOVBlock &Block,
                                GCOVCoverage &Coverage, uint32_t &EdgeNo) {
   SmallVector<uint64_t, 16> BranchCounts;
   uint64_t TotalCounts = 0;
@@ -753,7 +754,7 @@ void ProtectedFileInfo::printBranchInfo(raw_ostream &OS, const CustomGCOVBlock &
     ++Coverage.Branches;
 
     if (Options.FuncCoverage) {
-      const CustomGCOVFunction *Function = &Block.getParent();
+      const GCOVFunction *Function = &Block.getParent();
       GCOVCoverage &FuncCoverage = FuncCoverages.find(Function)->second;
       if (Block.getCount())
         ++FuncCoverage.BranchesExec;
@@ -769,7 +770,7 @@ void ProtectedFileInfo::printBranchInfo(raw_ostream &OS, const CustomGCOVBlock &
 }
 
 /// printUncondBranchInfo - Print unconditional branch probabilities.
-void ProtectedFileInfo::printUncondBranchInfo(raw_ostream &OS, uint32_t &EdgeNo,
+void FileInfo::printUncondBranchInfo(raw_ostream &OS, uint32_t &EdgeNo,
                                      uint64_t Count) const {
   OS << format("unconditional %2u ", EdgeNo++)
      << formatBranchInfo(Options, Count, Count) << "\n";
@@ -777,7 +778,7 @@ void ProtectedFileInfo::printUncondBranchInfo(raw_ostream &OS, uint32_t &EdgeNo,
 
 // printCoverage - Print generic coverage info used by both printFuncCoverage
 // and printFileCoverage.
-void ProtectedFileInfo::printCoverage(raw_ostream &OS,
+void FileInfo::printCoverage(raw_ostream &OS,
                              const GCOVCoverage &Coverage) const {
   OS << format("Lines executed:%.2f%% of %u\n",
                double(Coverage.LinesExec) * 100 / Coverage.LogicalLines,
@@ -798,7 +799,7 @@ void ProtectedFileInfo::printCoverage(raw_ostream &OS,
 }
 
 // printFuncCoverage - Print per-function coverage info.
-void ProtectedFileInfo::printFuncCoverage(raw_ostream &OS) const {
+void FileInfo::printFuncCoverage(raw_ostream &OS) const {
   for (const auto &FC : FuncCoverages) {
     const GCOVCoverage &Coverage = FC.second;
     OS << "Function '" << Coverage.Name << "'\n";
@@ -808,7 +809,7 @@ void ProtectedFileInfo::printFuncCoverage(raw_ostream &OS) const {
 }
 
 // printFileCoverage - Print per-file coverage info.
-void ProtectedFileInfo::printFileCoverage(raw_ostream &OS) const {
+void FileInfo::printFileCoverage(raw_ostream &OS) const {
   for (const auto &FC : FileCoverages) {
     const std::string &Filename = FC.first;
     const GCOVCoverage &Coverage = FC.second;

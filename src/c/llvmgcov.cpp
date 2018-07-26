@@ -6,9 +6,9 @@
 
 using namespace llvm;
 
-class CustomFileInfo : public ProtectedFileInfo {
+class CustomFileInfo : public FileInfo {
 public:
-  CustomFileInfo(const GCOV::Options &Options) : ProtectedFileInfo(Options) {}
+  CustomFileInfo(const GCOV::Options &Options) : FileInfo(Options) {}
 
   void printIntermediate(StringRef WorkingDir, StringRef MainFilename);
 
@@ -40,7 +40,7 @@ void CustomFileInfo::printIntermediate(T &Output) {
     for (uint32_t LineIndex = 0; LineIndex < Line.LastLine; ++LineIndex) {
       FunctionLines::const_iterator FuncsIt = Line.Functions.find(LineIndex);
       if (FuncsIt != Line.Functions.end()) {
-        for (const CustomGCOVFunction *Func : FuncsIt->second) {
+        for (const GCOVFunction *Func : FuncsIt->second) {
           Output.handleFunction(LineIndex + 1, Func->getEntryCount(), Func->getName());
         }
       }
@@ -53,16 +53,16 @@ void CustomFileInfo::printIntermediate(T &Output) {
         const BlockVector &Blocks = BlocksIt->second;
 
         // Add up the block counts to form line counts.
-        DenseMap<const CustomGCOVFunction *, bool> LineExecs;
+        DenseMap<const GCOVFunction *, bool> LineExecs;
         uint64_t LineCount = 0;
-        for (const CustomGCOVBlock *Block : Blocks) {
+        for (const GCOVBlock *Block : Blocks) {
           LineCount += Block->getCount();
         }
 
         Output.handleLcount(LineIndex + 1, LineCount);
 
         if (Options.BranchInfo) {
-          for (const CustomGCOVBlock *Block : Blocks) {
+          for (const GCOVBlock *Block : Blocks) {
             // Only print block and branch information at the end of the block.
             if (Block->getLastLine() != LineIndex + 1)
               continue;
@@ -98,7 +98,7 @@ void parse_llvm_gcno_mbuf(void* RustHdl, char* working_dir, char* file_stem, Mem
     /* NoOutput */ false
   );
 
-  CustomGCOVFile GF;
+  GCOVFile GF;
   std::string GCNO = std::string(file_stem) + ".gcno";
 
   GCOVBuffer GCNO_GB(GCNO_Buff);
