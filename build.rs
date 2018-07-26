@@ -73,7 +73,6 @@ fn main() {
     }
 
     build.file("src/c/llvmgcov.cpp");
-    build.file("src/c/GCOV.cpp");
 
     for include in get_llvm_includedir() {
         build.include(include);
