@@ -21,14 +21,21 @@ environment:
     #   PLATFORM_VS: x86
 
 install:
+  # Install Rust.
   - appveyor-retry appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
   - rustup-init -yv --default-toolchain %CHANNEL% --default-host x86_64-pc-windows-msvc
   - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
-  - set PATH=%PATH%;C:\Libraries\llvm-5.0.0\bin
   - rustc -vV
   - cargo -vV
+
+  # Install LLVM.
+  - appveyor-retry appveyor DownloadFile https://github.com/marco-c/llvm-appveyor/releases/download/llvm_342383/clang.tar.bz2 -FileName clang.tar.bz2
+  - 7z x clang.tar.bz2
+  - 7z x clang.tar
+  - set PATH=%PATH%;clang\bin
   - llvm-config --version
   - llvm-config --host-target
+
   - set TARGET=%PLATFORM_TARGET%-pc-windows-msvc
   - if NOT "%PLATFORM_TARGET%" == "x86_64" (
       rustup target add %TARGET%
