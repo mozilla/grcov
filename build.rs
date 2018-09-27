@@ -27,7 +27,7 @@ fn get_llvm_includedir() -> Vec<String> {
 }
 
 fn get_llvm_libs() -> Vec<String> {
-    llvm_config(&["--libnames", "core"])
+    llvm_config(&["--libnames", "core", "profiledata"])
         .split(&[' ', '\n'][..])
         .filter(|s| !s.is_empty())
         .map(|lib| {
@@ -73,7 +73,6 @@ fn main() {
     }
 
     build.file("src/c/llvmgcov.cpp");
-    build.file("src/c/GCOV.cpp");
 
     for include in get_llvm_includedir() {
         build.include(include);
