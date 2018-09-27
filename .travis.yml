@@ -17,7 +17,26 @@ matrix:
             - gcc-5
             - g++-5
       env:
-        - COMPILER_VER=5
+        - GCC_VER=5
+        - LLVM_VER=7
+
+    - os: linux
+      rust: stable
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty main'
+              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+            - llvm-dev
+            - clang
+            - llvm
+            - gcc-5
+            - g++-5
+      env:
+        - GCC_VER=5
+        - LLVM_VER=8
 
     - os: linux
       rust: nightly
@@ -34,7 +53,8 @@ matrix:
             - gcc-5
             - g++-5
       env:
-        - COMPILER_VER=5
+        - GCC_VER=5
+        - LLVM_VER=7
 
     - os: linux
       rust: nightly
@@ -51,7 +71,8 @@ matrix:
             - gcc-6
             - g++-6
       env:
-        - COMPILER_VER=6
+        - GCC_VER=6
+        - LLVM_VER=7
 
     - os: linux
       rust: nightly
@@ -68,25 +89,27 @@ matrix:
             - gcc-7
             - g++-7
       env:
-        - COMPILER_VER=7
+        - GCC_VER=7
+        - LLVM_VER=7
 
     - os: osx
       rust: nightly
       env:
-        - COMPILER_VER=7
+        - GCC_VER=7
+        - LLVM_VER=7
 install:
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo softwareupdate -i "Command Line Tools (macOS High Sierra version 10.13) for Xcode-9.4"; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew cask uninstall --force oclint; fi
-    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install gcc@${COMPILER_VER}; fi
+    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install gcc@${GCC_VER}; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install llvm@7 && brew link --overwrite --force llvm@7; fi
     - mkdir -p symlinks
-    - ln -s /usr/bin/clang-7 symlinks/clang
-    - ln -s /usr/bin/clang++-7 symlinks/clang++
-    - ln -s /usr/bin/llvm-cov-7 symlinks/llvm-cov
-    - ln -s /usr/bin/llvm-config-7 symlinks/llvm-config
-    - ln -s `which gcc-${COMPILER_VER}` symlinks/gcc
-    - ln -s `which g++-${COMPILER_VER}` symlinks/g++
-    - ln -s `which gcov-${COMPILER_VER}` symlinks/gcov
+    - ln -s `which clang-${LLVM_VER}` symlinks/clang
+    - ln -s `which clang++-${LLVM_VER}` symlinks/clang++
+    - ln -s `which llvm-cov-${LLVM_VER}` symlinks/llvm-cov
+    - ln -s `which llvm-config-${LLVM_VER}` symlinks/llvm-config
+    - ln -s `which gcc-${GCC_VER}` symlinks/gcc
+    - ln -s `which g++-${GCC_VER}` symlinks/g++
+    - ln -s `which gcov-${GCC_VER}` symlinks/gcov
 script:
     - export PATH=$PWD/symlinks:$PATH
     - gcc --version
@@ -103,6 +126,6 @@ deploy:
   on:
     rust: nightly
     tags: true
-    condition: $COMPILER_VER = 7
+    condition: $GCC_VER = 7
   provider: releases
   skip_cleanup: true
