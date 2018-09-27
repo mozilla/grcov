@@ -74,13 +74,7 @@ impl Archive {
         if let Some(ext) = path.extension() {
             match ext.to_str().unwrap() {
                 "gcno" => {
-                    let llvm = is_llvm || match file {
-                        FilePath::File(reader) => Archive::is_gcno_llvm(reader),
-                        FilePath::Path(path) => match File::open(path) {
-                            Ok(mut f) => Archive::is_gcno_llvm(&mut f),
-                            Err(_) => false,
-                        },
-                    };
+                    let llvm = is_llvm || Archive::check_file(file, &Archive::is_gcno_llvm);
                     let filename = clean_path(&path.with_extension(""));
                     gcno_stem_archives.borrow_mut().insert(
                         GCNOStem {
@@ -95,12 +89,16 @@ impl Archive {
                     self.insert_vec(filename, gcda_stem_archives);
                 }
                 "info" => {
-                    let filename = clean_path(path);
-                    self.insert_vec(filename, infos);
+                    if Archive::check_file(file, &Archive::is_info) {
+                        let filename = clean_path(path);
+                        self.insert_vec(filename, infos);
+                    }
                 }
                 "xml" => {
-                    let filename = clean_path(path);
-                    self.insert_vec(filename, xmls);
+                    if Archive::check_file(file, &Archive::is_jacoco) {
+                        let filename = clean_path(path);
+                        self.insert_vec(filename, xmls);
+                    }
                 }
                 "json" => {
                     let filename = path.file_name().unwrap();
@@ -118,6 +116,33 @@ impl Archive {
         let mut bytes: [u8; 8] = [0; 8];
         reader.read_exact(&mut bytes).is_ok()
             && bytes == [b'o', b'n', b'c', b'g', b'*', b'2', b'0', b'4']
+    }
+
+    fn is_jacoco(reader: &mut Read) -> bool {
+        let mut bytes: [u8; 256] = [0; 256];
+        if reader.read_exact(&mut bytes).is_ok() {
+            return match String::from_utf8(bytes.to_vec()) {
+                Ok(s) => s.contains("-//JACOCO//DTD"),
+                Err(_) => false,
+            };
+        }
+        return false;
+    }
+
+    fn is_info(reader: &mut Read) -> bool {
+        let mut bytes: [u8; 3] = [0; 3];
+        reader.read_exact(&mut bytes).is_ok()
+            && (bytes == [b'T', b'N', b':'] || bytes == [b'S', b'F', b':'])
+    }
+
+    fn check_file(file: FilePath, checker: &Fn(&mut Read) -> bool) -> bool {
+        match file {
+            FilePath::File(reader) => checker(reader),
+            FilePath::Path(path) => match File::open(path) {
+                Ok(mut f) => checker(&mut f),
+                Err(_) => false,
+            },
+        }
     }
 
     pub fn get_name(&self) -> &String {
@@ -1377,5 +1402,80 @@ mod tests {
                 assert!(false, "Buffers expected");
             }
         }
+    }
+
+    #[test]
+    fn test_jacoco_files() {
+        assert!(
+            Archive::check_file(
+                FilePath::Path(&PathBuf::from("./test/jacoco/basic-report.xml")),
+                &Archive::is_jacoco
+            ),
+            "A Jacoco XML file expected"
+        );
+        assert!(
+            Archive::check_file(
+                FilePath::Path(&PathBuf::from(
+                    "./test/jacoco/full-junit4-report-multiple-top-level-classes.xml"
+                )),
+                &Archive::is_jacoco
+            ),
+            "A Jacoco XML file expected"
+        );
+        assert!(
+            Archive::check_file(
+                FilePath::Path(&PathBuf::from("./test/jacoco/inner-classes.xml")),
+                &Archive::is_jacoco
+            ),
+            "A Jacoco XML file expected"
+        );
+        assert!(
+            Archive::check_file(
+                FilePath::Path(&PathBuf::from(
+                    "./test/jacoco/multiple-top-level-classes.xml"
+                )),
+                &Archive::is_jacoco
+            ),
+            "A Jacoco XML file expected"
+        );
+        assert!(
+            !Archive::check_file(
+                FilePath::Path(&PathBuf::from("./test/jacoco/not_jacoco_file.xml")),
+                &Archive::is_jacoco
+            ),
+            "Not a Jacoco XML file expected"
+        );
+    }
+
+    #[test]
+    fn test_info_files() {
+        assert!(
+            Archive::check_file(
+                FilePath::Path(&PathBuf::from("./test/1494603973-2977-7.info")),
+                &Archive::is_info
+            ),
+            "An info file expected"
+        );
+        assert!(
+            Archive::check_file(
+                FilePath::Path(&PathBuf::from("./test/empty_line.info")),
+                &Archive::is_info
+            ),
+            "An info file expected"
+        );
+        assert!(
+            Archive::check_file(
+                FilePath::Path(&PathBuf::from("./test/relative_path/relative_path.info")),
+                &Archive::is_info
+            ),
+            "An info file expected"
+        );
+        assert!(
+            !Archive::check_file(
+                FilePath::Path(&PathBuf::from("./test/not_info_file.info")),
+                &Archive::is_info
+            ),
+            "Not an info file expected"
+        );
     }
 }
