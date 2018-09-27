@@ -24,7 +24,7 @@ install:
   # Install Rust.
   - appveyor-retry appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
   - rustup-init -yv --default-toolchain %CHANNEL% --default-host x86_64-pc-windows-msvc
-  - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
+  - set PATH=%USERPROFILE%\.cargo\bin;%PATH%
   - rustc -vV
   - cargo -vV
 
@@ -32,7 +32,7 @@ install:
   - appveyor-retry appveyor DownloadFile https://github.com/marco-c/llvm-appveyor/releases/download/llvm_342383/clang.tar.bz2 -FileName clang.tar.bz2
   - 7z x clang.tar.bz2
   - 7z x clang.tar
-  - set PATH=%PATH%;clang\bin
+  - set PATH=clang\bin;%PATH%
   - llvm-config --version
   - llvm-config --host-target
 
