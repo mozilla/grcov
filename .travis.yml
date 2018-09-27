@@ -75,6 +75,7 @@ matrix:
       env:
         - COMPILER_VER=7
 install:
+    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo softwareupdate -i "Command Line Tools (macOS High Sierra version 10.13) for Xcode-9.4"; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew cask uninstall --force oclint; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install gcc@${COMPILER_VER}; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install llvm@4 && brew link --overwrite --force llvm@4; fi
