@@ -106,6 +106,7 @@ install:
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install llvm@7 && brew link --overwrite --force llvm@7; fi
 script:
     - export CXX=$GRCOV_CXX
+    - export CC=$GRCOV_CXX
     - $CXX --version
     - $GRCOV_GCOV --version
     - $GRCOV_CLANG_CXX --version
