@@ -1,4 +1,5 @@
 use semver::Version;
+use std::env;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
@@ -33,8 +34,15 @@ fn prova() {
   println!("{:x}", gcov_read_unsigned());
 }*/
 
+fn get_gcov()-> String {
+    match env::var("GCOV") {
+        Ok(s) => s,
+        Err(_) => "gcov".to_string()
+    }
+}
+
 pub fn run_gcov(gcno_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf) {
-    let mut command = Command::new("gcov");
+    let mut command = Command::new(&get_gcov());
     let command = if branch_enabled {
         command.arg("-b").arg("-c")
     } else {
