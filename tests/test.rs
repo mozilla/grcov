@@ -16,6 +16,13 @@ use walkdir::WalkDir;
 use zip::write::FileOptions;
 use zip::ZipWriter;
 
+fn get_tool(env: &str, default: &str) -> String {
+    match env::var("GRCOV_".to_owned() + env) {
+        Ok(s) => s,
+        Err(_) => default.to_string()
+    }
+}
+
 fn make(path: &Path, compiler: &str) {
     let mut args = Vec::new();
 
@@ -428,8 +435,9 @@ fn test_integration() {
 
             if !cfg!(windows) {
                 println!("GCC");
-                let gcc_version = get_version("g++");
-                make(path, "g++");
+                let gpp = &get_tool("GPP", "g++");
+                let gcc_version = get_version(gpp);
+                make(path, gpp);
                 run(path);
                 check_equal_ade(
                     &read_expected(path, "gcc", &gcc_version, "ade"),
@@ -444,14 +452,15 @@ fn test_integration() {
             }
 
             println!("\nLLVM");
-            let llvm_version = get_version("llvm-config");
-            let clang_version = get_version("clang++");
+            let llvm_version = get_version(&get_tool("LLVM_CONFIG", "llvm-config"));
+            let clangpp = &get_tool("CLANGPP", "clang++");
+            let clang_version = get_version(clangpp);
             assert_eq!(
                 llvm_version, clang_version,
                 "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version",
                 llvm_version, clang_version
             );
-            make(path, "clang++");
+            make(path, clangpp);
             run(path);
             check_equal_ade(
                 &read_expected(path, "llvm", &llvm_version, "ade"),
@@ -470,10 +479,10 @@ fn test_integration() {
 
 #[test]
 fn test_integration_zip_zip() {
-    let compilers = vec!["g++", "clang++"];
+    let compilers = vec![get_tool("GPP", "g++"), get_tool("CLANGPP", "clang++")];
 
     for compiler in compilers {
-        let is_llvm = compiler == "clang++";
+        let is_llvm = compiler.starts_with("clang++");
 
         if cfg!(windows) && !is_llvm {
             continue;
@@ -484,8 +493,8 @@ fn test_integration_zip_zip() {
 
         println!("\n{}", name.to_uppercase());
         let compiler_version = if is_llvm {
-            let llvm_version = get_version("llvm-config");
-            let clang_version = get_version("clang++");
+            let llvm_version = get_version(&get_tool("LLVM_CONFIG", "llvm-config"));
+            let clang_version = get_version(&compiler);
             assert_eq!(
                 llvm_version, clang_version,
                 "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version",
@@ -493,11 +502,11 @@ fn test_integration_zip_zip() {
             );
             clang_version
         } else {
-            get_version("g++")
+            get_version(&compiler)
         };
 
         do_clean(path);
-        make(path, compiler);
+        make(path, &compiler);
         run(path);
 
         let gcno_zip_path = PathBuf::from("gcno.zip");
@@ -555,10 +564,10 @@ fn test_integration_zip_zip() {
 
 #[test]
 fn test_integration_zip_dir() {
-    let compilers = vec!["g++", "clang++"];
+    let compilers = vec![get_tool("GPP", "g++"), get_tool("CLANGPP", "clang++")];
 
     for compiler in compilers {
-        let is_llvm = compiler == "clang++";
+        let is_llvm = compiler.starts_with("clang++");
 
         if cfg!(windows) && !is_llvm {
             continue;
@@ -570,8 +579,8 @@ fn test_integration_zip_dir() {
 
         println!("\n{}", name.to_uppercase());
         let compiler_version = if is_llvm {
-            let llvm_version = get_version("llvm-config");
-            let clang_version = get_version("clang++");
+            let llvm_version = get_version(&get_tool("LLVM_CONFIG", "llvm-config"));
+            let clang_version = get_version(&compiler);
             assert_eq!(
                 llvm_version, clang_version,
                 "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version",
@@ -579,11 +588,11 @@ fn test_integration_zip_dir() {
             );
             clang_version
         } else {
-            get_version("g++")
+            get_version(&compiler)
         };
 
         do_clean(path);
-        make(path, compiler);
+        make(path, &compiler);
         run(path);
 
         let gcno_zip_path = PathBuf::from("gcno.zip");
