@@ -19,6 +19,7 @@ matrix:
         - GCOV=gcov-5
         - CLANG_CXX=clang++-7
         - LLVM_CONFIG=llvm-config-7
+        - DEPLOY=0
 
     - os: linux
       rust: stable
@@ -37,6 +38,7 @@ matrix:
         - GCOV=gcov-5
         - CLANG_CXX=clang++-8
         - LLVM_CONFIG=llvm-config-8
+        - DEPLOY=0
 
     - os: linux
       rust: nightly
@@ -55,6 +57,7 @@ matrix:
         - GCOV=gcov-5
         - CLANG_CXX=clang++-7
         - LLVM_CONFIG=llvm-config-7
+        - DEPLOY=0
 
     - os: linux
       rust: nightly
@@ -73,6 +76,7 @@ matrix:
         - GCOV=gcov-6
         - CLANG_CXX=clang++-7
         - LLVM_CONFIG=llvm-config-7
+        - DEPLOY=0
 
     - os: linux
       rust: nightly
@@ -91,12 +95,14 @@ matrix:
         - GCOV=gcov-7
         - CLANG_CXX=clang++-7
         - LLVM_CONFIG=llvm-config-7
+        - DEPLOY=1
 
     - os: osx
       rust: nightly
       env:
         - CLANG_CXX=clang++
         - LLVM_CONFIG=llvm-config
+        - DEPLOY=1
 install:
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo softwareupdate -i "Command Line Tools (macOS High Sierra version 10.13) for Xcode-9.4"; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew cask uninstall --force oclint; fi
@@ -116,6 +122,6 @@ deploy:
   on:
     rust: nightly
     tags: true
-    condition: $CLANG_CXX = clang++-7 OR $CLANG_CXX = clang++
+    condition: $DEPLOY = 1
   provider: releases
   skip_cleanup: true
