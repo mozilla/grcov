@@ -433,7 +433,7 @@ fn test_integration() {
 
             do_clean(path);
 
-            if !cfg!(windows) && !cfg!(macos) {
+            if cfg!(target_os = "linux") {
                 println!("GCC");
                 let gpp = &get_tool("CXX", "g++");
                 let gcc_version = get_version(gpp);
@@ -484,7 +484,7 @@ fn test_integration_zip_zip() {
     for compiler in compilers {
         let is_llvm = compiler.contains("clang");
 
-        if (cfg!(windows) || cfg!(macos)) && !is_llvm {
+        if !cfg!(target_os = "linux") && !is_llvm {
             continue;
         }
 
@@ -569,7 +569,7 @@ fn test_integration_zip_dir() {
     for compiler in compilers {
         let is_llvm = compiler.contains("clang");
 
-        if (cfg!(windows) || cfg!(macos)) && !is_llvm {
+        if !cfg!(target_os = "linux") && !is_llvm {
             continue;
         }
 
