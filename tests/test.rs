@@ -428,7 +428,7 @@ fn test_integration() {
 
             if !cfg!(windows) {
                 println!("GCC");
-                let gcc_version = get_version("gcc");
+                let gcc_version = get_version("g++");
                 make(path, "g++");
                 run(path);
                 check_equal_ade(
@@ -496,6 +496,7 @@ fn test_integration_zip_zip() {
             get_version("g++")
         };
 
+        do_clean(path);
         make(path, compiler);
         run(path);
 
@@ -581,6 +582,7 @@ fn test_integration_zip_dir() {
             get_version("g++")
         };
 
+        do_clean(path);
         make(path, compiler);
         run(path);
 
