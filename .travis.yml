@@ -16,6 +16,7 @@ matrix:
             - g++-5
       env:
         - GRCOV_CXX=g++-5
+        - GRCOV_GCOV=gcov-5
         - GRCOV_CLANG_CXX=clang++-7
         - GRCOV_LLVM_CONFIG=llvm-config-7
 
@@ -33,6 +34,7 @@ matrix:
             - g++-5
       env:
         - GRCOV_CXX=g++-5
+        - GRCOV_GCOV=gcov-5
         - GRCOV_CLANG_CXX=clang++-8
         - GRCOV_LLVM_CONFIG=llvm-config-8
 
@@ -50,6 +52,7 @@ matrix:
             - g++-5
       env:
         - GRCOV_CXX=g++-5
+        - GRCOV_GCOV=gcov-5
         - GRCOV_CLANG_CXX=clang++-7
         - GRCOV_LLVM_CONFIG=llvm-config-7
 
@@ -67,6 +70,7 @@ matrix:
             - g++-6
       env:
         - GRCOV_CXX=g++-6
+        - GRCOV_GCOV=gcov-6
         - GRCOV_CLANG_CXX=clang++-7
         - GRCOV_LLVM_CONFIG=llvm-config-7
 
@@ -84,6 +88,7 @@ matrix:
             - g++-7
       env:
         - GRCOV_CXX=g++-7
+        - GRCOV_GCOV=gcov-7
         - GRCOV_CLANG_CXX=clang++-7
         - GRCOV_LLVM_CONFIG=llvm-config-7
 
@@ -91,6 +96,7 @@ matrix:
       rust: nightly
       env:
         - GRCOV_CXX=g++-7
+        - GRCOV_GCOV=gcov-7
         - GRCOV_CLANG_CXX=clang++-7
         - GRCOV_LLVM_CONFIG=llvm-config-7
 install:
@@ -101,6 +107,7 @@ install:
 script:
     - export CXX=$GRCOV_CXX
     - $CXX --version
+    - $GRCOV_GCOV --version
     - $GRCOV_CLANG_CXX --version
     - if [ -z "$TRAVIS_TAG" ]; then cargo build --verbose; fi
     - if [ -z "$TRAVIS_TAG" ]; then cargo test -- --nocapture; fi
