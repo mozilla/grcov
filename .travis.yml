@@ -97,8 +97,8 @@ matrix:
       env:
         - GRCOV_CXX=g++-7
         - GRCOV_GCOV=gcov-7
-        - GRCOV_CLANG_CXX=clang++-7
-        - GRCOV_LLVM_CONFIG=llvm-config-7
+        - GRCOV_CLANG_CXX=clang++
+        - GRCOV_LLVM_CONFIG=llvm-config
 install:
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo softwareupdate -i "Command Line Tools (macOS High Sierra version 10.13) for Xcode-9.4"; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew cask uninstall --force oclint; fi
