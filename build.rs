@@ -4,7 +4,7 @@ use std::env;
 use std::process::Command;
 
 fn llvm_config(args: &[&str]) -> String {
-    let llvm_config_path = match env::var("GRCOV_LLVM_CONFIG") {
+    let llvm_config_path = match env::var("LLVM_CONFIG") {
         Ok(v) => v,
         Err(_e) => "llvm-config".to_string(),
     };

@@ -35,7 +35,7 @@ fn prova() {
 }*/
 
 fn get_gcov()-> String {
-    match env::var("GRCOV_GCOV") {
+    match env::var("GCOV") {
         Ok(s) => s,
         Err(_) => "gcov".to_string()
     }

@@ -15,10 +15,10 @@ matrix:
             - clang-7
             - g++-5
       env:
-        - GRCOV_CXX=g++-5
-        - GRCOV_GCOV=gcov-5
-        - GRCOV_CLANG_CXX=clang++-7
-        - GRCOV_LLVM_CONFIG=llvm-config-7
+        - GCC_CXX=g++-5
+        - GCOV=gcov-5
+        - CLANG_CXX=clang++-7
+        - LLVM_CONFIG=llvm-config-7
 
     - os: linux
       rust: stable
@@ -33,10 +33,10 @@ matrix:
             - clang
             - g++-5
       env:
-        - GRCOV_CXX=g++-5
-        - GRCOV_GCOV=gcov-5
-        - GRCOV_CLANG_CXX=clang++-8
-        - GRCOV_LLVM_CONFIG=llvm-config-8
+        - GCC_CXX=g++-5
+        - GCOV=gcov-5
+        - CLANG_CXX=clang++-8
+        - LLVM_CONFIG=llvm-config-8
 
     - os: linux
       rust: nightly
@@ -51,10 +51,10 @@ matrix:
             - clang-7
             - g++-5
       env:
-        - GRCOV_CXX=g++-5
-        - GRCOV_GCOV=gcov-5
-        - GRCOV_CLANG_CXX=clang++-7
-        - GRCOV_LLVM_CONFIG=llvm-config-7
+        - GCC_CXX=g++-5
+        - GCOV=gcov-5
+        - CLANG_CXX=clang++-7
+        - LLVM_CONFIG=llvm-config-7
 
     - os: linux
       rust: nightly
@@ -69,10 +69,10 @@ matrix:
             - clang-7
             - g++-6
       env:
-        - GRCOV_CXX=g++-6
-        - GRCOV_GCOV=gcov-6
-        - GRCOV_CLANG_CXX=clang++-7
-        - GRCOV_LLVM_CONFIG=llvm-config-7
+        - GCC_CXX=g++-6
+        - GCOV=gcov-6
+        - CLANG_CXX=clang++-7
+        - LLVM_CONFIG=llvm-config-7
 
     - os: linux
       rust: nightly
@@ -87,22 +87,22 @@ matrix:
             - clang-7
             - g++-7
       env:
-        - GRCOV_CXX=g++-7
-        - GRCOV_GCOV=gcov-7
-        - GRCOV_CLANG_CXX=clang++-7
-        - GRCOV_LLVM_CONFIG=llvm-config-7
+        - GCC_CXX=g++-7
+        - GCOV=gcov-7
+        - CLANG_CXX=clang++-7
+        - LLVM_CONFIG=llvm-config-7
 
     - os: osx
       rust: nightly
       env:
-        - GRCOV_CLANG_CXX=clang++
-        - GRCOV_LLVM_CONFIG=llvm-config
+        - CLANG_CXX=clang++
+        - LLVM_CONFIG=llvm-config
 install:
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo softwareupdate -i "Command Line Tools (macOS High Sierra version 10.13) for Xcode-9.4"; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew cask uninstall --force oclint; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install llvm@7 && brew link --overwrite --force llvm@7; fi
 script:
-    - export CXX=$GRCOV_CLANG_CXX
+    - export CXX=$CLANG_CXX
     - $CXX --version
     - if [ -z "$TRAVIS_TAG" ]; then cargo build --verbose; fi
     - if [ -z "$TRAVIS_TAG" ]; then cargo test -- --nocapture; fi
@@ -116,6 +116,6 @@ deploy:
   on:
     rust: nightly
     tags: true
-    condition: $GRCOV_CLANG_CXX = clang++-7 OR $GRCOV_CLANG_CXX = clang++
+    condition: $CLANG_CXX = clang++-7 OR $CLANG_CXX = clang++
   provider: releases
   skip_cleanup: true

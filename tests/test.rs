@@ -16,8 +16,8 @@ use walkdir::WalkDir;
 use zip::write::FileOptions;
 use zip::ZipWriter;
 
-fn get_tool(env: &str, default: &str) -> String {
-    match env::var("GRCOV_".to_owned() + env) {
+fn get_tool(name: &str, default: &str) -> String {
+    match env::var(name) {
         Ok(s) => s,
         Err(_) => default.to_string()
     }
@@ -435,7 +435,7 @@ fn test_integration() {
 
             if cfg!(target_os = "linux") {
                 println!("GCC");
-                let gpp = &get_tool("CXX", "g++");
+                let gpp = &get_tool("GCC_CXX", "g++");
                 let gcc_version = get_version(gpp);
                 make(path, gpp);
                 run(path);
@@ -479,7 +479,7 @@ fn test_integration() {
 
 #[test]
 fn test_integration_zip_zip() {
-    let compilers = vec![get_tool("CXX", "g++"), get_tool("CLANG_CXX", "clang++")];
+    let compilers = vec![get_tool("GCC_CXX", "g++"), get_tool("CLANG_CXX", "clang++")];
 
     for compiler in compilers {
         let is_llvm = compiler.contains("clang");
@@ -564,7 +564,7 @@ fn test_integration_zip_zip() {
 
 #[test]
 fn test_integration_zip_dir() {
-    let compilers = vec![get_tool("CXX", "g++"), get_tool("CLANG_CXX", "clang++")];
+    let compilers = vec![get_tool("GCC_CXX", "g++"), get_tool("CLANG_CXX", "clang++")];
 
     for compiler in compilers {
         let is_llvm = compiler.contains("clang");
