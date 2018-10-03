@@ -435,7 +435,7 @@ fn test_integration() {
 
             if !cfg!(windows) {
                 println!("GCC");
-                let gpp = &get_tool("GPP", "g++");
+                let gpp = &get_tool("CXX", "g++");
                 let gcc_version = get_version(gpp);
                 make(path, gpp);
                 run(path);
@@ -453,7 +453,7 @@ fn test_integration() {
 
             println!("\nLLVM");
             let llvm_version = get_version(&get_tool("LLVM_CONFIG", "llvm-config"));
-            let clangpp = &get_tool("CLANGPP", "clang++");
+            let clangpp = &get_tool("CLANG_CXX", "clang++");
             let clang_version = get_version(clangpp);
             assert_eq!(
                 llvm_version, clang_version,
@@ -479,10 +479,10 @@ fn test_integration() {
 
 #[test]
 fn test_integration_zip_zip() {
-    let compilers = vec![get_tool("GPP", "g++"), get_tool("CLANGPP", "clang++")];
+    let compilers = vec![get_tool("CXX", "g++"), get_tool("CLANG_CXX", "clang++")];
 
     for compiler in compilers {
-        let is_llvm = compiler.starts_with("clang++");
+        let is_llvm = compiler.contains("clang");
 
         if cfg!(windows) && !is_llvm {
             continue;
@@ -564,10 +564,10 @@ fn test_integration_zip_zip() {
 
 #[test]
 fn test_integration_zip_dir() {
-    let compilers = vec![get_tool("GPP", "g++"), get_tool("CLANGPP", "clang++")];
+    let compilers = vec![get_tool("CXX", "g++"), get_tool("CLANG_CXX", "clang++")];
 
     for compiler in compilers {
-        let is_llvm = compiler.starts_with("clang++");
+        let is_llvm = compiler.contains("clang");
 
         if cfg!(windows) && !is_llvm {
             continue;
