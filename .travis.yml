@@ -15,8 +15,8 @@ matrix:
             - clang-7
             - g++-5
       env:
-        - GRCOV_GPP=g++-5
-        - GRCOV_CLANGPP=clang++-7
+        - GRCOV_CXX=g++-5
+        - GRCOV_CLANG_CXX=clang++-7
         - GRCOV_LLVM_CONFIG=llvm-config-7
 
     - os: linux
