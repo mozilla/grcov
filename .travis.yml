@@ -95,7 +95,6 @@ matrix:
         - GCOV=gcov-7
         - CLANG_CXX=clang++-7
         - LLVM_CONFIG=llvm-config-7
-        - COVERAGE=1
         - DEPLOY=1
 
     - os: osx
@@ -103,7 +102,6 @@ matrix:
       env:
         - CLANG_CXX=clang++
         - LLVM_CONFIG=llvm-config
-        - COVERAGE=1
         - DEPLOY=1
 
 install:
@@ -113,16 +111,16 @@ install:
 script:
     - export CXX=$CLANG_CXX
     - $CXX --version
-    - echo $TRAVIS_RUST_VERSION
-    - if [ -z "$TRAVIS_TAG" ]; then cargo build --verbose; fi
-    - if [ -z "$TRAVIS_TAG" ]; then cargo test -- --nocapture; fi
     - |
-      if [ -z "$COVERAGE" ]; then
-        cargo clean;
-        CXXFLAGS="--coverage" LDFLAGS="--coverage -lgcov" CARGO_INCREMENTAL=0 RUSTFLAGS="-Zprofile -Ccodegen-units=1" cargo +nightly test;
+      if [ "$TRAVIS_RUST_VERSION" = "nightly"] && [ -z "$TRAVIS_TAG" ]; then
+        CXXFLAGS="--coverage" LDFLAGS="--coverage -lgcov" CARGO_INCREMENTAL=0 RUSTFLAGS="-Zprofile -Ccodegen-units=1" cargo +nightly build --verbose;
+        CXXFLAGS="--coverage" LDFLAGS="--coverage -lgcov" CARGO_INCREMENTAL=0 RUSTFLAGS="-Zprofile -Ccodegen-units=1" cargo +nightly test -- --nocapture;
         zip -0 ccov.zip `find . \( -name "grcov*.gc*" -o -name "llvmgcov.gc*" \) -print`;
         ./target/debug/grcov ccov.zip -s src/ -t lcov --llvm --branch --ignore-dir libstd/* --ignore-dir libcore/* --ignore-dir liballoc/* --ignore-dir libtest/* --ignore-dir "<*" --ignore-dir "path_rewriting.rs" > lcov.info;
         bash <(curl -s https://codecov.io/bash) -f lcov.info;
+      elif [ -z "$TRAVIS_TAG" ];
+        cargo build --verbose;
+        cargo test -- --nocapture;
       fi
 before_deploy:
     - cargo build --release --features=alloc_system
