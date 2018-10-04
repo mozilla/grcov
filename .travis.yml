@@ -112,7 +112,7 @@ script:
     - export CXX=$CLANG_CXX
     - $CXX --version
     - |
-      if [ "$TRAVIS_RUST_VERSION" = "nightly"] && [ -z "$TRAVIS_TAG" ]; then
+      if [ "$TRAVIS_RUST_VERSION" = "nightly" ] && [ -z "$TRAVIS_TAG" ]; then
         CXXFLAGS="--coverage" LDFLAGS="--coverage -lgcov" CARGO_INCREMENTAL=0 RUSTFLAGS="-Zprofile -Ccodegen-units=1" cargo +nightly build --verbose;
         CXXFLAGS="--coverage" LDFLAGS="--coverage -lgcov" CARGO_INCREMENTAL=0 RUSTFLAGS="-Zprofile -Ccodegen-units=1" cargo +nightly test -- --nocapture;
         zip -0 ccov.zip `find . \( -name "grcov*.gc*" -o -name "llvmgcov.gc*" \) -print`;
