@@ -96,6 +96,7 @@ matrix:
         - CLANG_CXX=clang++-7
         - LLVM_CONFIG=llvm-config-7
         - DEPLOY=1
+        - COVERAGE=1
 
     - os: osx
       rust: nightly
@@ -107,11 +108,20 @@ install:
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo softwareupdate -i "Command Line Tools (macOS High Sierra version 10.13) for Xcode-9.4"; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew cask uninstall --force oclint; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install llvm@7 && brew link --overwrite --force llvm@7; fi
+    - if [ -z "$COVERAGE" ]; then gem install coveralls-lcov; fi
 script:
     - export CXX=$CLANG_CXX
     - $CXX --version
     - if [ -z "$TRAVIS_TAG" ]; then cargo build --verbose; fi
     - if [ -z "$TRAVIS_TAG" ]; then cargo test -- --nocapture; fi
+    - |
+      if [ -z "$COVERAGE" ]; then
+        cargo clean;
+        CXXFLAGS="--coverage" LDFLAGS="--coverage -lgcov" CARGO_INCREMENTAL=0 RUSTFLAGS="-Zprofile -Ccodegen-units=1" cargo +nightly test;
+        zip -0 ccov.zip `find . \( -name "grcov*.gc*" -o -name "llvmgcov.gc*" \) -print`;
+        ./target/debug/grcov ccov.zip -s src/ -t lcov --llvm --branch --ignore-dir libstd/* --ignore-dir libcore/* --ignore-dir liballoc/* --ignore-dir libtest/* --ignore-dir "<*" --ignore-dir "path_rewriting.rs" > lcov.info;
+        coveralls-lcov lcov.info;
+      fi
 before_deploy:
     - cargo build --release --features=alloc_system
     - tar -cvjSf grcov-${TRAVIS_OS_NAME}-x86_64.tar.bz2 -C target/release/ grcov
