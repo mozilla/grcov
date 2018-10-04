@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/mozilla/grcov.svg?branch=master)](https://travis-ci.org/mozilla/grcov)
 [![Build status](https://ci.appveyor.com/api/projects/status/1957u00h26alxey2/branch/master?svg=true)](https://ci.appveyor.com/project/marco-c/grcov)
-[![Coverage Status](https://coveralls.io/repos/github/mozilla/grcov/badge.svg)](https://coveralls.io/github/mozilla/grcov)
+[![codecov](https://codecov.io/gh/mozilla/grcov/branch/master/graph/badge.svg)](https://codecov.io/gh/mozilla/grcov)
 
 grcov collects and aggregates code coverage information for multiple source files.
 
