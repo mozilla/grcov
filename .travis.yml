@@ -118,7 +118,7 @@ script:
         zip -0 ccov.zip `find . \( -name "grcov*.gc*" -o -name "llvmgcov.gc*" \) -print`;
         ./target/debug/grcov ccov.zip -s src/ -t lcov --llvm --branch --ignore-dir libstd/* --ignore-dir libcore/* --ignore-dir liballoc/* --ignore-dir libtest/* --ignore-dir "<*" --ignore-dir "path_rewriting.rs" > lcov.info;
         bash <(curl -s https://codecov.io/bash) -f lcov.info;
-      elif [ -z "$TRAVIS_TAG" ];
+      elif [ -z "$TRAVIS_TAG" ]; then
         cargo build --verbose;
         cargo test -- --nocapture;
       fi
