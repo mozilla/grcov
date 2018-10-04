@@ -22,25 +22,6 @@ matrix:
         - DEPLOY=0
 
     - os: linux
-      rust: stable
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty main'
-              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
-          packages:
-            - llvm-dev
-            - clang
-            - g++-5
-      env:
-        - GCC_CXX=g++-5
-        - GCOV=gcov-5
-        - CLANG_CXX=clang++-8
-        - LLVM_CONFIG=llvm-config-8
-        - DEPLOY=0
-
-    - os: linux
       rust: nightly
       addons:
         apt:
@@ -96,6 +77,25 @@ matrix:
         - CLANG_CXX=clang++-7
         - LLVM_CONFIG=llvm-config-7
         - DEPLOY=1
+
+    - os: linux
+      rust: nightly
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty main'
+              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+            - llvm-dev
+            - clang
+            - g++-7
+      env:
+        - GCC_CXX=g++-7
+        - GCOV=gcov-7
+        - CLANG_CXX=clang++-8
+        - LLVM_CONFIG=llvm-config-8
+        - DEPLOY=0
 
     - os: osx
       rust: nightly
