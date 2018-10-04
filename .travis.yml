@@ -113,6 +113,7 @@ install:
 script:
     - export CXX=$CLANG_CXX
     - $CXX --version
+    - echo $TRAVIS_RUST_VERSION
     - if [ -z "$TRAVIS_TAG" ]; then cargo build --verbose; fi
     - if [ -z "$TRAVIS_TAG" ]; then cargo test -- --nocapture; fi
     - |
