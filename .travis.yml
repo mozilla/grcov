@@ -22,25 +22,6 @@ matrix:
         - DEPLOY=0
 
     - os: linux
-      rust: stable
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty main'
-              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
-          packages:
-            - llvm-dev
-            - clang
-            - g++-5
-      env:
-        - GCC_CXX=g++-5
-        - GCOV=gcov-5
-        - CLANG_CXX=clang++-8
-        - LLVM_CONFIG=llvm-config-8
-        - DEPLOY=0
-
-    - os: linux
       rust: nightly
       addons:
         apt:
@@ -97,6 +78,25 @@ matrix:
         - LLVM_CONFIG=llvm-config-7
         - DEPLOY=1
 
+    - os: linux
+      rust: nightly
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty main'
+              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+            - llvm-dev
+            - clang
+            - g++-7
+      env:
+        - GCC_CXX=g++-7
+        - GCOV=gcov-7
+        - CLANG_CXX=clang++-8
+        - LLVM_CONFIG=llvm-config-8
+        - DEPLOY=0
+
     - os: osx
       rust: nightly
       env:
@@ -113,17 +113,21 @@ script:
     - $CXX --version
     - |
       if [ "$TRAVIS_RUST_VERSION" = "nightly" ] && [ -z "$TRAVIS_TAG" ]; then
-        CXXFLAGS="--coverage" LDFLAGS="--coverage -lgcov" CARGO_INCREMENTAL=0 RUSTFLAGS="-Zprofile -Ccodegen-units=1" cargo +nightly build --verbose;
-        CXXFLAGS="--coverage" LDFLAGS="--coverage -lgcov" CARGO_INCREMENTAL=0 RUSTFLAGS="-Zprofile -Ccodegen-units=1" cargo +nightly test -- --nocapture;
+        export CXXFLAGS="--coverage";
+        export LDFLAGS="--coverage -lgcov";
+        export CARGO_INCREMENTAL=0;
+        export RUSTFLAGS="-Zprofile -Ccodegen-units=1";
+      fi
+    - if [ "$TRAVIS_TAG" ]; then export CARGO_OPTIONS=--release --features=alloc_system; fi
+    - cargo build --verbose $CARGO_OPTIONS
+    - cargo test --verbose $CARGO_OPTIONS
+    - |
+      if [ "$TRAVIS_RUST_VERSION" = "nightly" ] && [ -z "$TRAVIS_TAG" ]; then
         zip -0 ccov.zip `find . \( -name "grcov*.gc*" -o -name "llvmgcov.gc*" \) -print`;
         ./target/debug/grcov ccov.zip -s src/ -t lcov --llvm --branch --ignore-dir libstd/* --ignore-dir libcore/* --ignore-dir liballoc/* --ignore-dir libtest/* --ignore-dir "<*" --ignore-dir "path_rewriting.rs" > lcov.info;
         bash <(curl -s https://codecov.io/bash) -f lcov.info;
-      elif [ -z "$TRAVIS_TAG" ]; then
-        cargo build --verbose;
-        cargo test -- --nocapture;
       fi
 before_deploy:
-    - cargo build --release --features=alloc_system
     - tar -cvjSf grcov-${TRAVIS_OS_NAME}-x86_64.tar.bz2 -C target/release/ grcov
 deploy:
   api_key:
