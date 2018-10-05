@@ -1,4 +1,4 @@
-use crossbeam::sync::MsQueue;
+use crossbeam::queue::MsQueue;
 use libc;
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
