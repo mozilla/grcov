@@ -52,7 +52,7 @@ build_script:
 
 test_script:
   - |-
-    if [%CHANNEL%]==[nightly] (
+    if "%CHANNEL%" == "nightly" (
       set CXXFLAGS="--coverage"
       set LDFLAGS="--coverage -lgcov"
       set CARGO_INCREMENTAL=0
