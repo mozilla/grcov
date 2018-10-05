@@ -6,9 +6,11 @@
 
 grcov collects and aggregates code coverage information for multiple source files.
 
+This is a project initiated by Mozilla to gather code coverage results on Firefox.
+
 ## Usage
 
-1. Download grcov from https://github.com/mozilla/grcov/releases.
+1. Download grcov from https://github.com/mozilla/grcov/releases or run ```cargo install grcov```
 2. Run grcov:
 
 ```
@@ -22,12 +24,12 @@ SOURCE_ROOT is the root directory of the source files, required for the 'coveral
 REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' format.
 ```
 
-Let's see a few examples, assuming the source directory is `~/Documenti/mozilla-central` and the build directory is `~/Documenti/mozilla-central/build`.
+Let's see a few examples, assuming the source directory is `~/Documents/mozilla-central` and the build directory is `~/Documents/mozilla-central/build`.
 
 ### LCOV output
 
 ```sh
-grcov ~/Documenti/mozilla-central/build -t lcov > lcov.info
+grcov ~/Documents/mozilla-central/build -t lcov > lcov.info
 ```
 
 As the LCOV output is compatible with `lcov`, `genhtml` can be used to generate a HTML summary of the code coverage:
@@ -38,7 +40,7 @@ genhtml -o report/ --show-details --highlight --ignore-errors source --legend lc
 ### Coveralls/Codecov output
 
 ```sh
-grcov ~/Documenti/FD/mozilla-central/build -t coveralls -s ~/Documenti/FD/mozilla-central --token YOUR_COVERALLS_TOKEN > coveralls.json
+grcov ~/Documents/FD/mozilla-central/build -t coveralls -s ~/Documents/FD/mozilla-central --token YOUR_COVERALLS_TOKEN > coveralls.json
 ```
 
 ## Build & Test
@@ -56,3 +58,7 @@ cargo test
 ## Minimum requirements
 
 - GCC 4.9 or higher is required.
+
+## License
+
+Published under the MPL 2.0 license
