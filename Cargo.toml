@@ -15,7 +15,7 @@ walkdir = "^2.2"
 num_cpus = "^1.8"
 semver = "^0.9"
 rust-crypto = "^0.2"
-zip = { version = "^0.2", default-features = false }
+zip = { version = "^0.4", features = ["deflate-zlib"], default-features = false }
 tempdir = "^0.3"
 uuid = { version = "^0.7", features = ["v4"] }
 libc = "^0.2"

@@ -201,12 +201,16 @@ impl Archive {
 
     pub fn read_in_buffer(&self, name: &str, buf: &mut Vec<u8>) -> bool {
         match *self.item.borrow_mut() {
-            ArchiveType::Zip(ref mut zip) => match zip.borrow_mut().by_name(&name) {
-                Ok(mut f) => {
-                    f.read_to_end(buf).expect("Failed to read gcda file");
-                    true
+            ArchiveType::Zip(ref mut zip) => {
+                let mut zip = zip.borrow_mut();
+                let zipfile = zip.by_name(&name);
+                match zipfile {
+                    Ok(mut f) => {
+                        f.read_to_end(buf).expect("Failed to read gcda file");
+                        true
+                    }
+                    Err(_) => false,
                 }
-                Err(_) => false,
             },
             ArchiveType::Dir(ref dir) => match File::open(dir.join(name)) {
                 Ok(mut f) => {
@@ -228,13 +232,17 @@ impl Archive {
         }
 
         match *self.item.borrow_mut() {
-            ArchiveType::Zip(ref mut zip) => match zip.borrow_mut().by_name(&name) {
-                Ok(mut f) => {
-                    let mut file = File::create(&path).expect("Failed to create file");
-                    io::copy(&mut f, &mut file).expect("Failed to copy file from ZIP");
-                    true
+            ArchiveType::Zip(ref mut zip) => {
+                let mut zip = zip.borrow_mut();
+                let zipfile = zip.by_name(&name);
+                match zipfile {
+                    Ok(mut f) => {
+                        let mut file = File::create(&path).expect("Failed to create file");
+                        io::copy(&mut f, &mut file).expect("Failed to copy file from ZIP");
+                        true
+                    }
+                    Err(_) => false,
                 }
-                Err(_) => false,
             },
             ArchiveType::Dir(ref dir) => {
                 // don't use a hard link here because it can fail when src and dst are not on the same device
