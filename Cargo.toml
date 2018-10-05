@@ -22,9 +22,9 @@ exclude = [
 ]
 
 [badges]
-appveyor = { repository = "https://github.com/mozilla/grcov" }
-travis-ci = { repository = "https://github.com/mozilla/grcov" }
-codecov = { repository = "https://github.com/mozilla/grcov" }
+appveyor = { repository = "marco-c/grcov" }
+travis-ci = { repository = "mozilla/grcov" }
+codecov = { repository = "mozilla/grcov" }
 
 [build-dependencies]
 cc = "^1.0"
