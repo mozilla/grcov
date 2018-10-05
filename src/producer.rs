@@ -470,7 +470,7 @@ pub fn producer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossbeam::sync::MsQueue;
+    use crossbeam::queue::MsQueue;
     use serde_json::{self, Value};
     use std::sync::Arc;
     use tempdir::TempDir;

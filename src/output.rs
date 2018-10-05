@@ -193,7 +193,7 @@ fn get_digest(path: PathBuf) -> String {
 
             hasher.result_str()
         }
-        Err(_) => Uuid::new_v4().simple().to_string(),
+        Err(_) => Uuid::new_v4().to_string(),
     }
 }
 
