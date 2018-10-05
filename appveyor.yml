@@ -60,7 +60,7 @@ test_script:
       cargo clean
     )
   - cargo test %CARGO_RELEASE_ARG% --verbose
-  - ps: |
+  - ps: >-
     if ($env:CHANNEL -eq "nightly") {
       mkdir ccov_dir
       Get-ChildItem -Path target/*grcov*.gc* -Recurse | Copy-Item -Destination ccov_dir
