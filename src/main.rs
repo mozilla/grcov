@@ -22,10 +22,11 @@ fn print_usage(program: &str) {
     println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch] [--filter] [--add-prefix ADDED_PREFIX_PATH]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
-    println!(" - (DEFAULT) ade for the ActiveData-ETL specific format;");
-    println!(" - lcov for the lcov INFO format;");
+    println!(" - (DEFAULT) lcov for the lcov INFO format;");
     println!(" - coveralls for the Coveralls specific format.");
     println!(" - coveralls+ for the Coveralls specific format with function information.");
+    println!(" - ade for the ActiveData-ETL specific format;");
+    println!(" - files to only return a list of files.");
     println!("SOURCE_ROOT is the root directory of the source files.");
     println!("PREFIX_PATH is a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that generated the code coverage information).");
     println!("ADDED_PREFIX_PATH is a prefix to add to the paths.");
@@ -35,8 +36,8 @@ fn print_usage(program: &str) {
     );
     println!("By default global includes are ignored. Use --keep-global-includes to keep them.");
     println!("By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.");
-    println!("The --llvm option must be used when the code coverage information is coming from a llvm build.");
-    println!("The --ignore-dir option can be used to ignore directories.");
+    println!("The --llvm option can be used when the code coverage information is exclusively coming from a llvm build, to speed-up parsing.");
+    println!("The --ignore-dir option can be used to ignore files/directories specified as globs.");
     println!("The --branch option enables parsing branch coverage information.");
     println!("The --filter option allows filtering out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered' to only return uncovered files.");
 }
@@ -48,7 +49,7 @@ fn main() {
         print_usage(&args[0]);
         process::exit(1);
     }
-    let mut output_type = "ade";
+    let mut output_type = "lcov";
     let mut source_dir = "";
     let mut prefix_dir = "";
     let mut added_prefix_dir = "";

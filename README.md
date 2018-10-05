@@ -17,10 +17,11 @@ This is a project initiated by Mozilla to gather code coverage results on Firefo
 Usage: grcov DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch] [--filter] [--add-prefix ADDED_PREFIX_PATH]
 You can specify one or more directories, separated by a space.
 OUTPUT_TYPE can be one of:
- - (DEFAULT) ade for the ActiveData-ETL specific format;
- - lcov for the lcov INFO format;
+ - (DEFAULT) lcov for the lcov INFO format;
  - coveralls for the Coveralls specific format.
  - coveralls+ for the Coveralls specific format with function information.
+ - ade for the ActiveData-ETL specific format;
+ - files to only return a list of files.
 SOURCE_ROOT is the root directory of the source files.
 PREFIX_PATH is a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that generated the code coverage information).
 ADDED_PREFIX_PATH is a prefix to add to the paths.
@@ -28,8 +29,8 @@ COVERALLS_REPO_TOKEN is the repository token from Coveralls, required for the 'c
 COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data.
 By default global includes are ignored. Use --keep-global-includes to keep them.
 By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.
-The --llvm option must be used when the code coverage information is coming from a llvm build.
-The --ignore-dir option can be used to ignore directories.
+The --llvm option can be used when the code coverage information is exclusively coming from a llvm build, to speed-up parsing.
+The --ignore-dir option can be used to ignore files/directories specified as globs.
 The --branch option enables parsing branch coverage information.
 The --filter option allows filtering out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered' to only return uncovered files.
 ```
