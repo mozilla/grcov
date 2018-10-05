@@ -51,7 +51,25 @@ build_script:
   - 7z a grcov-win-%PLATFORM_TARGET%.tar.bz2 grcov-win-%PLATFORM_TARGET%.tar
 
 test_script:
+  - |-
+    if [%CHANNEL%]==[nightly] (
+      set CXXFLAGS="--coverage"
+      set LDFLAGS="--coverage -lgcov"
+      set CARGO_INCREMENTAL=0
+      set RUSTFLAGS="-Zprofile -Ccodegen-units=1"
+      cargo clean
+    )
   - cargo test %CARGO_RELEASE_ARG% --verbose
+  - ps: |
+    if ($env:CHANNEL -eq "nightly") {
+      mkdir ccov_dir
+      Get-ChildItem -Path target/*grcov*.gc* -Recurse | Copy-Item -Destination ccov_dir
+      Get-ChildItem -Path target/*llvmgcov.gc* -Recurse | Copy-Item -Destination ccov_dir
+      .\target\debug\grcov ccov_dir -s src -t lcov --llvm --branch --ignore-dir libstd\* --ignore-dir libcore\* --ignore-dir liballoc\* --ignore-dir libtest\* --ignore-dir "<*" --ignore-dir "path_rewriting.rs" > lcov.info
+      $env:PATH = "C:\msys64\usr\bin;" + $env:PATH
+      Invoke-WebRequest -Uri "https://codecov.io/bash" -OutFile codecov.sh
+      bash codecov.sh -f "lcov.info"
+    }
 
 artifacts:
   - path: grcov-win-$(PLATFORM_TARGET).tar.bz2
