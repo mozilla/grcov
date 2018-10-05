@@ -50,12 +50,12 @@ test_script:
   - ps: |
       If ($env:CHANNEL -eq "nightly") {
          $env:CXXFLAGS = "--coverage"
-         $env:LDFLAGS = "--coverage -lgcov"
+         $env:LDFLAGS = "clang_rt.profile-x86_64.lib"
          $env:CARGO_INCREMENTAL = "0"
          $env:RUSTFLAGS = "-Zprofile -Ccodegen-units=1"
          cargo clean
       }
-  - ps: cargo test $env:CARGO_RELEASE_ARG --verbose
+  - cargo test %CARGO_RELEASE_ARG% --verbose
   - ps: |
       If ($env:CHANNEL -eq "nightly") {
          mkdir ccov_dir
