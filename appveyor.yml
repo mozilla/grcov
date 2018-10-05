@@ -51,16 +51,16 @@ build_script:
   - 7z a grcov-win-%PLATFORM_TARGET%.tar.bz2 grcov-win-%PLATFORM_TARGET%.tar
 
 test_script:
-  - ps: >-  
+  - ps: >-
+      echo $env:CHANNEL
       If ($env:CHANNEL -eq "nightly") {
-         $env:CXXFLAGS="--coverage"
-         $env:LDFLAGS="--coverage -lgcov"
-         $env:CARGO_INCREMENTAL="0"
-         $env:RUSTFLAGS="-Zprofile -Ccodegen-units=1"
+         $env:CXXFLAGS = "--coverage"
+         $env:LDFLAGS = "--coverage -lgcov"
+         $env:CARGO_INCREMENTAL = "0"
+         $env:RUSTFLAGS = "-Zprofile -Ccodegen-units=1"
          cargo clean
       }
-  - cargo test %CARGO_RELEASE_ARG% --verbose
-  - ps: >-
+      cargo test $env:CARGO_RELEASE_ARG --verbose
       If ($env:CHANNEL -eq "nightly") {
          mkdir ccov_dir
          Get-ChildItem -Path target/*grcov*.gc* -Recurse | Copy-Item -Destination ccov_dir
