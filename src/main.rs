@@ -7,7 +7,7 @@ extern crate num_cpus;
 extern crate serde_json;
 extern crate tempdir;
 
-use crossbeam::sync::MsQueue;
+use crossbeam::queue::MsQueue;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs::{self, File};
