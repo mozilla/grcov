@@ -4,6 +4,15 @@ version = "0.2.3"
 authors = ["Marco Castelluccio <mcastelluccio@mozilla.com>"]
 links = "llvmgcov"
 build = "build.rs"
+exclude = [
+    "test/*",
+    "tests/*",
+    "benches/*",
+    "install.sh",
+    ".travis.yml",
+    "appveyor.yml",
+    ".gitignore",
+]
 
 [build-dependencies]
 cc = "^1.0"
