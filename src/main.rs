@@ -19,7 +19,7 @@ use tempdir::TempDir;
 use grcov::*;
 
 fn print_usage(program: &str) {
-    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch] [--filter]", program);
+    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch] [--filter]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
     println!(" - (DEFAULT) lcov for the lcov INFO format;");
@@ -33,7 +33,6 @@ fn print_usage(program: &str) {
     println!(
         "COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data."
     );
-    println!("By default global includes are ignored. Use --keep-global-includes to keep them.");
     println!("By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.");
     println!("The --llvm option can be used when the code coverage information is exclusively coming from a llvm build, to speed-up parsing.");
     println!("The --ignore-dir option can be used to ignore files/directories specified as globs.");
@@ -56,7 +55,6 @@ fn main() {
     let mut service_name = "";
     let mut service_number = "";
     let mut service_job_number = "";
-    let mut ignore_global = true;
     let mut ignore_not_existing = false;
     let mut to_ignore_dirs = Vec::new();
     let mut is_llvm = false;
@@ -139,8 +137,6 @@ fn main() {
 
             commit_sha = &args[i + 1];
             i += 1;
-        } else if args[i] == "--keep-global-includes" {
-            ignore_global = false;
         } else if args[i] == "--ignore-not-existing" {
             ignore_not_existing = true;
         } else if args[i] == "--ignore-dir" {
@@ -322,7 +318,6 @@ fn main() {
         path_mapping,
         source_root,
         prefix_dir,
-        ignore_global,
         ignore_not_existing,
         to_ignore_dirs,
         filter_option,
