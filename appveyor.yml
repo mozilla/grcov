@@ -4,11 +4,6 @@ platform:
 
 environment:
   matrix:
-    - CHANNEL: stable
-      FEATURES:
-      PLATFORM_TARGET: x86_64
-      PLATFORM_VS: x64
-
     - CHANNEL: nightly
       FEATURES: alloc_system
       PLATFORM_TARGET: x86_64
