@@ -2,17 +2,29 @@
 name = "grcov"
 version = "0.2.3"
 authors = ["Marco Castelluccio <mcastelluccio@mozilla.com>"]
+description="Rust tool to collect and aggregate code coverage data for multiple source files"
+license="MPL-2.0"
+documentation="https://github.com/mozilla/grcov"
+homepage="https://github.com/mozilla/grcov"
+repository="https://github.com/mozilla/grcov"
+readme = "README.md"
+keywords=["coverage"]
+categories=["command-line-utilities", "development-tools", "development-tools::testing"]
 links = "llvmgcov"
 build = "build.rs"
 exclude = [
     "test/*",
     "tests/*",
     "benches/*",
-    "install.sh",
     ".travis.yml",
     "appveyor.yml",
     ".gitignore",
 ]
+
+[badges]
+appveyor = { repository = "https://github.com/mozilla/grcov" }
+travis-ci = { repository = "https://github.com/mozilla/grcov" }
+codecov = { repository = "https://github.com/mozilla/grcov" }
 
 [build-dependencies]
 cc = "^1.0"
