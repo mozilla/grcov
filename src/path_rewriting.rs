@@ -36,6 +36,72 @@ pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     Ok(path)
 }
 
+// Search the source file's path in the mapping.
+fn apply_mapping(mapping: &Option<Value>, path: &str) -> PathBuf {
+    if let Some(mapping) = mapping {
+        if let Some(p) = mapping.get(to_lowercase_first(path)) {
+            PathBuf::from(p.as_str().unwrap())
+        } else if let Some(p) = mapping.get(to_uppercase_first(path)) {
+            PathBuf::from(p.as_str().unwrap())
+        } else {
+            PathBuf::from(path)
+        }
+    } else {
+        PathBuf::from(path)
+    }
+}
+
+// Remove prefix from the source file's path.
+fn remove_prefix(prefix_dir: &Option<PathBuf>, path: PathBuf) -> PathBuf {
+    if let Some(prefix_dir) = prefix_dir {
+        if path.starts_with(&prefix_dir) {
+            path.strip_prefix(&prefix_dir).unwrap().to_path_buf()
+        } else {
+            path
+        }
+    } else {
+        path
+    }
+}
+
+// Get the absolute path for the source file's path, resolving symlinks.
+fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf) -> (PathBuf, PathBuf) {
+    let abs_path = if let Some(ref source_dir) = source_dir {
+        if rel_path.is_relative() {
+            if !cfg!(windows) {
+                PathBuf::from(&source_dir).join(&rel_path)
+            } else {
+                PathBuf::from(&source_dir).join(&rel_path.to_str().unwrap().replace("/", "\\"))
+            }
+        } else {
+            rel_path.clone()
+        }
+    } else {
+        rel_path.clone()
+    };
+
+    // Canonicalize, if possible.
+    let abs_path = match canonicalize_path(&abs_path) {
+        Ok(p) => p,
+        Err(_) => abs_path,
+    };
+
+    // Fix up the relative path now that we have resolved symlinks.
+    let rel_path = if let Some(ref source_dir) = source_dir {
+        if abs_path.starts_with(&source_dir) {
+            abs_path.strip_prefix(&source_dir).unwrap().to_path_buf()
+        } else if !rel_path.is_relative() {
+            abs_path.clone()
+        } else {
+            rel_path
+        }
+    } else {
+        rel_path
+    };
+
+    (abs_path, rel_path)
+}
+
 pub fn rewrite_paths(
     result_map: CovResultMap,
     path_mapping: Option<Value>,
@@ -52,50 +118,16 @@ pub fn rewrite_paths(
     let to_ignore_globset = glob_builder.build().unwrap();
 
     Box::new(result_map.into_iter().filter_map(move |(path, result)| {
-        let mut rel_path = PathBuf::from(path.replace("\\", "/"));
+        let path = path.replace("\\", "/");
 
         // Get path from the mapping.
-        if let Some(ref path_mapping) = path_mapping {
-            if let Some(p) = path_mapping.get(to_lowercase_first(rel_path.to_str().unwrap())) {
-                rel_path = PathBuf::from(p.as_str().unwrap());
-            } else if let Some(p) = path_mapping.get(to_uppercase_first(rel_path.to_str().unwrap())) {
-                rel_path = PathBuf::from(p.as_str().unwrap());
-            }
-        }
+        let rel_path = apply_mapping(&path_mapping, &path);
 
-        // Remove prefix from path.
-        if let Some(ref prefix_dir) = prefix_dir {
-            if rel_path.starts_with(&prefix_dir) {
-               rel_path = rel_path.strip_prefix(&prefix_dir).unwrap().to_path_buf()
-            }
-        }
+        // Remove prefix from the path.
+        let rel_path = remove_prefix(&prefix_dir, rel_path);
 
-        let mut abs_path = rel_path.clone();
-
-        // Get absolute path to source file.
-        if let Some(ref source_dir) = source_dir {
-            if rel_path.is_relative() {
-                if !cfg!(windows) {
-                    abs_path = PathBuf::from(&source_dir).join(&rel_path);
-                } else {
-                    abs_path = PathBuf::from(&source_dir).join(&rel_path.to_str().unwrap().replace("/", "\\"));
-                }
-            }
-        }
-
-        // Canonicalize, if possible.
-        if let Ok(p) = canonicalize_path(&abs_path) {
-            abs_path = p;
-        }
-
-        if let Some(ref source_dir) = source_dir {
-            // Now the path could be different (if there was a symlink)
-            if abs_path.starts_with(&source_dir) {
-                rel_path = abs_path.strip_prefix(&source_dir).unwrap().to_path_buf()
-            } else if !rel_path.is_relative() {
-                rel_path = abs_path.clone()
-            };
-        }
+        // Get absolute path to the source file.
+        let (abs_path, rel_path) = get_abs_path(&source_dir, rel_path);
 
         if to_ignore_globset.is_match(&rel_path) {
             return None;
@@ -105,6 +137,7 @@ pub fn rewrite_paths(
             return None;
         }
 
+        // Always return results with '/'.
         let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
 
         match filter_option {
