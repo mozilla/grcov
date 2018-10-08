@@ -123,6 +123,10 @@ fn run_grcov(paths: Vec<&Path>, source_root: &Path, output_format: &str) -> Stri
         args.push(source_root.to_str().unwrap());
         args.push("--branch");
     }
+    args.push("--ignore-dir");
+    args.push("C:/*");
+    args.push("--ignore-dir");
+    args.push("/usr/*");
 
     let cmd_path = if cfg!(windows) {
         ".\\target\\debug\\grcov.exe"
