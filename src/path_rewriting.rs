@@ -49,6 +49,16 @@ fn apply_mapping(mapping: &Option<Value>, path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
+// Remove common part between the prefix's end and the path's start
+fn guess_abs_path(prefix_dir: &PathBuf, path: &PathBuf) -> PathBuf {
+    for ancestor in path.ancestors() {
+        if prefix_dir.ends_with(ancestor) {
+            return prefix_dir.join(path.strip_prefix(ancestor).unwrap().to_path_buf());
+        }
+    }
+    prefix_dir.join(path)
+}
+
 // Remove prefix from the source file's path.
 fn remove_prefix(prefix_dir: &Option<PathBuf>, path: PathBuf) -> PathBuf {
     if let Some(prefix_dir) = prefix_dir {
@@ -78,9 +88,9 @@ fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf) -> (PathBuf, Pa
         rel_path.clone()
     } else if let Some(ref source_dir) = source_dir {
         if !cfg!(windows) {
-            PathBuf::from(&source_dir).join(&rel_path)
+            guess_abs_path(&source_dir, &rel_path)
         } else {
-            PathBuf::from(&source_dir).join(&rel_path.to_str().unwrap().replace("/", "\\"))
+            guess_abs_path(&source_dir, &PathBuf::from(&rel_path.to_str().unwrap().replace("/", "\\")))
         }
     } else {
         rel_path.clone()
@@ -111,6 +121,10 @@ pub fn rewrite_paths(
         glob_builder.add(Glob::new(&to_ignore_dir).unwrap());
     }
     let to_ignore_globset = glob_builder.build().unwrap();
+
+    if let Some(p) = &source_dir {
+        assert!(p.is_absolute());
+    }
 
     Box::new(result_map.into_iter().filter_map(move |(path, result)| {
         let path = path.replace("\\", "/");
@@ -493,12 +507,11 @@ mod tests {
         assert_eq!(count, 1);
     }
 
-    #[cfg(unix)]
     #[test]
+    #[should_panic]
     fn test_rewrite_paths_rewrite_path_using_relative_source_directory() {
         let mut result_map: CovResultMap = HashMap::new();
-        result_map.insert("class/main.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(
+        rewrite_paths(
             result_map,
             None,
             Some(PathBuf::from("tests")),
@@ -507,40 +520,6 @@ mod tests {
             Vec::new(),
             None,
         );
-        let mut count = 0;
-        for (abs_path, rel_path, result) in results {
-            count += 1;
-            assert!(abs_path.is_absolute());
-            assert!(abs_path.ends_with("tests/class/main.cpp"));
-            assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
-            assert_eq!(result, empty_result!());
-        }
-        assert_eq!(count, 1);
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn test_rewrite_paths_rewrite_path_using_relative_source_directory() {
-        let mut result_map: CovResultMap = HashMap::new();
-        result_map.insert("class\\main.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            Some(PathBuf::from("tests")),
-            None,
-            true,
-            Vec::new(),
-            None,
-        );
-        let mut count = 0;
-        for (abs_path, rel_path, result) in results {
-            count += 1;
-            assert!(abs_path.is_absolute());
-            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
-            assert_eq!(rel_path, PathBuf::from("class\\main.cpp"));
-            assert_eq!(result, empty_result!());
-        }
-        assert_eq!(count, 1);
     }
 
     #[cfg(unix)]
@@ -548,6 +527,7 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_using_absolute_source_directory() {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("class/main.cpp".to_string(), empty_result!());
+        result_map.insert("tests/class/main.cpp".to_string(), empty_result!());
         let results = rewrite_paths(
             result_map,
             None,
@@ -565,7 +545,7 @@ mod tests {
             assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
             assert_eq!(result, empty_result!());
         }
-        assert_eq!(count, 1);
+        assert_eq!(count, 2);
     }
 
     #[cfg(windows)]
@@ -573,6 +553,7 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_using_absolute_source_directory() {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("class\\main.cpp".to_string(), empty_result!());
+        result_map.insert("tests\\class\\main.cpp".to_string(), empty_result!());
         let results = rewrite_paths(
             result_map,
             None,
@@ -590,7 +571,7 @@ mod tests {
             assert_eq!(rel_path, PathBuf::from("class\\main.cpp"));
             assert_eq!(result, empty_result!());
         }
-        assert_eq!(count, 1);
+        assert_eq!(count, 2);
     }
 
     #[cfg(unix)]
