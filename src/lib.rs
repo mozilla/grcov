@@ -9,6 +9,7 @@ extern crate globset;
 extern crate libc;
 extern crate semver;
 extern crate tempdir;
+extern crate tst;
 extern crate uuid;
 extern crate walkdir;
 extern crate xml;

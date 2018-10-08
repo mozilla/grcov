@@ -4,6 +4,8 @@ use std::fs;
 use std::io;
 use std::mem;
 use std::path::{Path, PathBuf};
+use tst::TSTMap;
+use walkdir::WalkDir;
 
 use defs::*;
 use filter::*;
@@ -114,6 +116,22 @@ fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf, cache: &mut Opt
     (abs_path, rel_path)
 }
 
+fn map_partial_path(files_tst: &TSTMap<String>, mut path: PathBuf) -> PathBuf {
+    // No need to map the path if it exists.
+    if path.exists() {
+        return path;
+    }
+
+    let mut found = false;
+    for (_key, value) in files_tst.prefix_iter(&reverse(path.to_str().unwrap().to_string())) {
+        assert!(!found);
+        found = true;
+        path = PathBuf::from(value);
+    }
+
+    path
+}
+
 pub fn rewrite_paths(
     result_map: CovResultMap,
     path_mapping: Option<Value>,
@@ -133,6 +151,20 @@ pub fn rewrite_paths(
         assert!(p.is_absolute());
     }
 
+    // Traverse source dir and store all paths, reversed.
+    let mut files_tst = TSTMap::new();
+    if let Some(ref source_dir) = source_dir {
+        for entry in WalkDir::new(&source_dir) {
+            let entry = entry.unwrap_or_else(|_| panic!("Failed to open directory '{}'.", source_dir.display()));
+            let full_path = entry.path();
+            if !full_path.is_file() {
+                continue;
+            }
+            let path = full_path.strip_prefix(&source_dir).unwrap().to_str().unwrap().to_string().replace("\\", "/");
+            files_tst.insert(&reverse(path.clone()), path);
+        }
+    }
+
     let mut cache: Option<PathBuf> = None;
 
     Box::new(result_map.into_iter().filter_map(move |(path, result)| {
@@ -143,6 +175,9 @@ pub fn rewrite_paths(
 
         // Remove prefix from the path.
         let rel_path = remove_prefix(&prefix_dir, rel_path);
+
+        // Try mapping a partial path to a full path.
+        let rel_path = map_partial_path(&files_tst, rel_path);
 
         // Get absolute path to the source file.
         let (abs_path, rel_path) = get_abs_path(&source_dir, rel_path, &mut cache);
