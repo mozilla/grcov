@@ -45,72 +45,57 @@ pub fn rewrite_paths(
     to_ignore_dirs: Vec<String>,
     filter_option: Option<bool>,
 ) -> CovResultIter {
-    let path_mapping = if path_mapping.is_some() {
-        path_mapping.unwrap()
-    } else {
-        json!({})
-    };
-
-    let source_dir = if source_dir.is_some() {
-        source_dir.unwrap()
-    } else {
-        PathBuf::from("")
-    };
-
     let mut glob_builder = GlobSetBuilder::new();
     for to_ignore_dir in to_ignore_dirs {
         glob_builder.add(Glob::new(&to_ignore_dir).unwrap());
     }
     let to_ignore_globset = glob_builder.build().unwrap();
 
-    let prefix_dir = if prefix_dir.is_some() {
-        prefix_dir.unwrap()
-    } else {
-        PathBuf::from("")
-    };
-
     Box::new(result_map.into_iter().filter_map(move |(path, result)| {
-        let path = PathBuf::from(path.replace("\\", "/"));
+        let mut rel_path = PathBuf::from(path.replace("\\", "/"));
 
-        // Get path from the mapping, or remove prefix from path.
-        let (rel_path, found_in_mapping) =
-            if let Some(p) = path_mapping.get(to_lowercase_first(path.to_str().unwrap())) {
-                (PathBuf::from(p.as_str().unwrap()), true)
-            } else if let Some(p) = path_mapping.get(to_uppercase_first(path.to_str().unwrap())) {
-                (PathBuf::from(p.as_str().unwrap()), true)
-            } else if path.starts_with(&prefix_dir) {
-                (path.strip_prefix(&prefix_dir).unwrap().to_path_buf(), false)
-            } else if path.starts_with(&source_dir) {
-                (path.strip_prefix(&source_dir).unwrap().to_path_buf(), false)
-            } else {
-                (path, false)
-            };
+        // Get path from the mapping.
+        if let Some(ref path_mapping) = path_mapping {
+            if let Some(p) = path_mapping.get(to_lowercase_first(rel_path.to_str().unwrap())) {
+                rel_path = PathBuf::from(p.as_str().unwrap());
+            } else if let Some(p) = path_mapping.get(to_uppercase_first(rel_path.to_str().unwrap())) {
+                rel_path = PathBuf::from(p.as_str().unwrap());
+            }
+        }
+
+        // Remove prefix from path.
+        if let Some(ref prefix_dir) = prefix_dir {
+            if rel_path.starts_with(&prefix_dir) {
+               rel_path = rel_path.strip_prefix(&prefix_dir).unwrap().to_path_buf()
+            }
+        }
+
+        let mut abs_path = rel_path.clone();
 
         // Get absolute path to source file.
-        let abs_path = if rel_path.is_relative() {
-            if !cfg!(windows) {
-                PathBuf::from(&source_dir).join(&rel_path)
-            } else {
-                PathBuf::from(&source_dir).join(&rel_path.to_str().unwrap().replace("/", "\\"))
+        if let Some(ref source_dir) = source_dir {
+            if rel_path.is_relative() {
+                if !cfg!(windows) {
+                    abs_path = PathBuf::from(&source_dir).join(&rel_path);
+                } else {
+                    abs_path = PathBuf::from(&source_dir).join(&rel_path.to_str().unwrap().replace("/", "\\"));
+                }
             }
-        } else {
-            rel_path.clone()
-        };
+        }
 
         // Canonicalize, if possible.
-        let abs_path = match canonicalize_path(&abs_path) {
-            Ok(p) => p,
-            Err(_) => abs_path,
-        };
+        if let Ok(p) = canonicalize_path(&abs_path) {
+            abs_path = p;
+        }
 
-        let rel_path = if found_in_mapping {
-            rel_path
-        } else if abs_path.starts_with(&source_dir) {
-            // Remove source dir from path.
-            abs_path.strip_prefix(&source_dir).unwrap().to_path_buf()
-        } else {
-            abs_path.clone()
-        };
+        if let Some(ref source_dir) = source_dir {
+            // Now the path could be different (if there was a symlink)
+            if abs_path.starts_with(&source_dir) {
+                rel_path = abs_path.strip_prefix(&source_dir).unwrap().to_path_buf()
+            } else if !rel_path.is_relative() {
+                rel_path = abs_path.clone()
+            };
+        }
 
         if to_ignore_globset.is_match(&rel_path) {
             return None;
@@ -344,7 +329,7 @@ mod tests {
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
-            assert!(abs_path.is_absolute());
+            assert!(abs_path.is_absolute(), "{} is not absolute", abs_path.display());
             assert!(abs_path.ends_with("tests/class/main.cpp"));
             assert!(rel_path.ends_with("tests/class/main.cpp"));
             assert_eq!(result, empty_result!());
