@@ -473,7 +473,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path("tests").unwrap()),
+            Some(PathBuf::from("tests")),
             None,
             true,
             Vec::new(),
@@ -498,7 +498,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path("tests").unwrap()),
+            Some(PathBuf::from("tests")),
             None,
             true,
             Vec::new(),
