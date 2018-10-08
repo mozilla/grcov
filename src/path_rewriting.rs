@@ -620,6 +620,56 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn test_rewrite_paths_rewrite_path_using_absolute_source_directory_and_partial_path() {
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("class/main.cpp".to_string(), empty_result!());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            Some(canonicalize_path(".").unwrap()),
+            None,
+            true,
+            Vec::new(),
+            None,
+        );
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests/class/main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("tests/class/main.cpp"));
+            assert_eq!(result, empty_result!());
+        }
+        assert_eq!(count, 1);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_rewrite_paths_rewrite_path_using_absolute_source_directory_and_partial_path() {
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("class\\main.cpp".to_string(), empty_result!());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            Some(canonicalize_path(".").unwrap()),
+            None,
+            true,
+            Vec::new(),
+            None,
+        );
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("tests\\class\\main.cpp"));
+            assert_eq!(result, empty_result!());
+        }
+        assert_eq!(count, 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn test_rewrite_paths_rewrite_path_and_remove_prefix() {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert(
