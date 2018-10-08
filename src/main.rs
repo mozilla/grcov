@@ -19,7 +19,7 @@ use tempdir::TempDir;
 use grcov::*;
 
 fn print_usage(program: &str) {
-    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--keep-global-includes] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch] [--filter] [--add-prefix ADDED_PREFIX_PATH]", program);
+    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch] [--filter]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
     println!(" - (DEFAULT) lcov for the lcov INFO format;");
@@ -29,12 +29,10 @@ fn print_usage(program: &str) {
     println!(" - files to only return a list of files.");
     println!("SOURCE_ROOT is the root directory of the source files.");
     println!("PREFIX_PATH is a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that generated the code coverage information).");
-    println!("ADDED_PREFIX_PATH is a prefix to add to the paths.");
     println!("COVERALLS_REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' format.");
     println!(
         "COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data."
     );
-    println!("By default global includes are ignored. Use --keep-global-includes to keep them.");
     println!("By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.");
     println!("The --llvm option can be used when the code coverage information is exclusively coming from a llvm build, to speed-up parsing.");
     println!("The --ignore-dir option can be used to ignore files/directories specified as globs.");
@@ -52,13 +50,11 @@ fn main() {
     let mut output_type = "lcov";
     let mut source_dir = "";
     let mut prefix_dir = "";
-    let mut added_prefix_dir = "";
     let mut repo_token = "";
     let mut commit_sha = "";
     let mut service_name = "";
     let mut service_number = "";
     let mut service_job_number = "";
-    let mut ignore_global = true;
     let mut ignore_not_existing = false;
     let mut to_ignore_dirs = Vec::new();
     let mut is_llvm = false;
@@ -95,15 +91,6 @@ fn main() {
             }
 
             prefix_dir = &args[i + 1];
-            i += 1;
-        } else if args[i] == "--add-prefix" {
-            if args.len() <= i + 1 {
-                eprintln!("[ERROR]: Added prefix path not specified.\n");
-                print_usage(&args[0]);
-                process::exit(1);
-            }
-
-            added_prefix_dir = &args[i + 1];
             i += 1;
         } else if args[i] == "--token" {
             if args.len() <= i + 1 {
@@ -150,8 +137,6 @@ fn main() {
 
             commit_sha = &args[i + 1];
             i += 1;
-        } else if args[i] == "--keep-global-includes" {
-            ignore_global = false;
         } else if args[i] == "--ignore-not-existing" {
             ignore_not_existing = true;
         } else if args[i] == "--ignore-dir" {
@@ -255,12 +240,6 @@ fn main() {
         Some(PathBuf::from(prefix_dir))
     };
 
-    let added_prefix_dir = if added_prefix_dir == "" {
-        None
-    } else {
-        Some(PathBuf::from(added_prefix_dir))
-    };
-
     let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
 
@@ -339,8 +318,6 @@ fn main() {
         path_mapping,
         source_root,
         prefix_dir,
-        added_prefix_dir,
-        ignore_global,
         ignore_not_existing,
         to_ignore_dirs,
         filter_option,

@@ -41,8 +41,6 @@ pub fn rewrite_paths(
     path_mapping: Option<Value>,
     source_dir: Option<PathBuf>,
     prefix_dir: Option<PathBuf>,
-    prepend_prefix_dir: Option<PathBuf>,
-    ignore_global: bool,
     ignore_not_existing: bool,
     to_ignore_dirs: Vec<String>,
     filter_option: Option<bool>,
@@ -72,13 +70,7 @@ pub fn rewrite_paths(
     };
 
     Box::new(result_map.into_iter().filter_map(move |(path, result)| {
-        let path = if let Some(prepend_path) = &prepend_prefix_dir {
-            prepend_path.join(Path::new(&path))
-        } else {
-            PathBuf::from(path)
-        };
-
-        let path = PathBuf::from(path.to_str().unwrap().replace("\\", "/"));
+        let path = PathBuf::from(path.replace("\\", "/"));
 
         // Get path from the mapping, or remove prefix from path.
         let (rel_path, found_in_mapping) =
@@ -93,10 +85,6 @@ pub fn rewrite_paths(
             } else {
                 (path, false)
             };
-
-        if ignore_global && !rel_path.is_relative() {
-            return None;
-        }
 
         // Get absolute path to source file.
         let abs_path = if rel_path.is_relative() {
@@ -216,62 +204,6 @@ mod tests {
             None,
             None,
             None,
-            None,
-            false,
-            false,
-            Vec::new(),
-            None,
-        );
-        let mut count = 0;
-        for (abs_path, rel_path, result) in results {
-            count += 1;
-            assert_eq!(abs_path, PathBuf::from("main.cpp"));
-            assert_eq!(rel_path, PathBuf::from("main.cpp"));
-            assert_eq!(result, empty_result!());
-        }
-        assert_eq!(count, 1);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn test_rewrite_paths_ignore_global_files() {
-        let mut result_map: CovResultMap = HashMap::new();
-        result_map.insert("main.cpp".to_string(), empty_result!());
-        result_map.insert("/usr/include/prova.h".to_string(), empty_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            None,
-            None,
-            None,
-            true,
-            false,
-            Vec::new(),
-            None,
-        );
-        let mut count = 0;
-        for (abs_path, rel_path, result) in results {
-            count += 1;
-            assert_eq!(abs_path, PathBuf::from("main.cpp"));
-            assert_eq!(rel_path, PathBuf::from("main.cpp"));
-            assert_eq!(result, empty_result!());
-        }
-        assert_eq!(count, 1);
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn test_rewrite_paths_ignore_global_files() {
-        let mut result_map: CovResultMap = HashMap::new();
-        result_map.insert("main.cpp".to_string(), empty_result!());
-        result_map.insert("C:\\usr\\include\\prova.h".to_string(), empty_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            None,
-            None,
-            None,
-            true,
             false,
             Vec::new(),
             None,
@@ -299,8 +231,6 @@ mod tests {
             None,
             None,
             Some(PathBuf::from("/home/worker/src/workspace/")),
-            None,
-            false,
             false,
             Vec::new(),
             None,
@@ -328,8 +258,6 @@ mod tests {
             None,
             None,
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace\\")),
-            None,
-            false,
             false,
             Vec::new(),
             None,
@@ -357,8 +285,6 @@ mod tests {
             None,
             None,
             Some(PathBuf::from("C:/Users/worker/src/workspace/")),
-            None,
-            false,
             false,
             Vec::new(),
             None,
@@ -386,8 +312,6 @@ mod tests {
             None,
             None,
             Some(PathBuf::from("C:/Users/worker/src/")),
-            None,
-            false,
             false,
             Vec::new(),
             None,
@@ -404,70 +328,6 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn test_rewrite_paths_add_prefix() {
-        let mut result_map: CovResultMap = HashMap::new();
-        result_map.insert("org/example/Hello.java".to_string(), empty_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            None,
-            None,
-            Some(PathBuf::from("mobile/android/app/src/java")),
-            false,
-            false,
-            Vec::new(),
-            None,
-        );
-        let mut count = 0;
-        for (abs_path, rel_path, result) in results {
-            count += 1;
-            assert_eq!(
-                abs_path,
-                PathBuf::from("mobile/android/app/src/java/org/example/Hello.java")
-            );
-            assert_eq!(
-                rel_path,
-                PathBuf::from("mobile/android/app/src/java/org/example/Hello.java")
-            );
-            assert_eq!(result, empty_result!());
-        }
-        assert_eq!(count, 1);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn test_rewrite_paths_add_prefix_remove_prefix() {
-        let mut result_map: CovResultMap = HashMap::new();
-        result_map.insert("org/example/Hello.java".to_string(), empty_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            None,
-            Some(PathBuf::from("mobile/android")),
-            Some(PathBuf::from("mobile/android/app/src/java")),
-            false,
-            false,
-            Vec::new(),
-            None,
-        );
-        let mut count = 0;
-        for (abs_path, rel_path, result) in results {
-            count += 1;
-            assert_eq!(
-                abs_path,
-                PathBuf::from("app/src/java/org/example/Hello.java")
-            );
-            assert_eq!(
-                rel_path,
-                PathBuf::from("app/src/java/org/example/Hello.java")
-            );
-            assert_eq!(result, empty_result!());
-        }
-        assert_eq!(count, 1);
-    }
-
-    #[cfg(unix)]
-    #[test]
     fn test_rewrite_paths_ignore_non_existing_files() {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("tests/class/main.cpp".to_string(), empty_result!());
@@ -477,8 +337,6 @@ mod tests {
             None,
             None,
             None,
-            None,
-            false,
             true,
             Vec::new(),
             None,
@@ -505,8 +363,6 @@ mod tests {
             None,
             None,
             None,
-            None,
-            false,
             true,
             Vec::new(),
             None,
@@ -533,8 +389,6 @@ mod tests {
             None,
             None,
             None,
-            None,
-            false,
             false,
             vec!["mydir/*".to_string()],
             None,
@@ -560,8 +414,6 @@ mod tests {
             None,
             None,
             None,
-            None,
-            false,
             false,
             vec!["mydir/*".to_string()],
             None,
@@ -588,8 +440,6 @@ mod tests {
             None,
             None,
             None,
-            None,
-            false,
             false,
             vec!["mydir/*".to_string(), "mydir2/*".to_string()],
             None,
@@ -616,8 +466,6 @@ mod tests {
             None,
             None,
             None,
-            None,
-            false,
             false,
             vec!["mydir/*".to_string(), "mydir2/*".to_string()],
             None,
@@ -642,8 +490,6 @@ mod tests {
             None,
             Some(canonicalize_path("tests").unwrap()),
             None,
-            None,
-            false,
             true,
             Vec::new(),
             None,
@@ -669,8 +515,6 @@ mod tests {
             None,
             Some(canonicalize_path("tests").unwrap()),
             None,
-            None,
-            false,
             true,
             Vec::new(),
             None,
@@ -696,8 +540,6 @@ mod tests {
             None,
             Some(canonicalize_path("tests").unwrap()),
             None,
-            None,
-            false,
             true,
             Vec::new(),
             None,
@@ -723,8 +565,6 @@ mod tests {
             None,
             Some(canonicalize_path("tests").unwrap()),
             None,
-            None,
-            false,
             true,
             Vec::new(),
             None,
@@ -753,8 +593,6 @@ mod tests {
             None,
             Some(canonicalize_path("tests").unwrap()),
             Some(PathBuf::from("/home/worker/src/workspace")),
-            None,
-            false,
             true,
             Vec::new(),
             None,
@@ -784,8 +622,6 @@ mod tests {
             None,
             Some(canonicalize_path("tests").unwrap()),
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
-            None,
-            false,
             true,
             Vec::new(),
             None,
@@ -811,8 +647,6 @@ mod tests {
             Some(json!({"class/main.cpp": "rewritten/main.cpp"})),
             None,
             None,
-            None,
-            false,
             false,
             Vec::new(),
             None,
@@ -837,8 +671,6 @@ mod tests {
             Some(json!({"class/main.cpp": "rewritten/main.cpp"})),
             None,
             None,
-            None,
-            false,
             false,
             Vec::new(),
             None,
@@ -866,8 +698,6 @@ mod tests {
             ),
             None,
             None,
-            None,
-            false,
             true,
             Vec::new(),
             None,
@@ -896,8 +726,6 @@ mod tests {
             ),
             None,
             None,
-            None,
-            false,
             true,
             Vec::new(),
             None,
@@ -926,8 +754,6 @@ mod tests {
             Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})),
             None,
             Some(PathBuf::from("/home/worker/src/workspace")),
-            None,
-            false,
             true,
             Vec::new(),
             None,
@@ -958,9 +784,7 @@ mod tests {
                 json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"}),
             ),
             None,
-            None,
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
-            false,
             true,
             Vec::new(),
             None,
@@ -987,9 +811,7 @@ mod tests {
                 json!({"c:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"}),
             ),
             None,
-            None,
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
-            false,
             true,
             Vec::new(),
             None,
@@ -1016,9 +838,7 @@ mod tests {
                 json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"}),
             ),
             None,
-            None,
             Some(PathBuf::from("c:\\Users\\worker\\src\\workspace")),
-            false,
             true,
             Vec::new(),
             None,
@@ -1045,9 +865,7 @@ mod tests {
                 json!({"c:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"}),
             ),
             None,
-            None,
             Some(PathBuf::from("c:\\Users\\worker\\src\\workspace")),
-            false,
             true,
             Vec::new(),
             None,
@@ -1076,8 +894,6 @@ mod tests {
             Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})),
             Some(canonicalize_path("tests").unwrap()),
             Some(PathBuf::from("/home/worker/src/workspace")),
-            None,
-            false,
             true,
             Vec::new(),
             None,
@@ -1106,8 +922,6 @@ mod tests {
             Some(json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})),
             Some(canonicalize_path("tests").unwrap()),
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
-            None,
-            false,
             true,
             Vec::new(),
             None,
@@ -1133,8 +947,6 @@ mod tests {
             None,
             None,
             None,
-            None,
-            false,
             false,
             Vec::new(),
             Some(true),
@@ -1159,8 +971,6 @@ mod tests {
             None,
             None,
             None,
-            None,
-            false,
             false,
             Vec::new(),
             Some(false),
