@@ -36,6 +36,67 @@ pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     Ok(path)
 }
 
+// Search the source file's path in the mapping.
+fn apply_mapping(mapping: &Option<Value>, path: &str) -> PathBuf {
+    if let Some(mapping) = mapping {
+        if let Some(p) = mapping.get(to_lowercase_first(path)) {
+            return PathBuf::from(p.as_str().unwrap());
+        } else if let Some(p) = mapping.get(to_uppercase_first(path)) {
+            return PathBuf::from(p.as_str().unwrap());
+        }
+    }
+
+    PathBuf::from(path)
+}
+
+// Remove prefix from the source file's path.
+fn remove_prefix(prefix_dir: &Option<PathBuf>, path: PathBuf) -> PathBuf {
+    if let Some(prefix_dir) = prefix_dir {
+        if path.starts_with(&prefix_dir) {
+            return path.strip_prefix(&prefix_dir).unwrap().to_path_buf();
+        }
+    }
+
+    path
+}
+
+fn fixup_rel_path(source_dir: &Option<PathBuf>, abs_path: &PathBuf, rel_path: PathBuf) -> PathBuf {
+    if let Some(ref source_dir) = source_dir {
+        if abs_path.starts_with(&source_dir) {
+            return abs_path.strip_prefix(&source_dir).unwrap().to_path_buf();
+        } else if !rel_path.is_relative() {
+            return abs_path.clone();
+        }
+    }
+
+    rel_path
+}
+
+// Get the absolute path for the source file's path, resolving symlinks.
+fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf) -> (PathBuf, PathBuf) {
+    let mut abs_path = if !rel_path.is_relative() {
+        rel_path.clone()
+    } else if let Some(ref source_dir) = source_dir {
+        if !cfg!(windows) {
+            PathBuf::from(&source_dir).join(&rel_path)
+        } else {
+            PathBuf::from(&source_dir).join(&rel_path.to_str().unwrap().replace("/", "\\"))
+        }
+    } else {
+        rel_path.clone()
+    };
+
+    // Canonicalize, if possible.
+    if let Ok(p) = canonicalize_path(&abs_path) {
+        abs_path = p;
+    }
+
+    // Fixup the relative path, in case the absolute path was a symlink.
+    let rel_path = fixup_rel_path(&source_dir, &abs_path, rel_path);
+
+    (abs_path, rel_path)
+}
+
 pub fn rewrite_paths(
     result_map: CovResultMap,
     path_mapping: Option<Value>,
@@ -45,72 +106,23 @@ pub fn rewrite_paths(
     to_ignore_dirs: Vec<String>,
     filter_option: Option<bool>,
 ) -> CovResultIter {
-    let path_mapping = if path_mapping.is_some() {
-        path_mapping.unwrap()
-    } else {
-        json!({})
-    };
-
-    let source_dir = if source_dir.is_some() {
-        source_dir.unwrap()
-    } else {
-        PathBuf::from("")
-    };
-
     let mut glob_builder = GlobSetBuilder::new();
     for to_ignore_dir in to_ignore_dirs {
         glob_builder.add(Glob::new(&to_ignore_dir).unwrap());
     }
     let to_ignore_globset = glob_builder.build().unwrap();
 
-    let prefix_dir = if prefix_dir.is_some() {
-        prefix_dir.unwrap()
-    } else {
-        PathBuf::from("")
-    };
-
     Box::new(result_map.into_iter().filter_map(move |(path, result)| {
-        let path = PathBuf::from(path.replace("\\", "/"));
+        let path = path.replace("\\", "/");
 
-        // Get path from the mapping, or remove prefix from path.
-        let (rel_path, found_in_mapping) =
-            if let Some(p) = path_mapping.get(to_lowercase_first(path.to_str().unwrap())) {
-                (PathBuf::from(p.as_str().unwrap()), true)
-            } else if let Some(p) = path_mapping.get(to_uppercase_first(path.to_str().unwrap())) {
-                (PathBuf::from(p.as_str().unwrap()), true)
-            } else if path.starts_with(&prefix_dir) {
-                (path.strip_prefix(&prefix_dir).unwrap().to_path_buf(), false)
-            } else if path.starts_with(&source_dir) {
-                (path.strip_prefix(&source_dir).unwrap().to_path_buf(), false)
-            } else {
-                (path, false)
-            };
+        // Get path from the mapping.
+        let rel_path = apply_mapping(&path_mapping, &path);
 
-        // Get absolute path to source file.
-        let abs_path = if rel_path.is_relative() {
-            if !cfg!(windows) {
-                PathBuf::from(&source_dir).join(&rel_path)
-            } else {
-                PathBuf::from(&source_dir).join(&rel_path.to_str().unwrap().replace("/", "\\"))
-            }
-        } else {
-            rel_path.clone()
-        };
+        // Remove prefix from the path.
+        let rel_path = remove_prefix(&prefix_dir, rel_path);
 
-        // Canonicalize, if possible.
-        let abs_path = match canonicalize_path(&abs_path) {
-            Ok(p) => p,
-            Err(_) => abs_path,
-        };
-
-        let rel_path = if found_in_mapping {
-            rel_path
-        } else if abs_path.starts_with(&source_dir) {
-            // Remove source dir from path.
-            abs_path.strip_prefix(&source_dir).unwrap().to_path_buf()
-        } else {
-            abs_path.clone()
-        };
+        // Get absolute path to the source file.
+        let (abs_path, rel_path) = get_abs_path(&source_dir, rel_path);
 
         if to_ignore_globset.is_match(&rel_path) {
             return None;
@@ -120,6 +132,7 @@ pub fn rewrite_paths(
             return None;
         }
 
+        // Always return results with '/'.
         let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
 
         match filter_option {
@@ -344,7 +357,7 @@ mod tests {
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
-            assert!(abs_path.is_absolute());
+            assert!(abs_path.is_absolute(), "{} is not absolute", abs_path.display());
             assert!(abs_path.ends_with("tests/class/main.cpp"));
             assert!(rel_path.ends_with("tests/class/main.cpp"));
             assert_eq!(result, empty_result!());
@@ -488,7 +501,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path("tests").unwrap()),
+            Some(PathBuf::from("tests")),
             None,
             true,
             Vec::new(),
@@ -513,7 +526,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path("tests").unwrap()),
+            Some(PathBuf::from("tests")),
             None,
             true,
             Vec::new(),
