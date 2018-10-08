@@ -40,64 +40,59 @@ pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
 fn apply_mapping(mapping: &Option<Value>, path: &str) -> PathBuf {
     if let Some(mapping) = mapping {
         if let Some(p) = mapping.get(to_lowercase_first(path)) {
-            PathBuf::from(p.as_str().unwrap())
+            return PathBuf::from(p.as_str().unwrap());
         } else if let Some(p) = mapping.get(to_uppercase_first(path)) {
-            PathBuf::from(p.as_str().unwrap())
-        } else {
-            PathBuf::from(path)
+            return PathBuf::from(p.as_str().unwrap());
         }
-    } else {
-        PathBuf::from(path)
     }
+
+    PathBuf::from(path)
 }
 
 // Remove prefix from the source file's path.
 fn remove_prefix(prefix_dir: &Option<PathBuf>, path: PathBuf) -> PathBuf {
     if let Some(prefix_dir) = prefix_dir {
         if path.starts_with(&prefix_dir) {
-            path.strip_prefix(&prefix_dir).unwrap().to_path_buf()
-        } else {
-            path
+            return path.strip_prefix(&prefix_dir).unwrap().to_path_buf();
         }
-    } else {
-        path
     }
+
+    path
+}
+
+fn fixup_rel_path(source_dir: &Option<PathBuf>, abs_path: &PathBuf, rel_path: PathBuf) -> PathBuf {
+    if let Some(ref source_dir) = source_dir {
+        if abs_path.starts_with(&source_dir) {
+            return abs_path.strip_prefix(&source_dir).unwrap().to_path_buf();
+        } else if !rel_path.is_relative() {
+            return abs_path.clone();
+        }
+    }
+
+    rel_path
 }
 
 // Get the absolute path for the source file's path, resolving symlinks.
 fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf) -> (PathBuf, PathBuf) {
-    let abs_path = if let Some(ref source_dir) = source_dir {
-        if rel_path.is_relative() {
-            if !cfg!(windows) {
-                PathBuf::from(&source_dir).join(&rel_path)
-            } else {
-                PathBuf::from(&source_dir).join(&rel_path.to_str().unwrap().replace("/", "\\"))
-            }
+    let mut abs_path = if !rel_path.is_relative() {
+        rel_path.clone()
+    } else if let Some(ref source_dir) = source_dir {
+        if !cfg!(windows) {
+            PathBuf::from(&source_dir).join(&rel_path)
         } else {
-            rel_path.clone()
+            PathBuf::from(&source_dir).join(&rel_path.to_str().unwrap().replace("/", "\\"))
         }
     } else {
         rel_path.clone()
     };
 
     // Canonicalize, if possible.
-    let abs_path = match canonicalize_path(&abs_path) {
-        Ok(p) => p,
-        Err(_) => abs_path,
-    };
+    if let Ok(p) = canonicalize_path(&abs_path) {
+        abs_path = p;
+    }
 
-    // Fix up the relative path now that we have resolved symlinks.
-    let rel_path = if let Some(ref source_dir) = source_dir {
-        if abs_path.starts_with(&source_dir) {
-            abs_path.strip_prefix(&source_dir).unwrap().to_path_buf()
-        } else if !rel_path.is_relative() {
-            abs_path.clone()
-        } else {
-            rel_path
-        }
-    } else {
-        rel_path
-    };
+    // Fixup the relative path, in case the absolute path was a symlink.
+    let rel_path = fixup_rel_path(&source_dir, &abs_path, rel_path);
 
     (abs_path, rel_path)
 }
