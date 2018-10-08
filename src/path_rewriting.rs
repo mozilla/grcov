@@ -17,6 +17,46 @@ fn to_uppercase_first(s: &str) -> String {
     c.next().unwrap().to_uppercase().collect::<String>() + c.as_str()
 }
 
+fn find_in(mapping: &Option<Value>, path: &PathBuf) -> Option<PathBuf> {
+    match mapping {
+        Some(mapping) => {
+            let path = path.to_str().unwrap();
+            match mapping.get(to_lowercase_first(path)) {
+                Some(p) => Some(PathBuf::from(p.as_str().unwrap())),
+                None => match mapping.get(to_uppercase_first(path)) {
+                    Some(p) => Some(PathBuf::from(p.as_str().unwrap())),
+                    None => None,
+                },
+            }
+        }
+        None => None,
+    }
+}
+
+fn remove_common(prefix_dir: &PathBuf, path: &PathBuf) -> Option<PathBuf> {
+    for ancestor in path.ancestors() {
+        if prefix_dir.ends_with(ancestor) {
+            return Some(path.strip_prefix(ancestor).unwrap().to_path_buf());
+        }
+    }
+    None
+}
+
+fn remove_prefix(prefix_dir: &Option<PathBuf>, path: &PathBuf) -> Option<PathBuf> {
+    match prefix_dir {
+        Some(prefix_dir) => {
+            if prefix_dir.is_absolute() {
+                remove_common(&prefix_dir, path)
+            } else if path.starts_with(&prefix_dir) {
+                Some(path.strip_prefix(&prefix_dir).unwrap().to_path_buf())
+            } else {
+                None
+            }
+        }
+        None => None,
+    }
+}
+
 pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     let path = fs::canonicalize(path)?;
 
@@ -47,52 +87,39 @@ pub fn rewrite_paths(
     to_ignore_dirs: Vec<String>,
     filter_option: Option<bool>,
 ) -> CovResultIter {
-    let path_mapping = if path_mapping.is_some() {
-        path_mapping.unwrap()
-    } else {
-        json!({})
-    };
-
-    let source_dir = if source_dir.is_some() {
-        source_dir.unwrap()
-    } else {
-        PathBuf::from("")
-    };
-
     let mut glob_builder = GlobSetBuilder::new();
     for to_ignore_dir in to_ignore_dirs {
         glob_builder.add(Glob::new(&to_ignore_dir).unwrap());
     }
     let to_ignore_globset = glob_builder.build().unwrap();
 
-    let prefix_dir = if prefix_dir.is_some() {
-        prefix_dir.unwrap()
-    } else {
-        PathBuf::from("")
-    };
-
     Box::new(result_map.into_iter().filter_map(move |(path, result)| {
-        let path = if let Some(prepend_path) = &prepend_prefix_dir {
-            prepend_path.join(Path::new(&path))
-        } else {
-            PathBuf::from(path)
+        /* The goal is to get an absolute and canonical path to the file
+           and a path relative to source directory.
+           In real life, paths in gcno can be aboslute (canonical or not)
+           or relative (relative to source dir, relative to cwd, relative to ???).
+         */
+
+        let path = match &prepend_prefix_dir {
+            Some(prepend_path) => prepend_path.join(PathBuf::from(path)),
+            None => PathBuf::from(path),
         };
 
         let path = PathBuf::from(path.to_str().unwrap().replace("\\", "/"));
 
-        // Get path from the mapping, or remove prefix from path.
-        let (rel_path, found_in_mapping) =
-            if let Some(p) = path_mapping.get(to_lowercase_first(path.to_str().unwrap())) {
-                (PathBuf::from(p.as_str().unwrap()), true)
-            } else if let Some(p) = path_mapping.get(to_uppercase_first(path.to_str().unwrap())) {
-                (PathBuf::from(p.as_str().unwrap()), true)
-            } else if path.starts_with(&prefix_dir) {
-                (path.strip_prefix(&prefix_dir).unwrap().to_path_buf(), false)
-            } else if path.starts_with(&source_dir) {
-                (path.strip_prefix(&source_dir).unwrap().to_path_buf(), false)
-            } else {
-                (path, false)
-            };
+        let (rel_path, found_in_mapping) = match find_in(&path_mapping, &path) {
+            Some(p) => (p, true),
+            None => (
+                match remove_prefix(&prefix_dir, &path) {
+                    Some(p) => p,
+                    None => match remove_prefix(&source_dir, &path) {
+                        Some(p) => p,
+                        None => path,
+                    },
+                },
+                false,
+            ),
+        };
 
         if ignore_global && !rel_path.is_relative() {
             return None;
@@ -100,10 +127,14 @@ pub fn rewrite_paths(
 
         // Get absolute path to source file.
         let abs_path = if rel_path.is_relative() {
-            if !cfg!(windows) {
-                PathBuf::from(&source_dir).join(&rel_path)
+            let rel_path = if !cfg!(windows) {
+                rel_path.clone()
             } else {
-                PathBuf::from(&source_dir).join(&rel_path.to_str().unwrap().replace("/", "\\"))
+                PathBuf::from(rel_path.to_str().unwrap().replace("/", "\\"))
+            };
+            match &source_dir {
+                Some(source_dir) => source_dir.join(rel_path),
+                None => rel_path,
             }
         } else {
             rel_path.clone()
@@ -115,20 +146,24 @@ pub fn rewrite_paths(
             Err(_) => abs_path,
         };
 
-        let rel_path = if found_in_mapping {
-            rel_path
-        } else if abs_path.starts_with(&source_dir) {
-            // Remove source dir from path.
-            abs_path.strip_prefix(&source_dir).unwrap().to_path_buf()
-        } else {
-            abs_path.clone()
-        };
-
-        if to_ignore_globset.is_match(&rel_path) {
+        if ignore_not_existing && !abs_path.exists() {
             return None;
         }
 
-        if ignore_not_existing && !abs_path.exists() {
+        let rel_path = if found_in_mapping {
+            rel_path
+        } else {
+            match &source_dir {
+                Some(source_dir) => if abs_path.starts_with(&source_dir) {
+                    abs_path.strip_prefix(&source_dir).unwrap().to_path_buf()
+                } else {
+                    abs_path.clone()
+                },
+                None => abs_path.clone(),
+            }
+        };
+
+        if to_ignore_globset.is_match(&rel_path) {
             return None;
         }
 
@@ -634,9 +669,10 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn test_rewrite_paths_rewrite_path_using_relative_source_directory() {
+    fn test_rewrite_paths_rewrite_path_using_source_directory() {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("class/main.cpp".to_string(), empty_result!());
+        result_map.insert("tests/class/main.cpp".to_string(), empty_result!());
         let results = rewrite_paths(
             result_map,
             None,
@@ -656,14 +692,15 @@ mod tests {
             assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
             assert_eq!(result, empty_result!());
         }
-        assert_eq!(count, 1);
+        assert_eq!(count, 2);
     }
 
     #[cfg(windows)]
     #[test]
-    fn test_rewrite_paths_rewrite_path_using_relative_source_directory() {
+    fn test_rewrite_paths_rewrite_path_using_source_directory() {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("class\\main.cpp".to_string(), empty_result!());
+        result_map.insert("tests\\class\\main.cpp".to_string(), empty_result!());
         let results = rewrite_paths(
             result_map,
             None,
@@ -683,61 +720,7 @@ mod tests {
             assert_eq!(rel_path, PathBuf::from("class\\main.cpp"));
             assert_eq!(result, empty_result!());
         }
-        assert_eq!(count, 1);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn test_rewrite_paths_rewrite_path_using_absolute_source_directory() {
-        let mut result_map: CovResultMap = HashMap::new();
-        result_map.insert("class/main.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            Some(canonicalize_path("tests").unwrap()),
-            None,
-            None,
-            false,
-            true,
-            Vec::new(),
-            None,
-        );
-        let mut count = 0;
-        for (abs_path, rel_path, result) in results {
-            count += 1;
-            assert!(abs_path.is_absolute());
-            assert!(abs_path.ends_with("tests/class/main.cpp"));
-            assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
-            assert_eq!(result, empty_result!());
-        }
-        assert_eq!(count, 1);
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn test_rewrite_paths_rewrite_path_using_absolute_source_directory() {
-        let mut result_map: CovResultMap = HashMap::new();
-        result_map.insert("class\\main.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            Some(canonicalize_path("tests").unwrap()),
-            None,
-            None,
-            false,
-            true,
-            Vec::new(),
-            None,
-        );
-        let mut count = 0;
-        for (abs_path, rel_path, result) in results {
-            count += 1;
-            assert!(abs_path.is_absolute());
-            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
-            assert_eq!(rel_path, PathBuf::from("class\\main.cpp"));
-            assert_eq!(result, empty_result!());
-        }
-        assert_eq!(count, 1);
+        assert_eq!(count, 2);
     }
 
     #[cfg(unix)]
@@ -1174,4 +1157,5 @@ mod tests {
         }
         assert_eq!(count, 1);
     }
+
 }
