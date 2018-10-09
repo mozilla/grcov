@@ -128,11 +128,19 @@ fn run_grcov(paths: Vec<&Path>, source_root: &Path, output_format: &str) -> Stri
     args.push("--ignore-dir");
     args.push("/usr/*");
 
-    let cmd_path = if cfg!(windows) {
+    let mut cmd_path = if cfg!(windows) {
         ".\\target\\debug\\grcov.exe"
     } else {
         "./target/debug/grcov"
     };
+
+    if !PathBuf::from(cmd_path).exists() {
+        cmd_path = if cfg!(windows) {
+            ".\\target\\release\\grcov.exe"
+        } else {
+            "./target/release/grcov"
+        };
+    }
 
     let output = Command::new(cmd_path)
         .args(args)
