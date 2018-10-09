@@ -1,9 +1,11 @@
 use globset::{Glob, GlobSetBuilder};
 use serde_json::Value;
+use std::collections::{hash_map, HashMap};
 use std::fs;
 use std::io;
 use std::mem;
 use std::path::{Path, PathBuf};
+use walkdir::{DirEntry, WalkDir};
 
 use defs::*;
 use filter::*;
@@ -114,6 +116,40 @@ fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf, cache: &mut Opt
     (abs_path, rel_path)
 }
 
+fn map_partial_path(file_to_paths: &HashMap<String,Vec<PathBuf>>, path: PathBuf) -> PathBuf {
+    let options = file_to_paths.get(path.file_name().unwrap().to_str().unwrap());
+
+    if options.is_none() {
+        return path;
+    }
+
+    let options = options.unwrap();
+
+    if options.len() == 1 {
+        return options[0].clone();
+    }
+
+    let mut result = None;
+    for option in options {
+        if option.ends_with(&path) {
+            assert!(result.is_none(), "Only one file in the repository should end with {}", path.display());
+            result = Some(option)
+        }
+    }
+
+    match result {
+        Some(result) => result.clone(),
+        None => path
+    }
+}
+
+fn is_hidden(entry: &DirEntry) -> bool {
+    entry.file_name()
+         .to_str()
+         .map(|s| s.starts_with("."))
+         .unwrap_or(false)
+}
+
 pub fn rewrite_paths(
     result_map: CovResultMap,
     path_mapping: Option<Value>,
@@ -133,6 +169,32 @@ pub fn rewrite_paths(
         assert!(p.is_absolute());
     }
 
+    // Traverse source dir and store all paths, reversed.
+    let mut file_to_paths: HashMap<String,Vec<PathBuf>> = HashMap::new();
+    if let Some(ref source_dir) = source_dir {
+        for entry in WalkDir::new(&source_dir)
+                             .into_iter()
+                             .filter_entry(|e| !is_hidden(e)) {
+            let entry = entry.unwrap_or_else(|_| panic!("Failed to open directory '{}'.", source_dir.display()));
+
+            let full_path = entry.path();
+            if !full_path.is_file() {
+                continue;
+            }
+
+            let name = entry.file_name().to_str().unwrap().to_string();
+
+            let path = full_path.strip_prefix(&source_dir).unwrap().to_path_buf();
+
+            match file_to_paths.entry(name) {
+                hash_map::Entry::Occupied(f) => f.into_mut().push(path),
+                hash_map::Entry::Vacant(v) => {
+                    v.insert(vec![path]);
+                }
+            };
+        }
+    }
+
     let mut cache: Option<PathBuf> = None;
 
     Box::new(result_map.into_iter().filter_map(move |(path, result)| {
@@ -143,6 +205,9 @@ pub fn rewrite_paths(
 
         // Remove prefix from the path.
         let rel_path = remove_prefix(&prefix_dir, rel_path);
+
+        // Try mapping a partial path to a full path.
+        let rel_path = map_partial_path(&file_to_paths, rel_path);
 
         // Get absolute path to the source file.
         let (abs_path, rel_path) = get_abs_path(&source_dir, rel_path, &mut cache);
@@ -581,6 +646,56 @@ mod tests {
             assert_eq!(result, empty_result!());
         }
         assert_eq!(count, 2);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_rewrite_paths_rewrite_path_using_absolute_source_directory_and_partial_path() {
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("class/main.cpp".to_string(), empty_result!());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            Some(canonicalize_path(".").unwrap()),
+            None,
+            true,
+            Vec::new(),
+            None,
+        );
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests/class/main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("tests/class/main.cpp"));
+            assert_eq!(result, empty_result!());
+        }
+        assert_eq!(count, 1);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_rewrite_paths_rewrite_path_using_absolute_source_directory_and_partial_path() {
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("class\\main.cpp".to_string(), empty_result!());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            Some(canonicalize_path(".").unwrap()),
+            None,
+            true,
+            Vec::new(),
+            None,
+        );
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
+            assert_eq!(rel_path, PathBuf::from("tests\\class\\main.cpp"));
+            assert_eq!(result, empty_result!());
+        }
+        assert_eq!(count, 1);
     }
 
     #[cfg(unix)]
