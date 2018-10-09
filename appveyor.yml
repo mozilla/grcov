@@ -5,18 +5,15 @@ platform:
 environment:
   matrix:
     - CHANNEL: stable
-      FEATURES:
       PLATFORM_TARGET: x86_64
       PLATFORM_VS: x64
 
     - CHANNEL: nightly
-      FEATURES: alloc_system
       PLATFORM_TARGET: x86_64
       PLATFORM_VS: x64
 
     # TODO: The i686 build currently doesn't work.
     # - CHANNEL: nightly
-    #   FEATURES: alloc_system
     #   PLATFORM_TARGET: i686
     #   PLATFORM_VS: x86
 
@@ -53,7 +50,7 @@ build_script:
          $env:CARGO_INCREMENTAL = "0"
          $env:RUSTFLAGS = "-Zprofile -Ccodegen-units=1 -Ctarget-feature=+crt-static"
       }
-  - cargo build %CARGO_RELEASE_ARG% --features=%FEATURES% --locked --target %TARGET%
+  - cargo build %CARGO_RELEASE_ARG% --locked --target %TARGET%
   - 7z a grcov-win-%PLATFORM_TARGET%.tar .\target\%TARGET%\%BUILD_TYPE%\grcov.exe
   - 7z a grcov-win-%PLATFORM_TARGET%.tar.bz2 grcov-win-%PLATFORM_TARGET%.tar
 
