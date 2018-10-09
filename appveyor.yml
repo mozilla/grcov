@@ -4,6 +4,11 @@ platform:
 
 environment:
   matrix:
+    - CHANNEL: stable
+      FEATURES:
+      PLATFORM_TARGET: x86_64
+      PLATFORM_VS: x64
+
     - CHANNEL: nightly
       FEATURES: alloc_system
       PLATFORM_TARGET: x86_64
@@ -61,7 +66,7 @@ test_script:
          mkdir ccov_dir
          Get-ChildItem -Path *\grcov*.gc* -Recurse | Copy-Item -Destination ccov_dir
          Get-ChildItem -Path *\llvmgcov.gc* -Recurse | Copy-Item -Destination ccov_dir
-         .\target\debug\grcov ccov_dir -s src -t lcov --llvm --branch --ignore-dir libstd\* --ignore-dir libcore\* --ignore-dir liballoc\* --ignore-dir libtest\* --ignore-dir "<*" --ignore-dir "path_rewriting.rs" > lcov.info
+         .\target\debug\grcov ccov_dir -s src -t lcov --llvm --branch --ignore-not-existing > lcov.info
          $env:PATH = "C:\msys64\usr\bin;" + $env:PATH
          Invoke-WebRequest -Uri "https://codecov.io/bash" -OutFile codecov.sh
          bash codecov.sh -f "lcov.info"
