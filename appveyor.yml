@@ -55,11 +55,8 @@ build_script:
          $env:RUSTFLAGS = "-Zprofile -Ccodegen-units=1 -Ctarget-feature=+crt-static"
       }
   - cargo build %CARGO_RELEASE_ARG% --features=%FEATURES% --locked --target %TARGET%
-  - ps: |
-      If ($env:APPVEYOR_REPO_TAG -eq "true") {
-         7z a grcov-win-%PLATFORM_TARGET%.tar .\target\%TARGET%\%BUILD_TYPE%\grcov.exe
-         7z a grcov-win-%PLATFORM_TARGET%.tar.bz2 grcov-win-%PLATFORM_TARGET%.tar
-      }
+  - 7z a grcov-win-%PLATFORM_TARGET%.tar .\target\%TARGET%\%BUILD_TYPE%\grcov.exe
+  - 7z a grcov-win-%PLATFORM_TARGET%.tar.bz2 grcov-win-%PLATFORM_TARGET%.ta
 
 test_script:
   - cargo test %CARGO_RELEASE_ARG% --verbose
