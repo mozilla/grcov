@@ -118,7 +118,8 @@ script:
         export CARGO_INCREMENTAL=0;
         export RUSTFLAGS="-Zprofile -Ccodegen-units=1";
       fi
-    - if [ "$TRAVIS_TAG" ]; then export CARGO_OPTIONS="--release --features=alloc_system"; fi
+    - if [ "$TRAVIS_RUST_VERSION" = "nightly" ]; then export FEATURES="alloc-system"; fi
+    - if [ "$TRAVIS_TAG" ]; then export CARGO_OPTIONS="--release --features=$FEATURES"; fi
     - cargo build --verbose $CARGO_OPTIONS
     - cargo test --verbose $CARGO_OPTIONS
     - |
