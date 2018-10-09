@@ -1,6 +1,3 @@
-#![cfg_attr(feature = "alloc_system", feature(alloc_system))]
-#[cfg(feature = "alloc_system")]
-extern crate alloc_system;
 extern crate crossbeam;
 extern crate grcov;
 extern crate num_cpus;
@@ -9,12 +6,16 @@ extern crate tempdir;
 
 use crossbeam::queue::MsQueue;
 use serde_json::Value;
+use std::alloc::System;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::{env, process, thread};
 use tempdir::TempDir;
+
+#[global_allocator]
+static GLOBAL: System = System;
 
 use grcov::*;
 

@@ -1,6 +1,3 @@
-#![cfg_attr(feature = "alloc_system", feature(alloc_system))]
-#[cfg(feature = "alloc_system")]
-extern crate alloc_system;
 extern crate crypto;
 #[macro_use]
 extern crate serde_json;
