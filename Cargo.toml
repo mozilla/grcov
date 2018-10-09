@@ -42,7 +42,6 @@ uuid = { version = "^0.7", features = ["v4"] }
 libc = "^0.2"
 globset = "^0.4"
 xml-rs = "^0.8"
-tst = "^0.9"
 
 [dev-dependencies]
 regex = "^1.0"

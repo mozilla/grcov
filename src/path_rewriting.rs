@@ -1,10 +1,10 @@
 use globset::{Glob, GlobSetBuilder};
 use serde_json::Value;
+use std::collections::{hash_map, HashMap};
 use std::fs;
 use std::io;
 use std::mem;
 use std::path::{Path, PathBuf};
-use tst::TSTMap;
 use walkdir::WalkDir;
 
 use defs::*;
@@ -116,17 +116,29 @@ fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf, cache: &mut Opt
     (abs_path, rel_path)
 }
 
-fn map_partial_path(files_tst: &TSTMap<String>, mut path: PathBuf) -> PathBuf {
-    // No need to map the path if it exists.
-    if path.exists() {
+fn map_partial_path(file_to_paths: &HashMap<String,Vec<String>>, path: PathBuf) -> PathBuf {
+    let options = file_to_paths.get(path.file_name().unwrap().to_str().unwrap());
+
+    if options.is_none() {
         return path;
     }
 
-    let mut found = false;
-    for (_key, value) in files_tst.prefix_iter(&reverse(path.to_str().unwrap().to_string())) {
-        assert!(!found);
-        found = true;
-        path = PathBuf::from(value);
+    let options = options.unwrap();
+
+    if options.len() == 1 {
+        return PathBuf::from(options[0].clone());
+    }
+
+    let mut result = None;
+    for option in options {
+        if PathBuf::from(option).ends_with(&path) {
+            assert!(result.is_none(), "Only one file in the repository should end with {}", path.display());
+            result = Some(option)
+        }
+    }
+
+    if result.is_some() {
+        return PathBuf::from(result.unwrap());
     }
 
     path
@@ -152,16 +164,26 @@ pub fn rewrite_paths(
     }
 
     // Traverse source dir and store all paths, reversed.
-    let mut files_tst = TSTMap::new();
+    let mut file_to_paths: HashMap<String,Vec<String>> = HashMap::new();
     if let Some(ref source_dir) = source_dir {
         for entry in WalkDir::new(&source_dir) {
             let entry = entry.unwrap_or_else(|_| panic!("Failed to open directory '{}'.", source_dir.display()));
+
             let full_path = entry.path();
             if !full_path.is_file() {
                 continue;
             }
+
+            let name = entry.file_name().to_str().unwrap().to_string();
+
             let path = full_path.strip_prefix(&source_dir).unwrap().to_str().unwrap().to_string().replace("\\", "/");
-            files_tst.insert(&reverse(path.clone()), path);
+
+            match file_to_paths.entry(name) {
+                hash_map::Entry::Occupied(f) => f.into_mut().push(path),
+                hash_map::Entry::Vacant(v) => {
+                    v.insert(vec![path]);
+                }
+            };
         }
     }
 
@@ -176,8 +198,12 @@ pub fn rewrite_paths(
         // Remove prefix from the path.
         let rel_path = remove_prefix(&prefix_dir, rel_path);
 
+        if rel_path.to_str().unwrap().to_string().contains("GeckoJarReader.java") {
+            println!("rel_path: {}", rel_path.display());
+        }
+
         // Try mapping a partial path to a full path.
-        let rel_path = map_partial_path(&files_tst, rel_path);
+        let rel_path = map_partial_path(&file_to_paths, rel_path);
 
         // Get absolute path to the source file.
         let (abs_path, rel_path) = get_abs_path(&source_dir, rel_path, &mut cache);
