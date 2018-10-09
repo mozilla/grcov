@@ -58,7 +58,7 @@ fn guess_abs_path(prefix_dir: &PathBuf, path: &PathBuf, cache: &mut Option<PathB
         }
     }
     for ancestor in path.ancestors() {
-        if prefix_dir.ends_with(ancestor) {
+        if prefix_dir.ends_with(ancestor) && !ancestor.as_os_str().is_empty() {
             mem::replace(cache, Some(ancestor.to_path_buf()));
             return prefix_dir.join(path.strip_prefix(ancestor).unwrap().to_path_buf());
         }
