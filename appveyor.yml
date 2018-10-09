@@ -46,12 +46,29 @@ install:
   - if [%BUILD_TYPE%]==[release] (set CARGO_RELEASE_ARG=--release)
 
 build_script:
+  - ps: |
+      If ($env:CHANNEL -eq "nightly" -And $env:APPVEYOR_REPO_TAG -eq "false") {
+         $env:CXX = "clang-cl.exe"
+         $env:CXXFLAGS = "--coverage"
+         $env:CARGO_INCREMENTAL = "0"
+         $env:RUSTFLAGS = "-Zprofile -Ccodegen-units=1 -Ctarget-feature=+crt-static"
+      }
   - cargo build %CARGO_RELEASE_ARG% --features=%FEATURES% --locked --target %TARGET%
   - 7z a grcov-win-%PLATFORM_TARGET%.tar .\target\%TARGET%\%BUILD_TYPE%\grcov.exe
   - 7z a grcov-win-%PLATFORM_TARGET%.tar.bz2 grcov-win-%PLATFORM_TARGET%.tar
 
 test_script:
   - cargo test %CARGO_RELEASE_ARG% --verbose
+  - ps: |
+      If ($env:CHANNEL -eq "nightly" -And $env:APPVEYOR_REPO_TAG -eq "false") {
+         mkdir ccov_dir
+         Get-ChildItem -Path *\grcov*.gc* -Recurse | Copy-Item -Destination ccov_dir
+         Get-ChildItem -Path *\llvmgcov.gc* -Recurse | Copy-Item -Destination ccov_dir
+         .\target\debug\grcov ccov_dir -s src -t lcov --llvm --branch --ignore-not-existing > lcov.info
+         $env:PATH = "C:\msys64\usr\bin;" + $env:PATH
+         Invoke-WebRequest -Uri "https://codecov.io/bash" -OutFile codecov.sh
+         bash codecov.sh -f "lcov.info"
+      }
 
 artifacts:
   - path: grcov-win-$(PLATFORM_TARGET).tar.bz2
