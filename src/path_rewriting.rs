@@ -2,6 +2,7 @@ use globset::{Glob, GlobSetBuilder};
 use serde_json::Value;
 use std::fs;
 use std::io;
+use std::mem;
 use std::path::{Path, PathBuf};
 
 use defs::*;
@@ -50,9 +51,15 @@ fn apply_mapping(mapping: &Option<Value>, path: &str) -> PathBuf {
 }
 
 // Remove common part between the prefix's end and the path's start
-fn guess_abs_path(prefix_dir: &PathBuf, path: &PathBuf) -> PathBuf {
+fn guess_abs_path(prefix_dir: &PathBuf, path: &PathBuf, cache: &mut Option<PathBuf>) -> PathBuf {
+    if let Some(cache) = cache {
+        if path.starts_with(&cache) {
+            return prefix_dir.join(path.strip_prefix(cache).unwrap().to_path_buf());
+        }
+    }
     for ancestor in path.ancestors() {
         if prefix_dir.ends_with(ancestor) {
+            mem::replace(cache, Some(ancestor.to_path_buf()));
             return prefix_dir.join(path.strip_prefix(ancestor).unwrap().to_path_buf());
         }
     }
@@ -83,14 +90,14 @@ fn fixup_rel_path(source_dir: &Option<PathBuf>, abs_path: &PathBuf, rel_path: Pa
 }
 
 // Get the absolute path for the source file's path, resolving symlinks.
-fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf) -> (PathBuf, PathBuf) {
+fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf, cache: &mut Option<PathBuf>) -> (PathBuf, PathBuf) {
     let mut abs_path = if !rel_path.is_relative() {
         rel_path.clone()
     } else if let Some(ref source_dir) = source_dir {
         if !cfg!(windows) {
-            guess_abs_path(&source_dir, &rel_path)
+            guess_abs_path(&source_dir, &rel_path, cache)
         } else {
-            guess_abs_path(&source_dir, &PathBuf::from(&rel_path.to_str().unwrap().replace("/", "\\")))
+            guess_abs_path(&source_dir, &PathBuf::from(&rel_path.to_str().unwrap().replace("/", "\\")), cache)
         }
     } else {
         rel_path.clone()
@@ -126,6 +133,8 @@ pub fn rewrite_paths(
         assert!(p.is_absolute());
     }
 
+    let mut cache: Option<PathBuf> = None;
+
     Box::new(result_map.into_iter().filter_map(move |(path, result)| {
         let path = path.replace("\\", "/");
 
@@ -136,7 +145,7 @@ pub fn rewrite_paths(
         let rel_path = remove_prefix(&prefix_dir, rel_path);
 
         // Get absolute path to the source file.
-        let (abs_path, rel_path) = get_abs_path(&source_dir, rel_path);
+        let (abs_path, rel_path) = get_abs_path(&source_dir, rel_path, &mut cache);
 
         if to_ignore_globset.is_match(&rel_path) {
             return None;
@@ -510,7 +519,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_rewrite_paths_rewrite_path_using_relative_source_directory() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let result_map: CovResultMap = HashMap::new();
         rewrite_paths(
             result_map,
             None,
