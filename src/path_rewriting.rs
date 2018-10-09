@@ -137,11 +137,10 @@ fn map_partial_path(file_to_paths: &HashMap<String,Vec<PathBuf>>, path: PathBuf)
         }
     }
 
-    if result.is_some() {
-        return result.unwrap().clone();
+    match result {
+        Some(result) => result.clone(),
+        None => path
     }
-
-    path
 }
 
 pub fn rewrite_paths(
@@ -197,10 +196,6 @@ pub fn rewrite_paths(
 
         // Remove prefix from the path.
         let rel_path = remove_prefix(&prefix_dir, rel_path);
-
-        if rel_path.to_str().unwrap().to_string().contains("GeckoJarReader.java") {
-            println!("rel_path: {}", rel_path.display());
-        }
 
         // Try mapping a partial path to a full path.
         let rel_path = map_partial_path(&file_to_paths, rel_path);
