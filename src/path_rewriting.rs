@@ -116,7 +116,7 @@ fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf, cache: &mut Opt
     (abs_path, rel_path)
 }
 
-fn map_partial_path(file_to_paths: &HashMap<String,Vec<String>>, path: PathBuf) -> PathBuf {
+fn map_partial_path(file_to_paths: &HashMap<String,Vec<PathBuf>>, path: PathBuf) -> PathBuf {
     let options = file_to_paths.get(path.file_name().unwrap().to_str().unwrap());
 
     if options.is_none() {
@@ -126,19 +126,19 @@ fn map_partial_path(file_to_paths: &HashMap<String,Vec<String>>, path: PathBuf) 
     let options = options.unwrap();
 
     if options.len() == 1 {
-        return PathBuf::from(options[0].clone());
+        return options[0].clone();
     }
 
     let mut result = None;
     for option in options {
-        if PathBuf::from(option).ends_with(&path) {
+        if option.ends_with(&path) {
             assert!(result.is_none(), "Only one file in the repository should end with {}", path.display());
             result = Some(option)
         }
     }
 
     if result.is_some() {
-        return PathBuf::from(result.unwrap());
+        return result.unwrap().clone();
     }
 
     path
@@ -164,7 +164,7 @@ pub fn rewrite_paths(
     }
 
     // Traverse source dir and store all paths, reversed.
-    let mut file_to_paths: HashMap<String,Vec<String>> = HashMap::new();
+    let mut file_to_paths: HashMap<String,Vec<PathBuf>> = HashMap::new();
     if let Some(ref source_dir) = source_dir {
         for entry in WalkDir::new(&source_dir) {
             let entry = entry.unwrap_or_else(|_| panic!("Failed to open directory '{}'.", source_dir.display()));
@@ -176,7 +176,7 @@ pub fn rewrite_paths(
 
             let name = entry.file_name().to_str().unwrap().to_string();
 
-            let path = full_path.strip_prefix(&source_dir).unwrap().to_str().unwrap().to_string().replace("\\", "/");
+            let path = full_path.strip_prefix(&source_dir).unwrap().to_path_buf();
 
             match file_to_paths.entry(name) {
                 hash_map::Entry::Occupied(f) => f.into_mut().push(path),
