@@ -5,7 +5,7 @@ use std::fs;
 use std::io;
 use std::mem;
 use std::path::{Path, PathBuf};
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 
 use defs::*;
 use filter::*;
@@ -143,6 +143,13 @@ fn map_partial_path(file_to_paths: &HashMap<String,Vec<PathBuf>>, path: PathBuf)
     }
 }
 
+fn is_hidden(entry: &DirEntry) -> bool {
+    entry.file_name()
+         .to_str()
+         .map(|s| s.starts_with("."))
+         .unwrap_or(false)
+}
+
 pub fn rewrite_paths(
     result_map: CovResultMap,
     path_mapping: Option<Value>,
@@ -165,7 +172,9 @@ pub fn rewrite_paths(
     // Traverse source dir and store all paths, reversed.
     let mut file_to_paths: HashMap<String,Vec<PathBuf>> = HashMap::new();
     if let Some(ref source_dir) = source_dir {
-        for entry in WalkDir::new(&source_dir) {
+        for entry in WalkDir::new(&source_dir)
+                             .into_iter()
+                             .filter_entry(|e| !is_hidden(e)) {
             let entry = entry.unwrap_or_else(|_| panic!("Failed to open directory '{}'.", source_dir.display()));
 
             let full_path = entry.path();
