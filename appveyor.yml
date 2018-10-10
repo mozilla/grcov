@@ -48,7 +48,7 @@ build_script:
          $env:CXX = "clang-cl.exe"
          $env:CXXFLAGS = "--coverage"
          $env:CARGO_INCREMENTAL = "0"
-         $env:RUSTFLAGS = "-Zprofile -Ccodegen-units=1 -Ctarget-feature=+crt-static"
+         $env:RUSTFLAGS = "-Zprofile -Ccodegen-units=1 -Ctarget-feature=+crt-static -Zno-landing-pads"
       }
   - cargo build %CARGO_RELEASE_ARG% --locked --target %TARGET%
   - 7z a grcov-win-%PLATFORM_TARGET%.tar .\target\%TARGET%\%BUILD_TYPE%\grcov.exe
@@ -61,7 +61,9 @@ test_script:
          mkdir ccov_dir
          Get-ChildItem -Path *\grcov*.gc* -Recurse | Copy-Item -Destination ccov_dir
          Get-ChildItem -Path *\llvmgcov.gc* -Recurse | Copy-Item -Destination ccov_dir
-         .\target\debug\grcov ccov_dir -s . -t lcov --llvm --branch --ignore-not-existing --ignore-dir "C:*" > lcov.info
+         .\target\debug\grcov ccov_dir -s . -t lcov --llvm --branch --ignore-not-existing --ignore-dir "C:*" | Out-File -Encoding "UTF8" -FilePath lcov.info
+         (Get-Content lcov.info) | Foreach-Object {$_ -replace "\xEF\xBB\xBF", ""} | Set-Content lcov.info
+         ((Get-Content lcov.info) -join "`n") + "`n" | Set-Content -NoNewline lcov.info
          $env:PATH = "C:\msys64\usr\bin;" + $env:PATH
          Invoke-WebRequest -Uri "https://codecov.io/bash" -OutFile codecov.sh
          bash codecov.sh -f "lcov.info"
