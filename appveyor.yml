@@ -48,7 +48,7 @@ build_script:
          $env:CXX = "clang-cl.exe"
          $env:CXXFLAGS = "--coverage"
          $env:CARGO_INCREMENTAL = "0"
-         $env:RUSTFLAGS = "-Zprofile -Ccodegen-units=1 -Ctarget-feature=+crt-static"
+         $env:RUSTFLAGS = "-Zprofile -Ccodegen-units=1 -Ctarget-feature=+crt-static -Zno-landing-pads"
       }
   - cargo build %CARGO_RELEASE_ARG% --locked --target %TARGET%
   - 7z a grcov-win-%PLATFORM_TARGET%.tar .\target\%TARGET%\%BUILD_TYPE%\grcov.exe
