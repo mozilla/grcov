@@ -243,7 +243,8 @@ mod tests {
                 ((2, 0), false),
                 ((2, 1), true),
                 ((4, 0), true),
-            ].iter()
+            ]
+                .iter()
                 .cloned()
                 .collect(),
             functions: functions1,
@@ -274,7 +275,8 @@ mod tests {
                 ((2, 0), true),
                 ((2, 1), false),
                 ((3, 0), true),
-            ].iter()
+            ]
+                .iter()
                 .cloned()
                 .collect(),
             functions: functions2,
@@ -297,7 +299,8 @@ mod tests {
                 ((2, 1), true),
                 ((3, 0), true),
                 ((4, 0), true)
-            ].iter()
+            ]
+                .iter()
                 .cloned()
                 .collect()
         );

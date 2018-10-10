@@ -39,8 +39,7 @@ fn get_llvm_libs() -> Vec<String> {
                 assert!(lib.ends_with(".lib"));
                 &lib[..lib.len() - 4]
             }
-        })
-        .map(str::to_owned)
+        }).map(str::to_owned)
         .collect::<Vec<_>>()
 }
 
@@ -56,8 +55,7 @@ fn get_llvm_system_libs() -> Vec<String> {
                 assert!(lib.ends_with(".lib"));
                 &lib[..lib.len() - 4]
             }
-        })
-        .map(str::to_owned)
+        }).map(str::to_owned)
         .collect::<Vec<_>>()
 }
 

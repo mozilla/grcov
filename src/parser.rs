@@ -524,7 +524,8 @@ fn parse_jacoco_report_sourcefile<T: Read>(
                 ref name,
                 ref attributes,
                 ..
-            }) if name.local_name.as_str() == "line" =>
+            })
+                if name.local_name.as_str() == "line" =>
             {
                 let ci = get_xml_attribute(attributes, "ci")?.parse::<u64>()?;
                 let cb = get_xml_attribute(attributes, "cb")?.parse::<u64>()?;
@@ -571,7 +572,8 @@ fn parse_jacoco_report_method<T: Read>(
                 ref name,
                 ref attributes,
                 ..
-            }) if name.local_name.as_str() == "counter" =>
+            })
+                if name.local_name.as_str() == "counter" =>
             {
                 if get_xml_attribute(attributes, "type")? == "METHOD" {
                     executed = get_xml_attribute(attributes, "covered")?.parse::<u32>()? > 0;
@@ -598,7 +600,8 @@ fn parse_jacoco_report_class<T: Read>(
                 ref name,
                 ref attributes,
                 ..
-            }) if name.local_name.as_str() == "method" =>
+            })
+                if name.local_name.as_str() == "method" =>
             {
                 let name = get_xml_attribute(attributes, "name")?;
                 let full_name = format!("{}#{}", class_name, name);
@@ -710,8 +713,7 @@ fn parse_jacoco_report_package<T: Read>(
                     .to_string(),
                 result,
             )
-        })
-        .collect())
+        }).collect())
 }
 
 pub fn parse_jacoco_xml_report<T: Read>(
@@ -726,7 +728,8 @@ pub fn parse_jacoco_xml_report<T: Read>(
                 ref name,
                 ref attributes,
                 ..
-            }) if name.local_name.as_str() == "package" =>
+            })
+                if name.local_name.as_str() == "package" =>
             {
                 let package = get_xml_attribute(attributes, "name")?;
                 let mut package_results = parse_jacoco_report_package(&mut parser, &package)?;
@@ -836,7 +839,8 @@ mod tests {
                 (83, 1),
                 (84, 1),
                 (90, 1)
-            ].iter()
+            ]
+                .iter()
                 .cloned()
                 .collect()
         );
@@ -920,7 +924,8 @@ mod tests {
                 (83, 1),
                 (84, 1),
                 (90, 1)
-            ].iter()
+            ]
+                .iter()
                 .cloned()
                 .collect()
         );
@@ -939,7 +944,8 @@ mod tests {
                 ((63, 1), false),
                 ((68, 0), true),
                 ((68, 1), true)
-            ].iter()
+            ]
+                .iter()
                 .cloned()
                 .collect()
         );
@@ -1023,7 +1029,8 @@ mod tests {
                 (97, 1),
                 (98, 1),
                 (99, 1)
-            ].iter()
+            ]
+                .iter()
                 .cloned()
                 .collect()
         );
@@ -1114,7 +1121,8 @@ mod tests {
                 (97, 1),
                 (98, 1),
                 (99, 1)
-            ].iter()
+            ]
+                .iter()
                 .cloned()
                 .collect()
         );
@@ -1162,7 +1170,8 @@ mod tests {
                 (402, 0),
                 (403, 0),
                 (405, 0)
-            ].iter()
+            ]
+                .iter()
                 .cloned()
                 .collect()
         );
@@ -1311,7 +1320,8 @@ mod tests {
                 (373, 0),
                 (374, 0),
                 (376, 0)
-            ].iter()
+            ]
+                .iter()
                 .cloned()
                 .collect()
         );
@@ -1607,7 +1617,8 @@ mod tests {
                 (1789, 71010332),
                 (1790, 35505166),
                 (1796, 35505166)
-            ].iter()
+            ]
+                .iter()
                 .cloned()
                 .collect()
         );
@@ -1633,7 +1644,8 @@ mod tests {
                 (402, 0),
                 (403, 0),
                 (405, 0)
-            ].iter()
+            ]
+                .iter()
                 .cloned()
                 .collect()
         );
@@ -1645,7 +1657,8 @@ mod tests {
                 ((399, 1), false),
                 ((401, 0), true),
                 ((401, 1), false)
-            ].iter()
+            ]
+                .iter()
                 .cloned()
                 .collect()
         );

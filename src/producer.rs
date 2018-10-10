@@ -126,7 +126,7 @@ impl Archive {
                 Err(_) => false,
             };
         }
-        return false;
+        false
     }
 
     fn is_info(reader: &mut Read) -> bool {
@@ -211,7 +211,7 @@ impl Archive {
                     }
                     Err(_) => false,
                 }
-            },
+            }
             ArchiveType::Dir(ref dir) => match File::open(dir.join(name)) {
                 Ok(mut f) => {
                     f.read_to_end(buf).expect("Failed to read gcda file");
@@ -243,7 +243,7 @@ impl Archive {
                     }
                     Err(_) => false,
                 }
-            },
+            }
             ArchiveType::Dir(ref dir) => {
                 // don't use a hard link here because it can fail when src and dst are not on the same device
                 let src_path = dir.join(name);
