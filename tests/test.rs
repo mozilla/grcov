@@ -19,7 +19,7 @@ use zip::ZipWriter;
 fn get_tool(name: &str, default: &str) -> String {
     match env::var(name) {
         Ok(s) => s,
-        Err(_) => default.to_string()
+        Err(_) => default.to_string(),
     }
 }
 

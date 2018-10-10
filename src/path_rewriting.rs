@@ -92,14 +92,22 @@ fn fixup_rel_path(source_dir: &Option<PathBuf>, abs_path: &PathBuf, rel_path: Pa
 }
 
 // Get the absolute path for the source file's path, resolving symlinks.
-fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf, cache: &mut Option<PathBuf>) -> (PathBuf, PathBuf) {
+fn get_abs_path(
+    source_dir: &Option<PathBuf>,
+    rel_path: PathBuf,
+    cache: &mut Option<PathBuf>,
+) -> (PathBuf, PathBuf) {
     let mut abs_path = if !rel_path.is_relative() {
         rel_path.clone()
     } else if let Some(ref source_dir) = source_dir {
         if !cfg!(windows) {
             guess_abs_path(&source_dir, &rel_path, cache)
         } else {
-            guess_abs_path(&source_dir, &PathBuf::from(&rel_path.to_str().unwrap().replace("/", "\\")), cache)
+            guess_abs_path(
+                &source_dir,
+                &PathBuf::from(&rel_path.to_str().unwrap().replace("/", "\\")),
+                cache,
+            )
         }
     } else {
         rel_path.clone()
@@ -116,7 +124,7 @@ fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf, cache: &mut Opt
     (abs_path, rel_path)
 }
 
-fn map_partial_path(file_to_paths: &HashMap<String,Vec<PathBuf>>, path: PathBuf) -> PathBuf {
+fn map_partial_path(file_to_paths: &HashMap<String, Vec<PathBuf>>, path: PathBuf) -> PathBuf {
     let options = file_to_paths.get(path.file_name().unwrap().to_str().unwrap());
 
     if options.is_none() {
@@ -132,22 +140,27 @@ fn map_partial_path(file_to_paths: &HashMap<String,Vec<PathBuf>>, path: PathBuf)
     let mut result = None;
     for option in options {
         if option.ends_with(&path) {
-            assert!(result.is_none(), "Only one file in the repository should end with {}", path.display());
+            assert!(
+                result.is_none(),
+                "Only one file in the repository should end with {}",
+                path.display()
+            );
             result = Some(option)
         }
     }
 
     match result {
         Some(result) => result.clone(),
-        None => path
+        None => path,
     }
 }
 
 fn is_hidden(entry: &DirEntry) -> bool {
-    entry.file_name()
-         .to_str()
-         .map(|s| s.starts_with("."))
-         .unwrap_or(false)
+    entry
+        .file_name()
+        .to_str()
+        .map(|s| s.starts_with('.'))
+        .unwrap_or(false)
 }
 
 pub fn rewrite_paths(
@@ -170,12 +183,14 @@ pub fn rewrite_paths(
     }
 
     // Traverse source dir and store all paths, reversed.
-    let mut file_to_paths: HashMap<String,Vec<PathBuf>> = HashMap::new();
+    let mut file_to_paths: HashMap<String, Vec<PathBuf>> = HashMap::new();
     if let Some(ref source_dir) = source_dir {
         for entry in WalkDir::new(&source_dir)
-                             .into_iter()
-                             .filter_entry(|e| !is_hidden(e)) {
-            let entry = entry.unwrap_or_else(|_| panic!("Failed to open directory '{}'.", source_dir.display()));
+            .into_iter()
+            .filter_entry(|e| !is_hidden(e))
+        {
+            let entry = entry
+                .unwrap_or_else(|_| panic!("Failed to open directory '{}'.", source_dir.display()));
 
             let full_path = entry.path();
             if !full_path.is_file() {
@@ -300,15 +315,7 @@ mod tests {
     fn test_rewrite_paths_basic() {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("main.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            None,
-            None,
-            false,
-            Vec::new(),
-            None,
-        );
+        let results = rewrite_paths(result_map, None, None, None, false, Vec::new(), None);
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -433,19 +440,15 @@ mod tests {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("tests/class/main.cpp".to_string(), empty_result!());
         result_map.insert("tests/class/doesntexist.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            None,
-            None,
-            true,
-            Vec::new(),
-            None,
-        );
+        let results = rewrite_paths(result_map, None, None, None, true, Vec::new(), None);
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
-            assert!(abs_path.is_absolute(), "{} is not absolute", abs_path.display());
+            assert!(
+                abs_path.is_absolute(),
+                "{} is not absolute",
+                abs_path.display()
+            );
             assert!(abs_path.ends_with("tests/class/main.cpp"));
             assert!(rel_path.ends_with("tests/class/main.cpp"));
             assert_eq!(result, empty_result!());
@@ -459,15 +462,7 @@ mod tests {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("tests\\class\\main.cpp".to_string(), empty_result!());
         result_map.insert("tests\\class\\doesntexist.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            None,
-            None,
-            true,
-            Vec::new(),
-            None,
-        );
+        let results = rewrite_paths(result_map, None, None, None, true, Vec::new(), None);
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -1060,15 +1055,7 @@ mod tests {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("covered.cpp".to_string(), covered_result!());
         result_map.insert("uncovered.cpp".to_string(), uncovered_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            None,
-            None,
-            false,
-            Vec::new(),
-            Some(true),
-        );
+        let results = rewrite_paths(result_map, None, None, None, false, Vec::new(), Some(true));
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -1084,15 +1071,7 @@ mod tests {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("covered.cpp".to_string(), covered_result!());
         result_map.insert("uncovered.cpp".to_string(), uncovered_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            None,
-            None,
-            false,
-            Vec::new(),
-            Some(false),
-        );
+        let results = rewrite_paths(result_map, None, None, None, false, Vec::new(), Some(false));
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;

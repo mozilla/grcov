@@ -34,10 +34,10 @@ fn prova() {
   println!("{:x}", gcov_read_unsigned());
 }*/
 
-fn get_gcov()-> String {
+fn get_gcov() -> String {
     match env::var("GCOV") {
         Ok(s) => s,
-        Err(_) => "gcov".to_string()
+        Err(_) => "gcov".to_string(),
     }
 }
 
@@ -48,11 +48,12 @@ pub fn run_gcov(gcno_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf
     } else {
         &mut command
     };
-    let status = command.arg(gcno_path)
-                        .arg("-i") // Generate intermediate gcov format, faster to parse.
-                        .current_dir(working_dir)
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::null());
+    let status = command
+        .arg(gcno_path)
+        .arg("-i") // Generate intermediate gcov format, faster to parse.
+        .current_dir(working_dir)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
 
     /*if cfg!(unix) {
         status.spawn()
