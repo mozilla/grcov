@@ -61,7 +61,8 @@ test_script:
          mkdir ccov_dir
          Get-ChildItem -Path *\grcov*.gc* -Recurse | Copy-Item -Destination ccov_dir
          Get-ChildItem -Path *\llvmgcov.gc* -Recurse | Copy-Item -Destination ccov_dir
-         .\target\debug\grcov ccov_dir -s . -t lcov --llvm --branch --ignore-not-existing --ignore-dir "C:*" > lcov.info
+         .\target\debug\grcov ccov_dir -s . -t lcov --llvm --branch --ignore-not-existing --ignore-dir "C:*" | Out-File -Encoding "UTF8" -FilePath lcov.info
+         (Get-Content lcov.info) | Foreach-Object {$_ -replace "\xEF\xBB\xBF", ""} | Set-Content lcov.info
          $env:PATH = "C:\msys64\usr\bin;" + $env:PATH
          Invoke-WebRequest -Uri "https://codecov.io/bash" -OutFile codecov.sh
          bash codecov.sh -f "lcov.info"
