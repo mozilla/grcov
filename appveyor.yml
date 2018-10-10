@@ -64,7 +64,7 @@ test_script:
          .\target\debug\grcov ccov_dir -s src -t lcov --llvm --branch --ignore-not-existing > lcov.info
          $env:PATH = "C:\msys64\usr\bin;" + $env:PATH
          Invoke-WebRequest -Uri "https://codecov.io/bash" -OutFile codecov.sh
-         bash codecov.sh -f "lcov.info"
+         bash codecov.sh -f "lcov.info" -X network
       }
 
 artifacts:
