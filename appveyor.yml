@@ -61,7 +61,7 @@ test_script:
          mkdir ccov_dir
          Get-ChildItem -Path *\grcov*.gc* -Recurse | Copy-Item -Destination ccov_dir
          Get-ChildItem -Path *\llvmgcov.gc* -Recurse | Copy-Item -Destination ccov_dir
-         .\target\debug\grcov ccov_dir -s src -t lcov --llvm --branch --ignore-not-existing > lcov.info
+         .\target\debug\grcov ccov_dir -s . -t lcov --llvm --branch --ignore-not-existing --ignore-dir "C:*" > lcov.info
          $env:PATH = "C:\msys64\usr\bin;" + $env:PATH
          Invoke-WebRequest -Uri "https://codecov.io/bash" -OutFile codecov.sh
          bash codecov.sh -f "lcov.info"
