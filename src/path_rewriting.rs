@@ -137,13 +137,15 @@ fn map_partial_path(file_to_paths: &HashMap<String, Vec<PathBuf>>, path: PathBuf
         return options[0].clone();
     }
 
-    let mut result = None;
+    let mut result: Option<&PathBuf> = None;
     for option in options {
         if option.ends_with(&path) {
             assert!(
                 result.is_none(),
-                "Only one file in the repository should end with {}",
-                path.display()
+                "Only one file in the repository should end with {} ({} and {} both end with that)",
+                path.display(),
+                result.unwrap().display(),
+                option.display()
             );
             result = Some(option)
         }
