@@ -165,6 +165,10 @@ fn is_hidden(entry: &DirEntry) -> bool {
         .unwrap_or(false)
 }
 
+fn is_symbolic_link(entry: &DirEntry) -> bool {
+    entry.path_is_symlink()
+}
+
 pub fn rewrite_paths(
     result_map: CovResultMap,
     path_mapping: Option<Value>,
@@ -189,7 +193,7 @@ pub fn rewrite_paths(
     if let Some(ref source_dir) = source_dir {
         for entry in WalkDir::new(&source_dir)
             .into_iter()
-            .filter_entry(|e| !is_hidden(e))
+            .filter_entry(|e| !is_hidden(e) && !is_symbolic_link(e))
         {
             let entry = entry
                 .unwrap_or_else(|_| panic!("Failed to open directory '{}'.", source_dir.display()));
