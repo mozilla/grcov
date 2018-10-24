@@ -47,8 +47,9 @@ fn main() {
         print_usage(&args[0]);
         process::exit(1);
     }
+    let cwd = env::current_dir().expect("Failed to retrive current working directory");
+    let mut source_dir = cwd.as_os_str().to_str().unwrap();
     let mut output_type = "lcov";
-    let mut source_dir = "";
     let mut prefix_dir = "";
     let mut repo_token = "";
     let mut commit_sha = "";
