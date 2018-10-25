@@ -1,5 +1,10 @@
 sudo: false
 language: rust
+
+skip_commits:
+  files:
+    - appveyor.yml
+
 matrix:
   include:
     - os: linux

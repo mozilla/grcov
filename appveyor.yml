@@ -3,7 +3,7 @@ platform:
 - x64
 
 skip_commits:
-  file:
+  files:
     - .travis.yml
 
 environment:
