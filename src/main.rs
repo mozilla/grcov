@@ -283,10 +283,7 @@ fn main() {
         let working_dir = tmp_path.join(format!("{}", i));
         let source_root = source_root.clone();
 
-        let mut  thread_name = String::from("Consumer ");
-        thread_name.push_str(&i.to_string());
-
-        let t = thread::Builder::new().name(thread_name);
+        let t = thread::Builder::new().name(format!("Consumer {}",&i.to_string()));
         
         let join_handle_t = t.spawn(move || {
             fs::create_dir(&working_dir).expect("Failed to create working directory");
