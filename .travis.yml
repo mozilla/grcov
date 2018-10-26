@@ -1,6 +1,5 @@
 sudo: false
 language: rust
-
 matrix:
   include:
     - os: linux
@@ -104,7 +103,6 @@ matrix:
         - CLANG_CXX=clang++
         - LLVM_CONFIG=llvm-config
         - DEPLOY=1
-
 before_install:
 - |
     if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
@@ -114,7 +112,6 @@ before_install:
       echo "Only appveyor.yml was updated, stopping build process."
       exit 
     } 
-
 install:
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo softwareupdate -i "Command Line Tools (macOS High Sierra version 10.13) for Xcode-9.4"; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew cask uninstall --force oclint; fi
