@@ -47,9 +47,8 @@ fn main() {
         print_usage(&args[0]);
         process::exit(1);
     }
-    let cwd = env::current_dir().expect("Failed to retrive current working directory");
-    let mut source_dir = cwd.as_os_str().to_str().unwrap();
     let mut output_type = "lcov";
+    let mut source_dir = "";
     let mut prefix_dir = "";
     let mut repo_token = "";
     let mut commit_sha = "";
@@ -232,7 +231,8 @@ fn main() {
     let source_root = if source_dir != "" {
         Some(canonicalize_path(&source_dir).expect("Source directory does not exist."))
     } else {
-        None
+        let cwd = env::current_dir().expect("Failed to retrive current working directory");
+        Some(canonicalize_path(&cwd.as_os_str().to_str().unwrap()).expect("Source directory does not exist."))
     };
 
     let prefix_dir = if prefix_dir == "" {
