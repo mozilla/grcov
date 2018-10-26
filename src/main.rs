@@ -283,10 +283,12 @@ fn main() {
         let working_dir = tmp_path.join(format!("{}", i));
         let source_root = source_root.clone();
 
-        let thread_name = String::from("Consumer ");
+        let mut  thread_name = String::from("Consumer ");
         thread_name.push_str(&i.to_string());
-            
-        let t = thread::Builder::new().name(thread_name).spawn(move || {
+
+        let t = thread::Builder::new().name(thread_name);
+        
+        let join_handle_t = t.spawn(move || {
             fs::create_dir(&working_dir).expect("Failed to create working directory");
             consumer(
                 &working_dir,
@@ -295,9 +297,10 @@ fn main() {
                 &queue,
                 branch_enabled,
             );
-        });
+        }).unwrap();
 
-        parsers.push(t);
+
+        parsers.push(join_handle_t);
     }
 
     let _ = producer.join();
