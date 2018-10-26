@@ -1,9 +1,15 @@
 sudo: false
 language: rust
 
-skip_commits:
-  files:
-    - appveyor.yml
+before_install:
+- |
+    if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
+      TRAVIS_COMMIT_RANGE="FETCH_HEAD...$TRAVIS_BRANCH"
+    fi
+    git diff --name-only $TRAVIS_COMMIT_RANGE | grep -qvE '(.appveyor.yml)' || {
+      echo "Only appveyor.yml was updated, stopping build process."
+      exit 
+    } 
 
 matrix:
   include:
