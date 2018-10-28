@@ -200,7 +200,6 @@ impl Archive {
             ArchiveType::Plain(ref plain) => {
                 // All the paths are absolutes
                 for full_path in plain {
-                    //let path = PathBuf::from(full_path.file_name().unwrap());
                     self.handle_file(
                         FilePath::Path(full_path),
                         &full_path,
@@ -238,7 +237,7 @@ impl Archive {
             }
             ArchiveType::Plain(_) => match File::open(name) {
                 Ok(mut f) => {
-                    f.read_to_end(buf).expect("Failed to read gcda file");
+                    f.read_to_end(buf).expect(&format!("Failed to read file: {}.", name));
                     true
                 }
                 Err(_) => false,
@@ -285,18 +284,7 @@ impl Archive {
                 true
             }
             ArchiveType::Plain(_) => {
-                // don't use a hard link here because it can fail when src and dst are not on the same device
-                #[cfg(unix)]
-                os::unix::fs::symlink(&name, path).unwrap_or_else(|_| {
-                    panic!("Failed to create a symlink {:?} -> {:?}", name, path)
-                });
-
-                #[cfg(windows)]
-                os::windows::fs::symlink_file(&name, path).unwrap_or_else(|_| {
-                    panic!("Failed to create a symlink {:?} -> {:?}", name, path)
-                });
-
-                true
+                panic!("We shouldn't be there !!");
             },
         }
     }
@@ -484,7 +472,7 @@ pub fn producer(
                     panic!("Cannot load file '{:?}': it isn't a .info or .json file.", full_path);
                 }
             } else {
-                panic!("Cannot load file '{:?}': it isn't a .info or .json file.", full_path);
+                panic!("Cannot load file '{:?}': it isn't a directory, or a .info or .json file.", full_path);
             }
         }
     }
@@ -599,6 +587,7 @@ mod tests {
             );
         }
 
+        eprintln!("COUCUCOUC {:?}", expected);
         // Make sure we haven't generated duplicated entries.
         assert_eq!(vec.len(), expected.len());
 
@@ -1476,21 +1465,73 @@ mod tests {
 
         let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
-        producer(
+        let json_path = "test/linked-files-map.json";
+        let mapping = producer(
             &tmp_path,
             &[
                 "test/prova.info".to_string(),
+                json_path.to_string(),
             ],
             &queue,
             true,
             false,
         );
 
+        assert!(mapping.is_some());
+        let mapping = mapping.unwrap();
+
         let expected = vec![
             (ItemFormat::INFO, false, "prova_1.info", true),
         ];
 
+        match File::open(json_path) {
+            Ok(mut reader) => {
+                let mut json = Vec::new();
+                reader.read_to_end(&mut json).unwrap();
+                assert_eq!(json, mapping);
+            }
+            Err(_) => {
+                assert!(false, format!("Failed to read the file: {}", json_path));
+            },
+        }
+
         check_produced(tmp_path, &queue, expected);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_plain_producer_with_gcno() {
+        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+        let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        producer(
+            &tmp_path,
+            &[
+                "sub2/RootAccessibleWrap_1.gcno".to_string(),
+            ],
+            &queue,
+            true,
+            false,
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_plain_producer_with_gcda() {
+        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+        let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        producer(
+            &tmp_path,
+            &[
+                "./test/llvm/file.gcda".to_string(),
+            ],
+            &queue,
+            true,
+            false,
+        );
     }
 
     #[test]
