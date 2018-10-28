@@ -297,7 +297,12 @@ fn main() {
         parsers.push(t);
     }
 
-    let _ = producer.join();
+    match producer.join() {
+        Ok(_) => { }
+        Err(_) => {
+            process::exit(1);
+        }
+    }
 
     // Poison the queue, now that the producer is finished.
     for _ in 0..num_threads {
@@ -305,7 +310,12 @@ fn main() {
     }
 
     for parser in parsers {
-        parser.join().unwrap();
+        match parser.join() {
+            Ok(_) =>  { }
+            Err(_) => {
+                process::exit(1);
+            }
+        }
     }
 
     let result_map_mutex = Arc::try_unwrap(result_map).unwrap();
