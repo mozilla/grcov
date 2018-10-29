@@ -125,10 +125,10 @@ fn run_grcov(paths: Vec<&Path>, source_root: &Path, output_format: &str) -> Stri
         args.push("TOKEN");
         args.push("--commit-sha");
         args.push("COMMIT");
-        args.push("-s");
-        args.push(source_root.to_str().unwrap());
         args.push("--branch");
     }
+    args.push("-s");
+    args.push(source_root.to_str().unwrap());
     args.push("--ignore-dir");
     args.push("C:/*");
     args.push("--ignore-dir");
