@@ -179,7 +179,11 @@ pub fn rewrite_paths(
     filter_option: Option<bool>,
 ) -> CovResultIter {
     let mut glob_builder = GlobSetBuilder::new();
+
+    // workaround for bug: https://github.com/BurntSushi/ripgrep/issues/1079
+    // Some filters foo/* are ignored when not sorted
     to_ignore_dirs.sort_unstable();
+
     for to_ignore_dir in to_ignore_dirs {
         glob_builder.add(Glob::new(&to_ignore_dir).unwrap());
     }
@@ -536,6 +540,7 @@ mod tests {
     fn test_rewrite_paths_ignore_multiple_directories() {
         let mut ignore_dirs = vec!["mydir/*".to_string(), "mydir2/*".to_string()];
         for _ in 0..2 {
+            // we run the test twice, one with ignore_dirs and the other with ignore_dirs.reverse()
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("main.cpp".to_string(), empty_result!());
             result_map.insert("mydir/prova.h".to_string(), empty_result!());
@@ -566,6 +571,7 @@ mod tests {
     fn test_rewrite_paths_ignore_multiple_directories() {
         let mut ignore_dirs = vec!["mydir\\*".to_string(), "mydir2\\*".to_string()];
         for _ in 0..2 {
+            // we run the test twice, one with ignore_dirs and the other with ignore_dirs.reverse()
             let mut result_map: CovResultMap = HashMap::new();
             result_map.insert("main.cpp".to_string(), empty_result!());
             result_map.insert("mydir\\prova.h".to_string(), empty_result!());
