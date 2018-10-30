@@ -175,10 +175,11 @@ pub fn rewrite_paths(
     source_dir: Option<PathBuf>,
     prefix_dir: Option<PathBuf>,
     ignore_not_existing: bool,
-    to_ignore_dirs: Vec<String>,
+    mut to_ignore_dirs: Vec<String>,
     filter_option: Option<bool>,
 ) -> CovResultIter {
     let mut glob_builder = GlobSetBuilder::new();
+    to_ignore_dirs.sort_unstable();
     for to_ignore_dir in to_ignore_dirs {
         glob_builder.add(Glob::new(&to_ignore_dir).unwrap());
     }
@@ -533,53 +534,61 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_rewrite_paths_ignore_multiple_directories() {
-        let mut result_map: CovResultMap = HashMap::new();
-        result_map.insert("main.cpp".to_string(), empty_result!());
-        result_map.insert("mydir/prova.h".to_string(), empty_result!());
-        result_map.insert("mydir2/prova.h".to_string(), empty_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            None,
-            None,
-            false,
-            vec!["mydir/*".to_string(), "mydir2/*".to_string()],
-            None,
-        );
-        let mut count = 0;
-        for (abs_path, rel_path, result) in results {
-            count += 1;
-            assert_eq!(abs_path, PathBuf::from("main.cpp"));
-            assert_eq!(rel_path, PathBuf::from("main.cpp"));
-            assert_eq!(result, empty_result!());
+        let mut ignore_dirs = vec!["mydir/*".to_string(), "mydir2/*".to_string()];
+        for _ in 0..2 {
+            let mut result_map: CovResultMap = HashMap::new();
+            result_map.insert("main.cpp".to_string(), empty_result!());
+            result_map.insert("mydir/prova.h".to_string(), empty_result!());
+            result_map.insert("mydir2/prova.h".to_string(), empty_result!());
+            let results = rewrite_paths(
+                result_map,
+                None,
+                None,
+                None,
+                false,
+                ignore_dirs.clone(),
+                None,
+            );
+            let mut count = 0;
+            for (abs_path, rel_path, result) in results {
+                count += 1;
+                assert_eq!(abs_path, PathBuf::from("main.cpp"));
+                assert_eq!(rel_path, PathBuf::from("main.cpp"));
+                assert_eq!(result, empty_result!());
+            }
+            assert_eq!(count, 1);
+            ignore_dirs.reverse();
         }
-        assert_eq!(count, 1);
     }
 
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_ignore_multiple_directories() {
-        let mut result_map: CovResultMap = HashMap::new();
-        result_map.insert("main.cpp".to_string(), empty_result!());
-        result_map.insert("mydir\\prova.h".to_string(), empty_result!());
-        result_map.insert("mydir2\\prova.h".to_string(), empty_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            None,
-            None,
-            false,
-            vec!["mydir/*".to_string(), "mydir2/*".to_string()],
-            None,
-        );
-        let mut count = 0;
-        for (abs_path, rel_path, result) in results {
-            count += 1;
-            assert_eq!(abs_path, PathBuf::from("main.cpp"));
-            assert_eq!(rel_path, PathBuf::from("main.cpp"));
-            assert_eq!(result, empty_result!());
+        let mut ignore_dirs = vec!["mydir\\*".to_string(), "mydir2\\*".to_string()];
+        for _ in 0..2 {
+            let mut result_map: CovResultMap = HashMap::new();
+            result_map.insert("main.cpp".to_string(), empty_result!());
+            result_map.insert("mydir\\prova.h".to_string(), empty_result!());
+            result_map.insert("mydir2\\prova.h".to_string(), empty_result!());
+            let results = rewrite_paths(
+                result_map,
+                None,
+                None,
+                None,
+                false,
+                ignore_dirs.clone(),
+                None,
+            );
+            let mut count = 0;
+            for (abs_path, rel_path, result) in results {
+                count += 1;
+                assert_eq!(abs_path, PathBuf::from("main.cpp"));
+                assert_eq!(rel_path, PathBuf::from("main.cpp"));
+                assert_eq!(result, empty_result!());
+            }
+            assert_eq!(count, 1);
+            ignore_dirs.reverse();
         }
-        assert_eq!(count, 1);
     }
 
     #[test]
