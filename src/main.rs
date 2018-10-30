@@ -272,7 +272,7 @@ fn main() {
             } else {
                 None
             };
-        }).unwrap();
+        }).unwrap()
     };
 
     let mut parsers = Vec::new();
