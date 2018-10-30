@@ -15,6 +15,7 @@ use defs::*;
 pub enum ArchiveType {
     Zip(RefCell<ZipArchive<File>>),
     Dir(PathBuf),
+    Plain(Vec<PathBuf>),
 }
 
 pub enum FilePath<'a> {
@@ -196,6 +197,21 @@ impl Archive {
                     }
                 }
             }
+            ArchiveType::Plain(ref plain) => {
+                // All the paths are absolutes
+                for full_path in plain {
+                    self.handle_file(
+                        FilePath::Path(full_path),
+                        &full_path,
+                        gcno_stem_archives,
+                        gcda_stem_archives,
+                        infos,
+                        xmls,
+                        linked_files_maps,
+                        is_llvm,
+                    );
+                }
+            },
         }
     }
 
@@ -215,6 +231,13 @@ impl Archive {
             ArchiveType::Dir(ref dir) => match File::open(dir.join(name)) {
                 Ok(mut f) => {
                     f.read_to_end(buf).expect("Failed to read gcda file");
+                    true
+                }
+                Err(_) => false,
+            }
+            ArchiveType::Plain(_) => match File::open(name) {
+                Ok(mut f) => {
+                    f.read_to_end(buf).expect(&format!("Failed to read file: {}.", name));
                     true
                 }
                 Err(_) => false,
@@ -260,6 +283,9 @@ impl Archive {
 
                 true
             }
+            ArchiveType::Plain(_) => {
+                panic!("We shouldn't be there !!");
+            },
         }
     }
 }
@@ -415,6 +441,8 @@ pub fn producer(
     is_llvm: bool,
 ) -> Option<Vec<u8>> {
     let mut archives: Vec<Archive> = Vec::new();
+    let mut plain_files: Vec<PathBuf> = Vec::new();
+
     let current_dir = env::current_dir().unwrap();
 
     for path in paths {
@@ -431,11 +459,29 @@ pub fn producer(
             } else {
                 path_dir
             };
-            archives.push(Archive {
-                name: path.to_string(),
-                item: RefCell::new(ArchiveType::Dir(full_path)),
-            });
+            if full_path.is_dir() {
+                archives.push(Archive {
+                    name: path.to_string(),
+                    item: RefCell::new(ArchiveType::Dir(full_path)),
+                });
+            } else if let Some(ext) = full_path.clone().extension() {
+                let ext = ext.to_str().unwrap();
+                if ext == "info" || ext == "json" || ext == "xml" {
+                    plain_files.push(full_path);
+                } else {
+                    panic!("Cannot load file '{:?}': it isn't a .info, a .json or a .xml file.", full_path);
+                }
+            } else {
+                panic!("Cannot load file '{:?}': it isn't a directory, a .info, a .json or a .xml file.", full_path);
+            }
         }
+    }
+
+    if !plain_files.is_empty() {
+        archives.push(Archive {
+            name: "plain files".to_string(),
+            item: RefCell::new(ArchiveType::Plain(plain_files)),
+        });
     }
 
     let gcno_stems_archives: RefCell<HashMap<GCNOStem, &Archive>> = RefCell::new(HashMap::new());
@@ -1410,6 +1456,81 @@ mod tests {
                 assert!(false, "Buffers expected");
             }
         }
+    }
+
+    #[test]
+    fn test_plain_producer() {
+        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+        let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        let json_path = "test/linked-files-map.json";
+        let mapping = producer(
+            &tmp_path,
+            &[
+                "test/prova.info".to_string(),
+                json_path.to_string(),
+            ],
+            &queue,
+            true,
+            false,
+        );
+
+        assert!(mapping.is_some());
+        let mapping = mapping.unwrap();
+
+        let expected = vec![
+            (ItemFormat::INFO, false, "prova_1.info", true),
+        ];
+
+        match File::open(json_path) {
+            Ok(mut reader) => {
+                let mut json = Vec::new();
+                reader.read_to_end(&mut json).unwrap();
+                assert_eq!(json, mapping);
+            }
+            Err(_) => {
+                assert!(false, format!("Failed to read the file: {}", json_path));
+            },
+        }
+
+        check_produced(tmp_path, &queue, expected);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_plain_producer_with_gcno() {
+        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+        let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        producer(
+            &tmp_path,
+            &[
+                "sub2/RootAccessibleWrap_1.gcno".to_string(),
+            ],
+            &queue,
+            true,
+            false,
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_plain_producer_with_gcda() {
+        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+
+        let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        producer(
+            &tmp_path,
+            &[
+                "./test/llvm/file.gcda".to_string(),
+            ],
+            &queue,
+            true,
+            false,
+        );
     }
 
     #[test]
