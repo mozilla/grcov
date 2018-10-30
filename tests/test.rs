@@ -226,7 +226,7 @@ fn check_equal_ade(expected_output: &str, output: &str) {
             .find(|x| check_equal_inner(x, out, skip_methods));
         assert!(
             exp.is_some(),
-            "Got unexpected {} - Expected output: {:?}",
+            "Got unexpected {} - Expected one of: {}",
             out,
             expected_output
         );
@@ -236,7 +236,7 @@ fn check_equal_ade(expected_output: &str, output: &str) {
         let out = actual
             .iter()
             .find(|x| check_equal_inner(x, exp, skip_methods));
-        assert!(out.is_some(), "Missing {} - Full output: {:?}", exp, output);
+        assert!(out.is_some(), "Missing {} - Full output: {}", exp, output);
     }
 
     assert_eq!(
