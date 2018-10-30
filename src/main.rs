@@ -297,11 +297,8 @@ fn main() {
         parsers.push(t);
     }
 
-    match producer.join() {
-        Ok(_) => { }
-        Err(_) => {
-            process::exit(1);
-        }
+    if let Err(_) = producer.join() {
+        process::exit(1);
     }
 
     // Poison the queue, now that the producer is finished.
@@ -310,11 +307,8 @@ fn main() {
     }
 
     for parser in parsers {
-        match parser.join() {
-            Ok(_) =>  { }
-            Err(_) => {
-                process::exit(1);
-            }
+        if let Err(_) = parser.join() {
+            process::exit(1);
         }
     }
 
