@@ -569,7 +569,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_ignore_multiple_directories() {
-        let mut ignore_dirs = vec!["mydir\\*".to_string(), "mydir2\\*".to_string()];
+        let mut ignore_dirs = vec!["mydir/*".to_string(), "mydir2/*".to_string()];
         for _ in 0..2 {
             // we run the test twice, one with ignore_dirs and the other with ignore_dirs.reverse()
             let mut result_map: CovResultMap = HashMap::new();
