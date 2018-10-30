@@ -466,13 +466,13 @@ pub fn producer(
                 });
             } else if let Some(ext) = full_path.clone().extension() {
                 let ext = ext.to_str().unwrap();
-                if ext == "info" || ext == "json" {
+                if ext == "info" || ext == "json" || ext == "xml" {
                     plain_files.push(full_path);
                 } else {
-                    panic!("Cannot load file '{:?}': it isn't a .info or .json file.", full_path);
+                    panic!("Cannot load file '{:?}': it isn't a .info, a .json or a .xml file.", full_path);
                 }
             } else {
-                panic!("Cannot load file '{:?}': it isn't a directory, or a .info or .json file.", full_path);
+                panic!("Cannot load file '{:?}': it isn't a directory, a .info, a .json or a .xml file.", full_path);
             }
         }
     }
@@ -587,7 +587,6 @@ mod tests {
             );
         }
 
-        eprintln!("COUCUCOUC {:?}", expected);
         // Make sure we haven't generated duplicated entries.
         assert_eq!(vec.len(), expected.len());
 
