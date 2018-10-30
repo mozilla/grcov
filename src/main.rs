@@ -254,7 +254,7 @@ fn main() {
         let path_mapping_file = path_mapping_file.to_owned();
         let path_mapping = Arc::clone(&path_mapping);
 
-        thread::Builder::new().name(format!("Producer")).spawn(move || {
+        thread::Builder::new().name(String::from("Producer")).spawn(move || {
             let producer_path_mapping_buf = producer(
                 &tmp_path,
                 &paths,
