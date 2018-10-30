@@ -254,7 +254,7 @@ fn main() {
         let path_mapping_file = path_mapping_file.to_owned();
         let path_mapping = Arc::clone(&path_mapping);
 
-        thread::spawn(move || {
+        thread::Builder::new().name(String::from("Producer")).spawn(move || {
             let producer_path_mapping_buf = producer(
                 &tmp_path,
                 &paths,
@@ -272,7 +272,7 @@ fn main() {
             } else {
                 None
             };
-        })
+        }).unwrap()
     };
 
     let mut parsers = Vec::new();
@@ -283,7 +283,7 @@ fn main() {
         let working_dir = tmp_path.join(format!("{}", i));
         let source_root = source_root.clone();
 
-        let t = thread::spawn(move || {
+        let t = thread::Builder::new().name(format!("Consumer {}", i)).spawn(move || {
             fs::create_dir(&working_dir).expect("Failed to create working directory");
             consumer(
                 &working_dir,
@@ -292,7 +292,8 @@ fn main() {
                 &queue,
                 branch_enabled,
             );
-        });
+        }).unwrap();
+
 
         parsers.push(t);
     }
