@@ -232,7 +232,7 @@ fn main() {
     let source_root = if source_dir != "" {
         Some(canonicalize_path(&source_dir).expect("Source directory does not exist."))
     } else {
-        let cwd = env::current_dir().expect("Failed to retrive current working directory");
+        let cwd = env::current_dir().expect("Failed to retrieve current working directory");
         Some(canonicalize_path(&cwd.as_os_str().to_str().unwrap()).expect("Source directory does not exist."))
     };
 
