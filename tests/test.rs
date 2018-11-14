@@ -74,7 +74,7 @@ fn read_file(path: &Path) -> String {
     s
 }
 
-fn read_expected(path: &Path, compiler: &str, compiler_ver: &str, format: &str) -> String {
+fn read_expected(path: &Path, compiler: &str, compiler_ver: &str, format: &str, additional: Option<&str>) -> String {
     let os_name = if cfg!(windows) {
         "win"
     } else if cfg!(target_os = "macos") {
@@ -83,23 +83,29 @@ fn read_expected(path: &Path, compiler: &str, compiler_ver: &str, format: &str) 
         "linux"
     };
 
+    let base_name = format!("expected{}", if let Some(additional) = additional {
+      additional
+    } else {
+      ""
+    });
+
     let name_with_ver_and_os = format!(
-        "expected_{}_{}_{}.{}",
-        compiler, compiler_ver, os_name, format
+        "{}_{}_{}_{}.{}",
+        base_name, compiler, compiler_ver, os_name, format
     );
 
     let name = if path.join(&name_with_ver_and_os).exists() {
         name_with_ver_and_os
     } else {
-        let name_with_ver = format!("expected_{}_{}.{}", compiler, compiler_ver, format);
+        let name_with_ver = format!("{}_{}_{}.{}", base_name, compiler, compiler_ver, format);
         if path.join(&name_with_ver).exists() {
             name_with_ver
         } else {
-            let name_with_os = format!("expected_{}_{}.{}", compiler, os_name, format);
+            let name_with_os = format!("{}_{}_{}.{}", base_name, compiler, os_name, format);
             if path.join(&name_with_os).exists() {
                 name_with_os
             } else {
-                format!("expected_{}.{}", compiler, format)
+                format!("{}_{}.{}", base_name, compiler, format)
             }
         }
     };
@@ -452,11 +458,11 @@ fn test_integration() {
                 make(path, gpp);
                 run(path);
                 check_equal_ade(
-                    &read_expected(path, "gcc", &gcc_version, "ade"),
+                    &read_expected(path, "gcc", &gcc_version, "ade", None),
                     &run_grcov(vec![path], &PathBuf::from(""), "ade"),
                 );
                 check_equal_coveralls(
-                    &read_expected(path, "gcc", &gcc_version, "coveralls"),
+                    &read_expected(path, "gcc", &gcc_version, "coveralls", None),
                     &run_grcov(vec![path], path, "coveralls"),
                     skip_branches,
                 );
@@ -475,11 +481,11 @@ fn test_integration() {
             make(path, clangpp);
             run(path);
             check_equal_ade(
-                &read_expected(path, "llvm", &llvm_version, "ade"),
+                &read_expected(path, "llvm", &llvm_version, "ade", None),
                 &run_grcov(vec![path], &PathBuf::from(""), "ade"),
             );
             check_equal_coveralls(
-                &read_expected(path, "llvm", &llvm_version, "coveralls"),
+                &read_expected(path, "llvm", &llvm_version, "coveralls", None),
                 &run_grcov(vec![path], path, "coveralls"),
                 skip_branches,
             );
@@ -536,19 +542,17 @@ fn test_integration_zip_zip() {
         let gcda1_zip_path = path.join(gcda1_zip_path);
 
         // no gcda
-        let path_expected = path.join(PathBuf::from(format!(
-            "expected_no_gcda_{}.coveralls",
-            name
-        )));
+        println!("No gcda");
         check_equal_coveralls(
-            &read_file(&path_expected),
+            &read_expected(path, &name, &compiler_version, "coveralls", Some("_no_gcda")),
             &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], path, "coveralls"),
             false,
         );
 
         // one gcda
+        println!("One gcda");
         check_equal_coveralls(
-            &read_expected(path, &name, &compiler_version, "coveralls"),
+            &read_expected(path, &name, &compiler_version, "coveralls", None),
             &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], path, "coveralls"),
             false,
         );
@@ -556,12 +560,10 @@ fn test_integration_zip_zip() {
         // two gcdas
         std::fs::copy(&gcda_zip_path, &gcda1_zip_path)
             .expect(&format!("Failed to copy {:?}", &gcda_zip_path));
-        let path_expected = path.join(PathBuf::from(format!(
-            "expected_two_gcda_{}.coveralls",
-            name
-        )));
+
+        println!("Two gcdas");
         check_equal_coveralls(
-            &read_file(&path_expected),
+            &read_expected(path, &name, &compiler_version, "coveralls", Some("_two_gcda")),
             &run_grcov(
                 vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path],
                 path,
@@ -617,7 +619,7 @@ fn test_integration_zip_dir() {
         let gcno_zip_path = path.join(gcno_zip_path);
 
         check_equal_coveralls(
-            &read_expected(base_path, &name, &compiler_version, "coveralls"),
+            &read_expected(base_path, &name, &compiler_version, "coveralls", None),
             &run_grcov(vec![&gcno_zip_path, &base_path], path, "coveralls"),
             false,
         );
