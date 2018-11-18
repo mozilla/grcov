@@ -1,3 +1,4 @@
+extern crate byteorder;
 #[macro_use]
 extern crate serde_json;
 extern crate crossbeam;
@@ -30,6 +31,9 @@ pub use path_rewriting::*;
 
 mod output;
 pub use output::*;
+
+mod reader;
+pub use reader::*;
 
 use std::collections::{btree_map, hash_map};
 use std::fs;

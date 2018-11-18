@@ -678,6 +678,8 @@ mod tests {
                 false,
             ),
             (ItemFormat::GCNO, false, "llvm/file_1", true),
+            (ItemFormat::GCNO, false, "llvm/file_branch_1", true),
+            (ItemFormat::GCNO, false, "llvm/reader_1", true),
             (
                 ItemFormat::JACOCO_XML,
                 false,
