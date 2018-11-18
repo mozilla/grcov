@@ -1733,8 +1733,7 @@ mod tests {
                 functions: functions,
             },
         )];
-        let result = call_parse_llvm_gcno("test/llvm", "test/llvm/file_branch", true);
-        eprintln!("{:?}", result);
+        let result = call_parse_llvm_gcno("test/llvm", "test/llvm/file", true);
         assert_eq!(result, expected);
     }
 
