@@ -373,17 +373,10 @@ impl GCNO {
                                 fun.blocks[first.destination].counter += counter;
                                 fun.blocks[first.source].counter += counter;
 
-                                if !fun.executed && counter != 0 {
-                                    fun.executed = true;
-                                }
-                                
                                 for edge in elmts {
                                     let counter = GCNO::read_counter(reader)?;
                                     edge.counter += counter;
                                     fun.blocks[edge.destination].counter += counter;
-                                    if !fun.executed && counter != 0 {
-                                        fun.executed = true;
-                                    }
                                 }
                             }
                             Ok(())
@@ -674,6 +667,7 @@ impl GcovFunction {
     }
 
     fn add_line_count(&mut self) {
+        self.executed = self.edges.first().unwrap().counter > 0;
         if self.executed {
             let mut lines_to_block: HashMap<u32, Vec<usize>> = HashMap::new();
             for block in &self.blocks {
