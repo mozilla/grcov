@@ -104,6 +104,7 @@ matrix:
         - LLVM_CONFIG=llvm-config
         - DEPLOY=1
 before_install:
+    - |
       git diff --name-only $TRAVIS_COMMIT_RANGE | grep -qvE '^appveyor.yml$' || {
         echo "Only appveyor.yml was updated, stopping build process."
         exit
