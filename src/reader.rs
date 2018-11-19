@@ -593,7 +593,7 @@ impl GcovFunction {
                 if w == start {
                     count += GcovFunction::get_cycle_count(fun_edges, path);
                     found = true;
-                } else if !blocked.iter().any(|x| *x == w) {
+                } else if blocked.iter().all(|x| *x != w) {
                     let (f, c) = GcovFunction::look_for_circuit(fun_edges, fun_blocks, w, start, path, blocked, block_lists, blocks, count);
                     count += c;
                     if f {
@@ -609,10 +609,10 @@ impl GcovFunction {
         } else {
             for e in dsts {
                 let w = fun_edges[*e].destination;
-                if w >= start {
-                    if let Some(i) = blocks.iter().position(|x| *x == w) {
+                if w >= start || blocks.iter().any(|x| *x == w) {
+                    if let Some(i) = blocked.iter().position(|x| *x == w) {
                         let list = &mut block_lists[i];
-                        if !list.iter().any(|x| *x == v) {
+                        if list.iter().all(|x| *x != v) {
                             list.push(v);
                         }
                     }
