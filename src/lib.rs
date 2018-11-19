@@ -1,14 +1,23 @@
 extern crate crypto;
 #[macro_use]
 extern crate serde_json;
+
 extern crate crossbeam;
+
 extern crate globset;
+
 extern crate libc;
+
 extern crate semver;
+
 extern crate tempdir;
+
 extern crate uuid;
+
 extern crate walkdir;
+
 extern crate xml;
+
 extern crate zip;
 
 mod defs;
