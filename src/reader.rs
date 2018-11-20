@@ -430,15 +430,15 @@ impl GCNO {
         let mut n: u32 = 0;
         let has_runs = self.runcounts != 0;
         
-        writeln!(writer, "{:>9}:{:>5}:Source:{}", "-", 0, file_name);
-        writeln!(writer, "{:>9}:{:>5}:Graph:{}.gcno", "-", 0, stem);
+        writeln!(writer, "{:>9}:{:>5}:Source:{}", "-", 0, file_name)?;
+        writeln!(writer, "{:>9}:{:>5}:Graph:{}.gcno", "-", 0, stem)?;
         if has_runs {
-            writeln!(writer, "{:>9}:{:>5}:Data:{}.gcda", "-", 0, stem);
+            writeln!(writer, "{:>9}:{:>5}:Data:{}.gcda", "-", 0, stem)?;
         } else {
-            writeln!(writer, "{:>9}:{:>5}:Data:-", "-", 0);
+            writeln!(writer, "{:>9}:{:>5}:Data:-", "-", 0)?;
         }
-        writeln!(writer, "{:>9}:{:>5}:Runs:{}", "-", 0, self.runcounts);
-        writeln!(writer, "{:>9}:{:>5}:Programs:{}", "-", 0, if has_runs { 1 } else { 0 });
+        writeln!(writer, "{:>9}:{:>5}:Runs:{}", "-", 0, self.runcounts)?;
+        writeln!(writer, "{:>9}:{:>5}:Programs:{}", "-", 0, if has_runs { 1 } else { 0 })?;
         let mut iter = source.split('\n').peekable();
         while let Some(line) = iter.next() {
             if iter.peek().is_none() && line.is_empty() {
@@ -448,12 +448,12 @@ impl GCNO {
             n += 1;
             if let Some(counter) = counters.get(&n) {
                 if *counter == 0 {
-                    writeln!(writer, "{:>9}:{:>5}:{}", "#####", n, line);
+                    writeln!(writer, "{:>9}:{:>5}:{}", "#####", n, line)?;
                 } else {
-                    writeln!(writer, "{:>9}:{:>5}:{}", *counter, n, line);
+                    writeln!(writer, "{:>9}:{:>5}:{}", *counter, n, line)?;
                 }
             } else {
-                writeln!(writer, "{:>9}:{:>5}:{}", "-", n, line);
+                writeln!(writer, "{:>9}:{:>5}:{}", "-", n, line)?;
             }
         }
         
