@@ -202,7 +202,11 @@ impl GCNO {
                         counter: 0,
                         cycles: 0,
                     });
-                    blocks[block_no].destination.push(edges_count);
+                    let i = match blocks[block_no].destination.binary_search_by(|x| edges[*x].destination.cmp(&dst_block_no)) {
+                        Ok(i) => i,
+                        Err(i) => i,
+                    };
+                    blocks[block_no].destination.insert(i, edges_count);
                     blocks[dst_block_no].source.push(edges_count);
                     edges_count += 1;
                 }
