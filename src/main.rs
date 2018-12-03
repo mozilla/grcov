@@ -58,6 +58,7 @@ fn main() {
     let mut ignore_not_existing = false;
     let mut to_ignore_dirs = Vec::new();
     let mut is_llvm = false;
+    let mut sourcedir_enabled = true;
     let mut branch_enabled = false;
     let mut paths = Vec::new();
     let mut i = 1;
@@ -191,6 +192,8 @@ fn main() {
                 .parse()
                 .expect("Number of threads should be a number");
             i += 1;
+        }  else if args[i] == "--no-sourcedir" {
+            sourcedir_enabled = false;
         } else {
             paths.push(args[i].clone());
         }
@@ -229,11 +232,13 @@ fn main() {
     }
 
     let source_root = if source_dir != "" {
-        Some(canonicalize_path(&source_dir).expect("Source directory does not exist."))
-    } else {
-        let cwd = env::current_dir().expect("Failed to retrieve current working directory");
-        Some(canonicalize_path(&cwd.as_os_str().to_str().unwrap()).expect("Source directory does not exist."))
-    };
+            Some(canonicalize_path(&source_dir).expect("Source directory does not exist."))
+        } else if sourcedir_enabled {
+            let cwd = env::current_dir().expect("Failed to retrieve current working directory");
+            Some(canonicalize_path(&cwd.as_os_str().to_str().unwrap()).expect("Source directory does not exist."))
+        } else {
+            None
+        };
 
     let prefix_dir = if prefix_dir == "" {
         source_root.clone()

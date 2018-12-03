@@ -458,7 +458,7 @@ fn test_integration() {
                 make(path, gpp);
                 run(path);
                 check_equal_ade(
-                    &read_expected(path, "gcc", &gcc_version, "ade"),
+                    &read_expected(path, "gcc", &gcc_version, "ade", None),
                     &run_grcov(vec![path], path, "ade"),
                 );
                 check_equal_coveralls(
@@ -475,7 +475,7 @@ fn test_integration() {
             make(path, clangpp);
             run(path);
             check_equal_ade(
-                &read_expected(path, "llvm", &llvm_version, "ade"),
+                &read_expected(path, "llvm", &llvm_version, "ade", None),
                 &run_grcov(vec![path], path, "ade"),
             );
             check_equal_coveralls(
