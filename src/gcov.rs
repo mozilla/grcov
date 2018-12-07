@@ -1,7 +1,7 @@
 use semver::Version;
 use std::env;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 /*
 #[link(name = "gcov")]
@@ -51,20 +51,20 @@ pub fn run_gcov(gcno_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf
     let status = command
         .arg(gcno_path)
         .arg("-i") // Generate intermediate gcov format, faster to parse.
-        .current_dir(working_dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .current_dir(working_dir);
 
     /*if cfg!(unix) {
         status.spawn()
               .expect("Failed to execute gcov process");
     } else {*/
-    let status = status.status().expect("Failed to execute gcov process");
-    assert!(
-        status.success(),
-        "gcov wasn't successfully executed on {}",
-        gcno_path.display()
-    );
+    let output = status.output().expect("Failed to execute gcov process");
+
+    if !output.status.success() {
+        eprintln!("gcov stdout: {}", String::from_utf8_lossy(&output.stdout));
+        eprintln!("gcov stderr: {}", String::from_utf8_lossy(&output.stderr));
+
+        panic!("gcov wasn't successfully executed on {}", gcno_path.display());
+    }
     //}
 }
 
