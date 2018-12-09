@@ -3,37 +3,6 @@ use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 
-/*
-#[link(name = "gcov")]
-extern {
-    fn __gcov_read_unsigned() -> u32;
-    fn __gcov_open(name: *const c_char) -> i32;
-    fn __gcov_close();
-}
-
-fn gcov_open(file: String) -> i32 {
-    let c_to_print = CString::new(file).unwrap();
-    return unsafe { __gcov_open(c_to_print.as_ptr()) };
-}
-
-fn gcov_read_unsigned() -> u32 {
-    return unsafe { __gcov_read_unsigned() };
-}
-
-fn prova() {
-  if gcov_open("/home/marco/Documenti/workspace/grcov/tests/llvm/main.gcda".to_string()) == 1 {
-    println!("2");
-  }
-
-  println!("{:x}", gcov_read_unsigned());
-
-  if gcov_open("/home/marco/Documenti/workspace/grcov/tests/basic/main.gcda".to_string()) == 1 {
-    println!("1");
-  }
-
-  println!("{:x}", gcov_read_unsigned());
-}*/
-
 fn get_gcov() -> String {
     match env::var("GCOV") {
         Ok(s) => s,
@@ -53,10 +22,6 @@ pub fn run_gcov(gcno_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf
         .arg("-i") // Generate intermediate gcov format, faster to parse.
         .current_dir(working_dir);
 
-    /*if cfg!(unix) {
-        status.spawn()
-              .expect("Failed to execute gcov process");
-    } else {*/
     let output = status.output().expect("Failed to execute gcov process");
 
     if !output.status.success() {
@@ -65,7 +30,6 @@ pub fn run_gcov(gcno_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf
 
         panic!("gcov wasn't successfully executed on {}", gcno_path.display());
     }
-    //}
 }
 
 fn is_recent_version(gcov_output: &str) -> bool {
