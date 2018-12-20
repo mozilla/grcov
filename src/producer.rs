@@ -4,10 +4,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
 use std::fs::{self, File};
-use std::io::{self, Read};
+use std::io::{self, BufReader, Read};
 use std::os;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use walkdir::WalkDir;
 use zip::ZipArchive;
 
@@ -15,7 +14,7 @@ use defs::*;
 
 #[derive(Debug)]
 pub enum ArchiveType {
-    Zip(RefCell<ZipArchive<File>>),
+    Zip(RefCell<ZipArchive<BufReader<File>>>),
     Dir(PathBuf),
     Plain(Vec<PathBuf>),
 }
@@ -314,60 +313,48 @@ fn gcno_gcda_producer(
                 let gcno_archive = *gcno_archive;
                 let gcno = format!("{}.gcno", stem).to_string();
                 let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
-                let mut gcno_buf_opt: Option<Arc<Vec<u8>>> = if gcno_stem.llvm {
-                    let mut buffer: Vec<u8> = Vec::new();
-                    gcno_archive.read_in_buffer(&gcno, &mut buffer);
-                    Some(Arc::new(buffer))
+                if gcno_stem.llvm {
+                    let mut gcno_buffer: Vec<u8> = Vec::new();
+                    let mut gcda_buffers: Vec<Vec<u8>> = Vec::with_capacity(gcda_archives.len());
+                    gcno_archive.read_in_buffer(&gcno, &mut gcno_buffer);
+                    for gcda_archive in gcda_archives {
+                        let mut gcda_buf: Vec<u8> = Vec::new();
+                        let gcda = format!("{}.gcda", stem).to_string();
+                        if gcda_archive.read_in_buffer(&gcda, &mut gcda_buf) {
+                            gcda_buffers.push(gcda_buf);
+                        }
+                    }
+                    push_to_queue(
+                        ItemType::Buffers(GcnoBuffers {
+                            stem: stem.clone(),
+                            gcno_buf: gcno_buffer,
+                            gcda_buf: gcda_buffers,
+                        }),
+                        "".to_string(),
+                    );
                 } else {
                     gcno_archive.extract(&gcno, &physical_gcno_path);
-                    None
-                };
+                    for (num, &gcda_archive) in gcda_archives.iter().enumerate() {
+                        let gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, num + 1));
+                        let gcda = format!("{}.gcda", stem).to_string();
 
-                for (num, &gcda_archive) in gcda_archives.iter().enumerate() {
-                    let gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, num + 1));
-                    let gcda = format!("{}.gcda", stem).to_string();
-
-                    match gcno_buf_opt {
-                        Some(ref gcno_buf) => {
-                            let mut gcda_buf: Vec<u8> = Vec::new();
-                            let gcno_stem = tmp_dir.join(format!("{}_{}", stem, num + 1));
-                            let gcno_stem = gcno_stem
-                                .to_str()
-                                .expect("Failed to create stem file string");
-
-                            if gcda_archive.read_in_buffer(&gcda, &mut gcda_buf)
-                                || (num == 0 && !ignore_orphan_gcno)
-                            {
-                                push_to_queue(
-                                    ItemType::Buffers(GcnoBuffers {
-                                        stem: gcno_stem.to_string(),
-                                        gcno_buf: Arc::clone(gcno_buf),
-                                        gcda_buf: gcda_buf,
-                                    }),
-                                    gcda_archive.get_name().to_string(),
-                                );
-                            }
+                        // Create symlinks.
+                        if num != 0 {
+                            fs::hard_link(&physical_gcno_path, &gcno_path).unwrap_or_else(
+                                |_| panic!("Failed to create hardlink {:?}", gcno_path),
+                            );
                         }
-                        None => {
-                            // Create symlinks.
-                            if num != 0 {
-                                fs::hard_link(&physical_gcno_path, &gcno_path).unwrap_or_else(
-                                    |_| panic!("Failed to create hardlink {:?}", gcno_path),
-                                );
-                            }
 
-                            let gcda_path = tmp_dir.join(format!("{}_{}.gcda", stem, num + 1));
-
-                            if gcda_archive.extract(&gcda, &gcda_path)
-                                || (num == 0 && !ignore_orphan_gcno)
-                            {
-                                push_to_queue(
-                                    ItemType::Path(gcno_path),
-                                    gcda_archive.get_name().to_string(),
-                                );
-                            }
+                        let gcda_path = tmp_dir.join(format!("{}_{}.gcda", stem, num + 1));
+                        if gcda_archive.extract(&gcda, &gcda_path)
+                            || (num == 0 && !ignore_orphan_gcno)
+                        {
+                            push_to_queue(
+                                ItemType::Path(gcno_path),
+                                gcda_archive.get_name().to_string(),
+                            );
                         }
-                    };
+                    }
                 }
             }
             None => {
@@ -380,8 +367,8 @@ fn gcno_gcda_producer(
 
                         push_to_queue(
                             ItemType::Buffers(GcnoBuffers {
-                                stem: gcno,
-                                gcno_buf: Arc::new(buffer),
+                                stem: stem.clone(),
+                                gcno_buf: buffer,
                                 gcda_buf: Vec::new(),
                             }),
                             gcno_archive.get_name().to_string(),
@@ -430,9 +417,10 @@ pub fn get_mapping(linked_files_maps: &HashMap<String, &Archive>) -> Option<Vec<
     }
 }
 
-fn open_archive(path: &str) -> ZipArchive<File> {
+fn open_archive(path: &str) -> ZipArchive<BufReader<File>> {
     let file = File::open(&path).unwrap_or_else(|_| panic!("Failed to open ZIP file '{}'.", path));
-    ZipArchive::new(file).unwrap_or_else(|_| panic!("Failed to parse ZIP file: {}", path))
+    let reader = BufReader::new(file);
+    ZipArchive::new(reader).unwrap_or_else(|_| panic!("Failed to parse ZIP file: {}", path))
 }
 
 pub fn producer(
@@ -663,7 +651,7 @@ mod tests {
             (
                 ItemFormat::GCNO,
                 false,
-                "rust/generics_with_two_parameters_1",
+                "rust/generics_with_two_parameters",
                 true,
             ),
             (ItemFormat::INFO, false, "1494603973-2977-7.info", false),
@@ -677,9 +665,9 @@ mod tests {
                 "relative_path/relative_path.info",
                 false,
             ),
-            (ItemFormat::GCNO, false, "llvm/file_1", true),
-            (ItemFormat::GCNO, false, "llvm/file_branch_1", true),
-            (ItemFormat::GCNO, false, "llvm/reader_1", true),
+            (ItemFormat::GCNO, false, "llvm/file", true),
+            (ItemFormat::GCNO, false, "llvm/file_branch", true),
+            (ItemFormat::GCNO, false, "llvm/reader", true),
             (
                 ItemFormat::JACOCO_XML,
                 false,
@@ -1412,7 +1400,7 @@ mod tests {
             true,
             true,
         );
-        let gcno_buf: Arc<Vec<u8>> = Arc::new(vec![
+        let gcno_buf: Vec<u8> = vec![
             111, 110, 99, 103, 42, 50, 48, 52, 74, 200, 254, 66, 0, 0, 0, 1, 9, 0, 0, 0, 0, 0, 0,
             0, 236, 217, 93, 255, 2, 0, 0, 0, 109, 97, 105, 110, 0, 0, 0, 0, 2, 0, 0, 0, 102, 105,
             108, 101, 46, 99, 0, 0, 1, 0, 0, 0, 0, 0, 65, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1421,7 +1409,7 @@ mod tests {
             0, 0, 0, 0, 0, 0, 0, 0, 69, 1, 8, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 102,
             105, 108, 101, 46, 99, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0,
-        ]);
+        ];
         let gcda1_buf: Vec<u8> = vec![
             97, 100, 99, 103, 42, 50, 48, 52, 74, 200, 254, 66, 0, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0,
             236, 217, 93, 255, 2, 0, 0, 0, 109, 97, 105, 110, 0, 0, 0, 0, 0, 0, 161, 1, 4, 0, 0, 0,
@@ -1446,12 +1434,9 @@ mod tests {
             if let ItemType::Buffers(buffers) = elem.item {
                 let stem = PathBuf::from(buffers.stem);
                 let stem = stem.file_stem().expect("Unable to get file_stem");
-                if stem == "file_1" {
+                if stem == "file" {
                     assert_eq!(buffers.gcno_buf, gcno_buf);
-                    assert_eq!(buffers.gcda_buf, gcda1_buf);
-                } else if stem == "file_2" {
-                    assert_eq!(buffers.gcno_buf, gcno_buf);
-                    assert_eq!(buffers.gcda_buf, gcda2_buf);
+                    assert_eq!(buffers.gcda_buf, vec![gcda1_buf.clone(), gcda2_buf.clone()]);
                 } else {
                     assert!(false, "Unexpected file: {:?}", stem);
                 }
