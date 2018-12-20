@@ -129,12 +129,8 @@ pub fn output_lcov(results: CovResultIter) {
         // println!("{} {:?}", rel_path, result.lines);
 
         writeln!(writer, "SF:{}", rel_path.display()).unwrap();
-        let mut debug = false;
         for (name, function) in &result.functions {
             writeln!(writer, "FN:{},{}", function.start, name).unwrap();
-            if !debug && name == "little2_getAtts" {
-                debug = true;
-            }
         }
         for (name, function) in &result.functions {
             writeln!(

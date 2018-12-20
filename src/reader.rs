@@ -529,86 +529,86 @@ impl GCNO {
     ) -> Result<(), GcovError> {
         let tag = reader.read_u32()?;
         if tag != 0x0100_0000 {
-            Err(GcovError::Str(format!(
+            return Err(GcovError::Str(format!(
                 "Unexpected number of functions in {}",
                 reader.get_stem()
-            )))
-        } else {
-            let header_len = reader.read_u32()?;
-            let end_pos = reader.get_pos() + (header_len as usize) * 4;
-            let id = reader.read_u32()?;
-            if id != fun.identifier {
-                Err(GcovError::Str(format!(
-                    "Function identifiers do not match: {} != {} (in {}) in {}",
-                    fun.identifier,
-                    id,
+            )));
+        }
+
+        let header_len = reader.read_u32()?;
+        let end_pos = reader.get_pos() + (header_len as usize) * 4;
+        let id = reader.read_u32()?;
+        if id != fun.identifier {
+            return Err(GcovError::Str(format!(
+                "Function identifiers do not match: {} != {} (in {}) in {}",
+                fun.identifier,
+                id,
+                fun.name,
+                reader.get_stem()
+            )));
+        }
+
+        let _chk_sum = reader.skip_u32()?;
+        if version != 402 {
+            let cfg_sum = reader.read_u32()?;
+            if cfg_sum != checksum {
+                return Err(GcovError::Str(format!(
+                    "File checksums do not match: {} != {} (in {}) in {}",
+                    checksum,
+                    cfg_sum,
                     fun.name,
                     reader.get_stem()
-                )))
-            } else {
-                let _chk_sum = reader.skip_u32()?;
-                if version != 402 {
-                    let cfg_sum = reader.read_u32()?;
-                    if cfg_sum != checksum {
-                        return Err(GcovError::Str(format!(
-                            "File checksums do not match: {} != {} (in {}) in {}",
-                            checksum,
-                            cfg_sum,
-                            fun.name,
-                            reader.get_stem()
-                        )));
-                    }
-                }
-
-                if reader.get_pos() < end_pos {
-                    let fun_name = reader.read_string()?;
-                    if fun.name != fun_name {
-                        return Err(GcovError::Str(format!(
-                            "Function names do not match: {} != {} in {}",
-                            fun.name,
-                            fun_name,
-                            reader.get_stem()
-                        )));
-                    }
-                }
-
-                let arc_tag = reader.read_u32()?;
-                if arc_tag != 0x01a1_0000 {
-                    Err(GcovError::Str(format!(
-                        "Arc tag not found (in {}) in {}",
-                        fun.name,
-                        reader.get_stem()
-                    )))
-                } else {
-                    let count = reader.read_u32()?;
-                    let edges = &mut fun.edges;
-                    if edges.len() as u32 != count / 2 {
-                        Err(GcovError::Str(format!(
-                            "Unexpected number of edges (in {}) in {}",
-                            fun.name,
-                            reader.get_stem()
-                        )))
-                    } else {
-                        if let Some((first, elmts)) = edges.split_first_mut() {
-                            // The first edge is between entry block and a block
-                            // so the entry block as the same counter as the
-                            // edge counter.
-                            let counter = reader.read_counter()?;
-                            first.counter += counter;
-                            fun.blocks[first.destination].counter += counter;
-                            fun.blocks[first.source].counter += counter;
-
-                            for edge in elmts {
-                                let counter = reader.read_counter()?;
-                                edge.counter += counter;
-                                fun.blocks[edge.destination].counter += counter;
-                            }
-                        }
-                        Ok(())
-                    }
-                }
+                )));
             }
         }
+
+        if reader.get_pos() < end_pos {
+            let fun_name = reader.read_string()?;
+            if fun.name != fun_name {
+                return Err(GcovError::Str(format!(
+                    "Function names do not match: {} != {} in {}",
+                    fun.name,
+                    fun_name,
+                    reader.get_stem()
+                )));
+            }
+        }
+
+        let arc_tag = reader.read_u32()?;
+        if arc_tag != 0x01a1_0000 {
+            return Err(GcovError::Str(format!(
+                "Arc tag not found (in {}) in {}",
+                fun.name,
+                reader.get_stem()
+            )));
+        }
+
+        let count = reader.read_u32()?;
+        let edges = &mut fun.edges;
+        if edges.len() as u32 != count / 2 {
+            return Err(GcovError::Str(format!(
+                "Unexpected number of edges (in {}) in {}",
+                fun.name,
+                reader.get_stem()
+            )));
+        }
+
+        if let Some((first, elmts)) = edges.split_first_mut() {
+            // The first edge is between entry block and a block
+            // so the entry block as the same counter as the
+            // edge counter.
+            let counter = reader.read_counter()?;
+            first.counter += counter;
+            fun.blocks[first.destination].counter += counter;
+            fun.blocks[first.source].counter += counter;
+
+            for edge in elmts {
+                let counter = reader.read_counter()?;
+                edge.counter += counter;
+                fun.blocks[edge.destination].counter += counter;
+            }
+        }
+        Ok(())
     }
 
     fn collect_lines(&self) -> HashMap<&str, HashMap<u32, u64>> {
