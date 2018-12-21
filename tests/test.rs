@@ -470,26 +470,20 @@ fn test_integration() {
             }
 
             println!("\nLLVM");
-            let llvm_version = get_version(&get_tool("LLVM_CONFIG", "llvm-config"));
             let clangpp = &get_tool("CLANG_CXX", "clang++");
             let clang_version = get_version(clangpp);
-            assert_eq!(
-                llvm_version, clang_version,
-                "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version",
-                llvm_version, clang_version
-            );
             make(path, clangpp);
             run(path);
             check_equal_ade(
-                &read_expected(path, "llvm", &llvm_version, "ade", None),
+                &read_expected(path, "llvm", &clang_version, "ade", None),
                 &run_grcov(vec![path], &PathBuf::from(""), "ade"),
             );
             check_equal_coveralls(
-                &read_expected(path, "llvm", &llvm_version, "coveralls", None),
+                &read_expected(path, "llvm", &clang_version, "coveralls", None),
                 &run_grcov(vec![path], path, "coveralls"),
                 skip_branches,
             );
-
+            
             do_clean(path);
         }
     }
@@ -511,13 +505,7 @@ fn test_integration_zip_zip() {
 
         println!("\n{}", name.to_uppercase());
         let compiler_version = if is_llvm {
-            let llvm_version = get_version(&get_tool("LLVM_CONFIG", "llvm-config"));
             let clang_version = get_version(&compiler);
-            assert_eq!(
-                llvm_version, clang_version,
-                "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version",
-                llvm_version, clang_version
-            );
             clang_version
         } else {
             get_version(&compiler)
@@ -593,13 +581,7 @@ fn test_integration_zip_dir() {
 
         println!("\n{}", name.to_uppercase());
         let compiler_version = if is_llvm {
-            let llvm_version = get_version(&get_tool("LLVM_CONFIG", "llvm-config"));
             let clang_version = get_version(&compiler);
-            assert_eq!(
-                llvm_version, clang_version,
-                "llvm-config ({:?}) and clang++ ({:?}) don't have the same major version",
-                llvm_version, clang_version
-            );
             clang_version
         } else {
             get_version(&compiler)
