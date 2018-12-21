@@ -18,7 +18,6 @@ matrix:
         - GCC_CXX=g++-5
         - GCOV=gcov-5
         - CLANG_CXX=clang++-7
-        - LLVM_CONFIG=llvm-config-7
         - DEPLOY=0
 
     - os: linux
@@ -37,7 +36,6 @@ matrix:
         - GCC_CXX=g++-5
         - GCOV=gcov-5
         - CLANG_CXX=clang++-7
-        - LLVM_CONFIG=llvm-config-7
         - DEPLOY=0
 
     - os: linux
@@ -56,7 +54,6 @@ matrix:
         - GCC_CXX=g++-6
         - GCOV=gcov-6
         - CLANG_CXX=clang++-7
-        - LLVM_CONFIG=llvm-config-7
         - DEPLOY=0
 
     - os: linux
@@ -75,7 +72,6 @@ matrix:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-7
-        - LLVM_CONFIG=llvm-config-7
         - DEPLOY=1
 
     - os: linux
@@ -94,14 +90,12 @@ matrix:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-8
-        - LLVM_CONFIG=llvm-config-8
         - DEPLOY=0
 
     - os: osx
       rust: nightly
       env:
         - CLANG_CXX=clang++
-        - LLVM_CONFIG=llvm-config
         - DEPLOY=1
 before_install:
     - |

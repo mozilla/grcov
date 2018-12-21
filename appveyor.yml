@@ -34,8 +34,6 @@ install:
   - 7z x clang.tar.bz2
   - 7z x clang.tar
   - set PATH=clang\bin;%PATH%
-  - llvm-config --version
-  - llvm-config --host-target
 
   - set TARGET=%PLATFORM_TARGET%-pc-windows-msvc
   - if NOT "%PLATFORM_TARGET%" == "x86_64" (
@@ -64,7 +62,6 @@ test_script:
       If ($env:CHANNEL -eq "nightly" -And $env:APPVEYOR_REPO_TAG -eq "false") {
          mkdir ccov_dir
          Get-ChildItem -Path *\grcov*.gc* -Recurse | Copy-Item -Destination ccov_dir
-         Get-ChildItem -Path *\llvmgcov.gc* -Recurse | Copy-Item -Destination ccov_dir
          .\target\debug\grcov ccov_dir -s . -t lcov --llvm --branch --ignore-not-existing --ignore-dir "C:*" | Out-File -Encoding "UTF8" -FilePath lcov.info
          (Get-Content lcov.info) | Foreach-Object {$_ -replace "\xEF\xBB\xBF", ""} | Set-Content lcov.info
          ((Get-Content lcov.info) -join "`n") + "`n" | Set-Content -NoNewline lcov.info
