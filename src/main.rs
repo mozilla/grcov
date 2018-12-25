@@ -19,7 +19,7 @@ static GLOBAL: System = System;
 use grcov::*;
 
 fn print_usage(program: &str) {
-    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch] [--filter]", program);
+    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch] [--filter] [--no-sourcedir]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
     println!(" - (DEFAULT) lcov for the lcov INFO format;");
@@ -38,6 +38,7 @@ fn print_usage(program: &str) {
     println!("The --ignore-dir option can be used to ignore files/directories specified as globs.");
     println!("The --branch option enables parsing branch coverage information.");
     println!("The --filter option allows filtering out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered' to only return uncovered files.");
+    println!("The --no-sourcedir can be used when there is no source directory");
 }
 
 fn main() {
@@ -232,13 +233,13 @@ fn main() {
     }
 
     let source_root = if source_dir != "" {
-            Some(canonicalize_path(&source_dir).expect("Source directory does not exist."))
-        } else if sourcedir_enabled {
-            let cwd = env::current_dir().expect("Failed to retrieve current working directory");
-            Some(canonicalize_path(&cwd.as_os_str().to_str().unwrap()).expect("Source directory does not exist."))
-        } else {
-            None
-        };
+        Some(canonicalize_path(&source_dir).expect("Source directory does not exist."))
+    } else if sourcedir_enabled {
+        let cwd = env::current_dir().expect("Failed to retrieve current working directory");
+        Some(canonicalize_path(&cwd.as_os_str().to_str().unwrap()).expect("Source directory does not exist."))
+    } else {
+        None
+    };
 
     let prefix_dir = if prefix_dir == "" {
         source_root.clone()
