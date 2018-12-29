@@ -5,7 +5,7 @@ extern crate crossbeam;
 extern crate globset;
 extern crate libc;
 extern crate semver;
-extern crate tempdir;
+extern crate tempfile;
 extern crate uuid;
 extern crate walkdir;
 extern crate xml;
