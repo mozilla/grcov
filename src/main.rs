@@ -240,9 +240,7 @@ fn main() {
         Some(PathBuf::from(prefix_dir))
     };
 
-    //    let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
     let tmp_dir = tempfile::tempdir().unwrap();
-//    let tmp_dir = TempDir::new();
     let tmp_path = tmp_dir.path().to_owned();
     assert!(tmp_path.exists());
 
