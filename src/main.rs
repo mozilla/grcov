@@ -2,7 +2,7 @@ extern crate crossbeam;
 extern crate grcov;
 extern crate num_cpus;
 extern crate serde_json;
-extern crate tempdir;
+extern crate tempfile;
 
 use crossbeam::queue::MsQueue;
 use serde_json::Value;
@@ -12,7 +12,6 @@ use std::fs::{self, File};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::{env, process, thread};
-use tempdir::TempDir;
 
 #[global_allocator]
 static GLOBAL: System = System;
@@ -241,8 +240,9 @@ fn main() {
         Some(PathBuf::from(prefix_dir))
     };
 
-    let tmp_dir = TempDir::new("grcov").expect("Failed to create temporary directory");
+    let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
+    assert!(tmp_path.exists());
 
     let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(HashMap::with_capacity(20_000)));
     let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());

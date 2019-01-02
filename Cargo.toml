@@ -37,7 +37,7 @@ num_cpus = "^1.8"
 semver = "^0.9"
 md5 = "^0.6"
 zip = { version = "^0.4", features = ["deflate-zlib"], default-features = false }
-tempdir = "^0.3"
+tempfile = "^3"
 uuid = { version = "^0.7", features = ["v4"] }
 libc = "^0.2"
 globset = "^0.4"
