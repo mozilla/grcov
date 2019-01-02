@@ -1,11 +1,10 @@
-use crypto::digest::Digest;
-use crypto::md5::Md5;
 use serde_json::{self, Value};
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::io::{self, BufWriter, Read, Write};
 use std::path::PathBuf;
 use uuid::Uuid;
+extern crate md5;
 
 use defs::*;
 
@@ -187,11 +186,7 @@ fn get_digest(path: PathBuf) -> String {
         Ok(mut f) => {
             let mut buffer = Vec::new();
             f.read_to_end(&mut buffer).unwrap();
-
-            let mut hasher = Md5::new();
-            hasher.input(buffer.as_slice());
-
-            hasher.result_str()
+            format!("{:x}", md5::compute(buffer.as_slice()))
         }
         Err(_) => Uuid::new_v4().to_string(),
     }
