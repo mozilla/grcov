@@ -1,4 +1,3 @@
-extern crate crypto;
 #[macro_use]
 extern crate serde_json;
 extern crate crossbeam;
