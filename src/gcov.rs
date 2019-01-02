@@ -28,7 +28,7 @@ pub fn run_gcov(gcno_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf
         eprintln!("gcov stdout: {}", String::from_utf8_lossy(&output.stdout));
         eprintln!("gcov stderr: {}", String::from_utf8_lossy(&output.stderr));
 
-        panic!("gcov wasn't successfully executed on {}", gcno_path.display());
+        panic!("gcov execution failed on {}", gcno_path.display());
     }
 }
 
