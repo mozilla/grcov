@@ -129,6 +129,7 @@ pub fn output_lcov(results: CovResultIter) {
         // println!("{} {:?}", rel_path, result.lines);
 
         writeln!(writer, "SF:{}", rel_path.display()).unwrap();
+
         for (name, function) in &result.functions {
             writeln!(writer, "FN:{},{}", function.start, name).unwrap();
         }
