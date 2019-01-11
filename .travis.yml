@@ -106,7 +106,6 @@ before_install:
 install:
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo softwareupdate -i "Command Line Tools (macOS High Sierra version 10.13) for Xcode-9.4"; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew cask uninstall --force oclint; fi
-    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install llvm && brew link --overwrite --force llvm; fi
 script:
     - export CXX=$CLANG_CXX
     - $CXX --version
