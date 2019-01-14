@@ -8,8 +8,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-7 main'
-              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+            - llvm-toolchain-trusty-7
           packages:
             - llvm-7-dev
             - clang-7
@@ -27,8 +26,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-7 main'
-              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+            - llvm-toolchain-trusty-7
           packages:
             - llvm-7-dev
             - clang-7
@@ -46,8 +44,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-7 main'
-              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+            - llvm-toolchain-trusty-7
           packages:
             - llvm-7-dev
             - clang-7
@@ -65,8 +62,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-7 main'
-              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+            - llvm-toolchain-trusty-7
           packages:
             - llvm-7-dev
             - clang-7
@@ -84,8 +80,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty main'
-              key_url: 'http://apt.llvm.org/llvm-snapshot.gpg.key'
+            - llvm-toolchain-trusty
           packages:
             - llvm-dev
             - clang
