@@ -1,17 +1,13 @@
 use std::collections::{btree_map, hash_map, BTreeMap, HashMap};
-use std::ffi::CString;
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read};
-use std::mem;
 use std::num::ParseIntError;
 use std::path::Path;
-use std::{slice, str};
+use std::str;
 
 use xml::attribute::OwnedAttribute;
 use xml::reader::{EventReader, XmlEvent};
-
-use libc;
 
 use defs::*;
 
@@ -68,202 +64,6 @@ macro_rules! try_parse_next {
     };
 }
 
-#[link(name = "llvmgcov", kind = "static")]
-extern "C" {
-    fn parse_llvm_gcno(
-        hdl: *const GCOVResult,
-        working_dir: *const libc::c_char,
-        file_stem: *const libc::c_char,
-        branch_enabled: libc::uint8_t,
-    );
-    fn parse_llvm_gcno_buf(
-        hdl: *const GCOVResult,
-        working_dir: *const libc::c_char,
-        file_stem: *const libc::c_char,
-        gcno_buf: *const libc::c_char,
-        gcno_buf_len: libc::size_t,
-        gcda_buf: *const libc::c_char,
-        gcda_buf_len: libc::size_t,
-        branch_enabled: libc::uint8_t,
-    );
-}
-
-pub fn call_parse_llvm_gcno(
-    working_dir: &str,
-    file_stem: &str,
-    branch_enabled: bool,
-) -> Vec<(String, CovResult)> {
-    let working_dir_c = CString::new(working_dir).unwrap();
-    let file_stem_c = CString::new(file_stem).unwrap();
-    let branch_enabled = if branch_enabled { 1 as u8 } else { 0 as u8 };
-
-    let mut result: Vec<(String, CovResult)> = Vec::new();
-    let hdl = GCOVResult {
-        ptr: result.as_mut_ptr() as *mut libc::c_void,
-        len: result.len(),
-        capacity: result.capacity(),
-        branch_number: 0,
-    };
-
-    let res = unsafe {
-        parse_llvm_gcno(
-            &hdl,
-            working_dir_c.as_ptr(),
-            file_stem_c.as_ptr(),
-            branch_enabled,
-        );
-        Vec::from_raw_parts(hdl.ptr as *mut (String, CovResult), hdl.len, hdl.capacity)
-    };
-
-    if hdl.ptr != result.as_mut_ptr() as *mut libc::c_void {
-        drop(result);
-    }
-    res
-}
-
-pub fn call_parse_llvm_gcno_buf(
-    working_dir: &str,
-    file_stem: &str,
-    gcno: &[u8],
-    gcda: &[u8],
-    branch_enabled: bool,
-) -> Vec<(String, CovResult)> {
-    let working_dir_c = CString::new(working_dir).unwrap();
-    let file_stem_c = CString::new(file_stem).unwrap();
-    let gcno_buf_len = gcno.len();
-    let gcda_buf_len = gcda.len();
-    let branch_enabled = if branch_enabled { 1 as u8 } else { 0 as u8 };
-
-    let mut result: Vec<(String, CovResult)> = Vec::new();
-    let hdl = GCOVResult {
-        ptr: result.as_mut_ptr() as *mut libc::c_void,
-        len: result.len(),
-        capacity: result.capacity(),
-        branch_number: 0,
-    };
-
-    let res = unsafe {
-        let gcno_buf = gcno.as_ptr() as *const libc::c_char;
-        let gcda_buf = gcda.as_ptr() as *const libc::c_char;
-
-        parse_llvm_gcno_buf(
-            &hdl,
-            working_dir_c.as_ptr(),
-            file_stem_c.as_ptr(),
-            gcno_buf,
-            gcno_buf_len,
-            gcda_buf,
-            gcda_buf_len,
-            branch_enabled,
-        );
-        Vec::from_raw_parts(hdl.ptr as *mut (String, CovResult), hdl.len, hdl.capacity)
-    };
-
-    if hdl.ptr != result.as_mut_ptr() as *mut libc::c_void {
-        drop(result);
-    }
-    res
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn handleFileRust(
-    hdl: *mut GCOVResult,
-    filename: *const libc::c_char,
-    len: libc::size_t,
-) {
-    let res = &mut *hdl;
-    let filename = str::from_utf8_unchecked(slice::from_raw_parts(filename as *const u8, len));
-
-    let mut results =
-        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
-    results.push((
-        filename.to_string(),
-        CovResult {
-            lines: BTreeMap::new(),
-            branches: BTreeMap::new(),
-            functions: HashMap::new(),
-        },
-    ));
-
-    res.ptr = results.as_mut_ptr() as *mut libc::c_void;
-    res.len = results.len();
-    res.capacity = results.capacity();
-
-    mem::forget(results);
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn handleFunctionRust(
-    hdl: *mut GCOVResult,
-    index: libc::uint32_t,
-    entrycount: libc::uint64_t,
-    funcname: *const libc::c_char,
-    len: libc::size_t,
-) {
-    let res = &mut *hdl;
-    let funcname = str::from_utf8_unchecked(slice::from_raw_parts(funcname as *const u8, len));
-    let mut results =
-        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
-    match results.last_mut() {
-        Some(r) => {
-            r.1.functions.insert(
-                funcname.to_string(),
-                Function {
-                    start: index,
-                    executed: entrycount != 0,
-                },
-            );
-        }
-        None => {
-            panic!("Results should not be emtpy");
-        }
-    }
-    mem::forget(results);
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn handleLcountRust(
-    hdl: *mut GCOVResult,
-    index: libc::uint32_t,
-    linecount: libc::uint64_t,
-) {
-    let res = &mut *hdl;
-    let mut results =
-        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
-    match results.last_mut() {
-        Some(r) => {
-            res.branch_number = 0;
-            r.1.lines.insert(index, linecount);
-        }
-        None => {
-            panic!("Results should not be emtpy");
-        }
-    }
-    mem::forget(results);
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn handleBranchRust(
-    hdl: *mut GCOVResult,
-    index: libc::uint32_t,
-    taken: libc::uint8_t,
-    _exec: libc::uint8_t,
-) {
-    let res = &mut *hdl;
-    let mut results =
-        Vec::from_raw_parts(res.ptr as *mut (String, CovResult), res.len, res.capacity);
-    match results.last_mut() {
-        Some(r) => {
-            r.1.branches.insert((index, res.branch_number), taken != 0);
-            res.branch_number += 1;
-        }
-        None => {
-            panic!("Results should not be emtpy");
-        }
-    }
-    mem::forget(results);
-}
-
 fn remove_newline(l: &mut Vec<u8>) {
     loop {
         let last = {
@@ -280,6 +80,27 @@ fn remove_newline(l: &mut Vec<u8>) {
 
         l.pop();
     }
+}
+
+pub fn add_branch(branches: &mut BTreeMap<u32, Vec<bool>>, line_no: u32, no: u32, taken: bool) {
+    match branches.entry(line_no) {
+        btree_map::Entry::Occupied(c) => {
+            let mut v = c.into_mut();
+            let l = v.len();
+            let no = no as usize;
+            if no == l {
+                v.push(taken);
+            } else if no > l {
+                v.extend(vec![false; no - l]);
+                v.push(taken)
+            } else {
+                v[no] |= taken;
+            }
+        }
+        btree_map::Entry::Vacant(v) => {
+            v.insert(vec![taken; 1]);
+        }
+    };
 }
 
 pub fn parse_lcov<T: Read>(
@@ -384,14 +205,7 @@ pub fn parse_lcov<T: Read>(
                         values.next();
                         let branch_number = try_parse_next!(values, l);
                         let taken = try_next!(values, l) != "-";
-                        match cur_branches.entry((line_no, branch_number)) {
-                            btree_map::Entry::Occupied(c) => {
-                                *c.into_mut() |= taken;
-                            }
-                            btree_map::Entry::Vacant(v) => {
-                                v.insert(taken);
-                            }
-                        };
+                        add_branch(&mut cur_branches, line_no, branch_number, taken);
                     }
                 }
                 _ => {}
@@ -407,8 +221,6 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
     let mut cur_lines = BTreeMap::new();
     let mut cur_branches = BTreeMap::new();
     let mut cur_functions = HashMap::new();
-    let mut branch_number = 0;
-
     let mut results = Vec::new();
 
     let f = File::open(&gcov_path)
@@ -464,8 +276,6 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
                 );
             }
             "lcount" => {
-                branch_number = 0;
-
                 let mut values = value.splitn(2, ',');
                 let line_no = try_parse_next!(values, l);
                 let execution_count = try_next!(values, l);
@@ -479,8 +289,15 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
                 let mut values = value.splitn(2, ',');
                 let line_no = try_parse_next!(values, l);
                 let taken = try_next!(values, l) == "taken";
-                cur_branches.insert((line_no, branch_number), taken);
-                branch_number += 1;
+                match cur_branches.entry(line_no) {
+                    btree_map::Entry::Occupied(c) => {
+                        let mut v = c.into_mut();
+                        v.push(taken);
+                    }
+                    btree_map::Entry::Vacant(p) => {
+                        p.insert(vec![taken; 1]);
+                    }
+                }
             }
             _ => {}
         }
@@ -514,9 +331,9 @@ fn get_xml_attribute(attributes: &[OwnedAttribute], name: &str) -> Result<String
 
 fn parse_jacoco_report_sourcefile<T: Read>(
     parser: &mut EventReader<T>,
-) -> Result<(BTreeMap<u32, u64>, BTreeMap<(u32, u32), bool>), ParserError> {
+) -> Result<(BTreeMap<u32, u64>, BTreeMap<u32, Vec<bool>>), ParserError> {
     let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
-    let mut branches: BTreeMap<(u32, u32), bool> = BTreeMap::new();
+    let mut branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();
 
     loop {
         match parser.next() {
@@ -534,13 +351,9 @@ fn parse_jacoco_report_sourcefile<T: Read>(
 
                 if mb > 0 || cb > 0 {
                     // This line is a branch.
-                    for branch in 0..cb {
-                        branches.insert((nr, branch as u32), true);
-                    }
-
-                    for branch in cb..cb + mb {
-                        branches.insert((nr, branch as u32), false);
-                    }
+                    let mut v = vec![true; cb as usize];
+                    v.extend(vec![false; mb as usize]);
+                    branches.insert(nr, v);
                 } else {
                     // This line is a statement.
                     // JaCoCo does not feature execution counts, so we set the
@@ -932,18 +745,12 @@ mod tests {
         assert_eq!(
             result.branches,
             [
-                ((34, 0), false),
-                ((34, 1), false),
-                ((41, 0), false),
-                ((41, 1), false),
-                ((44, 0), false),
-                ((44, 1), false),
-                ((60, 0), false),
-                ((60, 1), false),
-                ((63, 0), false),
-                ((63, 1), false),
-                ((68, 0), true),
-                ((68, 1), true)
+                (34, vec![false, false]),
+                (41, vec![false, false]),
+                (44, vec![false, false]),
+                (60, vec![false, false]),
+                (63, vec![false, false]),
+                (68, vec![true, true])
             ]
                 .iter()
                 .cloned()
@@ -1653,10 +1460,8 @@ mod tests {
         assert_eq!(
             result.branches,
             [
-                ((399, 0), false),
-                ((399, 1), false),
-                ((401, 0), true),
-                ((401, 1), false)
+                (399, vec![false, false]),
+                (401, vec![true, false])
             ]
                 .iter()
                 .cloned()
@@ -1713,31 +1518,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parser_gcov_with_no_tmp() {
-        let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
-        lines.insert(2, 1);
-        let mut functions: HashMap<String, Function> = HashMap::new();
-        functions.insert(
-            String::from("main"),
-            Function {
-                start: 1,
-                executed: true,
-            },
-        );
-        let branches: BTreeMap<(u32, u32), bool> = BTreeMap::new();
-        let expected = vec![(
-            String::from("file.c"),
-            CovResult {
-                lines: lines,
-                branches: branches,
-                functions: functions,
-            },
-        )];
-        let result = call_parse_llvm_gcno("test/llvm", "test/llvm/file", true);
-        assert_eq!(result, expected);
-    }
-
-    #[test]
     fn test_parser_jacoco_xml_basic() {
         let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
         lines.insert(1, 0);
@@ -1758,9 +1538,8 @@ mod tests {
                 start: 3,
             },
         );
-        let mut branches: BTreeMap<(u32, u32), bool> = BTreeMap::new();
-        branches.insert((3, 0), true);
-        branches.insert((3, 1), true);
+        let mut branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();
+        branches.insert(3, vec![true, true]);
         let expected = vec![(
             String::from("hello.java"),
             CovResult {
@@ -1807,7 +1586,7 @@ mod tests {
         ] {
             functions.insert(String::from(name), Function { executed, start });
         }
-        let branches: BTreeMap<(u32, u32), bool> = BTreeMap::new();
+        let branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();
         let expected = vec![(
             String::from("org/gradle/Person.java"),
             CovResult {

@@ -1,0 +1,77 @@
+===== foo (0) @ reader.c:1
+Block : 0 Counter : 54
+	Destination Edges : 1 (54), 
+Block : 1 Counter : 54
+	Source Edges : 0 (54), 
+	Destination Edges : 2 (54), 
+	Lines : 4,
+Block : 2 Counter : 594
+	Source Edges : 1 (54), 11 (540), 
+	Destination Edges : 3 (540), 12 (54), 
+	Lines : 4,
+Block : 3 Counter : 540
+	Source Edges : 2 (540), 
+	Destination Edges : 4 (537), 5 (3), 
+	Lines : 5,
+Block : 4 Counter : 537
+	Source Edges : 3 (537), 
+	Destination Edges : 10 (537), 
+	Lines : 7,8,
+Block : 5 Counter : 3
+	Source Edges : 3 (3), 
+	Destination Edges : 6 (3), 
+	Lines : 12,
+Block : 6 Counter : 6
+	Source Edges : 5 (3), 8 (3), 
+	Destination Edges : 7 (3), 9 (3), 
+	Lines : 12,
+Block : 7 Counter : 3
+	Source Edges : 6 (3), 
+	Destination Edges : 8 (3), 
+	Lines : 13,14,
+Block : 8 Counter : 3
+	Source Edges : 7 (3), 
+	Destination Edges : 6 (3), 
+	Lines : 12,
+Block : 9 Counter : 3
+	Source Edges : 6 (3), 
+	Destination Edges : 10 (3), 
+Block : 10 Counter : 540
+	Source Edges : 4 (537), 9 (3), 
+	Destination Edges : 11 (540), 
+	Lines : 16,
+Block : 11 Counter : 540
+	Source Edges : 10 (540), 
+	Destination Edges : 2 (540), 
+	Lines : 4,
+Block : 12 Counter : 54
+	Source Edges : 2 (54), 
+	Destination Edges : 13 (54), 
+	Lines : 17,
+Block : 13 Counter : 54
+	Source Edges : 12 (54), 
+===== main (1) @ reader.c:20
+Block : 0 Counter : 1
+	Destination Edges : 1 (1), 
+Block : 1 Counter : 1
+	Source Edges : 0 (1), 
+	Destination Edges : 2 (1), 
+	Lines : 22,23,25,
+Block : 2 Counter : 54
+	Source Edges : 1 (1), 4 (53), 
+	Destination Edges : 3 (53), 5 (1), 
+	Lines : 25,
+Block : 3 Counter : 53
+	Source Edges : 2 (53), 
+	Destination Edges : 4 (53), 
+	Lines : 27,28,
+Block : 4 Counter : 53
+	Source Edges : 3 (53), 
+	Destination Edges : 2 (53), 
+	Lines : 25,
+Block : 5 Counter : 1
+	Source Edges : 2 (1), 
+	Destination Edges : 6 (1), 
+	Lines : 29,
+Block : 6 Counter : 1
+	Source Edges : 5 (1), 

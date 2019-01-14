@@ -1,8 +1,7 @@
 use crossbeam::queue::MsQueue;
-use libc;
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
@@ -13,17 +12,8 @@ pub struct Function {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CovResult {
     pub lines: BTreeMap<u32, u64>,
-    pub branches: BTreeMap<(u32, u32), bool>,
+    pub branches: BTreeMap<u32, Vec<bool>>,
     pub functions: HashMap<String, Function>,
-}
-
-#[derive(Debug)]
-#[repr(C)]
-pub struct GCOVResult {
-    pub ptr: *mut libc::c_void,
-    pub len: libc::size_t,
-    pub capacity: libc::size_t,
-    pub branch_number: libc::uint32_t,
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -37,8 +27,8 @@ pub enum ItemFormat {
 #[derive(Debug)]
 pub struct GcnoBuffers {
     pub stem: String,
-    pub gcno_buf: Arc<Vec<u8>>,
-    pub gcda_buf: Vec<u8>,
+    pub gcno_buf: Vec<u8>,
+    pub gcda_buf: Vec<Vec<u8>>,
 }
 
 #[derive(Debug)]

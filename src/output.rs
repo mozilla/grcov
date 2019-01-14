@@ -152,16 +152,18 @@ pub fn output_lcov(results: CovResultIter) {
 
         // branch coverage information
         let mut branch_hit = 0;
-        for (&(line, number), &taken) in &result.branches {
-            writeln!(
-                writer,
-                "BRDA:{},0,{},{}",
-                line,
-                number,
-                if taken { "1" } else { "-" }
-            ).unwrap();
-            if taken {
-                branch_hit += 1;
+        for (line, ref taken) in &result.branches {
+            for (n, b_t) in taken.iter().enumerate() {
+                writeln!(
+                    writer,
+                    "BRDA:{},0,{},{}",
+                    line,
+                    n,
+                    if *b_t { "1" } else { "-" }
+                ).unwrap();
+                if *b_t {
+                    branch_hit += 1;
+                }
             }
         }
 
@@ -217,11 +219,13 @@ pub fn output_coveralls(
         }
 
         let mut branches = Vec::new();
-        for (&(line, number), &taken) in &result.branches {
-            branches.push(line);
-            branches.push(0);
-            branches.push(number);
-            branches.push(if taken { 1 } else { 0 });
+        for (line, ref taken) in &result.branches {
+            for (n, b_t) in taken.iter().enumerate() {
+                branches.push(*line);
+                branches.push(0);
+                branches.push(n as u32);
+                branches.push(if *b_t { 1 } else { 0 });
+            }
         }
 
         if !with_function_info {

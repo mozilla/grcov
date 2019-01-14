@@ -1,0 +1,35 @@
+        -:    0:Source:reader.c
+        -:    0:Graph:reader.gcno
+        -:    0:Data:reader.gcda
+        -:    0:Runs:2
+        -:    0:Programs:1
+        -:    1:int foo(int x, int n)
+        -:    2:{
+        -:    3:    int i;
+     1188:    4:    for (i = 0; i < n; ++i) {
+     1080:    5:        if (x > n)
+        -:    6:        {
+     1074:    7:            x += i;
+     1074:    8:        }
+        -:    9:        else
+        -:   10:        {
+        -:   11:            int j;
+       12:   12:            for (j = 0; j < i; ++j) {
+        6:   13:                x += j;
+        6:   14:            }
+        -:   15:        }
+     1080:   16:    }
+      108:   17:    return x;
+        -:   18:}
+        -:   19:
+        -:   20:int main()
+        -:   21:{
+        2:   22:    int x = foo(10, 10);
+        2:   23:    int y = 0;
+        -:   24:    int i;
+      108:   25:    for (i = 0; i < x; ++i)
+        -:   26:    {
+      106:   27:        y += foo(x, 10);
+      106:   28:    }
+        2:   29:    return y;
+        -:   30:}

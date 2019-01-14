@@ -10,8 +10,6 @@ repository="https://github.com/mozilla/grcov"
 readme = "README.md"
 keywords=["coverage"]
 categories=["command-line-utilities", "development-tools", "development-tools::testing"]
-links = "llvmgcov"
-build = "build.rs"
 exclude = [
     "test/*",
     "tests/*",
@@ -26,9 +24,6 @@ appveyor = { repository = "marco-c/grcov" }
 travis-ci = { repository = "mozilla/grcov" }
 codecov = { repository = "mozilla/grcov" }
 
-[build-dependencies]
-cc = "^1.0"
-
 [dependencies]
 crossbeam = "^0.4"
 serde_json = "^1.0"
@@ -39,9 +34,9 @@ md5 = "^0.6"
 zip = { version = "^0.4", features = ["deflate-zlib"], default-features = false }
 tempfile = "^3"
 uuid = { version = "^0.7", features = ["v4"] }
-libc = "^0.2"
 globset = "^0.4"
 xml-rs = "^0.8"
+smallvec = "^0.6.7"
 
 [dev-dependencies]
 regex = "^1.0"
