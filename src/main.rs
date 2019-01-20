@@ -6,15 +6,11 @@ extern crate tempfile;
 
 use crossbeam::queue::MsQueue;
 use serde_json::Value;
-use std::alloc::System;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::{env, process, thread};
-
-#[global_allocator]
-static GLOBAL: System = System;
 
 use grcov::*;
 
