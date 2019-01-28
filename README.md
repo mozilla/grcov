@@ -56,7 +56,7 @@ grcov ~/Documents/FD/mozilla-central/build -t coveralls -s ~/Documents/FD/mozill
 
 ## Build & Test
 
-In order to build, the LLVM libraries and headers are required.
+In order to build, either LLVM 7 or LLVM 8 libraries and headers are required. If one of these versions is sucessfully installed, build with:
 
 ```
 cargo build
