@@ -62,19 +62,9 @@ In order to build, either LLVM 7 or LLVM 8 libraries and headers are required. I
 cargo build
 ```
 
-And to run tests:
+To run tests:
 ```
 cargo test
-```
-
-If previous LLVM versions are installed and LLVM 7 or LLVM 8 are setup, it is possible to find some build errors. In this case, build with the following for LLVM 7:
-```
-LLVM_CONFIG=llvm-config-7 cargo build
-```
-
-Or:
-```
-LLVM_CONFIG=llvm-config-8 cargo build
 ```
 
 ## Minimum requirements
