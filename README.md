@@ -54,11 +54,10 @@ genhtml -o report/ --show-details --highlight --ignore-errors source --legend lc
 grcov ~/Documents/FD/mozilla-central/build -t coveralls -s ~/Documents/FD/mozilla-central --token YOUR_COVERALLS_TOKEN > coveralls.json
 ```
 
-### GRCOV with Travis
+### grcov with Travis
 
 Here is an example of .travis.yml file
 ```YAML
-sudo: false
 language: rust
 
 before_install:
@@ -71,7 +70,7 @@ matrix:
 
 script:
     - export CARGO_INCREMENTAL=0
-    - export RUSTFLAGS="-Zprofile -Ccodegen-units=1"
+    - export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off"
     - cargo build --verbose $CARGO_OPTIONS
     - cargo test --verbose $CARGO_OPTIONS
     - |
