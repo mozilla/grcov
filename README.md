@@ -54,6 +54,31 @@ genhtml -o report/ --show-details --highlight --ignore-errors source --legend lc
 grcov ~/Documents/FD/mozilla-central/build -t coveralls -s ~/Documents/FD/mozilla-central --token YOUR_COVERALLS_TOKEN > coveralls.json
 ```
 
+### grcov with Travis
+
+Here is an example of .travis.yml file
+```YAML
+language: rust
+
+before_install:
+  - curl -L https://github.com/mozilla/grcov/releases/download/v0.4.1/grcov-linux-x86_64.tar.bz2 | tar jxf -
+
+matrix:
+  include:
+    - os: linux
+      rust: nightly
+
+script:
+    - export CARGO_INCREMENTAL=0
+    - export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"
+    - cargo build --verbose $CARGO_OPTIONS
+    - cargo test --verbose $CARGO_OPTIONS
+    - |
+      zip -0 ccov.zip `find . \( -name "YOUR_PROJECT_NAME*.gc*" \) -print`;
+      ./grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore-dir "/*" > lcov.info;
+      bash <(curl -s https://codecov.io/bash) -f lcov.info;
+```
+
 ## Build & Test
 
 In order to build, either LLVM 7 or LLVM 8 libraries and headers are required. If one of these versions is sucessfully installed, build with:
