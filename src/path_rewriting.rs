@@ -208,10 +208,12 @@ pub fn rewrite_paths(
                 continue;
             }
 
-            let name = entry.file_name().to_str().unwrap().to_string();
-
             let path = full_path.strip_prefix(&source_dir).unwrap().to_path_buf();
+            if to_ignore_globset.is_match(&path) {
+                continue;
+            }
 
+            let name = entry.file_name().to_str().unwrap().to_string();
             match file_to_paths.entry(name) {
                 hash_map::Entry::Occupied(f) => f.into_mut().push(path),
                 hash_map::Entry::Vacant(v) => {
