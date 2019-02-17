@@ -19,7 +19,7 @@ static GLOBAL: System = System;
 use grcov::*;
 
 fn print_usage(program: &str) {
-    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch] [--filter]", program);
+    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-o OUTPUT FILENAME] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch] [--filter]", program);
     println!("You can specify one or more directories, separated by a space.");
     println!("OUTPUT_TYPE can be one of:");
     println!(" - (DEFAULT) lcov for the lcov INFO format;");
@@ -64,6 +64,8 @@ fn main() {
     let mut path_mapping_file = "";
     let mut filter_option = None;
     let mut num_threads = num_cpus::get() * 2;
+    let mut output_file_path = "-";
+
     while i < args.len() {
         if args[i] == "-t" {
             if args.len() <= i + 1 {
@@ -190,6 +192,14 @@ fn main() {
             num_threads = args[i + 1]
                 .parse()
                 .expect("Number of threads should be a number");
+            i += 1;
+        } else if args[i] == "-o"{
+            if args.len() <= i + 1{
+                eprintln!("[ERROR]: Output file not specified.\n");
+                print_usage(&args[0]);
+                process::exit(1);
+            }
+            output_file_path = &args[i + 1];
             i += 1;
         } else {
             paths.push(args[i].clone());
@@ -330,9 +340,9 @@ fn main() {
     );
 
     if output_type == "ade" {
-        output_activedata_etl(iterator);
+        output_activedata_etl(iterator, output_file_path);
     } else if output_type == "lcov" {
-        output_lcov(iterator);
+        output_lcov(iterator, output_file_path);
     } else if output_type == "coveralls" {
         output_coveralls(
             iterator,
@@ -342,6 +352,7 @@ fn main() {
             service_job_number,
             commit_sha,
             false,
+            output_file_path
         );
     } else if output_type == "coveralls+" {
         output_coveralls(
@@ -352,9 +363,10 @@ fn main() {
             service_job_number,
             commit_sha,
             true,
+            output_file_path
         );
     } else if output_type == "files" {
-        output_files(iterator);
+        output_files(iterator, output_file_path);
     } else {
         assert!(false, "{} is not a supported output type", output_type);
     }
