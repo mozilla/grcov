@@ -12,7 +12,6 @@ use std::fs::{self, File};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::{env, process, thread};
-use std::option::Option;
 
 #[global_allocator]
 static GLOBAL: System = System;
@@ -65,7 +64,7 @@ fn main() {
     let mut path_mapping_file = "";
     let mut filter_option = None;
     let mut num_threads = num_cpus::get() * 2;
-    let mut output_file_path: Option<&str> = None;
+    let mut output_file_path = None;
 
     while i < args.len() {
         if args[i] == "-t" {
@@ -200,9 +199,7 @@ fn main() {
                 print_usage(&args[0]);
                 process::exit(1);
             }
-            if &args[i + 1] != "-"{
-                output_file_path = Some(&args[i + 1]);
-            }
+            output_file_path = Some(&args[i + 1]);
             i += 1;
         } else {
             paths.push(args[i].clone());

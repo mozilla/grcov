@@ -8,7 +8,7 @@ extern crate md5;
 
 use defs::*;
 
-fn get_target_output_writable(output_file: Option<&str>) -> Box<Write> {
+fn get_target_output_writable(output_file: Option<&String>) -> Box<Write> {
     let write_target: Box<Write> = match output_file {
         Some(filename) => {
             Box::new(File::create(filename).unwrap())
@@ -21,7 +21,7 @@ fn get_target_output_writable(output_file: Option<&str>) -> Box<Write> {
     return write_target;
 }
 
-pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>) {
+pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&String>) {
 
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
 
@@ -132,7 +132,7 @@ pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>) 
     }
 }
 
-pub fn output_lcov(results: CovResultIter, output_file: Option<&str>) {
+pub fn output_lcov(results: CovResultIter, output_file: Option<&String>) {
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     writer.write_all(b"TN:\n").unwrap();
 
@@ -213,7 +213,7 @@ pub fn output_coveralls(
     service_job_number: &str,
     commit_sha: &str,
     with_function_info: bool,
-    output_file: Option<&str>
+    output_file: Option<&String>
 ) {
     let mut source_files = Vec::new();
 
@@ -286,7 +286,7 @@ pub fn output_coveralls(
     ).unwrap();
 }
 
-pub fn output_files(results: CovResultIter, output_file: Option<&str>) {
+pub fn output_files(results: CovResultIter, output_file: Option<&String>) {
 
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     for (_, rel_path, _) in results {
