@@ -8,9 +8,22 @@ extern crate md5;
 
 use defs::*;
 
-pub fn output_activedata_etl(results: CovResultIter) {
-    let stdout = io::stdout();
-    let mut writer = BufWriter::new(stdout.lock());
+fn get_target_output_writable(output_file: Option<&String>) -> Box<Write> {
+    let write_target: Box<Write> = match output_file {
+        Some(filename) => {
+            Box::new(File::create(filename).unwrap())
+        },
+        None => {
+            let stdout = io::stdout();
+            Box::new(stdout)
+        },
+    };
+    return write_target;
+}
+
+pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&String>) {
+
+    let mut writer = BufWriter::new(get_target_output_writable(output_file));
 
     for (_, rel_path, result) in results {
         let covered: Vec<u32> = result
@@ -119,10 +132,8 @@ pub fn output_activedata_etl(results: CovResultIter) {
     }
 }
 
-pub fn output_lcov(results: CovResultIter) {
-    let stdout = io::stdout();
-    let mut writer = BufWriter::new(stdout.lock());
-
+pub fn output_lcov(results: CovResultIter, output_file: Option<&String>) {
+    let mut writer = BufWriter::new(get_target_output_writable(output_file));
     writer.write_all(b"TN:\n").unwrap();
 
     for (_, rel_path, result) in results {
@@ -202,6 +213,7 @@ pub fn output_coveralls(
     service_job_number: &str,
     commit_sha: &str,
     with_function_info: bool,
+    output_file: Option<&String>
 ) {
     let mut source_files = Vec::new();
 
@@ -255,10 +267,9 @@ pub fn output_coveralls(
         }
     }
 
-    let stdout = io::stdout();
-    let mut stdout = stdout.lock();
+    let mut writer = BufWriter::new(get_target_output_writable(output_file));
     serde_json::to_writer(
-        &mut stdout,
+        &mut writer,
         &json!({
         "repo_token": repo_token,
         "git": {
@@ -275,10 +286,9 @@ pub fn output_coveralls(
     ).unwrap();
 }
 
-pub fn output_files(results: CovResultIter) {
-    let stdout = io::stdout();
-    let mut writer = BufWriter::new(stdout.lock());
+pub fn output_files(results: CovResultIter, output_file: Option<&String>) {
 
+    let mut writer = BufWriter::new(get_target_output_writable(output_file));
     for (_, rel_path, _) in results {
         writeln!(writer, "{}", rel_path.display()).unwrap();
     }
