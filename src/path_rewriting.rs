@@ -124,6 +124,18 @@ fn get_abs_path(
     (abs_path, rel_path)
 }
 
+fn check_extension(path: &PathBuf, e: &str) -> bool {
+    if let Some(ext) = &path.extension() {
+        if let Some(ext) = ext.to_str() {
+            ext == e
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
 fn map_partial_path(file_to_paths: &HashMap<String, Vec<PathBuf>>, path: PathBuf) -> PathBuf {
     let options = file_to_paths.get(path.file_name().unwrap().to_str().unwrap());
 
@@ -235,7 +247,11 @@ pub fn rewrite_paths(
         let rel_path = remove_prefix(&prefix_dir, rel_path);
 
         // Try mapping a partial path to a full path.
-        let rel_path = map_partial_path(&file_to_paths, rel_path);
+        let rel_path = if check_extension(&rel_path, "java") {
+            map_partial_path(&file_to_paths, rel_path)
+        } else {
+            rel_path
+        };
 
         // Get absolute path to the source file.
         let (abs_path, rel_path) = get_abs_path(&source_dir, rel_path, &mut cache);
