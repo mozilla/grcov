@@ -634,8 +634,8 @@ mod tests {
     #[test]
     fn test_rewrite_paths_rewrite_path_using_absolute_source_directory() {
         let mut result_map: CovResultMap = HashMap::new();
-        result_map.insert("class/main.cpp".to_string(), empty_result!());
-        result_map.insert("tests/class/main.cpp".to_string(), empty_result!());
+        result_map.insert("java/main.java".to_string(), empty_result!());
+        result_map.insert("tests/java/main.java".to_string(), empty_result!());
         let results = rewrite_paths(
             result_map,
             None,
@@ -649,8 +649,8 @@ mod tests {
         for (abs_path, rel_path, result) in results {
             count += 1;
             assert!(abs_path.is_absolute());
-            assert!(abs_path.ends_with("tests/class/main.cpp"));
-            assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
+            assert!(abs_path.ends_with("tests/java/main.java"));
+            assert_eq!(rel_path, PathBuf::from("java/main.java"));
             assert_eq!(result, empty_result!());
         }
         assert_eq!(count, 2);
@@ -660,8 +660,8 @@ mod tests {
     #[test]
     fn test_rewrite_paths_rewrite_path_using_absolute_source_directory() {
         let mut result_map: CovResultMap = HashMap::new();
-        result_map.insert("class\\main.cpp".to_string(), empty_result!());
-        result_map.insert("tests\\class\\main.cpp".to_string(), empty_result!());
+        result_map.insert("java\\main.java".to_string(), empty_result!());
+        result_map.insert("tests\\java\\main.java".to_string(), empty_result!());
         let results = rewrite_paths(
             result_map,
             None,
@@ -675,8 +675,8 @@ mod tests {
         for (abs_path, rel_path, result) in results {
             count += 1;
             assert!(abs_path.is_absolute());
-            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
-            assert_eq!(rel_path, PathBuf::from("class\\main.cpp"));
+            assert!(abs_path.ends_with("tests\\java\\main.java"));
+            assert_eq!(rel_path, PathBuf::from("java\\main.java"));
             assert_eq!(result, empty_result!());
         }
         assert_eq!(count, 2);
@@ -686,7 +686,7 @@ mod tests {
     #[test]
     fn test_rewrite_paths_rewrite_path_using_absolute_source_directory_and_partial_path() {
         let mut result_map: CovResultMap = HashMap::new();
-        result_map.insert("class/main.cpp".to_string(), empty_result!());
+        result_map.insert("java/main.java".to_string(), empty_result!());
         let results = rewrite_paths(
             result_map,
             None,
@@ -700,8 +700,8 @@ mod tests {
         for (abs_path, rel_path, result) in results {
             count += 1;
             assert!(abs_path.is_absolute());
-            assert!(abs_path.ends_with("tests/class/main.cpp"));
-            assert_eq!(rel_path, PathBuf::from("tests/class/main.cpp"));
+            assert!(abs_path.ends_with("tests/java/main.java"));
+            assert_eq!(rel_path, PathBuf::from("tests/java/main.java"));
             assert_eq!(result, empty_result!());
         }
         assert_eq!(count, 1);
@@ -711,7 +711,7 @@ mod tests {
     #[test]
     fn test_rewrite_paths_rewrite_path_using_absolute_source_directory_and_partial_path() {
         let mut result_map: CovResultMap = HashMap::new();
-        result_map.insert("class\\main.cpp".to_string(), empty_result!());
+        result_map.insert("java\\main.java".to_string(), empty_result!());
         let results = rewrite_paths(
             result_map,
             None,
@@ -725,8 +725,8 @@ mod tests {
         for (abs_path, rel_path, result) in results {
             count += 1;
             assert!(abs_path.is_absolute());
-            assert!(abs_path.ends_with("tests\\class\\main.cpp"));
-            assert_eq!(rel_path, PathBuf::from("tests\\class\\main.cpp"));
+            assert!(abs_path.ends_with("tests\\java\\main.java"));
+            assert_eq!(rel_path, PathBuf::from("tests\\java\\main.java"));
             assert_eq!(result, empty_result!());
         }
         assert_eq!(count, 1);
