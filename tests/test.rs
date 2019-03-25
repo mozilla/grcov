@@ -459,14 +459,14 @@ fn test_integration() {
                 let gcc_version = get_version(gpp);
                 make(path, gpp);
                 run(path);
-                check_equal_ade(
-                    &read_expected(path, "gcc", &gcc_version, "ade", None),
-                    &run_grcov(vec![path], &PathBuf::from(""), "ade"),
-                );
                 check_equal_coveralls(
                     &read_expected(path, "gcc", &gcc_version, "coveralls", None),
                     &run_grcov(vec![path], path, "coveralls"),
                     skip_branches,
+                );
+                check_equal_ade(
+                    &read_expected(path, "gcc", &gcc_version, "ade", None),
+                    &run_grcov(vec![path], &PathBuf::from(""), "ade"),
                 );
                 do_clean(path);
             }
@@ -476,16 +476,16 @@ fn test_integration() {
             let clang_version = get_version(clangpp);
             make(path, clangpp);
             run(path);
-            check_equal_ade(
-                &read_expected(path, "llvm", &clang_version, "ade", None),
-                &run_grcov(vec![path], &PathBuf::from(""), "ade"),
-            );
             check_equal_coveralls(
                 &read_expected(path, "llvm", &clang_version, "coveralls", None),
                 &run_grcov(vec![path], path, "coveralls"),
                 skip_branches,
             );
-            
+            check_equal_ade(
+                &read_expected(path, "llvm", &clang_version, "ade", None),
+                &run_grcov(vec![path], &PathBuf::from(""), "ade"),
+            );
+
             do_clean(path);
         }
     }
