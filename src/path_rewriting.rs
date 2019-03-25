@@ -635,11 +635,11 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_using_absolute_source_directory() {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("java/main.java".to_string(), empty_result!());
-        result_map.insert("tests/java/main.java".to_string(), empty_result!());
+        result_map.insert("test/java/main.java".to_string(), empty_result!());
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path("tests").unwrap()),
+            Some(canonicalize_path("test").unwrap()),
             None,
             true,
             Vec::new(),
@@ -649,7 +649,7 @@ mod tests {
         for (abs_path, rel_path, result) in results {
             count += 1;
             assert!(abs_path.is_absolute());
-            assert!(abs_path.ends_with("tests/java/main.java"));
+            assert!(abs_path.ends_with("test/java/main.java"));
             assert_eq!(rel_path, PathBuf::from("java/main.java"));
             assert_eq!(result, empty_result!());
         }
@@ -661,11 +661,11 @@ mod tests {
     fn test_rewrite_paths_rewrite_path_using_absolute_source_directory() {
         let mut result_map: CovResultMap = HashMap::new();
         result_map.insert("java\\main.java".to_string(), empty_result!());
-        result_map.insert("tests\\java\\main.java".to_string(), empty_result!());
+        result_map.insert("test\\java\\main.java".to_string(), empty_result!());
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path("tests").unwrap()),
+            Some(canonicalize_path("test").unwrap()),
             None,
             true,
             Vec::new(),
@@ -675,11 +675,61 @@ mod tests {
         for (abs_path, rel_path, result) in results {
             count += 1;
             assert!(abs_path.is_absolute());
-            assert!(abs_path.ends_with("tests\\java\\main.java"));
+            assert!(abs_path.ends_with("test\\java\\main.java"));
             assert_eq!(rel_path, PathBuf::from("java\\main.java"));
             assert_eq!(result, empty_result!());
         }
         assert_eq!(count, 2);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_rewrite_paths_rewrite_path_for_java_and_rust() {
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("java/main.java".to_string(), empty_result!());
+        result_map.insert("main.rs".to_string(), empty_result!());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            Some(canonicalize_path(".").unwrap()),
+            None,
+            true,
+            Vec::new(),
+            None,
+        );
+        let mut results: Vec<(PathBuf, PathBuf, CovResult)> = results.collect();
+        assert!(results.len() == 1);
+
+        let (abs_path, rel_path, result) = results.remove(0);
+        assert!(abs_path.is_absolute());
+        assert!(abs_path.ends_with("test/java/main.java"));
+        assert_eq!(rel_path, PathBuf::from("test/java/main.java"));
+        assert_eq!(result, empty_result!());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_rewrite_paths_rewrite_path_for_java_and_rust() {
+        let mut result_map: CovResultMap = HashMap::new();
+        result_map.insert("java\\main.java".to_string(), empty_result!());
+        result_map.insert("main.rs".to_string(), empty_result!());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            Some(canonicalize_path(".").unwrap()),
+            None,
+            true,
+            Vec::new(),
+            None,
+        );
+        let mut results: Vec<(PathBuf, PathBuf, CovResult)> = results.collect();
+        assert!(results.len() == 1);
+
+        let (abs_path, rel_path, result) = results.remove(0);
+        assert!(abs_path.is_absolute());
+        assert!(abs_path.ends_with("test\\java\\main.java"));
+        assert_eq!(rel_path, PathBuf::from("test\\java\\main.java"));
+        assert_eq!(result, empty_result!());
     }
 
     #[cfg(unix)]
@@ -700,8 +750,8 @@ mod tests {
         for (abs_path, rel_path, result) in results {
             count += 1;
             assert!(abs_path.is_absolute());
-            assert!(abs_path.ends_with("tests/java/main.java"));
-            assert_eq!(rel_path, PathBuf::from("tests/java/main.java"));
+            assert!(abs_path.ends_with("test/java/main.java"));
+            assert_eq!(rel_path, PathBuf::from("test/java/main.java"));
             assert_eq!(result, empty_result!());
         }
         assert_eq!(count, 1);
@@ -725,8 +775,8 @@ mod tests {
         for (abs_path, rel_path, result) in results {
             count += 1;
             assert!(abs_path.is_absolute());
-            assert!(abs_path.ends_with("tests\\java\\main.java"));
-            assert_eq!(rel_path, PathBuf::from("tests\\java\\main.java"));
+            assert!(abs_path.ends_with("test\\java\\main.java"));
+            assert_eq!(rel_path, PathBuf::from("test\\java\\main.java"));
             assert_eq!(result, empty_result!());
         }
         assert_eq!(count, 1);
