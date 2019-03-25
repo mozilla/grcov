@@ -501,7 +501,7 @@ fn test_integration() {
 }
 
 #[test]
-fn test_aintegration_zip_zip() {
+fn test_integration_zip_zip() {
     let compilers = vec![get_tool("GCC_CXX", "g++"), get_tool("CLANG_CXX", "clang++")];
 
     for compiler in compilers {
