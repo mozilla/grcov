@@ -185,7 +185,7 @@ dependencies = [
 
 [[package]]
 name = "grcov"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "crossbeam 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "globset 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
