@@ -163,10 +163,7 @@ pub fn consumer(
                             fs::remove_file(gcov_path).unwrap();
                             new_results
                         } else {
-                            let mut new_results: Vec<(
-                                String,
-                                CovResult,
-                            )> = Vec::new();
+                            let mut new_results: Vec<(String, CovResult)> = Vec::new();
 
                             for entry in WalkDir::new(&working_dir).min_depth(1) {
                                 let gcov_path = entry.unwrap();
@@ -185,10 +182,12 @@ pub fn consumer(
                     }
                     ItemType::Buffers(mut buffers) => {
                         // LLVM
-                        match GCNO::compute(&buffers.stem,
-                                            buffers.gcno_buf,
-                                            buffers.gcda_buf,
-                                            branch_enabled) {
+                        match GCNO::compute(
+                            &buffers.stem,
+                            buffers.gcno_buf,
+                            buffers.gcda_buf,
+                            branch_enabled,
+                        ) {
                             Ok(r) => r,
                             Err(e) => {
                                 // Just print the error, don't panic and continue
@@ -251,9 +250,9 @@ mod tests {
                 (2, vec![false, true]),
                 (4, vec![true]),
             ]
-                .iter()
-                .cloned()
-                .collect(),
+            .iter()
+            .cloned()
+            .collect(),
             functions: functions1,
         };
         let mut functions2: HashMap<String, Function> = HashMap::new();
@@ -281,9 +280,9 @@ mod tests {
                 (2, vec![false, true]),
                 (3, vec![true]),
             ]
-                .iter()
-                .cloned()
-                .collect(),
+            .iter()
+            .cloned()
+            .collect(),
             functions: functions2,
         };
 
@@ -303,9 +302,9 @@ mod tests {
                 (3, vec![true]),
                 (4, vec![true]),
             ]
-                .iter()
-                .cloned()
-                .collect()
+            .iter()
+            .cloned()
+            .collect()
         );
         assert!(result.functions.contains_key("f1"));
         assert!(result.functions.contains_key("f2"));

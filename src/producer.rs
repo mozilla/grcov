@@ -212,7 +212,7 @@ impl Archive {
                         is_llvm,
                     );
                 }
-            },
+            }
         }
     }
 
@@ -235,10 +235,11 @@ impl Archive {
                     true
                 }
                 Err(_) => false,
-            }
+            },
             ArchiveType::Plain(_) => match File::open(name) {
                 Ok(mut f) => {
-                    f.read_to_end(buf).expect(&format!("Failed to read file: {}.", name));
+                    f.read_to_end(buf)
+                        .expect(&format!("Failed to read file: {}.", name));
                     true
                 }
                 Err(_) => false,
@@ -286,7 +287,7 @@ impl Archive {
             }
             ArchiveType::Plain(_) => {
                 panic!("We shouldn't be there !!");
-            },
+            }
         }
     }
 }
@@ -340,9 +341,9 @@ fn gcno_gcda_producer(
 
                         // Create symlinks.
                         if num != 0 {
-                            fs::hard_link(&physical_gcno_path, &gcno_path).unwrap_or_else(
-                                |_| panic!("Failed to create hardlink {:?}", gcno_path),
-                            );
+                            fs::hard_link(&physical_gcno_path, &gcno_path).unwrap_or_else(|_| {
+                                panic!("Failed to create hardlink {:?}", gcno_path)
+                            });
                         }
 
                         let gcda_path = tmp_dir.join(format!("{}_{}.gcda", stem, num + 1));
@@ -459,7 +460,10 @@ pub fn producer(
                 if ext == "info" || ext == "json" || ext == "xml" {
                     plain_files.push(full_path);
                 } else {
-                    panic!("Cannot load file '{:?}': it isn't a .info, a .json or a .xml file.", full_path);
+                    panic!(
+                        "Cannot load file '{:?}': it isn't a .info, a .json or a .xml file.",
+                        full_path
+                    );
                 }
             } else {
                 panic!("Cannot load file '{:?}': it isn't a directory, a .info, a .json or a .xml file.", full_path);
@@ -1455,10 +1459,7 @@ mod tests {
         let json_path = "test/linked-files-map.json";
         let mapping = producer(
             &tmp_path,
-            &[
-                "test/prova.info".to_string(),
-                json_path.to_string(),
-            ],
+            &["test/prova.info".to_string(), json_path.to_string()],
             &queue,
             true,
             false,
@@ -1467,9 +1468,7 @@ mod tests {
         assert!(mapping.is_some());
         let mapping = mapping.unwrap();
 
-        let expected = vec![
-            (ItemFormat::INFO, false, "prova_1.info", true),
-        ];
+        let expected = vec![(ItemFormat::INFO, false, "prova_1.info", true)];
 
         match File::open(json_path) {
             Ok(mut reader) => {
@@ -1479,7 +1478,7 @@ mod tests {
             }
             Err(_) => {
                 assert!(false, format!("Failed to read the file: {}", json_path));
-            },
+            }
         }
 
         check_produced(tmp_path, &queue, expected);
@@ -1494,9 +1493,7 @@ mod tests {
         let tmp_path = tmp_dir.path().to_owned();
         producer(
             &tmp_path,
-            &[
-                "sub2/RootAccessibleWrap_1.gcno".to_string(),
-            ],
+            &["sub2/RootAccessibleWrap_1.gcno".to_string()],
             &queue,
             true,
             false,
@@ -1512,9 +1509,7 @@ mod tests {
         let tmp_path = tmp_dir.path().to_owned();
         producer(
             &tmp_path,
-            &[
-                "./test/llvm/file.gcda".to_string(),
-            ],
+            &["./test/llvm/file.gcda".to_string()],
             &queue,
             true,
             false,

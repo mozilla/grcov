@@ -268,12 +268,16 @@ pub fn rewrite_paths(
         let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
 
         match filter_option {
-            Some(true) => if !is_covered(&result) {
-                return None;
-            },
-            Some(false) => if is_covered(&result) {
-                return None;
-            },
+            Some(true) => {
+                if !is_covered(&result) {
+                    return None;
+                }
+            }
+            Some(false) => {
+                if is_covered(&result) {
+                    return None;
+                }
+            }
             None => (),
         };
 

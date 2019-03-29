@@ -193,8 +193,8 @@ fn main() {
                 .parse()
                 .expect("Number of threads should be a number");
             i += 1;
-        } else if args[i] == "-o"{
-            if args.len() <= i + 1{
+        } else if args[i] == "-o" {
+            if args.len() <= i + 1 {
                 eprintln!("[ERROR]: Output file not specified.\n");
                 print_usage(&args[0]);
                 process::exit(1);
@@ -264,25 +264,28 @@ fn main() {
         let path_mapping_file = path_mapping_file.to_owned();
         let path_mapping = Arc::clone(&path_mapping);
 
-        thread::Builder::new().name(String::from("Producer")).spawn(move || {
-            let producer_path_mapping_buf = producer(
-                &tmp_path,
-                &paths,
-                &queue,
-                filter_option.is_some() && filter_option.unwrap(),
-                is_llvm,
-            );
+        thread::Builder::new()
+            .name(String::from("Producer"))
+            .spawn(move || {
+                let producer_path_mapping_buf = producer(
+                    &tmp_path,
+                    &paths,
+                    &queue,
+                    filter_option.is_some() && filter_option.unwrap(),
+                    is_llvm,
+                );
 
-            let mut path_mapping = path_mapping.lock().unwrap();
-            *path_mapping = if path_mapping_file != "" {
-                let file = File::open(path_mapping_file).unwrap();
-                Some(serde_json::from_reader(file).unwrap())
-            } else if let Some(producer_path_mapping_buf) = producer_path_mapping_buf {
-                Some(serde_json::from_slice(&producer_path_mapping_buf).unwrap())
-            } else {
-                None
-            };
-        }).unwrap()
+                let mut path_mapping = path_mapping.lock().unwrap();
+                *path_mapping = if path_mapping_file != "" {
+                    let file = File::open(path_mapping_file).unwrap();
+                    Some(serde_json::from_reader(file).unwrap())
+                } else if let Some(producer_path_mapping_buf) = producer_path_mapping_buf {
+                    Some(serde_json::from_slice(&producer_path_mapping_buf).unwrap())
+                } else {
+                    None
+                };
+            })
+            .unwrap()
     };
 
     let mut parsers = Vec::new();
@@ -293,17 +296,19 @@ fn main() {
         let working_dir = tmp_path.join(format!("{}", i));
         let source_root = source_root.clone();
 
-        let t = thread::Builder::new().name(format!("Consumer {}", i)).spawn(move || {
-            fs::create_dir(&working_dir).expect("Failed to create working directory");
-            consumer(
-                &working_dir,
-                &source_root,
-                &result_map,
-                &queue,
-                branch_enabled,
-            );
-        }).unwrap();
-
+        let t = thread::Builder::new()
+            .name(format!("Consumer {}", i))
+            .spawn(move || {
+                fs::create_dir(&working_dir).expect("Failed to create working directory");
+                consumer(
+                    &working_dir,
+                    &source_root,
+                    &result_map,
+                    &queue,
+                    branch_enabled,
+                );
+            })
+            .unwrap();
 
         parsers.push(t);
     }
@@ -352,7 +357,7 @@ fn main() {
             service_job_number,
             commit_sha,
             false,
-            output_file_path
+            output_file_path,
         );
     } else if output_type == "coveralls+" {
         output_coveralls(
@@ -363,7 +368,7 @@ fn main() {
             service_job_number,
             commit_sha,
             true,
-            output_file_path
+            output_file_path,
         );
     } else if output_type == "files" {
         output_files(iterator, output_file_path);
