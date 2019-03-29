@@ -76,6 +76,23 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-8
+          packages:
+            - llvm-8-dev
+            - clang-8
+            - g++-7
+      env:
+        - GCC_CXX=g++-7
+        - GCOV=gcov-7
+        - CLANG_CXX=clang++-8
+        - DEPLOY=0
+
+    - os: linux
+      rust: nightly
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty
           packages:
             - llvm-dev
