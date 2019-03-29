@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate clap;
 extern crate crossbeam;
 extern crate grcov;
 extern crate num_cpus;
@@ -5,6 +7,7 @@ extern crate rustc_hash;
 extern crate serde_json;
 extern crate tempfile;
 
+use clap::{App, Arg};
 use crossbeam::queue::MsQueue;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -12,232 +15,175 @@ use std::alloc::System;
 use std::fs::{self, File};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::{env, process, thread};
+use std::{process, thread};
 
 #[global_allocator]
 static GLOBAL: System = System;
 
 use grcov::*;
 
-fn print_usage(program: &str) {
-    println!("Usage: {} DIRECTORY_OR_ZIP_FILE[...] [-o OUTPUT FILENAME] [-t OUTPUT_TYPE] [-s SOURCE_ROOT] [-p PREFIX_PATH] [--token COVERALLS_REPO_TOKEN] [--commit-sha COVERALLS_COMMIT_SHA] [--ignore-not-existing] [--ignore-dir DIRECTORY] [--llvm] [--path-mapping PATH_MAPPING_FILE] [--branch] [--filter]", program);
-    println!("You can specify one or more directories, separated by a space.");
-    println!("OUTPUT_TYPE can be one of:");
-    println!(" - (DEFAULT) lcov for the lcov INFO format;");
-    println!(" - coveralls for the Coveralls specific format.");
-    println!(" - coveralls+ for the Coveralls specific format with function information.");
-    println!(" - ade for the ActiveData-ETL specific format;");
-    println!(" - files to only return a list of files.");
-    println!("SOURCE_ROOT is the root directory of the source files.");
-    println!("PREFIX_PATH is a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that generated the code coverage information).");
-    println!("COVERALLS_REPO_TOKEN is the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' format.");
-    println!(
-        "COVERALLS_COMMIT_SHA is the SHA of the commit used to generate the code coverage data."
-    );
-    println!("By default source files that can't be found on the disk are not ignored. Use --ignore-not-existing to ignore them.");
-    println!("The --llvm option can be used when the code coverage information is exclusively coming from a llvm build, to speed-up parsing.");
-    println!("The --ignore-dir option can be used to ignore files/directories specified as globs.");
-    println!("The --branch option enables parsing branch coverage information.");
-    println!("The --filter option allows filtering out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered' to only return uncovered files.");
-}
-
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        eprintln!("[ERROR]: Missing required directory argument.\n");
-        print_usage(&args[0]);
-        process::exit(1);
-    }
-    let mut output_type = "lcov";
-    let mut source_dir = "";
-    let mut prefix_dir = "";
-    let mut repo_token = "";
-    let mut commit_sha = "";
-    let mut service_name = "";
-    let mut service_number = "";
-    let mut service_job_number = "";
-    let mut ignore_not_existing = false;
-    let mut to_ignore_dirs = Vec::new();
-    let mut is_llvm = false;
-    let mut branch_enabled = false;
-    let mut paths = Vec::new();
-    let mut i = 1;
-    let mut path_mapping_file = "";
-    let mut filter_option = None;
-    let mut num_threads = num_cpus::get() * 2;
-    let mut output_file_path = None;
+    let default_num_threads = (num_cpus::get() * 2).to_string();
 
-    while i < args.len() {
-        if args[i] == "-t" {
-            if args.len() <= i + 1 {
-                eprintln!("[ERROR]: Output format not specified.\n");
-                print_usage(&args[0]);
-                process::exit(1);
-            }
+    let matches = App::new("grcov")
+                          .author(crate_authors!("\n"))
+                          .about("Parse, collect and aggregate code coverage data for multiple source files")
 
-            output_type = &args[i + 1];
-            i += 1;
-        } else if args[i] == "-s" {
-            if args.len() <= i + 1 {
-                eprintln!("[ERROR]: Source root directory not specified.\n");
-                print_usage(&args[0]);
-                process::exit(1);
-            }
+                          .arg(Arg::with_name("paths")
+                               .help("Sets the input paths to use")
+                               .required(true)
+                               .multiple(true)
+                               .takes_value(true))
 
-            source_dir = &args[i + 1];
-            i += 1;
-        } else if args[i] == "-p" {
-            if args.len() <= i + 1 {
-                eprintln!("[ERROR]: Prefix path not specified.\n");
-                print_usage(&args[0]);
-                process::exit(1);
-            }
+                          .arg(Arg::with_name("output_type")
+                               .help("Sets a custom output type")
+                               .long_help(
+"Sets a custom output type:
+- *lcov* for the lcov INFO format;
+- *coveralls* for the Coveralls specific format;
+- *coveralls+* for the Coveralls specific format with function information;
+- *ade* for the ActiveData-ETL specific format;
+- *files* to only return a list of files.
+")
+                               .short("t")
+                               .long("output-type")
+                               .value_name("OUTPUT TYPE")
+                               .default_value("lcov")
+                               .possible_values(&["ade", "lcov", "coveralls", "coveralls+", "files"])
+                               .takes_value(true))
 
-            prefix_dir = &args[i + 1];
-            i += 1;
-        } else if args[i] == "--token" {
-            if args.len() <= i + 1 {
-                eprintln!("[ERROR]: Repository token not specified.\n");
-                print_usage(&args[0]);
-                process::exit(1);
-            }
+                          .arg(Arg::with_name("output_file")
+                               .help("Specifies the output file")
+                               .short("o")
+                               .long("output-file")
+                               .value_name("FILE")
+                               .takes_value(true))
 
-            repo_token = &args[i + 1];
-            i += 1;
-        } else if args[i] == "--service-name" {
-            if args.len() <= i + 1 {
-                eprintln!("[ERROR]: Service name not specified.\n");
-                print_usage(&args[0]);
-                process::exit(1);
-            }
+                          .arg(Arg::with_name("source_dir")
+                               .help("Specifies the root directory of the source files")
+                               .short("s")
+                               .long("source-dir")
+                               .value_name("DIRECTORY")
+                               .takes_value(true))
 
-            service_name = &args[i + 1];
-            i += 1;
-        } else if args[i] == "--service-number" {
-            if args.len() <= i + 1 {
-                eprintln!("[ERROR]: Service number not specified.\n");
-                print_usage(&args[0]);
-                process::exit(1);
-            }
+                          .arg(Arg::with_name("prefix_dir")
+                               .help("Specifies a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that generated the code coverage information)")
+                               .short("p")
+                               .long("prefix-dir")
+                               .value_name("PATH")
+                               .takes_value(true))
 
-            service_number = &args[i + 1];
-            i += 1;
-        } else if args[i] == "--service-job-number" {
-            if args.len() <= i + 1 {
-                eprintln!("[ERROR]: Service job number not specified.\n");
-                print_usage(&args[0]);
-                process::exit(1);
-            }
+                          .arg(Arg::with_name("ignore_not_existing")
+                               .help("Ignore source files that can't be found on the disk")
+                               .long("ignore-not-existing"))
 
-            service_job_number = &args[i + 1];
-            i += 1;
-        } else if args[i] == "--commit-sha" {
-            if args.len() <= i + 1 {
-                eprintln!("[ERROR]: Commit SHA not specified.\n");
-                print_usage(&args[0]);
-                process::exit(1);
-            }
+                          .arg(Arg::with_name("ignore_dir")
+                               .help("Ignore files/directories specified as globs")
+                               .long("ignore-dir")
+                               .value_name("PATH")
+                               .multiple(true)
+                               .takes_value(true))
 
-            commit_sha = &args[i + 1];
-            i += 1;
-        } else if args[i] == "--ignore-not-existing" {
-            ignore_not_existing = true;
-        } else if args[i] == "--ignore-dir" {
-            if args.len() <= i + 1 {
-                eprintln!("[ERROR]: Directory to ignore not specified.\n");
-                print_usage(&args[0]);
-                process::exit(1);
-            }
+                          .arg(Arg::with_name("path_mapping")
+                               .long("path-mapping")
+                               .value_name("PATH")
+                               .multiple(true)
+                               .takes_value(true))
 
-            to_ignore_dirs.push(args[i + 1].clone());
-            i += 1;
-        } else if args[i] == "--llvm" {
-            is_llvm = true;
-        } else if args[i] == "--path-mapping" {
-            if args.len() <= i + 1 {
-                eprintln!("[ERROR]: Path mapping file not specified.\n");
-                print_usage(&args[0]);
-                process::exit(1);
-            }
+                          .arg(Arg::with_name("branch")
+                               .help("Enables parsing branch coverage information")
+                               .long("branch"))
 
-            path_mapping_file = &args[i + 1];
-            i += 1;
-        } else if args[i] == "--branch" {
-            branch_enabled = true;
-        } else if args[i] == "--filter" {
-            if args.len() <= i + 1 {
-                eprintln!("[ERROR]: Filter option not specified.\n");
-                print_usage(&args[0]);
-                process::exit(1);
-            }
+                          .arg(Arg::with_name("filter")
+                               .help("Filters out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered' to only return uncovered files")
+                               .long("filter")
+                               .possible_values(&["covered", "uncovered"])
+                               .takes_value(true))
 
-            if args[i + 1] == "covered" {
-                filter_option = Some(true);
-            } else if args[i + 1] == "uncovered" {
-                filter_option = Some(false);
-            } else {
-                eprintln!(
-                    "[ERROR]: Filter option invalid (should be either 'covered' or 'uncovered')\n"
-                );
-                print_usage(&args[0]);
-                process::exit(1);
-            }
-            i += 1;
-        } else if args[i] == "--threads" {
-            if args.len() <= i + 1 {
-                eprintln!("[ERROR]: Number of threads not specified.\n");
-                print_usage(&args[0]);
-                process::exit(1);
-            }
+                          .arg(Arg::with_name("llvm")
+                               .help("Speeds-up parsing, when the code coverage information is exclusively coming from a llvm build")
+                               .long("llvm"))
 
-            num_threads = args[i + 1]
-                .parse()
-                .expect("Number of threads should be a number");
-            i += 1;
-        } else if args[i] == "-o" {
-            if args.len() <= i + 1 {
-                eprintln!("[ERROR]: Output file not specified.\n");
-                print_usage(&args[0]);
-                process::exit(1);
-            }
-            output_file_path = Some(&args[i + 1]);
-            i += 1;
+                          .arg(Arg::with_name("token")
+                               .help("Sets the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' formats")
+                               .long("token")
+                               .value_name("TOKEN")
+                               .takes_value(true)
+                               .required_ifs(&[
+                                   ("output_type", "coveralls"),
+                                   ("output_type", "coveralls+")
+                               ]))
+
+                          .arg(Arg::with_name("commit_sha")
+                               .help("Sets the hash of the commit used to generate the code coverage data")
+                               .long("commit-sha")
+                               .value_name("COMMIT HASH")
+                               .takes_value(true)
+                               .required_ifs(&[
+                                   ("output_type", "coveralls"),
+                                   ("output_type", "coveralls+")
+                               ]))
+
+                          .arg(Arg::with_name("service_name")
+                               .help("Sets the service name")
+                               .long("service-name")
+                               .value_name("SERVICE NAME")
+                               .takes_value(true))
+
+                          .arg(Arg::with_name("service_number")
+                               .help("Sets the service number")
+                               .long("service-number")
+                               .value_name("SERVICE NUMBER")
+                               .takes_value(true))
+
+                          .arg(Arg::with_name("service_job_number")
+                               .help("Sets the service job number")
+                               .long("service-job-number")
+                               .value_name("SERVICE JOB NUMBER")
+                               .takes_value(true))
+
+                          .arg(Arg::with_name("threads")
+                               .long("threads")
+                               .value_name("NUMBER")
+                               .default_value(&default_num_threads)
+                               .takes_value(true))
+
+                          .get_matches();
+
+    let paths: Vec<_> = matches.values_of("paths").unwrap().collect();
+    let paths: Vec<String> = paths.iter().map(|s| s.to_string()).collect();
+    let output_type = matches.value_of("output_type").unwrap();
+    let output_file_path = matches.value_of("output_file");
+    let source_dir = matches.value_of("source_dir").unwrap_or("");
+    let prefix_dir = matches.value_of("prefix_dir").unwrap_or("");
+    let ignore_not_existing = matches.is_present("ignore_not_existing");
+    let mut to_ignore_dirs: Vec<_> = if let Some(to_ignore_dirs) = matches.values_of("ignore_dir") {
+        to_ignore_dirs.collect()
+    } else {
+        Vec::new()
+    };
+    let path_mapping_file = matches.value_of("path_mapping").unwrap_or("");
+    let branch_enabled = matches.is_present("branch");
+    let filter_option = if let Some(filter) = matches.value_of("filter") {
+        if filter == "covered" {
+            Some(true)
         } else {
-            paths.push(args[i].clone());
+            Some(false)
         }
-
-        i += 1;
-    }
-
-    if output_type != "ade"
-        && output_type != "lcov"
-        && output_type != "coveralls"
-        && output_type != "coveralls+"
-        && output_type != "files"
-    {
-        eprintln!(
-            "[ERROR]: '{}' output format is not supported.\n",
-            output_type
-        );
-        print_usage(&args[0]);
-        process::exit(1);
-    }
-
-    if output_type == "coveralls" || output_type == "coveralls+" {
-        if repo_token == "" {
-            eprintln!(
-                "[ERROR]: Repository token is needed when the output format is 'coveralls'.\n"
-            );
-            print_usage(&args[0]);
-            process::exit(1);
-        }
-
-        if commit_sha == "" {
-            eprintln!("[ERROR]: Commit SHA is needed when the output format is 'coveralls'.\n");
-            print_usage(&args[0]);
-            process::exit(1);
-        }
-    }
+    } else {
+        None
+    };
+    let is_llvm = matches.is_present("llvm");
+    let repo_token = matches.value_of("token").unwrap_or("");
+    let commit_sha = matches.value_of("commit_sha").unwrap_or("");
+    let service_name = matches.value_of("service_name").unwrap_or("");
+    let service_number = matches.value_of("service_number").unwrap_or("");
+    let service_job_number = matches.value_of("service_job_number").unwrap_or("");
+    let num_threads: usize = matches
+        .value_of("threads")
+        .unwrap()
+        .parse()
+        .expect("Number of threads should be a number");
 
     let source_root = if source_dir != "" {
         Some(canonicalize_path(&source_dir).expect("Source directory does not exist."))
@@ -341,7 +287,7 @@ fn main() {
         source_root,
         prefix_dir,
         ignore_not_existing,
-        to_ignore_dirs,
+        &mut to_ignore_dirs,
         filter_option,
     );
 

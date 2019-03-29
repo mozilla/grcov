@@ -39,6 +39,7 @@ globset = "^0.4"
 xml-rs = "^0.8"
 smallvec = "^0.6"
 rustc-hash = "^1.0"
+clap = "^2.32"
 
 [dev-dependencies]
 regex = "^1.1"
