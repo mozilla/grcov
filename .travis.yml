@@ -96,12 +96,9 @@ install:
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo softwareupdate -i "Command Line Tools (macOS High Sierra version 10.13) for Xcode-9.4"; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew cask uninstall --force oclint; fi
 script:
-    - export CXX=$CLANG_CXX
-    - $CXX --version
+    - $CLANG_CXX --version
     - |
       if [ "$TRAVIS_RUST_VERSION" = "nightly" ] && [ -z "$TRAVIS_TAG" ]; then
-        export CXXFLAGS="--coverage";
-        export LDFLAGS="--coverage -lgcov";
         export CARGO_INCREMENTAL=0;
         export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads";
       fi
