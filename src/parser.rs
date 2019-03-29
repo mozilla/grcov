@@ -478,7 +478,7 @@ fn parse_jacoco_report_package<T: Read>(
                     }
                     "sourcefile" => {
                         let sourcefile = get_xml_attribute(attributes, "name")?;
-                        let class = sourcefile.trim_right_matches(".java");
+                        let class = sourcefile.trim_end_matches(".java");
                         let (lines, branches) = parse_jacoco_report_sourcefile(parser)?;
 
                         match results_map.entry(class.to_string()) {
@@ -522,7 +522,7 @@ fn parse_jacoco_report_package<T: Read>(
         .map(|(class, result)| {
             (
                 format!("{}/{}.java", package, class)
-                    .trim_left_matches('/')
+                    .trim_start_matches('/')
                     .to_string(),
                 result,
             )
