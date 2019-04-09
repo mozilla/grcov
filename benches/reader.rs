@@ -25,20 +25,6 @@ fn bench_reader_gcno_gcda(b: &mut Bencher) {
 }
 
 #[bench]
-fn bench_reader_gcno_gcda_gcda(b: &mut Bencher) {
-    let mut gcno = GCNO::new();
-    gcno.read(GcovReaderBuf::from("test/llvm/reader.gcno"))
-        .unwrap();
-
-    b.iter(|| {
-        for _ in 0..2 {
-            gcno.read_gcda(GcovReaderBuf::from("test/llvm/reader.gcda"))
-                .unwrap();
-        }
-    });
-}
-
-#[bench]
 fn bench_reader_gcno_counter(b: &mut Bencher) {
     let mut gcno = GCNO::new();
     gcno.read(GcovReaderBuf::from("test/llvm/reader.gcno"))
