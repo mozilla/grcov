@@ -1,4 +1,4 @@
-use std::collections::{btree_map, hash_map, BTreeMap, HashMap};
+use std::collections::{btree_map, hash_map, BTreeMap};
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read};
@@ -8,6 +8,8 @@ use std::str;
 
 use xml::attribute::OwnedAttribute;
 use xml::reader::{EventReader, XmlEvent};
+
+use rustc_hash::FxHashMap;
 
 use defs::*;
 
@@ -110,7 +112,7 @@ pub fn parse_lcov<T: Read>(
     let mut cur_file = None;
     let mut cur_lines = BTreeMap::new();
     let mut cur_branches = BTreeMap::new();
-    let mut cur_functions = HashMap::new();
+    let mut cur_functions = FxHashMap::default();
 
     let mut results = Vec::new();
 
@@ -140,7 +142,7 @@ pub fn parse_lcov<T: Read>(
             cur_file = None;
             cur_lines = BTreeMap::new();
             cur_branches = BTreeMap::new();
-            cur_functions = HashMap::new();
+            cur_functions = FxHashMap::default();
         } else {
             let mut key_value = l.splitn(2, ':');
             let key = try_next!(key_value, l);
@@ -220,7 +222,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
     let mut cur_file = None;
     let mut cur_lines = BTreeMap::new();
     let mut cur_branches = BTreeMap::new();
-    let mut cur_functions = HashMap::new();
+    let mut cur_functions = FxHashMap::default();
     let mut results = Vec::new();
 
     let f = File::open(&gcov_path)
@@ -260,7 +262,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
                 cur_file = Some(value.to_owned());
                 cur_lines = BTreeMap::new();
                 cur_branches = BTreeMap::new();
-                cur_functions = HashMap::new();
+                cur_functions = FxHashMap::default();
             }
             "function" => {
                 let mut f_splits = value.splitn(3, ',');
@@ -400,8 +402,8 @@ fn parse_jacoco_report_method<T: Read>(
 fn parse_jacoco_report_class<T: Read>(
     parser: &mut EventReader<T>,
     class_name: &str,
-) -> Result<HashMap<String, Function>, ParserError> {
-    let mut functions: HashMap<String, Function> = HashMap::new();
+) -> Result<FxHashMap<String, Function>, ParserError> {
+    let mut functions: FxHashMap<String, Function> = FxHashMap::default();
 
     loop {
         match parser.next() {
@@ -430,7 +432,7 @@ fn parse_jacoco_report_package<T: Read>(
     parser: &mut EventReader<T>,
     package: &str,
 ) -> Result<Vec<(String, CovResult)>, ParserError> {
-    let mut results_map: HashMap<String, CovResult> = HashMap::new();
+    let mut results_map: FxHashMap<String, CovResult> = FxHashMap::default();
 
     loop {
         match parser.next() {
@@ -483,7 +485,7 @@ fn parse_jacoco_report_package<T: Read>(
                             }
                             hash_map::Entry::Vacant(v) => {
                                 v.insert(CovResult {
-                                    functions: HashMap::new(),
+                                    functions: FxHashMap::default(),
                                     lines,
                                     branches,
                                 });
@@ -1500,7 +1502,7 @@ mod tests {
         lines.insert(1, 0);
         lines.insert(4, 1);
         lines.insert(6, 1);
-        let mut functions: HashMap<String, Function> = HashMap::new();
+        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
         functions.insert(
             String::from("hello#<init>"),
             Function {
@@ -1539,7 +1541,7 @@ mod tests {
         for i in vec![5, 10, 14, 15, 18, 22, 23, 25, 27, 31, 34, 37, 44, 49] {
             lines.insert(i, 0);
         }
-        let mut functions: HashMap<String, Function> = HashMap::new();
+        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
 
         for (name, start, executed) in vec![
             ("Person$InnerClassForPerson#getSomethingElse", 31, false),

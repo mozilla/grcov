@@ -23,11 +23,11 @@ pub fn is_covered(result: &CovResult) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+    use rustc_hash::FxHashMap;
 
     #[test]
     fn test_covered() {
-        let mut functions: HashMap<String, Function> = HashMap::new();
+        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
         functions.insert(
             "f1".to_string(),
             Function {
@@ -56,7 +56,7 @@ mod tests {
         let result = CovResult {
             lines: [(1, 21), (2, 7), (7, 0)].iter().cloned().collect(),
             branches: [].iter().cloned().collect(),
-            functions: HashMap::new(),
+            functions: FxHashMap::default(),
         };
 
         assert!(is_covered(&result));
@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_uncovered_no_lines_executed() {
-        let mut functions: HashMap<String, Function> = HashMap::new();
+        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
         functions.insert(
             "f1".to_string(),
             Function {
@@ -82,7 +82,7 @@ mod tests {
         let result = CovResult {
             lines: [(1, 0), (2, 0), (7, 0)].iter().cloned().collect(),
             branches: [].iter().cloned().collect(),
-            functions: HashMap::new(),
+            functions: FxHashMap::default(),
         };
 
         assert!(!is_covered(&result));
@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn test_covered_functions_executed() {
-        let mut functions: HashMap<String, Function> = HashMap::new();
+        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
         functions.insert(
             "top-level".to_string(),
             Function {
@@ -116,7 +116,7 @@ mod tests {
 
     #[test]
     fn test_covered_toplevel_executed() {
-        let mut functions: HashMap<String, Function> = HashMap::new();
+        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
         functions.insert(
             "top-level".to_string(),
             Function {
@@ -135,7 +135,7 @@ mod tests {
 
     #[test]
     fn test_uncovered_functions_not_executed() {
-        let mut functions: HashMap<String, Function> = HashMap::new();
+        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
         functions.insert(
             "top-level".to_string(),
             Function {
