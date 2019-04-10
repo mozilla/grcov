@@ -478,11 +478,14 @@ pub fn producer(
         });
     }
 
-    let gcno_stems_archives: RefCell<FxHashMap<GCNOStem, &Archive>> = RefCell::new(FxHashMap::default());
-    let gcda_stems_archives: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
+    let gcno_stems_archives: RefCell<FxHashMap<GCNOStem, &Archive>> =
+        RefCell::new(FxHashMap::default());
+    let gcda_stems_archives: RefCell<FxHashMap<String, Vec<&Archive>>> =
+        RefCell::new(FxHashMap::default());
     let infos: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
     let xmls: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
-    let linked_files_maps: RefCell<FxHashMap<String, &Archive>> = RefCell::new(FxHashMap::default());
+    let linked_files_maps: RefCell<FxHashMap<String, &Archive>> =
+        RefCell::new(FxHashMap::default());
 
     for archive in &mut archives {
         archive.explore(

@@ -2,10 +2,9 @@
 extern crate grcov;
 extern crate test;
 
-use grcov::{GCNO, GcovReaderBuf};
+use grcov::{GcovReaderBuf, GCNO};
 use std::path::PathBuf;
 use test::{black_box, Bencher};
-
 
 #[bench]
 fn bench_reader_gcno(b: &mut Bencher) {
@@ -21,7 +20,7 @@ fn bench_reader_gcno_gcda(b: &mut Bencher) {
     let mut gcno = GCNO::new();
     gcno.read(GcovReaderBuf::from("test/llvm/reader.gcno"))
         .unwrap();
-    
+
     b.iter(|| {
         let file = GcovReaderBuf::from("test/llvm/reader.gcda");
         black_box(gcno.read_gcda(file).unwrap());
@@ -35,11 +34,14 @@ fn bench_reader_gcno_counter(b: &mut Bencher) {
         .unwrap();
     b.iter(|| {
         let mut output = Vec::new();
-        black_box(gcno.dump(
-            &PathBuf::from("test/llvm/reader.c"),
-            "reader.c",
-            &mut output,
-        ).unwrap());
+        black_box(
+            gcno.dump(
+                &PathBuf::from("test/llvm/reader.c"),
+                "reader.c",
+                &mut output,
+            )
+            .unwrap(),
+        );
     });
 }
 
@@ -52,11 +54,14 @@ fn bench_reader_gcno_gcda_counter(b: &mut Bencher) {
         .unwrap();
     b.iter(|| {
         let mut output = Vec::new();
-        black_box(gcno.dump(
-            &PathBuf::from("test/llvm/reader.c"),
-            "reader.c",
-            &mut output,
-        ).unwrap());
+        black_box(
+            gcno.dump(
+                &PathBuf::from("test/llvm/reader.c"),
+                "reader.c",
+                &mut output,
+            )
+            .unwrap(),
+        );
     });
 }
 
