@@ -10,8 +10,10 @@ use test::{black_box, Bencher};
 #[bench]
 fn bench_reader_gcno(b: &mut Bencher) {
     let mut gcno = GCNO::new();
-    b.iter(|| black_box(gcno.read(GcovReaderBuf::from("test/llvm/reader.gcno"))
-        .unwrap()));
+    b.iter(|| {
+        let file = GcovReaderBuf::from("test/llvm/reader.gcno");
+        black_box(gcno.read(file).unwrap());
+    });
 }
 
 #[bench]
@@ -20,8 +22,10 @@ fn bench_reader_gcno_gcda(b: &mut Bencher) {
     gcno.read(GcovReaderBuf::from("test/llvm/reader.gcno"))
         .unwrap();
     
-    b.iter(|| black_box(gcno.read_gcda(GcovReaderBuf::from("test/llvm/reader.gcda"))
-        .unwrap()));
+    b.iter(|| {
+        let file = GcovReaderBuf::from("test/llvm/reader.gcda");
+        black_box(gcno.read_gcda(file).unwrap());
+    });
 }
 
 #[bench]
