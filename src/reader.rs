@@ -8,7 +8,7 @@ use std::io::{BufReader, Error, Read, Write};
 use std::path::PathBuf;
 use std::result::Result;
 
-use defs::{CovResult, Function};
+use crate::defs::{CovResult, Function};
 
 #[derive(Default)]
 pub struct GCNO {

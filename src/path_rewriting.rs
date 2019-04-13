@@ -7,8 +7,8 @@ use std::mem;
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
-use defs::*;
-use filter::*;
+use crate::defs::*;
+use crate::filter::*;
 
 fn to_lowercase_first(s: &str) -> String {
     let mut c = s.chars();
