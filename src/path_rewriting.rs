@@ -715,7 +715,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_rewrite_path_for_java_and_rust() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("java\\main.java".to_string(), empty_result!());
         result_map.insert("main.rs".to_string(), empty_result!());
         let results = rewrite_paths(
