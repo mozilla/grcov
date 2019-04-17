@@ -9,7 +9,7 @@ use std::str;
 use xml::attribute::OwnedAttribute;
 use xml::reader::{EventReader, XmlEvent};
 
-use defs::*;
+use crate::defs::*;
 
 #[derive(Debug)]
 pub enum ParserError {
@@ -119,7 +119,7 @@ pub fn parse_lcov<T: Read>(
     loop {
         l.clear();
 
-        let num_bytes = try!(lcov_reader.read_until(b'\n', &mut l));
+        let num_bytes = lcov_reader.read_until(b'\n', &mut l)?;
         if num_bytes == 0 {
             break;
         }
@@ -231,7 +231,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
     loop {
         l.clear();
 
-        let num_bytes = try!(file.read_until(b'\n', &mut l));
+        let num_bytes = file.read_until(b'\n', &mut l)?;
         if num_bytes == 0 {
             break;
         }

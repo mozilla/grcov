@@ -18,6 +18,7 @@ exclude = [
     "appveyor.yml",
     ".gitignore",
 ]
+edition = "2018"
 
 [badges]
 appveyor = { repository = "marco-c/grcov" }

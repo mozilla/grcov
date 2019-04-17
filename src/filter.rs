@@ -1,4 +1,4 @@
-use defs::*;
+use crate::defs::*;
 
 pub fn is_covered(result: &CovResult) -> bool {
     // For C/C++ source files, we can consider a file as being uncovered

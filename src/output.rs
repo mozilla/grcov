@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use uuid::Uuid;
 extern crate md5;
 
-use defs::*;
+use crate::defs::*;
 
 fn get_target_output_writable(output_file: Option<&String>) -> Box<Write> {
     let write_target: Box<Write> = match output_file {

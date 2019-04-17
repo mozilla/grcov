@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 use zip::ZipArchive;
 
-use defs::*;
+use crate::defs::*;
 
 #[derive(Debug)]
 pub enum ArchiveType {
