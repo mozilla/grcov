@@ -193,10 +193,6 @@ pub fn rewrite_paths(
 ) -> CovResultIter {
     let mut glob_builder = GlobSetBuilder::new();
 
-    // workaround for bug: https://github.com/BurntSushi/ripgrep/issues/1079
-    // Some filters foo/* are ignored when not sorted
-    to_ignore_dirs.sort_unstable();
-
     for to_ignore_dir in to_ignore_dirs {
         glob_builder.add(Glob::new(&to_ignore_dir).unwrap());
     }
