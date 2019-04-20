@@ -12,28 +12,28 @@ extern crate zip;
 extern crate rustc_hash;
 
 mod defs;
-pub use defs::*;
+pub use crate::defs::*;
 
 mod producer;
-pub use producer::*;
+pub use crate::producer::*;
 
 mod gcov;
-pub use gcov::*;
+pub use crate::gcov::*;
 
 mod parser;
-pub use parser::*;
+pub use crate::parser::*;
 
 mod filter;
-pub use filter::*;
+pub use crate::filter::*;
 
 mod path_rewriting;
-pub use path_rewriting::*;
+pub use crate::path_rewriting::*;
 
 mod output;
-pub use output::*;
+pub use crate::output::*;
 
 mod reader;
-pub use reader::*;
+pub use crate::reader::*;
 
 use std::collections::{btree_map, hash_map};
 use std::fs;
