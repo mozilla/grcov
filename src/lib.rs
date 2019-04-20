@@ -9,30 +9,31 @@ extern crate uuid;
 extern crate walkdir;
 extern crate xml;
 extern crate zip;
+extern crate rustc_hash;
 
 mod defs;
-pub use defs::*;
+pub use crate::defs::*;
 
 mod producer;
-pub use producer::*;
+pub use crate::producer::*;
 
 mod gcov;
-pub use gcov::*;
+pub use crate::gcov::*;
 
 mod parser;
-pub use parser::*;
+pub use crate::parser::*;
 
 mod filter;
-pub use filter::*;
+pub use crate::filter::*;
 
 mod path_rewriting;
-pub use path_rewriting::*;
+pub use crate::path_rewriting::*;
 
 mod output;
-pub use output::*;
+pub use crate::output::*;
 
 mod reader;
-pub use reader::*;
+pub use crate::reader::*;
 
 use std::collections::{btree_map, hash_map};
 use std::fs;
@@ -41,7 +42,7 @@ use std::path::PathBuf;
 use walkdir::WalkDir;
 
 // Merge results, without caring about duplicate lines (they will be removed at the end).
-fn merge_results(result: &mut CovResult, result2: CovResult) {
+pub fn merge_results(result: &mut CovResult, result2: CovResult) {
     for (&line_no, &execution_count) in &result2.lines {
         match result.lines.entry(line_no) {
             btree_map::Entry::Occupied(c) => {
@@ -163,10 +164,7 @@ pub fn consumer(
                             fs::remove_file(gcov_path).unwrap();
                             new_results
                         } else {
-                            let mut new_results: Vec<(
-                                String,
-                                CovResult,
-                            )> = Vec::new();
+                            let mut new_results: Vec<(String, CovResult)> = Vec::new();
 
                             for entry in WalkDir::new(&working_dir).min_depth(1) {
                                 let gcov_path = entry.unwrap();
@@ -185,10 +183,12 @@ pub fn consumer(
                     }
                     ItemType::Buffers(mut buffers) => {
                         // LLVM
-                        match GCNO::compute(&buffers.stem,
-                                            buffers.gcno_buf,
-                                            buffers.gcda_buf,
-                                            branch_enabled) {
+                        match GCNO::compute(
+                            &buffers.stem,
+                            buffers.gcno_buf,
+                            buffers.gcda_buf,
+                            branch_enabled,
+                        ) {
                             Ok(r) => r,
                             Err(e) => {
                                 // Just print the error, don't panic and continue
@@ -223,13 +223,13 @@ pub fn consumer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+    use rustc_hash::FxHashMap;
     use std::fs::File;
     use std::sync::{Arc, Mutex};
 
     #[test]
     fn test_merge_results() {
-        let mut functions1: HashMap<String, Function> = HashMap::new();
+        let mut functions1: FxHashMap<String, Function> = FxHashMap::default();
         functions1.insert(
             "f1".to_string(),
             Function {
@@ -251,12 +251,12 @@ mod tests {
                 (2, vec![false, true]),
                 (4, vec![true]),
             ]
-                .iter()
-                .cloned()
-                .collect(),
+            .iter()
+            .cloned()
+            .collect(),
             functions: functions1,
         };
-        let mut functions2: HashMap<String, Function> = HashMap::new();
+        let mut functions2: FxHashMap<String, Function> = FxHashMap::default();
         functions2.insert(
             "f1".to_string(),
             Function {
@@ -281,9 +281,9 @@ mod tests {
                 (2, vec![false, true]),
                 (3, vec![true]),
             ]
-                .iter()
-                .cloned()
-                .collect(),
+            .iter()
+            .cloned()
+            .collect(),
             functions: functions2,
         };
 
@@ -303,9 +303,9 @@ mod tests {
                 (3, vec![true]),
                 (4, vec![true]),
             ]
-                .iter()
-                .cloned()
-                .collect()
+            .iter()
+            .cloned()
+            .collect()
         );
         assert!(result.functions.contains_key("f1"));
         assert!(result.functions.contains_key("f2"));
@@ -323,7 +323,7 @@ mod tests {
             .expect("Failed to open lcov file");
         let file = BufReader::new(&f);
         let results = parse_lcov(file, false).unwrap();
-        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(HashMap::with_capacity(1)));
+        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(FxHashMap::with_capacity_and_hasher(1, Default::default())));
         add_results(
             results,
             &result_map,
@@ -354,7 +354,7 @@ mod tests {
             .expect("Failed to open lcov file");
         let file = BufReader::new(&f);
         let results = parse_lcov(file, false).unwrap();
-        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(HashMap::with_capacity(3)));
+        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(FxHashMap::with_capacity_and_hasher(3, Default::default())));
         add_results(results, &result_map, &None);
         let result_map = Arc::try_unwrap(result_map).unwrap().into_inner().unwrap();
 

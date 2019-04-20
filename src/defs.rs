@@ -1,5 +1,6 @@
 use crossbeam::queue::MsQueue;
-use std::collections::{BTreeMap, HashMap};
+use rustc_hash::FxHashMap;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -13,7 +14,7 @@ pub struct Function {
 pub struct CovResult {
     pub lines: BTreeMap<u32, u64>,
     pub branches: BTreeMap<u32, Vec<bool>>,
-    pub functions: HashMap<String, Function>,
+    pub functions: FxHashMap<String, Function>,
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -47,6 +48,6 @@ pub struct WorkItem {
 
 pub type WorkQueue = MsQueue<Option<WorkItem>>;
 
-pub type CovResultMap = HashMap<String, CovResult>;
+pub type CovResultMap = FxHashMap<String, CovResult>;
 pub type SyncCovResultMap = Mutex<CovResultMap>;
 pub type CovResultIter = Box<Iterator<Item = (PathBuf, PathBuf, CovResult)>>;

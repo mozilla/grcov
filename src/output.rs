@@ -6,23 +6,20 @@ use std::path::PathBuf;
 use uuid::Uuid;
 extern crate md5;
 
-use defs::*;
+use crate::defs::*;
 
 fn get_target_output_writable(output_file: Option<&String>) -> Box<Write> {
     let write_target: Box<Write> = match output_file {
-        Some(filename) => {
-            Box::new(File::create(filename).unwrap())
-        },
+        Some(filename) => Box::new(File::create(filename).unwrap()),
         None => {
             let stdout = io::stdout();
             Box::new(stdout)
-        },
+        }
     };
     return write_target;
 }
 
 pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&String>) {
-
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
 
     for (_, rel_path, result) in results {
@@ -150,7 +147,8 @@ pub fn output_lcov(results: CovResultIter, output_file: Option<&String>) {
                 "FNDA:{},{}",
                 if function.executed { 1 } else { 0 },
                 name
-            ).unwrap();
+            )
+            .unwrap();
         }
         if !result.functions.is_empty() {
             writeln!(writer, "FNF:{}", result.functions.len()).unwrap();
@@ -158,7 +156,8 @@ pub fn output_lcov(results: CovResultIter, output_file: Option<&String>) {
                 writer,
                 "FNH:{}",
                 result.functions.values().filter(|x| x.executed).count()
-            ).unwrap();
+            )
+            .unwrap();
         }
 
         // branch coverage information
@@ -171,7 +170,8 @@ pub fn output_lcov(results: CovResultIter, output_file: Option<&String>) {
                     line,
                     n,
                     if *b_t { "1" } else { "-" }
-                ).unwrap();
+                )
+                .unwrap();
                 if *b_t {
                     branch_hit += 1;
                 }
@@ -189,7 +189,8 @@ pub fn output_lcov(results: CovResultIter, output_file: Option<&String>) {
             writer,
             "LH:{}",
             result.lines.values().filter(|&v| *v > 0).count()
-        ).unwrap();
+        )
+        .unwrap();
         writer.write_all(b"end_of_record\n").unwrap();
     }
 }
@@ -213,7 +214,7 @@ pub fn output_coveralls(
     service_job_number: &str,
     commit_sha: &str,
     with_function_info: bool,
-    output_file: Option<&String>
+    output_file: Option<&String>,
 ) {
     let mut source_files = Vec::new();
 
@@ -251,10 +252,10 @@ pub fn output_coveralls(
             let mut functions = Vec::new();
             for (name, function) in &result.functions {
                 functions.push(json!({
-                  "name": name,
-                  "start": function.start,
-                  "exec": function.executed,
-              }));
+                    "name": name,
+                    "start": function.start,
+                    "exec": function.executed,
+                }));
             }
 
             source_files.push(json!({
@@ -271,23 +272,23 @@ pub fn output_coveralls(
     serde_json::to_writer(
         &mut writer,
         &json!({
-        "repo_token": repo_token,
-        "git": {
-          "head": {
-            "id": commit_sha,
-          },
-          "branch": "master",
-        },
-        "source_files": source_files,
-        "service_name": service_name,
-        "service_number": service_number,
-        "service_job_number": service_job_number,
-    }),
-    ).unwrap();
+            "repo_token": repo_token,
+            "git": {
+              "head": {
+                "id": commit_sha,
+              },
+              "branch": "master",
+            },
+            "source_files": source_files,
+            "service_name": service_name,
+            "service_number": service_number,
+            "service_job_number": service_job_number,
+        }),
+    )
+    .unwrap();
 }
 
 pub fn output_files(results: CovResultIter, output_file: Option<&String>) {
-
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     for (_, rel_path, _) in results {
         writeln!(writer, "{}", rel_path.display()).unwrap();

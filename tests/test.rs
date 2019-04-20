@@ -74,7 +74,13 @@ fn read_file(path: &Path) -> String {
     s
 }
 
-fn read_expected(path: &Path, compiler: &str, compiler_ver: &str, format: &str, additional: Option<&str>) -> String {
+fn read_expected(
+    path: &Path,
+    compiler: &str,
+    compiler_ver: &str,
+    format: &str,
+    additional: Option<&str>,
+) -> String {
     let os_name = if cfg!(windows) {
         "win"
     } else if cfg!(target_os = "macos") {
@@ -83,11 +89,14 @@ fn read_expected(path: &Path, compiler: &str, compiler_ver: &str, format: &str, 
         "linux"
     };
 
-    let base_name = format!("expected{}", if let Some(additional) = additional {
-      additional
-    } else {
-      ""
-    });
+    let base_name = format!(
+        "expected{}",
+        if let Some(additional) = additional {
+            additional
+        } else {
+            ""
+        }
+    );
 
     let name_with_ver_and_os = format!(
         "{}_{}_{}_{}.{}",
@@ -534,7 +543,13 @@ fn test_integration_zip_zip() {
         // no gcda
         println!("No gcda");
         check_equal_coveralls(
-            &read_expected(path, &name, &compiler_version, "coveralls", Some("_no_gcda")),
+            &read_expected(
+                path,
+                &name,
+                &compiler_version,
+                "coveralls",
+                Some("_no_gcda"),
+            ),
             &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], path, "coveralls"),
             false,
         );
@@ -553,7 +568,13 @@ fn test_integration_zip_zip() {
 
         println!("Two gcdas");
         check_equal_coveralls(
-            &read_expected(path, &name, &compiler_version, "coveralls", Some("_two_gcda")),
+            &read_expected(
+                path,
+                &name,
+                &compiler_version,
+                "coveralls",
+                Some("_two_gcda"),
+            ),
             &run_grcov(
                 vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path],
                 path,

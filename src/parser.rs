@@ -1,4 +1,4 @@
-use std::collections::{btree_map, hash_map, BTreeMap, HashMap};
+use std::collections::{btree_map, hash_map, BTreeMap};
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read};
@@ -9,7 +9,9 @@ use std::str;
 use xml::attribute::OwnedAttribute;
 use xml::reader::{EventReader, XmlEvent};
 
-use defs::*;
+use rustc_hash::FxHashMap;
+
+use crate::defs::*;
 
 #[derive(Debug)]
 pub enum ParserError {
@@ -110,7 +112,7 @@ pub fn parse_lcov<T: Read>(
     let mut cur_file = None;
     let mut cur_lines = BTreeMap::new();
     let mut cur_branches = BTreeMap::new();
-    let mut cur_functions = HashMap::new();
+    let mut cur_functions = FxHashMap::default();
 
     let mut results = Vec::new();
 
@@ -119,7 +121,7 @@ pub fn parse_lcov<T: Read>(
     loop {
         l.clear();
 
-        let num_bytes = try!(lcov_reader.read_until(b'\n', &mut l));
+        let num_bytes = lcov_reader.read_until(b'\n', &mut l)?;
         if num_bytes == 0 {
             break;
         }
@@ -140,7 +142,7 @@ pub fn parse_lcov<T: Read>(
             cur_file = None;
             cur_lines = BTreeMap::new();
             cur_branches = BTreeMap::new();
-            cur_functions = HashMap::new();
+            cur_functions = FxHashMap::default();
         } else {
             let mut key_value = l.splitn(2, ':');
             let key = try_next!(key_value, l);
@@ -220,7 +222,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
     let mut cur_file = None;
     let mut cur_lines = BTreeMap::new();
     let mut cur_branches = BTreeMap::new();
-    let mut cur_functions = HashMap::new();
+    let mut cur_functions = FxHashMap::default();
     let mut results = Vec::new();
 
     let f = File::open(&gcov_path)
@@ -231,7 +233,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
     loop {
         l.clear();
 
-        let num_bytes = try!(file.read_until(b'\n', &mut l));
+        let num_bytes = file.read_until(b'\n', &mut l)?;
         if num_bytes == 0 {
             break;
         }
@@ -260,7 +262,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
                 cur_file = Some(value.to_owned());
                 cur_lines = BTreeMap::new();
                 cur_branches = BTreeMap::new();
-                cur_functions = HashMap::new();
+                cur_functions = FxHashMap::default();
             }
             "function" => {
                 let mut f_splits = value.splitn(3, ',');
@@ -341,9 +343,7 @@ fn parse_jacoco_report_sourcefile<T: Read>(
                 ref name,
                 ref attributes,
                 ..
-            })
-                if name.local_name.as_str() == "line" =>
-            {
+            }) if name.local_name.as_str() == "line" => {
                 let ci = get_xml_attribute(attributes, "ci")?.parse::<u64>()?;
                 let cb = get_xml_attribute(attributes, "cb")?.parse::<u64>()?;
                 let mb = get_xml_attribute(attributes, "mb")?.parse::<u64>()?;
@@ -363,7 +363,7 @@ fn parse_jacoco_report_sourcefile<T: Read>(
                 }
             }
             Ok(XmlEvent::EndElement { ref name }) if name.local_name.as_str() == "sourcefile" => {
-                break
+                break;
             }
             Err(e) => return Err(ParserError::Parse(e.to_string())),
             _ => {}
@@ -385,9 +385,7 @@ fn parse_jacoco_report_method<T: Read>(
                 ref name,
                 ref attributes,
                 ..
-            })
-                if name.local_name.as_str() == "counter" =>
-            {
+            }) if name.local_name.as_str() == "counter" => {
                 if get_xml_attribute(attributes, "type")? == "METHOD" {
                     executed = get_xml_attribute(attributes, "covered")?.parse::<u32>()? > 0;
                 }
@@ -404,8 +402,8 @@ fn parse_jacoco_report_method<T: Read>(
 fn parse_jacoco_report_class<T: Read>(
     parser: &mut EventReader<T>,
     class_name: &str,
-) -> Result<HashMap<String, Function>, ParserError> {
-    let mut functions: HashMap<String, Function> = HashMap::new();
+) -> Result<FxHashMap<String, Function>, ParserError> {
+    let mut functions: FxHashMap<String, Function> = FxHashMap::default();
 
     loop {
         match parser.next() {
@@ -413,9 +411,7 @@ fn parse_jacoco_report_class<T: Read>(
                 ref name,
                 ref attributes,
                 ..
-            })
-                if name.local_name.as_str() == "method" =>
-            {
+            }) if name.local_name.as_str() == "method" => {
                 let name = get_xml_attribute(attributes, "name")?;
                 let full_name = format!("{}#{}", class_name, name);
 
@@ -436,7 +432,7 @@ fn parse_jacoco_report_package<T: Read>(
     parser: &mut EventReader<T>,
     package: &str,
 ) -> Result<Vec<(String, CovResult)>, ParserError> {
-    let mut results_map: HashMap<String, CovResult> = HashMap::new();
+    let mut results_map: FxHashMap<String, CovResult> = FxHashMap::default();
 
     loop {
         match parser.next() {
@@ -478,7 +474,7 @@ fn parse_jacoco_report_package<T: Read>(
                     }
                     "sourcefile" => {
                         let sourcefile = get_xml_attribute(attributes, "name")?;
-                        let class = sourcefile.trim_right_matches(".java");
+                        let class = sourcefile.trim_end_matches(".java");
                         let (lines, branches) = parse_jacoco_report_sourcefile(parser)?;
 
                         match results_map.entry(class.to_string()) {
@@ -489,7 +485,7 @@ fn parse_jacoco_report_package<T: Read>(
                             }
                             hash_map::Entry::Vacant(v) => {
                                 v.insert(CovResult {
-                                    functions: HashMap::new(),
+                                    functions: FxHashMap::default(),
                                     lines,
                                     branches,
                                 });
@@ -522,11 +518,12 @@ fn parse_jacoco_report_package<T: Read>(
         .map(|(class, result)| {
             (
                 format!("{}/{}.java", package, class)
-                    .trim_left_matches('/')
+                    .trim_start_matches('/')
                     .to_string(),
                 result,
             )
-        }).collect())
+        })
+        .collect())
 }
 
 pub fn parse_jacoco_xml_report<T: Read>(
@@ -541,9 +538,7 @@ pub fn parse_jacoco_xml_report<T: Read>(
                 ref name,
                 ref attributes,
                 ..
-            })
-                if name.local_name.as_str() == "package" =>
-            {
+            }) if name.local_name.as_str() == "package" => {
                 let package = get_xml_attribute(attributes, "name")?;
                 let mut package_results = parse_jacoco_report_package(&mut parser, &package)?;
                 results.append(&mut package_results);
@@ -653,9 +648,9 @@ mod tests {
                 (84, 1),
                 (90, 1)
             ]
-                .iter()
-                .cloned()
-                .collect()
+            .iter()
+            .cloned()
+            .collect()
         );
         assert_eq!(result.branches, [].iter().cloned().collect());
         assert!(result.functions.contains_key("MainProcessSingleton"));
@@ -738,9 +733,9 @@ mod tests {
                 (84, 1),
                 (90, 1)
             ]
-                .iter()
-                .cloned()
-                .collect()
+            .iter()
+            .cloned()
+            .collect()
         );
         assert_eq!(
             result.branches,
@@ -752,9 +747,9 @@ mod tests {
                 (63, vec![false, false]),
                 (68, vec![true, true])
             ]
-                .iter()
-                .cloned()
-                .collect()
+            .iter()
+            .cloned()
+            .collect()
         );
         assert!(result.functions.contains_key("MainProcessSingleton"));
         let func = result.functions.get("MainProcessSingleton").unwrap();
@@ -837,19 +832,17 @@ mod tests {
                 (98, 1),
                 (99, 1)
             ]
-                .iter()
-                .cloned()
-                .collect()
+            .iter()
+            .cloned()
+            .collect()
         );
         assert!(result.functions.contains_key("MainProcessSingleton"));
         let func = result.functions.get("MainProcessSingleton").unwrap();
         assert_eq!(func.start, 15);
         assert_eq!(func.executed, true);
-        assert!(
-            result
-                .functions
-                .contains_key("cubic-bezier(0.0, 0.0, 1.0, 1.0)")
-        );
+        assert!(result
+            .functions
+            .contains_key("cubic-bezier(0.0, 0.0, 1.0, 1.0)"));
         let func = result
             .functions
             .get("cubic-bezier(0.0, 0.0, 1.0, 1.0)")
@@ -929,19 +922,17 @@ mod tests {
                 (98, 1),
                 (99, 1)
             ]
-                .iter()
-                .cloned()
-                .collect()
+            .iter()
+            .cloned()
+            .collect()
         );
         assert!(result.functions.contains_key("MainProcessSingleton"));
         let func = result.functions.get("MainProcessSingleton").unwrap();
         assert_eq!(func.start, 15);
         assert_eq!(func.executed, true);
-        assert!(
-            result
-                .functions
-                .contains_key("cubic-bezier(0.0, 0.0, 1.0, 1.0)")
-        );
+        assert!(result
+            .functions
+            .contains_key("cubic-bezier(0.0, 0.0, 1.0, 1.0)"));
         let func = result
             .functions
             .get("cubic-bezier(0.0, 0.0, 1.0, 1.0)")
@@ -978,9 +969,9 @@ mod tests {
                 (403, 0),
                 (405, 0)
             ]
-                .iter()
-                .cloned()
-                .collect()
+            .iter()
+            .cloned()
+            .collect()
         );
         assert!(result.functions.contains_key("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv"));
         let mut func = result.functions.get("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv").unwrap();
@@ -1128,37 +1119,31 @@ mod tests {
                 (374, 0),
                 (376, 0)
             ]
-                .iter()
-                .cloned()
-                .collect()
+            .iter()
+            .cloned()
+            .collect()
         );
-        assert!(
-            result
-                .functions
-                .contains_key("_ZL13LoadGtkModuleR24GnomeAccessibilityModule")
-        );
+        assert!(result
+            .functions
+            .contains_key("_ZL13LoadGtkModuleR24GnomeAccessibilityModule"));
         func = result
             .functions
             .get("_ZL13LoadGtkModuleR24GnomeAccessibilityModule")
             .unwrap();
         assert_eq!(func.start, 81);
         assert_eq!(func.executed, false);
-        assert!(
-            result
-                .functions
-                .contains_key("_ZN7mozilla4a11y12PlatformInitEv")
-        );
+        assert!(result
+            .functions
+            .contains_key("_ZN7mozilla4a11y12PlatformInitEv"));
         func = result
             .functions
             .get("_ZN7mozilla4a11y12PlatformInitEv")
             .unwrap();
         assert_eq!(func.start, 136);
         assert_eq!(func.executed, true);
-        assert!(
-            result
-                .functions
-                .contains_key("_ZN7mozilla4a11y16PlatformShutdownEv")
-        );
+        assert!(result
+            .functions
+            .contains_key("_ZN7mozilla4a11y16PlatformShutdownEv"));
         func = result
             .functions
             .get("_ZN7mozilla4a11y16PlatformShutdownEv")
@@ -1169,11 +1154,9 @@ mod tests {
         func = result.functions.get("_ZN7mozilla4a11y7PreInitEv").unwrap();
         assert_eq!(func.start, 261);
         assert_eq!(func.executed, true);
-        assert!(
-            result
-                .functions
-                .contains_key("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv")
-        );
+        assert!(result
+            .functions
+            .contains_key("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv"));
         func = result
             .functions
             .get("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv")
@@ -1425,9 +1408,9 @@ mod tests {
                 (1790, 35505166),
                 (1796, 35505166)
             ]
-                .iter()
-                .cloned()
-                .collect()
+            .iter()
+            .cloned()
+            .collect()
         );
 
         // Assert more stuff.
@@ -1452,17 +1435,14 @@ mod tests {
                 (403, 0),
                 (405, 0)
             ]
-                .iter()
-                .cloned()
-                .collect()
+            .iter()
+            .cloned()
+            .collect()
         );
 
         assert_eq!(
             result.branches,
-            [
-                (399, vec![false, false]),
-                (401, vec![true, false])
-            ]
+            [(399, vec![false, false]), (401, vec![true, false])]
                 .iter()
                 .cloned()
                 .collect()
@@ -1478,7 +1458,8 @@ mod tests {
     fn test_parser_gcov_rust_generics_with_two_parameters() {
         let results = parse_gcov(Path::new(
             "./test/rust/generics_with_two_parameters_intermediate.gcov",
-        )).unwrap();
+        ))
+        .unwrap();
         assert_eq!(results.len(), 1);
         let (ref source_name, ref result) = results[0];
 
@@ -1494,11 +1475,9 @@ mod tests {
 
         assert_eq!(result.branches, [].iter().cloned().collect());
 
-        assert!(
-            result
-                .functions
-                .contains_key("_ZN27rust_code_coverage_sample_24mainE")
-        );
+        assert!(result
+            .functions
+            .contains_key("_ZN27rust_code_coverage_sample_24mainE"));
         let func = result
             .functions
             .get("_ZN27rust_code_coverage_sample_24mainE")
@@ -1523,7 +1502,7 @@ mod tests {
         lines.insert(1, 0);
         lines.insert(4, 1);
         lines.insert(6, 1);
-        let mut functions: HashMap<String, Function> = HashMap::new();
+        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
         functions.insert(
             String::from("hello#<init>"),
             Function {
@@ -1562,7 +1541,7 @@ mod tests {
         for i in vec![5, 10, 14, 15, 18, 22, 23, 25, 27, 31, 34, 37, 44, 49] {
             lines.insert(i, 0);
         }
-        let mut functions: HashMap<String, Function> = HashMap::new();
+        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
 
         for (name, start, executed) in vec![
             ("Person$InnerClassForPerson#getSomethingElse", 31, false),

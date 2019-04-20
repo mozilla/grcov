@@ -1,7 +1,7 @@
 extern crate tempfile;
 
+use rustc_hash::FxHashMap;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::env;
 use std::fs::{self, File};
 use std::io::{self, BufReader, Read};
@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 use zip::ZipArchive;
 
-use defs::*;
+use crate::defs::*;
 
 #[derive(Debug)]
 pub enum ArchiveType {
@@ -49,7 +49,7 @@ impl Archive {
     fn insert_vec<'a>(
         &'a self,
         filename: String,
-        map: &RefCell<HashMap<String, Vec<&'a Archive>>>,
+        map: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
     ) {
         let mut map = map.borrow_mut();
         if map.contains_key(&filename) {
@@ -66,11 +66,11 @@ impl Archive {
         &'a self,
         file: FilePath,
         path: &PathBuf,
-        gcno_stem_archives: &RefCell<HashMap<GCNOStem, &'a Archive>>,
-        gcda_stem_archives: &RefCell<HashMap<String, Vec<&'a Archive>>>,
-        infos: &RefCell<HashMap<String, Vec<&'a Archive>>>,
-        xmls: &RefCell<HashMap<String, Vec<&'a Archive>>>,
-        linked_files_maps: &RefCell<HashMap<String, &'a Archive>>,
+        gcno_stem_archives: &RefCell<FxHashMap<GCNOStem, &'a Archive>>,
+        gcda_stem_archives: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        infos: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        xmls: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        linked_files_maps: &RefCell<FxHashMap<String, &'a Archive>>,
         is_llvm: bool,
     ) {
         if let Some(ext) = path.extension() {
@@ -153,11 +153,11 @@ impl Archive {
 
     pub fn explore<'a>(
         &'a mut self,
-        gcno_stem_archives: &RefCell<HashMap<GCNOStem, &'a Archive>>,
-        gcda_stem_archives: &RefCell<HashMap<String, Vec<&'a Archive>>>,
-        infos: &RefCell<HashMap<String, Vec<&'a Archive>>>,
-        xmls: &RefCell<HashMap<String, Vec<&'a Archive>>>,
-        linked_files_maps: &RefCell<HashMap<String, &'a Archive>>,
+        gcno_stem_archives: &RefCell<FxHashMap<GCNOStem, &'a Archive>>,
+        gcda_stem_archives: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        infos: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        xmls: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        linked_files_maps: &RefCell<FxHashMap<String, &'a Archive>>,
         is_llvm: bool,
     ) {
         match *self.item.borrow() {
@@ -212,7 +212,7 @@ impl Archive {
                         is_llvm,
                     );
                 }
-            },
+            }
         }
     }
 
@@ -235,10 +235,11 @@ impl Archive {
                     true
                 }
                 Err(_) => false,
-            }
+            },
             ArchiveType::Plain(_) => match File::open(name) {
                 Ok(mut f) => {
-                    f.read_to_end(buf).expect(&format!("Failed to read file: {}.", name));
+                    f.read_to_end(buf)
+                        .expect(&format!("Failed to read file: {}.", name));
                     true
                 }
                 Err(_) => false,
@@ -286,15 +287,15 @@ impl Archive {
             }
             ArchiveType::Plain(_) => {
                 panic!("We shouldn't be there !!");
-            },
+            }
         }
     }
 }
 
 fn gcno_gcda_producer(
     tmp_dir: &Path,
-    gcno_stem_archives: &HashMap<GCNOStem, &Archive>,
-    gcda_stem_archives: &HashMap<String, Vec<&Archive>>,
+    gcno_stem_archives: &FxHashMap<GCNOStem, &Archive>,
+    gcda_stem_archives: &FxHashMap<String, Vec<&Archive>>,
     queue: &WorkQueue,
     ignore_orphan_gcno: bool,
 ) {
@@ -340,9 +341,9 @@ fn gcno_gcda_producer(
 
                         // Create symlinks.
                         if num != 0 {
-                            fs::hard_link(&physical_gcno_path, &gcno_path).unwrap_or_else(
-                                |_| panic!("Failed to create hardlink {:?}", gcno_path),
-                            );
+                            fs::hard_link(&physical_gcno_path, &gcno_path).unwrap_or_else(|_| {
+                                panic!("Failed to create hardlink {:?}", gcno_path)
+                            });
                         }
 
                         let gcda_path = tmp_dir.join(format!("{}_{}.gcda", stem, num + 1));
@@ -389,7 +390,7 @@ fn gcno_gcda_producer(
 }
 
 fn file_content_producer(
-    files: &HashMap<String, Vec<&Archive>>,
+    files: &FxHashMap<String, Vec<&Archive>>,
     queue: &WorkQueue,
     item_format: ItemFormat,
 ) {
@@ -406,7 +407,7 @@ fn file_content_producer(
     }
 }
 
-pub fn get_mapping(linked_files_maps: &HashMap<String, &Archive>) -> Option<Vec<u8>> {
+pub fn get_mapping(linked_files_maps: &FxHashMap<String, &Archive>) -> Option<Vec<u8>> {
     match linked_files_maps.iter().next() {
         Some((ref name, archive)) => {
             let mut buffer = Vec::new();
@@ -459,7 +460,10 @@ pub fn producer(
                 if ext == "info" || ext == "json" || ext == "xml" {
                     plain_files.push(full_path);
                 } else {
-                    panic!("Cannot load file '{:?}': it isn't a .info, a .json or a .xml file.", full_path);
+                    panic!(
+                        "Cannot load file '{:?}': it isn't a .info, a .json or a .xml file.",
+                        full_path
+                    );
                 }
             } else {
                 panic!("Cannot load file '{:?}': it isn't a directory, a .info, a .json or a .xml file.", full_path);
@@ -474,11 +478,14 @@ pub fn producer(
         });
     }
 
-    let gcno_stems_archives: RefCell<HashMap<GCNOStem, &Archive>> = RefCell::new(HashMap::new());
-    let gcda_stems_archives: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::new());
-    let infos: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::new());
-    let xmls: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::new());
-    let linked_files_maps: RefCell<HashMap<String, &Archive>> = RefCell::new(HashMap::new());
+    let gcno_stems_archives: RefCell<FxHashMap<GCNOStem, &Archive>> =
+        RefCell::new(FxHashMap::default());
+    let gcda_stems_archives: RefCell<FxHashMap<String, Vec<&Archive>>> =
+        RefCell::new(FxHashMap::default());
+    let infos: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
+    let xmls: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
+    let linked_files_maps: RefCell<FxHashMap<String, &Archive>> =
+        RefCell::new(FxHashMap::default());
 
     for archive in &mut archives {
         archive.explore(
@@ -1455,10 +1462,7 @@ mod tests {
         let json_path = "test/linked-files-map.json";
         let mapping = producer(
             &tmp_path,
-            &[
-                "test/prova.info".to_string(),
-                json_path.to_string(),
-            ],
+            &["test/prova.info".to_string(), json_path.to_string()],
             &queue,
             true,
             false,
@@ -1467,9 +1471,7 @@ mod tests {
         assert!(mapping.is_some());
         let mapping = mapping.unwrap();
 
-        let expected = vec![
-            (ItemFormat::INFO, false, "prova_1.info", true),
-        ];
+        let expected = vec![(ItemFormat::INFO, false, "prova_1.info", true)];
 
         match File::open(json_path) {
             Ok(mut reader) => {
@@ -1479,7 +1481,7 @@ mod tests {
             }
             Err(_) => {
                 assert!(false, format!("Failed to read the file: {}", json_path));
-            },
+            }
         }
 
         check_produced(tmp_path, &queue, expected);
@@ -1494,9 +1496,7 @@ mod tests {
         let tmp_path = tmp_dir.path().to_owned();
         producer(
             &tmp_path,
-            &[
-                "sub2/RootAccessibleWrap_1.gcno".to_string(),
-            ],
+            &["sub2/RootAccessibleWrap_1.gcno".to_string()],
             &queue,
             true,
             false,
@@ -1512,9 +1512,7 @@ mod tests {
         let tmp_path = tmp_dir.path().to_owned();
         producer(
             &tmp_path,
-            &[
-                "./test/llvm/file.gcda".to_string(),
-            ],
+            &["./test/llvm/file.gcda".to_string()],
             &queue,
             true,
             false,
