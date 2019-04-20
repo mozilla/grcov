@@ -9,6 +9,7 @@ extern crate uuid;
 extern crate walkdir;
 extern crate xml;
 extern crate zip;
+extern crate rustc_hash;
 
 mod defs;
 pub use crate::defs::*;
@@ -41,7 +42,7 @@ use std::path::PathBuf;
 use walkdir::WalkDir;
 
 // Merge results, without caring about duplicate lines (they will be removed at the end).
-fn merge_results(result: &mut CovResult, result2: CovResult) {
+pub fn merge_results(result: &mut CovResult, result2: CovResult) {
     for (&line_no, &execution_count) in &result2.lines {
         match result.lines.entry(line_no) {
             btree_map::Entry::Occupied(c) => {
@@ -222,13 +223,13 @@ pub fn consumer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+    use rustc_hash::FxHashMap;
     use std::fs::File;
     use std::sync::{Arc, Mutex};
 
     #[test]
     fn test_merge_results() {
-        let mut functions1: HashMap<String, Function> = HashMap::new();
+        let mut functions1: FxHashMap<String, Function> = FxHashMap::default();
         functions1.insert(
             "f1".to_string(),
             Function {
@@ -255,7 +256,7 @@ mod tests {
             .collect(),
             functions: functions1,
         };
-        let mut functions2: HashMap<String, Function> = HashMap::new();
+        let mut functions2: FxHashMap<String, Function> = FxHashMap::default();
         functions2.insert(
             "f1".to_string(),
             Function {
@@ -322,7 +323,7 @@ mod tests {
             .expect("Failed to open lcov file");
         let file = BufReader::new(&f);
         let results = parse_lcov(file, false).unwrap();
-        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(HashMap::with_capacity(1)));
+        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(FxHashMap::with_capacity_and_hasher(1, Default::default())));
         add_results(
             results,
             &result_map,
@@ -353,7 +354,7 @@ mod tests {
             .expect("Failed to open lcov file");
         let file = BufReader::new(&f);
         let results = parse_lcov(file, false).unwrap();
-        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(HashMap::with_capacity(3)));
+        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(FxHashMap::with_capacity_and_hasher(3, Default::default())));
         add_results(results, &result_map, &None);
         let result_map = Arc::try_unwrap(result_map).unwrap().into_inner().unwrap();
 

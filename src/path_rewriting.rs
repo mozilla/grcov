@@ -1,6 +1,7 @@
 use globset::{Glob, GlobSetBuilder};
+use rustc_hash::FxHashMap;
 use serde_json::Value;
-use std::collections::{hash_map, HashMap};
+use std::collections::hash_map;
 use std::fs;
 use std::io;
 use std::mem;
@@ -136,7 +137,7 @@ fn check_extension(path: &PathBuf, e: &str) -> bool {
     }
 }
 
-fn map_partial_path(file_to_paths: &HashMap<String, Vec<PathBuf>>, path: PathBuf) -> PathBuf {
+fn map_partial_path(file_to_paths: &FxHashMap<String, Vec<PathBuf>>, path: PathBuf) -> PathBuf {
     let options = file_to_paths.get(path.file_name().unwrap().to_str().unwrap());
 
     if options.is_none() {
@@ -206,7 +207,7 @@ pub fn rewrite_paths(
     }
 
     // Traverse source dir and store all paths, reversed.
-    let mut file_to_paths: HashMap<String, Vec<PathBuf>> = HashMap::new();
+    let mut file_to_paths: FxHashMap<String, Vec<PathBuf>> = FxHashMap::default();
     if let Some(ref source_dir) = source_dir {
         for entry in WalkDir::new(&source_dir)
             .into_iter()
@@ -288,7 +289,7 @@ pub fn rewrite_paths(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::{BTreeMap, HashMap};
+    use std::collections::BTreeMap;
 
     #[test]
     fn test_to_lowercase_first() {
@@ -319,7 +320,7 @@ mod tests {
             CovResult {
                 lines: BTreeMap::new(),
                 branches: BTreeMap::new(),
-                functions: HashMap::new(),
+                functions: FxHashMap::default(),
             }
         }};
     }
@@ -329,7 +330,7 @@ mod tests {
             CovResult {
                 lines: [(42, 1)].iter().cloned().collect(),
                 branches: BTreeMap::new(),
-                functions: HashMap::new(),
+                functions: FxHashMap::default(),
             }
         }};
     }
@@ -339,14 +340,14 @@ mod tests {
             CovResult {
                 lines: [(42, 0)].iter().cloned().collect(),
                 branches: BTreeMap::new(),
-                functions: HashMap::new(),
+                functions: FxHashMap::default(),
             }
         }};
     }
 
     #[test]
     fn test_rewrite_paths_basic() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("main.cpp".to_string(), empty_result!());
         let results = rewrite_paths(result_map, None, None, None, false, Vec::new(), None);
         let mut count = 0;
@@ -362,7 +363,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_rewrite_paths_remove_prefix() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert(
             "/home/worker/src/workspace/main.cpp".to_string(),
             empty_result!(),
@@ -389,7 +390,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_remove_prefix() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert(
             "C:\\Users\\worker\\src\\workspace\\main.cpp".to_string(),
             empty_result!(),
@@ -416,7 +417,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_remove_prefix_with_slash() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert(
             "C:/Users/worker/src/workspace/main.cpp".to_string(),
             empty_result!(),
@@ -443,7 +444,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_remove_prefix_with_slash_longer_path() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert(
             "C:/Users/worker/src/workspace/main.cpp".to_string(),
             empty_result!(),
@@ -470,7 +471,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_rewrite_paths_ignore_non_existing_files() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("tests/class/main.cpp".to_string(), empty_result!());
         result_map.insert("tests/class/doesntexist.cpp".to_string(), empty_result!());
         let results = rewrite_paths(result_map, None, None, None, true, Vec::new(), None);
@@ -492,7 +493,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_ignore_non_existing_files() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("tests\\class\\main.cpp".to_string(), empty_result!());
         result_map.insert("tests\\class\\doesntexist.cpp".to_string(), empty_result!());
         let results = rewrite_paths(result_map, None, None, None, true, Vec::new(), None);
@@ -510,7 +511,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_rewrite_paths_ignore_a_directory() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("main.cpp".to_string(), empty_result!());
         result_map.insert("mydir/prova.h".to_string(), empty_result!());
         let results = rewrite_paths(
@@ -535,7 +536,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_ignore_a_directory() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("main.cpp".to_string(), empty_result!());
         result_map.insert("mydir\\prova.h".to_string(), empty_result!());
         let results = rewrite_paths(
@@ -563,7 +564,7 @@ mod tests {
         let mut ignore_dirs = vec!["mydir/*".to_string(), "mydir2/*".to_string()];
         for _ in 0..2 {
             // we run the test twice, one with ignore_dirs and the other with ignore_dirs.reverse()
-            let mut result_map: CovResultMap = HashMap::new();
+            let mut result_map: CovResultMap = FxHashMap::default();
             result_map.insert("main.cpp".to_string(), empty_result!());
             result_map.insert("mydir/prova.h".to_string(), empty_result!());
             result_map.insert("mydir2/prova.h".to_string(), empty_result!());
@@ -594,7 +595,7 @@ mod tests {
         let mut ignore_dirs = vec!["mydir/*".to_string(), "mydir2/*".to_string()];
         for _ in 0..2 {
             // we run the test twice, one with ignore_dirs and the other with ignore_dirs.reverse()
-            let mut result_map: CovResultMap = HashMap::new();
+            let mut result_map: CovResultMap = FxHashMap::default();
             result_map.insert("main.cpp".to_string(), empty_result!());
             result_map.insert("mydir\\prova.h".to_string(), empty_result!());
             result_map.insert("mydir2\\prova.h".to_string(), empty_result!());
@@ -622,7 +623,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_rewrite_paths_rewrite_path_using_relative_source_directory() {
-        let result_map: CovResultMap = HashMap::new();
+        let result_map: CovResultMap = FxHashMap::default();
         rewrite_paths(
             result_map,
             None,
@@ -637,7 +638,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_rewrite_paths_rewrite_path_using_absolute_source_directory() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("java/main.java".to_string(), empty_result!());
         result_map.insert("test/java/main.java".to_string(), empty_result!());
         let results = rewrite_paths(
@@ -663,7 +664,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_rewrite_path_using_absolute_source_directory() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("java\\main.java".to_string(), empty_result!());
         result_map.insert("test\\java\\main.java".to_string(), empty_result!());
         let results = rewrite_paths(
@@ -689,7 +690,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_rewrite_paths_rewrite_path_for_java_and_rust() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("java/main.java".to_string(), empty_result!());
         result_map.insert("main.rs".to_string(), empty_result!());
         let results = rewrite_paths(
@@ -714,7 +715,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_rewrite_path_for_java_and_rust() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("java\\main.java".to_string(), empty_result!());
         result_map.insert("main.rs".to_string(), empty_result!());
         let results = rewrite_paths(
@@ -739,7 +740,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_rewrite_paths_rewrite_path_using_absolute_source_directory_and_partial_path() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("java/main.java".to_string(), empty_result!());
         let results = rewrite_paths(
             result_map,
@@ -764,7 +765,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_rewrite_path_using_absolute_source_directory_and_partial_path() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("java\\main.java".to_string(), empty_result!());
         let results = rewrite_paths(
             result_map,
@@ -789,7 +790,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_rewrite_paths_rewrite_path_and_remove_prefix() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert(
             "/home/worker/src/workspace/class/main.cpp".to_string(),
             empty_result!(),
@@ -818,7 +819,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_rewrite_path_and_remove_prefix() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert(
             "C:\\Users\\worker\\src\\workspace\\class\\main.cpp".to_string(),
             empty_result!(),
@@ -846,7 +847,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_rewrite_paths_rewrite_path_using_mapping() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("class/main.cpp".to_string(), empty_result!());
         let results = rewrite_paths(
             result_map,
@@ -870,7 +871,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_rewrite_path_using_mapping() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("class\\main.cpp".to_string(), empty_result!());
         let results = rewrite_paths(
             result_map,
@@ -894,7 +895,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_rewrite_paths_rewrite_path_using_mapping_and_ignore_non_existing() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("rewritten/main.cpp".to_string(), empty_result!());
         result_map.insert("tests/class/main.cpp".to_string(), empty_result!());
         let results = rewrite_paths(
@@ -922,7 +923,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_rewrite_path_using_mapping_and_ignore_non_existing() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("rewritten\\main.cpp".to_string(), empty_result!());
         result_map.insert("tests\\class\\main.cpp".to_string(), empty_result!());
         let results = rewrite_paths(
@@ -950,7 +951,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_rewrite_paths_rewrite_path_using_mapping_and_remove_prefix() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert(
             "/home/worker/src/workspace/rewritten/main.cpp".to_string(),
             empty_result!(),
@@ -979,7 +980,7 @@ mod tests {
     #[test]
     fn test_rewrite_paths_rewrite_path_using_mapping_and_remove_prefix() {
         // Mapping with uppercase disk and prefix with uppercase disk.
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert(
             "C:\\Users\\worker\\src\\workspace\\rewritten\\main.cpp".to_string(),
             empty_result!(),
@@ -1006,7 +1007,7 @@ mod tests {
         assert_eq!(count, 1);
 
         // Mapping with lowercase disk and prefix with uppercase disk.
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert(
             "C:\\Users\\worker\\src\\workspace\\rewritten\\main.cpp".to_string(),
             empty_result!(),
@@ -1033,7 +1034,7 @@ mod tests {
         assert_eq!(count, 1);
 
         // Mapping with uppercase disk and prefix with lowercase disk.
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert(
             "C:\\Users\\worker\\src\\workspace\\rewritten\\main.cpp".to_string(),
             empty_result!(),
@@ -1060,7 +1061,7 @@ mod tests {
         assert_eq!(count, 1);
 
         // Mapping with lowercase disk and prefix with lowercase disk.
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert(
             "C:\\Users\\worker\\src\\workspace\\rewritten\\main.cpp".to_string(),
             empty_result!(),
@@ -1090,7 +1091,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_rewrite_paths_rewrite_path_using_mapping_and_source_directory_and_remove_prefix() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert(
             "/home/worker/src/workspace/rewritten/main.cpp".to_string(),
             empty_result!(),
@@ -1118,7 +1119,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_rewrite_path_using_mapping_and_source_directory_and_remove_prefix() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert(
             "C:\\Users\\worker\\src\\workspace\\rewritten\\main.cpp".to_string(),
             empty_result!(),
@@ -1145,7 +1146,7 @@ mod tests {
 
     #[test]
     fn test_rewrite_paths_only_covered() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("covered.cpp".to_string(), covered_result!());
         result_map.insert("uncovered.cpp".to_string(), uncovered_result!());
         let results = rewrite_paths(result_map, None, None, None, false, Vec::new(), Some(true));
@@ -1161,7 +1162,7 @@ mod tests {
 
     #[test]
     fn test_rewrite_paths_only_uncovered() {
-        let mut result_map: CovResultMap = HashMap::new();
+        let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("covered.cpp".to_string(), covered_result!());
         result_map.insert("uncovered.cpp".to_string(), uncovered_result!());
         let results = rewrite_paths(result_map, None, None, None, false, Vec::new(), Some(false));
