@@ -188,7 +188,7 @@ pub fn rewrite_paths(
     source_dir: Option<PathBuf>,
     prefix_dir: Option<PathBuf>,
     ignore_not_existing: bool,
-    mut to_ignore_dirs: Vec<String>,
+    to_ignore_dirs: Vec<String>,
     filter_option: Option<bool>,
 ) -> CovResultIter {
     let mut glob_builder = GlobSetBuilder::new();
