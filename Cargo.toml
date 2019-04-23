@@ -31,7 +31,7 @@ serde_json = "^1.0"
 walkdir = "^2.2"
 num_cpus = "^1.10"
 semver = "^0.9"
-md5 = "^0.6"
+md-5 = "^0.8"
 zip = { version = "^0.4", features = ["deflate-zlib"], default-features = false }
 tempfile = "^3"
 uuid = { version = "^0.7", features = ["v4"] }

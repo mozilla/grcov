@@ -87,7 +87,7 @@ fn remove_newline(l: &mut Vec<u8>) {
 pub fn add_branch(branches: &mut BTreeMap<u32, Vec<bool>>, line_no: u32, no: u32, taken: bool) {
     match branches.entry(line_no) {
         btree_map::Entry::Occupied(c) => {
-            let mut v = c.into_mut();
+            let v = c.into_mut();
             let l = v.len();
             let no = no as usize;
             if no == l {
@@ -293,7 +293,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
                 let taken = try_next!(values, l) == "taken";
                 match cur_branches.entry(line_no) {
                     btree_map::Entry::Occupied(c) => {
-                        let mut v = c.into_mut();
+                        let v = c.into_mut();
                         v.push(taken);
                     }
                     btree_map::Entry::Vacant(p) => {

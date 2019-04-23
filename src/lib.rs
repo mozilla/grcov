@@ -88,7 +88,7 @@ fn add_results(
     source_dir: &Option<PathBuf>,
 ) {
     let mut map = result_map.lock().unwrap();
-    for mut result in results.drain(..) {
+    for result in results.drain(..) {
         let path = match source_dir {
             Some(source_dir) => {
                 // the goal here is to be able to merge results for paths like foo/./bar and foo/bar
@@ -181,7 +181,7 @@ pub fn consumer(
                             new_results
                         }
                     }
-                    ItemType::Buffers(mut buffers) => {
+                    ItemType::Buffers(buffers) => {
                         // LLVM
                         match GCNO::compute(
                             &buffers.stem,

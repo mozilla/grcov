@@ -615,7 +615,7 @@ impl GCNO {
     fn collect_lines(&self) -> FxHashMap<&str, FxHashMap<u32, u64>> {
         let mut results: FxHashMap<&str, FxHashMap<u32, u64>> = FxHashMap::default();
         for function in &self.functions {
-            let mut lines = match results.entry(&function.file_name) {
+            let lines = match results.entry(&function.file_name) {
                 hash_map::Entry::Occupied(l) => l.into_mut(),
                 hash_map::Entry::Vacant(p) => p.insert(FxHashMap::default()),
             };
@@ -696,7 +696,7 @@ impl GCNO {
         let mut results: FxHashMap<&str, CovResult> = FxHashMap::default();
         for fun in &mut self.functions {
             fun.add_line_count();
-            let mut res = match results.entry(&fun.file_name) {
+            let res = match results.entry(&fun.file_name) {
                 hash_map::Entry::Occupied(r) => r.into_mut(),
                 hash_map::Entry::Vacant(p) => p.insert(CovResult {
                     lines: BTreeMap::new(),
@@ -738,7 +738,7 @@ impl GCNO {
                                 .map(|no| fun.edges[*no].counter > 0);
                             match res.branches.entry(line) {
                                 btree_map::Entry::Occupied(c) => {
-                                    let mut v = c.into_mut();
+                                    let v = c.into_mut();
                                     v.extend(taken);
                                 }
                                 btree_map::Entry::Vacant(p) => {
@@ -754,7 +754,7 @@ impl GCNO {
                             let taken = vec![false; n_dest];
                             match res.branches.entry(block.line_max) {
                                 btree_map::Entry::Occupied(c) => {
-                                    let mut v = c.into_mut();
+                                    let v = c.into_mut();
                                     v.extend(taken);
                                 }
                                 btree_map::Entry::Vacant(p) => {
