@@ -188,7 +188,7 @@ pub fn rewrite_paths(
     source_dir: Option<PathBuf>,
     prefix_dir: Option<PathBuf>,
     ignore_not_existing: bool,
-    to_ignore_dirs: Vec<String>,
+    to_ignore_dirs: &mut [&str],
     filter_option: Option<bool>,
 ) -> CovResultIter {
     let mut glob_builder = GlobSetBuilder::new();
@@ -345,7 +345,7 @@ mod tests {
     fn test_rewrite_paths_basic() {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("main.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(result_map, None, None, None, false, Vec::new(), None);
+        let results = rewrite_paths(result_map, None, None, None, false, &mut Vec::new(), None);
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -370,7 +370,7 @@ mod tests {
             None,
             Some(PathBuf::from("/home/worker/src/workspace/")),
             false,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -397,7 +397,7 @@ mod tests {
             None,
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace\\")),
             false,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -424,7 +424,7 @@ mod tests {
             None,
             Some(PathBuf::from("C:/Users/worker/src/workspace/")),
             false,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -451,7 +451,7 @@ mod tests {
             None,
             Some(PathBuf::from("C:/Users/worker/src/")),
             false,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -470,7 +470,7 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("tests/class/main.cpp".to_string(), empty_result!());
         result_map.insert("tests/class/doesntexist.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(result_map, None, None, None, true, Vec::new(), None);
+        let results = rewrite_paths(result_map, None, None, None, true, &mut Vec::new(), None);
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -492,7 +492,7 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("tests\\class\\main.cpp".to_string(), empty_result!());
         result_map.insert("tests\\class\\doesntexist.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(result_map, None, None, None, true, Vec::new(), None);
+        let results = rewrite_paths(result_map, None, None, None, true, &mut Vec::new(), None);
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -516,7 +516,7 @@ mod tests {
             None,
             None,
             false,
-            vec!["mydir/*".to_string()],
+            &mut vec!["mydir/*"],
             None,
         );
         let mut count = 0;
@@ -541,7 +541,7 @@ mod tests {
             None,
             None,
             false,
-            vec!["mydir/*".to_string()],
+            &mut vec!["mydir/*"],
             None,
         );
         let mut count = 0;
@@ -557,7 +557,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn test_rewrite_paths_ignore_multiple_directories() {
-        let mut ignore_dirs = vec!["mydir/*".to_string(), "mydir2/*".to_string()];
+        let mut ignore_dirs = vec!["mydir/*", "mydir2/*"];
         for _ in 0..2 {
             // we run the test twice, one with ignore_dirs and the other with ignore_dirs.reverse()
             let mut result_map: CovResultMap = FxHashMap::default();
@@ -570,7 +570,7 @@ mod tests {
                 None,
                 None,
                 false,
-                ignore_dirs.clone(),
+                &mut ignore_dirs.clone(),
                 None,
             );
             let mut count = 0;
@@ -588,7 +588,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_ignore_multiple_directories() {
-        let mut ignore_dirs = vec!["mydir/*".to_string(), "mydir2/*".to_string()];
+        let mut ignore_dirs = vec!["mydir/*", "mydir2/*"];
         for _ in 0..2 {
             // we run the test twice, one with ignore_dirs and the other with ignore_dirs.reverse()
             let mut result_map: CovResultMap = FxHashMap::default();
@@ -601,7 +601,7 @@ mod tests {
                 None,
                 None,
                 false,
-                ignore_dirs.clone(),
+                &mut ignore_dirs.clone(),
                 None,
             );
             let mut count = 0;
@@ -626,7 +626,7 @@ mod tests {
             Some(PathBuf::from("tests")),
             None,
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
     }
@@ -643,7 +643,7 @@ mod tests {
             Some(canonicalize_path("test").unwrap()),
             None,
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -669,7 +669,7 @@ mod tests {
             Some(canonicalize_path("test").unwrap()),
             None,
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -695,7 +695,7 @@ mod tests {
             Some(canonicalize_path(".").unwrap()),
             None,
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut results: Vec<(PathBuf, PathBuf, CovResult)> = results.collect();
@@ -720,7 +720,7 @@ mod tests {
             Some(canonicalize_path(".").unwrap()),
             None,
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut results: Vec<(PathBuf, PathBuf, CovResult)> = results.collect();
@@ -744,7 +744,7 @@ mod tests {
             Some(canonicalize_path(".").unwrap()),
             None,
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -769,7 +769,7 @@ mod tests {
             Some(canonicalize_path(".").unwrap()),
             None,
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -797,7 +797,7 @@ mod tests {
             Some(canonicalize_path("tests").unwrap()),
             Some(PathBuf::from("/home/worker/src/workspace")),
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -826,7 +826,7 @@ mod tests {
             Some(canonicalize_path("tests").unwrap()),
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -851,7 +851,7 @@ mod tests {
             None,
             None,
             false,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -875,7 +875,7 @@ mod tests {
             None,
             None,
             false,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -902,7 +902,7 @@ mod tests {
             None,
             None,
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -930,7 +930,7 @@ mod tests {
             None,
             None,
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -958,7 +958,7 @@ mod tests {
             None,
             Some(PathBuf::from("/home/worker/src/workspace")),
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -989,7 +989,7 @@ mod tests {
             None,
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -1016,7 +1016,7 @@ mod tests {
             None,
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -1043,7 +1043,7 @@ mod tests {
             None,
             Some(PathBuf::from("c:\\Users\\worker\\src\\workspace")),
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -1070,7 +1070,7 @@ mod tests {
             None,
             Some(PathBuf::from("c:\\Users\\worker\\src\\workspace")),
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -1098,7 +1098,7 @@ mod tests {
             Some(canonicalize_path("tests").unwrap()),
             Some(PathBuf::from("/home/worker/src/workspace")),
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -1126,7 +1126,7 @@ mod tests {
             Some(canonicalize_path("tests").unwrap()),
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
             true,
-            Vec::new(),
+            &mut Vec::new(),
             None,
         );
         let mut count = 0;
@@ -1145,7 +1145,15 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("covered.cpp".to_string(), covered_result!());
         result_map.insert("uncovered.cpp".to_string(), uncovered_result!());
-        let results = rewrite_paths(result_map, None, None, None, false, Vec::new(), Some(true));
+        let results = rewrite_paths(
+            result_map,
+            None,
+            None,
+            None,
+            false,
+            &mut Vec::new(),
+            Some(true),
+        );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -1161,7 +1169,15 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("covered.cpp".to_string(), covered_result!());
         result_map.insert("uncovered.cpp".to_string(), uncovered_result!());
-        let results = rewrite_paths(result_map, None, None, None, false, Vec::new(), Some(false));
+        let results = rewrite_paths(
+            result_map,
+            None,
+            None,
+            None,
+            false,
+            &mut Vec::new(),
+            Some(false),
+        );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
