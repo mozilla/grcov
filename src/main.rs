@@ -8,7 +8,6 @@ extern crate serde_json;
 extern crate tempfile;
 
 use clap::{App, Arg};
-use crossbeam::queue::MsQueue;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 use std::fs::{self, File};
@@ -198,7 +197,7 @@ fn main() {
     assert!(tmp_path.exists());
 
     let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(FxHashMap::with_capacity_and_hasher(20_000, Default::default())));
-    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+    let queue: Arc<WorkQueue> = Arc::new(WorkQueue::new());
     let path_mapping: Arc<Mutex<Option<Value>>> = Arc::new(Mutex::new(None));
 
     let producer = {

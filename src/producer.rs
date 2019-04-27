@@ -521,7 +521,6 @@ pub fn producer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossbeam::queue::MsQueue;
     use serde_json::{self, Value};
     use std::sync::Arc;
 
@@ -532,12 +531,8 @@ mod tests {
     ) {
         let mut vec: Vec<Option<WorkItem>> = Vec::new();
 
-        loop {
-            let elem = queue.try_pop();
-            if elem.is_none() {
-                break;
-            }
-            vec.push(elem.unwrap());
+        while let Ok(elem) = queue.pop() {
+            vec.push(elem);
         }
 
         for elem in &expected {
@@ -608,7 +603,7 @@ mod tests {
 
     #[test]
     fn test_dir_producer() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -716,7 +711,7 @@ mod tests {
 
     #[test]
     fn test_dir_producer_multiple_directories() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -739,7 +734,7 @@ mod tests {
 
     #[test]
     fn test_dir_producer_directory_with_gcno_symlinks() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -759,7 +754,7 @@ mod tests {
 
     #[test]
     fn test_dir_producer_directory_with_no_gcda() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -782,7 +777,7 @@ mod tests {
 
     #[test]
     fn test_dir_producer_directory_with_no_gcda_ignore_orphan_gcno() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -802,7 +797,7 @@ mod tests {
 
     #[test]
     fn test_zip_producer_with_gcda_dir() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -852,7 +847,7 @@ mod tests {
     // Test extracting multiple gcda archives.
     #[test]
     fn test_zip_producer_multiple_gcda_archives() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -912,7 +907,7 @@ mod tests {
     // Test extracting gcno with no path mapping.
     #[test]
     fn test_zip_producer_gcno_with_no_path_mapping() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -953,7 +948,7 @@ mod tests {
     // Test calling zip_producer with a different order of zip files.
     #[test]
     fn test_zip_producer_different_order_of_zip_files() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1003,7 +998,7 @@ mod tests {
     // Test extracting info files.
     #[test]
     fn test_zip_producer_info_files() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1036,7 +1031,7 @@ mod tests {
     // Test extracting jacoco report XML files.
     #[test]
     fn test_zip_producer_jacoco_xml_files() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1067,7 +1062,7 @@ mod tests {
     // Test extracting both jacoco xml and info files.
     #[test]
     fn test_zip_producer_both_info_and_jacoco_xml() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1112,7 +1107,7 @@ mod tests {
     // Test extracting both info and gcno/gcda files.
     #[test]
     fn test_zip_producer_both_info_and_gcnogcda_files() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1166,7 +1161,7 @@ mod tests {
     // Test extracting gcno with no associated gcda.
     #[test]
     fn test_zip_producer_gcno_with_no_associated_gcda() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1190,7 +1185,7 @@ mod tests {
     // Test extracting gcno with an associated gcda file in only one zip file.
     #[test]
     fn test_zip_producer_gcno_with_associated_gcda_in_only_one_archive() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1216,7 +1211,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_zip_producer_with_gcda_archive_and_no_gcno_archive() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1232,7 +1227,7 @@ mod tests {
     // Test extracting gcno/gcda archives, where a gcno file exist with no matching gcda file.
     #[test]
     fn test_zip_producer_no_matching_gcno() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1270,7 +1265,7 @@ mod tests {
     // The gcno file should be produced only once, not twice.
     #[test]
     fn test_zip_producer_no_matching_gcno_two_gcda_archives() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1320,7 +1315,7 @@ mod tests {
     // Test extracting gcno/gcda archives, where a gcno file exist with no matching gcda file and ignore orphan gcno files.
     #[test]
     fn test_zip_producer_no_matching_gcno_ignore_orphan_gcno() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1350,7 +1345,7 @@ mod tests {
     // Test extracting gcno/gcda archives, where a gcno file exist with no matching gcda file and ignore orphan gcno files.
     #[test]
     fn test_zip_producer_no_matching_gcno_two_gcda_archives_ignore_orphan_gcno() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1392,7 +1387,7 @@ mod tests {
 
     #[test]
     fn test_zip_producer_llvm_buffers() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1432,12 +1427,8 @@ mod tests {
             0, 0, 0, 0, 0, 0, 163, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ];
 
-        loop {
-            let elem = queue.try_pop();
-            if elem.is_none() {
-                break;
-            }
-            let elem = elem.unwrap().unwrap();
+        while let Ok(elem) = queue.pop() {
+            let elem = elem.unwrap();
             if let ItemType::Buffers(buffers) = elem.item {
                 let stem = PathBuf::from(buffers.stem);
                 let stem = stem.file_stem().expect("Unable to get file_stem");
@@ -1455,7 +1446,7 @@ mod tests {
 
     #[test]
     fn test_plain_producer() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1490,7 +1481,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_plain_producer_with_gcno() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1506,7 +1497,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_plain_producer_with_gcda() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let queue = Arc::new(WorkQueue::new());
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
