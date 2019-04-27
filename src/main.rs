@@ -11,14 +11,10 @@ use clap::{App, Arg};
 use crossbeam::queue::MsQueue;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
-use std::alloc::System;
 use std::fs::{self, File};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::{process, thread};
-
-#[global_allocator]
-static GLOBAL: System = System;
 
 use grcov::*;
 
