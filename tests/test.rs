@@ -68,6 +68,7 @@ fn run(path: &Path) {
 }
 
 fn read_file(path: &Path) -> String {
+    println!("Read file: {:?}", path);
     let mut f = File::open(path).expect(format!("{:?} file not found", path.file_name()).as_str());
     let mut s = String::new();
     f.read_to_string(&mut s).unwrap();
@@ -363,7 +364,7 @@ fn check_equal_fuzzmanager(expected_output: &str, output: &str) {
 
     println!("{}", serde_json::to_string_pretty(&actual).unwrap());
 
-    for field in vec!["coveragePercent", "linesCovered", "linesMissed", "linesTotal", "name", "children"] {
+    for field in vec!["coveragePercent", "linesCovered", "linesMissed", "linesTotal", "name"] {
         assert_eq!(expected[field], actual[field])
     }
 }
