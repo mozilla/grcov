@@ -618,10 +618,6 @@ fn test_integration_zip_zip() {
             false,
         );
 
-        //let x = run_grcov(vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path], path, "fuzzmanager");
-        //let p: Value = serde_json::from_str(&x).unwrap();
-        //println!("GRCOV OUTPUT:\n{}", serde_json::to_string_pretty(&p).unwrap());
-
         check_equal_fuzzmanager(
             &read_expected(
                 path,
