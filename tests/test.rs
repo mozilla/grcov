@@ -357,6 +357,17 @@ fn check_equal_coveralls(expected_output: &str, output: &str, skip_branches: boo
     );
 }
 
+fn check_equal_fuzzmanager(expected_output: &str, output: &str) {
+    let expected: Value = serde_json::from_str(expected_output).unwrap();
+    let actual: Value = serde_json::from_str(output).unwrap();
+
+    println!("{}", serde_json::to_string_pretty(&actual).unwrap());
+
+    for field in vec!["coveragePercent", "linesCovered", "linesMissed", "linesTotal", "name", "children"] {
+        assert_eq!(expected[field], actual[field])
+    }
+}
+
 fn get_version(compiler: &str) -> String {
     let output = Command::new(compiler)
         .arg("--version")
@@ -463,7 +474,7 @@ fn test_integration() {
             do_clean(path);
 
             if cfg!(target_os = "linux") {
-                println!("GCC");
+                println!("\nGCC: {:?}", path);
                 let gpp = &get_tool("GCC_CXX", "g++");
                 let gcc_version = get_version(gpp);
                 make(path, gpp);
@@ -477,10 +488,14 @@ fn test_integration() {
                     &read_expected(path, "gcc", &gcc_version, "ade", None),
                     &run_grcov(vec![path], &PathBuf::from(""), "ade"),
                 );
+                check_equal_fuzzmanager(
+                    &read_expected(path, "gcc", &gcc_version, "fuzzmanager", None),
+                    &run_grcov(vec![path], path, "fuzzmanager"),
+                );
                 do_clean(path);
             }
 
-            println!("\nLLVM");
+            println!("\nLLVM: {:?}", path);
             let clangpp = &get_tool("CLANG_CXX", "clang++");
             let clang_version = get_version(clangpp);
             make(path, clangpp);
@@ -493,6 +508,10 @@ fn test_integration() {
             check_equal_ade(
                 &read_expected(path, "llvm", &clang_version, "ade", None),
                 &run_grcov(vec![path], &PathBuf::from(""), "ade"),
+            );
+            check_equal_fuzzmanager(
+                &read_expected(path, "llvm", &clang_version, "fuzzmanager", None),
+                &run_grcov(vec![path], path, "fuzzmanager"),
             );
 
             do_clean(path);
@@ -553,6 +572,17 @@ fn test_integration_zip_zip() {
             &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], path, "coveralls"),
             false,
         );
+                
+        check_equal_fuzzmanager(
+            &read_expected(
+                path,
+                &name,
+                &compiler_version,
+                "fuzzmanager",
+                Some("_no_gcda"),
+            ),
+            &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], path, "fuzzmanager"),
+        );
 
         // one gcda
         println!("One gcda");
@@ -560,6 +590,11 @@ fn test_integration_zip_zip() {
             &read_expected(path, &name, &compiler_version, "coveralls", None),
             &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], path, "coveralls"),
             false,
+        );
+
+        check_equal_fuzzmanager(
+            &read_expected(path, &name, &compiler_version, "fuzzmanager", None),
+            &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], path, "fuzzmanager"),
         );
 
         // two gcdas
@@ -581,6 +616,25 @@ fn test_integration_zip_zip() {
                 "coveralls",
             ),
             false,
+        );
+
+        //let x = run_grcov(vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path], path, "fuzzmanager");
+        //let p: Value = serde_json::from_str(&x).unwrap();
+        //println!("GRCOV OUTPUT:\n{}", serde_json::to_string_pretty(&p).unwrap());
+
+        check_equal_fuzzmanager(
+            &read_expected(
+                path,
+                &name,
+                &compiler_version,
+                "fuzzmanager",
+                Some("_two_gcda"),
+            ),
+            &run_grcov(
+                vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path],
+                path,
+                "fuzzmanager",
+            ),
         );
 
         do_clean(path);
@@ -627,6 +681,11 @@ fn test_integration_zip_dir() {
             &read_expected(base_path, &name, &compiler_version, "coveralls", None),
             &run_grcov(vec![&gcno_zip_path, &base_path], path, "coveralls"),
             false,
+        );
+
+        check_equal_fuzzmanager(
+            &read_expected(base_path, &name, &compiler_version, "fuzzmanager", None),
+            &run_grcov(vec![&gcno_zip_path, &base_path], path, "fuzzmanager"),
         );
 
         do_clean(path);

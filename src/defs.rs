@@ -1,7 +1,9 @@
 use crossbeam::channel::{Receiver, Sender};
 use rustc_hash::FxHashMap;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Mutex;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -52,3 +54,26 @@ pub type JobSender = Sender<Option<WorkItem>>;
 pub type CovResultMap = FxHashMap<String, CovResult>;
 pub type SyncCovResultMap = Mutex<CovResultMap>;
 pub type CovResultIter = Box<Iterator<Item = (PathBuf, PathBuf, CovResult)>>;
+
+#[derive(Debug, Default)]
+pub struct FMStats {
+    pub total: usize,
+    pub covered: usize,
+    pub missed: usize,
+    pub percent: f64,
+}
+
+#[derive(Debug)]
+pub struct FMFileStats {
+    pub name: String,
+    pub stats: FMStats,
+    pub coverage: Vec<i64>,
+}
+
+#[derive(Debug)]
+pub struct FMDirStats {
+    pub name: String,
+    pub files: Vec<FMFileStats>,
+    pub dirs: Vec<Rc<RefCell<FMDirStats>>>,
+    pub stats: FMStats,
+}

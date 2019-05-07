@@ -5,7 +5,7 @@ use std::collections::hash_map;
 use std::fs;
 use std::io;
 use std::mem;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
 use crate::defs::*;
@@ -38,6 +38,16 @@ pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     };
 
     Ok(path)
+}
+
+fn normalize_path<P: AsRef<Path>>(path: P) -> PathBuf {
+    let mut new_path = PathBuf::from("");
+    for component in path.as_ref().components() {
+        if component != Component::CurDir {
+            new_path.push(component);
+        }
+    }
+    new_path
 }
 
 // Search the source file's path in the mapping.
@@ -121,6 +131,9 @@ fn get_abs_path(
 
     // Fixup the relative path, in case the absolute path was a symlink.
     let rel_path = fixup_rel_path(&source_dir, &abs_path, rel_path);
+    
+    // Normalize the path in removing './' or '//'
+    let rel_path = normalize_path(rel_path);
 
     (abs_path, rel_path)
 }
@@ -1186,5 +1199,11 @@ mod tests {
             assert_eq!(result, uncovered_result!());
         }
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_normalize_path() {
+        assert_eq!(normalize_path("./foo//bar"), PathBuf::from("foo/bar"));
+        assert_eq!(normalize_path("./foo/./bar/./oof/"), PathBuf::from("foo/bar/oof"));
     }
 }

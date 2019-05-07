@@ -1,8 +1,11 @@
+use rustc_hash::FxHashMap;
 use serde_json::{self, Value};
-use std::collections::BTreeSet;
+use std::cell::RefCell;
+use std::collections::{hash_map, BTreeSet};
 use std::fs::File;
 use std::io::{self, BufWriter, Read, Write};
 use std::path::PathBuf;
+use std::rc::Rc;
 use uuid::Uuid;
 use md5::{Md5, Digest};
 
@@ -83,19 +86,19 @@ pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>) 
                 writer,
                 "{}",
                 json!({
-                "language": "c/c++",
-                "file": {
-                    "name": rel_path,
-                },
-                "method": {
-                    "name": name,
-                    "covered": lines_covered,
-                    "uncovered": lines_uncovered,
-                    "total_covered": lines_covered.len(),
-                    "total_uncovered": lines_uncovered.len(),
-                    "percentage_covered": lines_covered.len() as f32 / (lines_covered.len() + lines_uncovered.len()) as f32,
-                }
-            })
+                    "language": "c/c++",
+                    "file": {
+                        "name": rel_path,
+                    },
+                    "method": {
+                        "name": name,
+                        "covered": lines_covered,
+                        "uncovered": lines_uncovered,
+                        "total_covered": lines_covered.len(),
+                        "total_uncovered": lines_uncovered.len(),
+                        "percentage_covered": lines_covered.len() as f32 / (lines_covered.len() + lines_uncovered.len()) as f32,
+                    }
+                })
             ).unwrap();
         }
 
@@ -107,26 +110,88 @@ pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>) 
             writer,
             "{}",
             json!({
-            "language": "c/c++",
-            "is_file": true,
-            "file": {
-                "name": rel_path,
-                "covered": covered,
-                "uncovered": uncovered,
-                "total_covered": covered.len(),
-                "total_uncovered": uncovered.len(),
-                "percentage_covered": covered.len() as f32 / (covered.len() + uncovered.len()) as f32,
-            },
-            "method": {
-                "covered": orphan_covered,
-                "uncovered": orphan_uncovered,
-                "total_covered": orphan_covered.len(),
-                "total_uncovered": orphan_uncovered.len(),
-                "percentage_covered": orphan_covered.len() as f32 / (orphan_covered.len() + orphan_uncovered.len()) as f32,
-            }
-        })
+                "language": "c/c++",
+                "is_file": true,
+                "file": {
+                    "name": rel_path,
+                    "covered": covered,
+                    "uncovered": uncovered,
+                    "total_covered": covered.len(),
+                    "total_uncovered": uncovered.len(),
+                    "percentage_covered": covered.len() as f32 / (covered.len() + uncovered.len()) as f32,
+                },
+                "method": {
+                    "covered": orphan_covered,
+                    "uncovered": orphan_uncovered,
+                    "total_covered": orphan_covered.len(),
+                    "total_uncovered": orphan_uncovered.len(),
+                    "percentage_covered": orphan_covered.len() as f32 / (orphan_covered.len() + orphan_uncovered.len()) as f32,
+                }
+            })
         ).unwrap();
     }
+}
+
+pub fn output_fuzzmanager(results: CovResultIter, output_file: Option<&str>) {
+    let mut writer = BufWriter::new(get_target_output_writable(output_file));
+    let mut relative: FxHashMap<PathBuf, Rc<RefCell<FMDirStats>>> = FxHashMap::default();
+    let global = Rc::new(RefCell::new(FMDirStats::new("".to_string())));
+    relative.insert(PathBuf::from(""), global.clone());
+    
+    for (abs_path, rel_path, result) in results {
+        let path = if rel_path.is_relative() {
+            rel_path
+        } else {
+            abs_path
+        };
+
+        let parent = path.parent().unwrap();
+        let mut ancestors = Vec::new();
+        for ancestor in parent.ancestors() {
+            ancestors.push(ancestor);
+            if relative.contains_key(ancestor) {
+                break;
+            }
+        }
+
+        let mut prev_stats = global.clone();
+
+        while let Some(ancestor) = ancestors.pop() {
+            prev_stats = match relative.entry(ancestor.to_path_buf()) {
+                hash_map::Entry::Occupied(s) => s.get().clone(),
+                hash_map::Entry::Vacant(p) => {
+                    let mut prev_stats = prev_stats.borrow_mut();
+                    let path_tail = if ancestor == PathBuf::from("/") {
+                        "/".to_string()
+                    } else {
+                        ancestor.file_name().unwrap().to_str().unwrap().to_string()
+                    };
+                    prev_stats.dirs.push(Rc::new(RefCell::new(FMDirStats::new(path_tail))));
+                    let last = prev_stats.dirs.last_mut().unwrap();
+                    p.insert(last.clone());
+                    last.clone()
+                },
+            };
+        }
+
+        let last_line = *result.lines.keys().last().unwrap_or(&0) as usize;
+        let mut lines: Vec<i64> = vec![-1; last_line];
+        for (line_num, line_count) in result.lines.iter() {
+            unsafe {
+                *lines.get_unchecked_mut((*line_num - 1) as usize) = *line_count as i64;
+            }
+        }
+        
+        prev_stats.borrow_mut().files.push(FMFileStats::new(path.file_name().unwrap().to_str().unwrap().to_string(), lines));
+    }
+
+    let mut global = global.borrow_mut();
+    global.set_stats();
+
+    serde_json::to_writer(
+        &mut writer,
+        &global.to_json(),
+    ).unwrap();
 }
 
 pub fn output_lcov(results: CovResultIter, output_file: Option<&str>) {
@@ -294,5 +359,67 @@ pub fn output_files(results: CovResultIter, output_file: Option<&str>) {
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     for (_, rel_path, _) in results {
         writeln!(writer, "{}", rel_path.display()).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    extern crate tempfile;
+    use super::*;
+    use std::collections::BTreeMap;
+
+    fn read_file(path: &PathBuf) -> String {
+        let mut f = File::open(path).expect(format!("{:?} file not found", path.file_name()).as_str());
+        let mut s = String::new();
+        f.read_to_string(&mut s).unwrap();
+        s
+    }
+    
+    #[test]
+    fn test_fuzzmanager() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_fuzzmanager.json";
+        let file_path = tmp_dir.path().join(&file_name);
+
+        let results = vec![
+            (PathBuf::from("foo/bar/a.cpp"),
+             PathBuf::from("foo/bar/a.cpp"),
+             CovResult {
+                 lines: [(1, 10), (2, 11)].iter().cloned().collect(),
+                 branches: BTreeMap::new(),
+                 functions: FxHashMap::default(),
+             }),
+            (PathBuf::from("foo/bar/b.cpp"),
+             PathBuf::from("foo/bar/b.cpp"),
+             CovResult {
+                 lines: [(1, 0), (2, 10), (4, 0)].iter().cloned().collect(),
+                 branches: BTreeMap::new(),
+                 functions: FxHashMap::default(),
+             }),
+            (PathBuf::from("foo/c.cpp"),
+             PathBuf::from("foo/c.cpp"),
+             CovResult {
+                 lines: [(1, 10), (4, 1)].iter().cloned().collect(),
+                 branches: BTreeMap::new(),
+                 functions: FxHashMap::default(),
+             }),
+            (PathBuf::from("/foo/d.cpp"),
+             PathBuf::from("/foo/d.cpp"),
+             CovResult {
+                 lines: [(1, 10), (2, 0)].iter().cloned().collect(),
+                 branches: BTreeMap::new(),
+                 functions: FxHashMap::default(),
+             }),
+        ];
+
+        let results = Box::new(results.into_iter());
+        output_fuzzmanager(results, Some(file_path.to_str().unwrap()));        
+
+        let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
+        let expected_path = PathBuf::from("./test/").join(&file_name);
+        let expected: Value = serde_json::from_str(&read_file(&expected_path)).unwrap();
+
+        assert_eq!(results, expected);
     }
 }

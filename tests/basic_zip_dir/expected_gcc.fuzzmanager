@@ -1,0 +1,33 @@
+{
+  "children": {
+    "main.c": {
+      "coverage": [
+        -1,
+        -1,
+        1,
+        -1,
+        10,
+        9,
+        3,
+        -1,
+        -1,
+        9,
+        0,
+        -1,
+        -1,
+        -1,
+        1
+      ],
+      "coveragePercent": 85.71,
+      "linesCovered": 6,
+      "linesMissed": 1,
+      "linesTotal": 7,
+      "name": "main.c"
+    }
+  },
+  "coveragePercent": 85.71,
+  "linesCovered": 6,
+  "linesMissed": 1,
+  "linesTotal": 7,
+  "name": ""
+}
