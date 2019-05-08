@@ -136,96 +136,90 @@ pub fn consumer(
     working_dir: &PathBuf,
     source_dir: &Option<PathBuf>,
     result_map: &SyncCovResultMap,
-    queue: &WorkQueue,
+    receiver: JobReceiver,
     branch_enabled: bool,
 ) {
     let mut gcov_type = GcovType::Unknown;
 
-    loop {
-        // If the queue is empty then it means that the producer
-        // doesn't push anything for the moment so it loops..
-        // The only way to exit is to have a None at some point
-        // (some Nones are pushed just after the producer ended)
-        if let Ok(work_item) = queue.pop() {
-            if let Some(work_item) = work_item {
-                let new_results = match work_item.format {
-                    ItemFormat::GCNO => {
-                        match work_item.item {
-                            ItemType::Path(gcno_path) => {
-                                // GCC
-                                run_gcov(&gcno_path, branch_enabled, working_dir);
-                                let gcov_path =
-                                    gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov";
-                                let gcov_path = working_dir.join(gcov_path);
-                                if gcov_type == GcovType::Unknown {
-                                    gcov_type = if gcov_path.exists() {
-                                        GcovType::SingleFile
-                                    } else {
-                                        GcovType::MultipleFiles
-                                    };
-                                }
-
-                                if gcov_type == GcovType::SingleFile {
-                                    let new_results = try_parse!(parse_gcov(&gcov_path), work_item.name);
-                                    fs::remove_file(gcov_path).unwrap();
-                                    new_results
+    while let Ok(work_item) = receiver.recv() {
+        if let Some(work_item) = work_item {
+            let new_results = match work_item.format {
+                ItemFormat::GCNO => {
+                    match work_item.item {
+                        ItemType::Path(gcno_path) => {
+                            // GCC
+                            run_gcov(&gcno_path, branch_enabled, working_dir);
+                            let gcov_path =
+                                gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov";
+                            let gcov_path = working_dir.join(gcov_path);
+                            if gcov_type == GcovType::Unknown {
+                                gcov_type = if gcov_path.exists() {
+                                    GcovType::SingleFile
                                 } else {
-                                    let mut new_results: Vec<(String, CovResult)> = Vec::new();
-
-                                    for entry in WalkDir::new(&working_dir).min_depth(1) {
-                                        let gcov_path = entry.unwrap();
-                                        let gcov_path = gcov_path.path();
-
-                                        new_results.append(&mut try_parse!(
-                                            parse_gcov(&gcov_path),
-                                            work_item.name
-                                        ));
-
-                                        fs::remove_file(gcov_path).unwrap();
-                                    }
-
-                                    new_results
-                                }
+                                    GcovType::MultipleFiles
+                                };
                             }
-                            ItemType::Buffers(buffers) => {
-                                // LLVM
-                                match GCNO::compute(
-                                    &buffers.stem,
-                                    buffers.gcno_buf,
-                                    buffers.gcda_buf,
-                                    branch_enabled,
-                                ) {
-                                    Ok(r) => r,
-                                    Err(e) => {
-                                        // Just print the error, don't panic and continue
-                                        eprintln!("Error in computing counters:\n{}", e);
-                                        Vec::new()
-                                    }
-                                }
-                            }
-                            ItemType::Content(_) => {
-                                panic!("Invalid content type");
-                            }
-                        }
-                    }
-                    ItemFormat::INFO | ItemFormat::JACOCO_XML => {
-                        if let ItemType::Content(content) = work_item.item {
-                            let buffer = BufReader::new(Cursor::new(content));
-                            if work_item.format == ItemFormat::INFO {
-                                try_parse!(parse_lcov(buffer, branch_enabled), work_item.name)
+
+                            if gcov_type == GcovType::SingleFile {
+                                let new_results = try_parse!(parse_gcov(&gcov_path), work_item.name);
+                                fs::remove_file(gcov_path).unwrap();
+                                new_results
                             } else {
-                                try_parse!(parse_jacoco_xml_report(buffer), work_item.name)
+                                let mut new_results: Vec<(String, CovResult)> = Vec::new();
+
+                                for entry in WalkDir::new(&working_dir).min_depth(1) {
+                                    let gcov_path = entry.unwrap();
+                                    let gcov_path = gcov_path.path();
+
+                                    new_results.append(&mut try_parse!(
+                                        parse_gcov(&gcov_path),
+                                        work_item.name
+                                    ));
+
+                                    fs::remove_file(gcov_path).unwrap();
+                                }
+
+                                new_results
                             }
-                        } else {
-                            panic!("Invalid content type")
+                        }
+                        ItemType::Buffers(buffers) => {
+                            // LLVM
+                            match GCNO::compute(
+                                &buffers.stem,
+                                buffers.gcno_buf,
+                                buffers.gcda_buf,
+                                branch_enabled,
+                            ) {
+                                Ok(r) => r,
+                                Err(e) => {
+                                    // Just print the error, don't panic and continue
+                                    eprintln!("Error in computing counters:\n{}", e);
+                                    Vec::new()
+                                }
+                            }
+                        }
+                        ItemType::Content(_) => {
+                            panic!("Invalid content type");
                         }
                     }
-                };
+                }
+                ItemFormat::INFO | ItemFormat::JACOCO_XML => {
+                    if let ItemType::Content(content) = work_item.item {
+                        let buffer = BufReader::new(Cursor::new(content));
+                        if work_item.format == ItemFormat::INFO {
+                            try_parse!(parse_lcov(buffer, branch_enabled), work_item.name)
+                        } else {
+                            try_parse!(parse_jacoco_xml_report(buffer), work_item.name)
+                        }
+                    } else {
+                        panic!("Invalid content type")
+                    }
+                }
+            };
 
-                add_results(new_results, result_map, source_dir);
-            } else {
-                break;
-            }
+            add_results(new_results, result_map, source_dir);
+        } else {
+            break;
         }
     }
 }

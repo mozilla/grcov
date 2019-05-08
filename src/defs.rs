@@ -1,4 +1,4 @@
-use crossbeam::queue::SegQueue;
+use crossbeam::channel::{Receiver, Sender};
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -46,7 +46,8 @@ pub struct WorkItem {
     pub name: String,
 }
 
-pub type WorkQueue = SegQueue<Option<WorkItem>>;
+pub type JobReceiver = Receiver<Option<WorkItem>>;
+pub type JobSender = Sender<Option<WorkItem>>;
 
 pub type CovResultMap = FxHashMap<String, CovResult>;
 pub type SyncCovResultMap = Mutex<CovResultMap>;
