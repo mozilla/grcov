@@ -24,6 +24,9 @@ impl FMStats {
     }
 
     pub fn add(&mut self, other: &Self) {
+        // Add stats to self without recomputing the percentage because it's time consuming.
+        // So once all the stats are merged into one for a directory
+        // then need to call set_percent()
         self.total += other.total;
         self.covered += other.covered;
         self.missed += other.missed;
