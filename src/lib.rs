@@ -136,12 +136,16 @@ pub fn consumer(
     working_dir: &PathBuf,
     source_dir: &Option<PathBuf>,
     result_map: &SyncCovResultMap,
-    queue: &WorkQueue,
+    receiver: JobReceiver,
     branch_enabled: bool,
 ) {
     let mut gcov_type = GcovType::Unknown;
 
-    while let Some(work_item) = queue.pop() {
+    while let Ok(work_item) = receiver.recv() {
+        if work_item.is_none() {
+            break;
+        }
+        let work_item = work_item.unwrap();
         let new_results = match work_item.format {
             ItemFormat::GCNO => {
                 match work_item.item {

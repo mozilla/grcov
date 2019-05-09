@@ -8,7 +8,7 @@ extern crate serde_json;
 extern crate tempfile;
 
 use clap::{App, Arg};
-use crossbeam::queue::MsQueue;
+use crossbeam::crossbeam_channel::unbounded;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 use std::fs::{self, File};
@@ -198,11 +198,11 @@ fn main() {
     assert!(tmp_path.exists());
 
     let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(FxHashMap::with_capacity_and_hasher(20_000, Default::default())));
-    let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+    let (sender, receiver) = unbounded();
     let path_mapping: Arc<Mutex<Option<Value>>> = Arc::new(Mutex::new(None));
 
     let producer = {
-        let queue = Arc::clone(&queue);
+        let sender: JobSender = sender.clone();
         let tmp_path = tmp_path.clone();
         let path_mapping_file = path_mapping_file.to_owned();
         let path_mapping = Arc::clone(&path_mapping);
@@ -213,7 +213,7 @@ fn main() {
                 let producer_path_mapping_buf = producer(
                     &tmp_path,
                     &paths,
-                    &queue,
+                    &sender,
                     filter_option.is_some() && filter_option.unwrap(),
                     is_llvm,
                 );
@@ -234,7 +234,7 @@ fn main() {
     let mut parsers = Vec::new();
 
     for i in 0..num_threads {
-        let queue = Arc::clone(&queue);
+        let receiver = receiver.clone();
         let result_map = Arc::clone(&result_map);
         let working_dir = tmp_path.join(format!("{}", i));
         let source_root = source_root.clone();
@@ -247,7 +247,7 @@ fn main() {
                     &working_dir,
                     &source_root,
                     &result_map,
-                    &queue,
+                    receiver,
                     branch_enabled,
                 );
             })
@@ -260,9 +260,9 @@ fn main() {
         process::exit(1);
     }
 
-    // Poison the queue, now that the producer is finished.
+    // Poison the receiver, now that the producer is finished.
     for _ in 0..num_threads {
-        queue.push(None);
+        sender.send(None).unwrap();
     }
 
     for parser in parsers {

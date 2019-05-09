@@ -296,15 +296,15 @@ fn gcno_gcda_producer(
     tmp_dir: &Path,
     gcno_stem_archives: &FxHashMap<GCNOStem, &Archive>,
     gcda_stem_archives: &FxHashMap<String, Vec<&Archive>>,
-    queue: &WorkQueue,
+    sender: &JobSender,
     ignore_orphan_gcno: bool,
 ) {
-    let push_to_queue = |item, name| {
-        queue.push(Some(WorkItem {
+    let send_job = |item, name| {
+        sender.send(Some(WorkItem {
             format: ItemFormat::GCNO,
             item: item,
             name: name,
-        }))
+        })).unwrap()
     };
 
     for (gcno_stem, gcno_archive) in gcno_stem_archives {
@@ -325,7 +325,7 @@ fn gcno_gcda_producer(
                             gcda_buffers.push(gcda_buf);
                         }
                     }
-                    push_to_queue(
+                    send_job(
                         ItemType::Buffers(GcnoBuffers {
                             stem: stem.clone(),
                             gcno_buf: gcno_buffer,
@@ -350,7 +350,7 @@ fn gcno_gcda_producer(
                         if gcda_archive.extract(&gcda, &gcda_path)
                             || (num == 0 && !ignore_orphan_gcno)
                         {
-                            push_to_queue(
+                            send_job(
                                 ItemType::Path(gcno_path),
                                 gcda_archive.get_name().to_string(),
                             );
@@ -366,7 +366,7 @@ fn gcno_gcda_producer(
                         let mut buffer: Vec<u8> = Vec::new();
                         gcno_archive.read_in_buffer(&gcno, &mut buffer);
 
-                        push_to_queue(
+                        send_job(
                             ItemType::Buffers(GcnoBuffers {
                                 stem: stem.clone(),
                                 gcno_buf: buffer,
@@ -377,7 +377,7 @@ fn gcno_gcda_producer(
                     } else {
                         let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
                         if gcno_archive.extract(&gcno, &physical_gcno_path) {
-                            push_to_queue(
+                            send_job(
                                 ItemType::Path(physical_gcno_path),
                                 gcno_archive.get_name().to_string(),
                             );
@@ -391,18 +391,18 @@ fn gcno_gcda_producer(
 
 fn file_content_producer(
     files: &FxHashMap<String, Vec<&Archive>>,
-    queue: &WorkQueue,
+    sender: &JobSender,
     item_format: ItemFormat,
 ) {
     for (name, archives) in files {
         for archive in archives {
             let mut buffer = Vec::new();
             archive.read_in_buffer(name, &mut buffer);
-            queue.push(Some(WorkItem {
+            sender.send(Some(WorkItem {
                 format: item_format,
                 item: ItemType::Content(buffer),
                 name: archive.get_name().to_string(),
-            }));
+            })).unwrap();
         }
     }
 }
@@ -427,7 +427,7 @@ fn open_archive(path: &str) -> ZipArchive<BufReader<File>> {
 pub fn producer(
     tmp_dir: &Path,
     paths: &[String],
-    queue: &WorkQueue,
+    sender: &JobSender,
     ignore_orphan_gcno: bool,
     is_llvm: bool,
 ) -> Option<Vec<u8>> {
@@ -505,13 +505,13 @@ pub fn producer(
         "No input files found"
     );
 
-    file_content_producer(&infos.into_inner(), queue, ItemFormat::INFO);
-    file_content_producer(&xmls.into_inner(), queue, ItemFormat::JACOCO_XML);
+    file_content_producer(&infos.into_inner(), sender, ItemFormat::INFO);
+    file_content_producer(&xmls.into_inner(), sender, ItemFormat::JACOCO_XML);
     gcno_gcda_producer(
         tmp_dir,
         &gcno_stems_archives.into_inner(),
         &gcda_stems_archives.into_inner(),
-        queue,
+        sender,
         ignore_orphan_gcno,
     );
 
@@ -521,23 +521,18 @@ pub fn producer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossbeam::queue::MsQueue;
+    use crossbeam::crossbeam_channel::unbounded;
     use serde_json::{self, Value};
-    use std::sync::Arc;
 
     fn check_produced(
         directory: PathBuf,
-        queue: &WorkQueue,
+        receiver: &JobReceiver,
         expected: Vec<(ItemFormat, bool, &str, bool)>,
     ) {
         let mut vec: Vec<Option<WorkItem>> = Vec::new();
 
-        loop {
-            let elem = queue.try_pop();
-            if elem.is_none() {
-                break;
-            }
-            vec.push(elem.unwrap());
+        while let Ok(elem) = receiver.try_recv() {
+            vec.push(elem);
         }
 
         for elem in &expected {
@@ -608,11 +603,11 @@ mod tests {
 
     #[test]
     fn test_dir_producer() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
-        let mapping = producer(&tmp_path, &["test".to_string()], &queue, false, false);
+        let mapping = producer(&tmp_path, &["test".to_string()], &sender, false, false);
 
         let expected = vec![
             (ItemFormat::GCNO, true, "Platform_1.gcno", true),
@@ -701,7 +696,7 @@ mod tests {
             ),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
         assert!(mapping.is_some());
         let mapping: Value = serde_json::from_slice(&mapping.unwrap()).unwrap();
         assert_eq!(
@@ -716,14 +711,14 @@ mod tests {
 
     #[test]
     fn test_dir_producer_multiple_directories() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
         let mapping = producer(
             &tmp_path,
             &["test/sub".to_string(), "test/sub2".to_string()],
-            &queue,
+            &sender,
             false,
             false,
         );
@@ -733,40 +728,40 @@ mod tests {
             (ItemFormat::GCNO, true, "prova2_1.gcno", true),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
         assert!(mapping.is_none());
     }
 
     #[test]
     fn test_dir_producer_directory_with_gcno_symlinks() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
         let mapping = producer(
             &tmp_path,
             &["test/gcno_symlink/gcda".to_string()],
-            &queue,
+            &sender,
             false,
             false,
         );
 
         let expected = vec![(ItemFormat::GCNO, true, "main_1.gcno", true)];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
         assert!(mapping.is_none());
     }
 
     #[test]
     fn test_dir_producer_directory_with_no_gcda() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
         let mapping = producer(
             &tmp_path,
             &["test/only_one_gcda".to_string()],
-            &queue,
+            &sender,
             false,
             false,
         );
@@ -776,33 +771,33 @@ mod tests {
             (ItemFormat::GCNO, true, "orphan_1.gcno", false),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
         assert!(mapping.is_none());
     }
 
     #[test]
     fn test_dir_producer_directory_with_no_gcda_ignore_orphan_gcno() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
         let mapping = producer(
             &tmp_path,
             &["test/only_one_gcda".to_string()],
-            &queue,
+            &sender,
             true,
             false,
         );
 
         let expected = vec![(ItemFormat::GCNO, true, "main_1.gcno", true)];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
         assert!(mapping.is_none());
     }
 
     #[test]
     fn test_zip_producer_with_gcda_dir() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -812,7 +807,7 @@ mod tests {
                 "test/zip_dir/gcno.zip".to_string(),
                 "test/zip_dir".to_string(),
             ],
-            &queue,
+            &sender,
             false,
             false,
         );
@@ -836,7 +831,7 @@ mod tests {
             (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
         assert!(mapping.is_some());
         let mapping: Value = serde_json::from_slice(&mapping.unwrap()).unwrap();
         assert_eq!(
@@ -852,7 +847,7 @@ mod tests {
     // Test extracting multiple gcda archives.
     #[test]
     fn test_zip_producer_multiple_gcda_archives() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -863,7 +858,7 @@ mod tests {
                 "test/gcda1.zip".to_string(),
                 "test/gcda2.zip".to_string(),
             ],
-            &queue,
+            &sender,
             false,
             false,
         );
@@ -896,7 +891,7 @@ mod tests {
             (ItemFormat::GCNO, true, "sub/prova2_2.gcno", true),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
         assert!(mapping.is_some());
         let mapping: Value = serde_json::from_slice(&mapping.unwrap()).unwrap();
         assert_eq!(
@@ -912,7 +907,7 @@ mod tests {
     // Test extracting gcno with no path mapping.
     #[test]
     fn test_zip_producer_gcno_with_no_path_mapping() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -922,7 +917,7 @@ mod tests {
                 "test/gcno_no_path_mapping.zip".to_string(),
                 "test/gcda1.zip".to_string(),
             ],
-            &queue,
+            &sender,
             false,
             false,
         );
@@ -946,14 +941,14 @@ mod tests {
             (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
         assert!(mapping.is_none());
     }
 
     // Test calling zip_producer with a different order of zip files.
     #[test]
     fn test_zip_producer_different_order_of_zip_files() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -964,7 +959,7 @@ mod tests {
                 "test/gcno.zip".to_string(),
                 "test/gcda2.zip".to_string(),
             ],
-            &queue,
+            &sender,
             false,
             false,
         );
@@ -997,20 +992,20 @@ mod tests {
             (ItemFormat::GCNO, true, "sub/prova2_2.gcno", true),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
     }
 
     // Test extracting info files.
     #[test]
     fn test_zip_producer_info_files() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
         producer(
             &tmp_path,
             &["test/info1.zip".to_string(), "test/info2.zip".to_string()],
-            &queue,
+            &sender,
             false,
             false,
         );
@@ -1030,13 +1025,13 @@ mod tests {
             (ItemFormat::INFO, false, "1494603973-2977-7_1.info", true),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
     }
 
     // Test extracting jacoco report XML files.
     #[test]
     fn test_zip_producer_jacoco_xml_files() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1046,7 +1041,7 @@ mod tests {
                 "test/jacoco1.zip".to_string(),
                 "test/jacoco2.zip".to_string(),
             ],
-            &queue,
+            &sender,
             false,
             false,
         );
@@ -1061,13 +1056,13 @@ mod tests {
             (ItemFormat::JACOCO_XML, false, "inner-classes.xml", true),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
     }
 
     // Test extracting both jacoco xml and info files.
     #[test]
     fn test_zip_producer_both_info_and_jacoco_xml() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1079,7 +1074,7 @@ mod tests {
                 "test/info1.zip".to_string(),
                 "test/info2.zip".to_string(),
             ],
-            &queue,
+            &sender,
             false,
             false,
         );
@@ -1106,13 +1101,13 @@ mod tests {
             (ItemFormat::INFO, false, "1494603973-2977-7_1.info", true),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
     }
 
     // Test extracting both info and gcno/gcda files.
     #[test]
     fn test_zip_producer_both_info_and_gcnogcda_files() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1124,7 +1119,7 @@ mod tests {
                 "test/info1.zip".to_string(),
                 "test/info2.zip".to_string(),
             ],
-            &queue,
+            &sender,
             false,
             false,
         );
@@ -1160,13 +1155,13 @@ mod tests {
             (ItemFormat::INFO, false, "1494603973-2977-7_1.info", true),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
     }
 
     // Test extracting gcno with no associated gcda.
     #[test]
     fn test_zip_producer_gcno_with_no_associated_gcda() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1176,21 +1171,21 @@ mod tests {
                 "test/no_gcda/main.gcno.zip".to_string(),
                 "test/no_gcda/empty.gcda.zip".to_string(),
             ],
-            &queue,
+            &sender,
             false,
             false,
         );
 
         let expected = vec![(ItemFormat::GCNO, true, "main_1.gcno", false)];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
         assert!(mapping.is_none());
     }
 
     // Test extracting gcno with an associated gcda file in only one zip file.
     #[test]
     fn test_zip_producer_gcno_with_associated_gcda_in_only_one_archive() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1201,14 +1196,14 @@ mod tests {
                 "test/no_gcda/empty.gcda.zip".to_string(),
                 "test/no_gcda/main.gcda.zip".to_string(),
             ],
-            &queue,
+            &sender,
             false,
             false,
         );
 
         let expected = vec![(ItemFormat::GCNO, true, "main_1.gcno", true)];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
         assert!(mapping.is_none());
     }
 
@@ -1216,14 +1211,14 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_zip_producer_with_gcda_archive_and_no_gcno_archive() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, _) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
         producer(
             &tmp_path,
             &["test/no_gcda/main.gcda.zip".to_string()],
-            &queue,
+            &sender,
             false,
             false,
         );
@@ -1232,14 +1227,14 @@ mod tests {
     // Test extracting gcno/gcda archives, where a gcno file exist with no matching gcda file.
     #[test]
     fn test_zip_producer_no_matching_gcno() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
         producer(
             &tmp_path,
             &["test/gcno.zip".to_string(), "test/gcda2.zip".to_string()],
-            &queue,
+            &sender,
             false,
             false,
         );
@@ -1263,14 +1258,14 @@ mod tests {
             (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
     }
 
     // Test extracting gcno/gcda archives, where a gcno file exist with no matching gcda file.
     // The gcno file should be produced only once, not twice.
     #[test]
     fn test_zip_producer_no_matching_gcno_two_gcda_archives() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1281,7 +1276,7 @@ mod tests {
                 "test/gcda2.zip".to_string(),
                 "test/gcda2.zip".to_string(),
             ],
-            &queue,
+            &sender,
             false,
             false,
         );
@@ -1314,20 +1309,20 @@ mod tests {
             (ItemFormat::GCNO, true, "nsGnomeModule_2.gcno", true),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
     }
 
     // Test extracting gcno/gcda archives, where a gcno file exist with no matching gcda file and ignore orphan gcno files.
     #[test]
     fn test_zip_producer_no_matching_gcno_ignore_orphan_gcno() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
         producer(
             &tmp_path,
             &["test/gcno.zip".to_string(), "test/gcda2.zip".to_string()],
-            &queue,
+            &sender,
             true,
             false,
         );
@@ -1344,13 +1339,13 @@ mod tests {
             (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
     }
 
     // Test extracting gcno/gcda archives, where a gcno file exist with no matching gcda file and ignore orphan gcno files.
     #[test]
     fn test_zip_producer_no_matching_gcno_two_gcda_archives_ignore_orphan_gcno() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1361,7 +1356,7 @@ mod tests {
                 "test/gcda2.zip".to_string(),
                 "test/gcda2.zip".to_string(),
             ],
-            &queue,
+            &sender,
             true,
             false,
         );
@@ -1387,12 +1382,12 @@ mod tests {
             (ItemFormat::GCNO, true, "nsGnomeModule_2.gcno", true),
         ];
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
     }
 
     #[test]
     fn test_zip_producer_llvm_buffers() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1403,7 +1398,7 @@ mod tests {
                 "test/llvm/gcda1.zip".to_string(),
                 "test/llvm/gcda2.zip".to_string(),
             ],
-            &queue,
+            &sender,
             true,
             true,
         );
@@ -1432,12 +1427,8 @@ mod tests {
             0, 0, 0, 0, 0, 0, 163, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ];
 
-        loop {
-            let elem = queue.try_pop();
-            if elem.is_none() {
-                break;
-            }
-            let elem = elem.unwrap().unwrap();
+        while let Ok(elem) = receiver.try_recv() {
+            let elem = elem.unwrap();
             if let ItemType::Buffers(buffers) = elem.item {
                 let stem = PathBuf::from(buffers.stem);
                 let stem = stem.file_stem().expect("Unable to get file_stem");
@@ -1455,7 +1446,7 @@ mod tests {
 
     #[test]
     fn test_plain_producer() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
@@ -1463,7 +1454,7 @@ mod tests {
         let mapping = producer(
             &tmp_path,
             &["test/prova.info".to_string(), json_path.to_string()],
-            &queue,
+            &sender,
             true,
             false,
         );
@@ -1484,20 +1475,20 @@ mod tests {
             }
         }
 
-        check_produced(tmp_path, &queue, expected);
+        check_produced(tmp_path, &receiver, expected);
     }
 
     #[test]
     #[should_panic]
     fn test_plain_producer_with_gcno() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, _) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
         producer(
             &tmp_path,
             &["sub2/RootAccessibleWrap_1.gcno".to_string()],
-            &queue,
+            &sender,
             true,
             false,
         );
@@ -1506,14 +1497,14 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_plain_producer_with_gcda() {
-        let queue: Arc<WorkQueue> = Arc::new(MsQueue::new());
+        let (sender, _) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
         producer(
             &tmp_path,
             &["./test/llvm/file.gcda".to_string()],
-            &queue,
+            &sender,
             true,
             false,
         );
