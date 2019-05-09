@@ -174,15 +174,7 @@ pub fn output_fuzzmanager(results: CovResultIter, output_file: Option<&str>) {
             };
         }
 
-        let last_line = *result.lines.keys().last().unwrap_or(&0) as usize;
-        let mut lines: Vec<i64> = vec![-1; last_line];
-        for (line_num, line_count) in result.lines.iter() {
-            unsafe {
-                *lines.get_unchecked_mut((*line_num - 1) as usize) = *line_count as i64;
-            }
-        }
-        
-        prev_stats.borrow_mut().files.push(FMFileStats::new(path.file_name().unwrap().to_str().unwrap().to_string(), lines));
+        prev_stats.borrow_mut().files.push(FMFileStats::new(path.file_name().unwrap().to_str().unwrap().to_string(), result.lines));
     }
 
     let mut global = global.borrow_mut();

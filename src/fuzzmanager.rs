@@ -1,20 +1,12 @@
 use serde_json::map::Map;
+use std::collections::BTreeMap;
 
 pub use crate::defs::*;
 
 impl FMStats {
 
-    pub fn new(coverage: &Vec<i64>) -> Self {
-        let mut covered = 0;
-        let mut total = 0;
-
-        for x in coverage.iter() {
-            let x = *x;
-            total += (x >= 0) as usize;
-            covered += (x > 0) as usize;
-        }
+    pub fn new(total: usize, covered: usize) -> Self {
         let missed = total - covered;
-
         Self {
             total,
             covered,
@@ -47,12 +39,28 @@ impl FMStats {
 
 impl FMFileStats {
 
-    pub fn new(name: String, coverage: Vec<i64>) -> Self {
+    pub fn new(name: String, coverage: BTreeMap<u32, u64>) -> Self {
+        let (total, covered, lines) = Self::get_coverage(coverage);
         Self {
             name,
-            stats: FMStats::new(&coverage),
-            coverage,
+            stats: FMStats::new(total, covered),
+            coverage: lines,
         }
+    }
+
+    fn get_coverage(coverage: BTreeMap<u32, u64>) -> (usize, usize, Vec<i64>) {
+        let mut covered = 0;
+        let last_line = *coverage.keys().last().unwrap_or(&0) as usize;
+        let total = coverage.len();
+        let mut lines: Vec<i64> = vec![-1; last_line];
+        for (line_num, line_count) in coverage.iter() {
+            let line_count = *line_count;
+            unsafe {
+                *lines.get_unchecked_mut((*line_num - 1) as usize) = line_count as i64;
+            }
+            covered += (line_count > 0) as usize;
+        }
+        (total, covered, lines)
     }
 
     pub fn to_json(&self) -> serde_json::Value {
