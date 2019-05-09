@@ -4,18 +4,18 @@
       "coverage": [
         -1,
         -1,
-        1,
+        -1,
         1,
         1,
         -1,
-        1,
+        -1,
         1,
         1
       ],
       "coveragePercent": 100.0,
-      "linesCovered": 6,
+      "linesCovered": 4,
       "linesMissed": 0,
-      "linesTotal": 6,
+      "linesTotal": 4,
       "name": "file.cpp"
     },
     "include.h": {
@@ -29,44 +29,44 @@
         -1,
         -1,
         -1,
-        1,
+        -1,
         1,
         1
       ],
       "coveragePercent": 100.0,
-      "linesCovered": 4,
+      "linesCovered": 3,
       "linesMissed": 0,
-      "linesTotal": 4,
+      "linesTotal": 3,
       "name": "include.h"
     },
     "main.cpp": {
       "coverage": [
         -1,
         -1,
-        1,
+        -1,
         -1,
         1,
         -1,
-        1,
+        4,
         1,
         -1,
-        1,
+        2,
         0,
         0,
         -1,
         1,
-        1
+        2
       ],
-      "coveragePercent": 77.78,
-      "linesCovered": 7,
+      "coveragePercent": 75.0,
+      "linesCovered": 6,
       "linesMissed": 2,
-      "linesTotal": 9,
+      "linesTotal": 8,
       "name": "main.cpp"
     }
   },
-  "coveragePercent": 89.47,
-  "linesCovered": 17,
+  "coveragePercent": 86.67,
+  "linesCovered": 13,
   "linesMissed": 2,
-  "linesTotal": 19,
+  "linesTotal": 15,
   "name": ""
 }

@@ -4,7 +4,7 @@
       "coverage": [
         -1,
         -1,
-        -1,
+        1,
         -1,
         10,
         9,
@@ -18,16 +18,16 @@
         -1,
         1
       ],
-      "coveragePercent": 77.78,
-      "linesCovered": 7,
+      "coveragePercent": 80.0,
+      "linesCovered": 8,
       "linesMissed": 2,
-      "linesTotal": 9,
+      "linesTotal": 10,
       "name": "main.c"
     }
   },
-  "coveragePercent": 77.78,
-  "linesCovered": 7,
+  "coveragePercent": 80.0,
+  "linesCovered": 8,
   "linesMissed": 2,
-  "linesTotal": 9,
+  "linesTotal": 10,
   "name": ""
 }
