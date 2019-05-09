@@ -209,12 +209,12 @@ pub fn consumer(
             ItemFormat::INFO | ItemFormat::JACOCO_XML => {
                 if let ItemType::Content(content) = work_item.item {
                     let buffer = BufReader::new(Cursor::new(content));
-                        if work_item.format == ItemFormat::INFO {
-                            try_parse!(parse_lcov(buffer, branch_enabled), work_item.name)
-                        } else {
-                            try_parse!(parse_jacoco_xml_report(buffer), work_item.name)
-                        }
+                    if work_item.format == ItemFormat::INFO {
+                        try_parse!(parse_lcov(buffer, branch_enabled), work_item.name)
                     } else {
+                        try_parse!(parse_jacoco_xml_report(buffer), work_item.name)
+                    }
+                } else {
                     panic!("Invalid content type")
                 }
             }
