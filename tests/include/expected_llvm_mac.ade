@@ -3,9 +3,9 @@
 {"file":{"name":"file.cpp"},"language":"c/c++","method":{"covered":[4,5],"name":"_ZN4Ciao7setNameENSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE","percentage_covered":1.0,"total_covered":2,"total_uncovered":0,"uncovered":[]}}
 {"file":{"name":"file.cpp"},"language":"c/c++","method":{"covered":[8,9],"name":"_ZN4Ciao7getNameEv","percentage_covered":1.0,"total_covered":2,"total_uncovered":0,"uncovered":[]}}
 {"file":{"covered":[4,5,8,9],"name":"file.cpp","percentage_covered":1.0,"total_covered":4,"total_uncovered":0,"uncovered":[]},"is_file":true,"language":"c/c++","method":{"covered":[],"percentage_covered":null,"total_covered":0,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"./include.h"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoC1Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"./include.h"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoD1Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"./include.h"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoD2Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"./include.h"},"language":"c/c++","method":{"covered":[11,12],"name":"_ZN4Ciao14calledFromFileEv","percentage_covered":1.0,"total_covered":2,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"./include.h"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoC2Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"covered":[6,11,12],"name":"./include.h","percentage_covered":1.0,"total_covered":3,"total_uncovered":0,"uncovered":[]},"is_file":true,"language":"c/c++","method":{"covered":[],"percentage_covered":null,"total_covered":0,"total_uncovered":0,"uncovered":[]}}
+{"file":{"name":"include.h"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoC1Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
+{"file":{"name":"include.h"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoD1Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
+{"file":{"name":"include.h"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoD2Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
+{"file":{"name":"include.h"},"language":"c/c++","method":{"covered":[11,12],"name":"_ZN4Ciao14calledFromFileEv","percentage_covered":1.0,"total_covered":2,"total_uncovered":0,"uncovered":[]}}
+{"file":{"name":"include.h"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoC2Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
+{"file":{"covered":[6,11,12],"name":"include.h","percentage_covered":1.0,"total_covered":3,"total_uncovered":0,"uncovered":[]},"is_file":true,"language":"c/c++","method":{"covered":[],"percentage_covered":null,"total_covered":0,"total_uncovered":0,"uncovered":[]}}
