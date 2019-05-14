@@ -56,7 +56,7 @@ pub type SyncCovResultMap = Mutex<CovResultMap>;
 pub type CovResultIter = Box<Iterator<Item = (PathBuf, PathBuf, CovResult)>>;
 
 #[derive(Debug, Default)]
-pub struct FMStats {
+pub struct CDStats {
     pub total: usize,
     pub covered: usize,
     pub missed: usize,
@@ -64,16 +64,16 @@ pub struct FMStats {
 }
 
 #[derive(Debug)]
-pub struct FMFileStats {
+pub struct CDFileStats {
     pub name: String,
-    pub stats: FMStats,
+    pub stats: CDStats,
     pub coverage: Vec<i64>,
 }
 
 #[derive(Debug)]
-pub struct FMDirStats {
+pub struct CDDirStats {
     pub name: String,
-    pub files: Vec<FMFileStats>,
-    pub dirs: Vec<Rc<RefCell<FMDirStats>>>,
-    pub stats: FMStats,
+    pub files: Vec<CDFileStats>,
+    pub dirs: Vec<Rc<RefCell<CDDirStats>>>,
+    pub stats: CDStats,
 }

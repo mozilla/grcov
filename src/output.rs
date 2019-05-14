@@ -132,10 +132,10 @@ pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>) 
     }
 }
 
-pub fn output_fuzzmanager(results: CovResultIter, output_file: Option<&str>) {
+pub fn output_covdir(results: CovResultIter, output_file: Option<&str>) {
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
-    let mut relative: FxHashMap<PathBuf, Rc<RefCell<FMDirStats>>> = FxHashMap::default();
-    let global = Rc::new(RefCell::new(FMDirStats::new("".to_string())));
+    let mut relative: FxHashMap<PathBuf, Rc<RefCell<CDDirStats>>> = FxHashMap::default();
+    let global = Rc::new(RefCell::new(CDDirStats::new("".to_string())));
     relative.insert(PathBuf::from(""), global.clone());
     
     for (abs_path, rel_path, result) in results {
@@ -166,7 +166,7 @@ pub fn output_fuzzmanager(results: CovResultIter, output_file: Option<&str>) {
                     } else {
                         ancestor.file_name().unwrap().to_str().unwrap().to_string()
                     };
-                    prev_stats.dirs.push(Rc::new(RefCell::new(FMDirStats::new(path_tail))));
+                    prev_stats.dirs.push(Rc::new(RefCell::new(CDDirStats::new(path_tail))));
                     let last = prev_stats.dirs.last_mut().unwrap();
                     p.insert(last.clone());
                     last.clone()
@@ -174,7 +174,7 @@ pub fn output_fuzzmanager(results: CovResultIter, output_file: Option<&str>) {
             };
         }
 
-        prev_stats.borrow_mut().files.push(FMFileStats::new(path.file_name().unwrap().to_str().unwrap().to_string(), result.lines));
+        prev_stats.borrow_mut().files.push(CDFileStats::new(path.file_name().unwrap().to_str().unwrap().to_string(), result.lines));
     }
 
     let mut global = global.borrow_mut();
@@ -369,9 +369,9 @@ mod tests {
     }
     
     #[test]
-    fn test_fuzzmanager() {
+    fn test_covdir() {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
-        let file_name = "test_fuzzmanager.json";
+        let file_name = "test_covdir.json";
         let file_path = tmp_dir.path().join(&file_name);
 
         let results = vec![
@@ -406,7 +406,7 @@ mod tests {
         ];
 
         let results = Box::new(results.into_iter());
-        output_fuzzmanager(results, Some(file_path.to_str().unwrap()));        
+        output_covdir(results, Some(file_path.to_str().unwrap()));        
 
         let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
         let expected_path = PathBuf::from("./test/").join(&file_name);

@@ -358,7 +358,7 @@ fn check_equal_coveralls(expected_output: &str, output: &str, skip_branches: boo
     );
 }
 
-fn check_equal_fuzzmanager(expected_output: &str, output: &str) {
+fn check_equal_covdir(expected_output: &str, output: &str) {
     let expected: Value = serde_json::from_str(expected_output).unwrap();
     let actual: Value = serde_json::from_str(output).unwrap();
 
@@ -489,9 +489,9 @@ fn test_integration() {
                     &read_expected(path, "gcc", &gcc_version, "ade", None),
                     &run_grcov(vec![path], &PathBuf::from(""), "ade"),
                 );
-                check_equal_fuzzmanager(
-                    &read_expected(path, "gcc", &gcc_version, "fuzzmanager", None),
-                    &run_grcov(vec![path], path, "fuzzmanager"),
+                check_equal_covdir(
+                    &read_expected(path, "gcc", &gcc_version, "covdir", None),
+                    &run_grcov(vec![path], path, "covdir"),
                 );
                 do_clean(path);
             }
@@ -510,9 +510,9 @@ fn test_integration() {
                 &read_expected(path, "llvm", &clang_version, "ade", None),
                 &run_grcov(vec![path], &PathBuf::from(""), "ade"),
             );
-            check_equal_fuzzmanager(
-                &read_expected(path, "llvm", &clang_version, "fuzzmanager", None),
-                &run_grcov(vec![path], path, "fuzzmanager"),
+            check_equal_covdir(
+                &read_expected(path, "llvm", &clang_version, "covdir", None),
+                &run_grcov(vec![path], path, "covdir"),
             );
 
             do_clean(path);
@@ -574,15 +574,15 @@ fn test_integration_zip_zip() {
             false,
         );
                 
-        check_equal_fuzzmanager(
+        check_equal_covdir(
             &read_expected(
                 path,
                 &name,
                 &compiler_version,
-                "fuzzmanager",
+                "covdir",
                 Some("_no_gcda"),
             ),
-            &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], path, "fuzzmanager"),
+            &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], path, "covdir"),
         );
 
         // one gcda
@@ -593,9 +593,9 @@ fn test_integration_zip_zip() {
             false,
         );
 
-        check_equal_fuzzmanager(
-            &read_expected(path, &name, &compiler_version, "fuzzmanager", None),
-            &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], path, "fuzzmanager"),
+        check_equal_covdir(
+            &read_expected(path, &name, &compiler_version, "covdir", None),
+            &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], path, "covdir"),
         );
 
         // two gcdas
@@ -619,18 +619,18 @@ fn test_integration_zip_zip() {
             false,
         );
 
-        check_equal_fuzzmanager(
+        check_equal_covdir(
             &read_expected(
                 path,
                 &name,
                 &compiler_version,
-                "fuzzmanager",
+                "covdir",
                 Some("_two_gcda"),
             ),
             &run_grcov(
                 vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path],
                 path,
-                "fuzzmanager",
+                "covdir",
             ),
         );
 
@@ -680,9 +680,9 @@ fn test_integration_zip_dir() {
             false,
         );
 
-        check_equal_fuzzmanager(
-            &read_expected(base_path, &name, &compiler_version, "fuzzmanager", None),
-            &run_grcov(vec![&gcno_zip_path, &base_path], path, "fuzzmanager"),
+        check_equal_covdir(
+            &read_expected(base_path, &name, &compiler_version, "covdir", None),
+            &run_grcov(vec![&gcno_zip_path, &base_path], path, "covdir"),
         );
 
         do_clean(path);

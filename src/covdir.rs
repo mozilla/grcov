@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 
 pub use crate::defs::*;
 
-impl FMStats {
+impl CDStats {
 
     pub fn new(total: usize, covered: usize) -> Self {
         let missed = total - covered;
@@ -37,13 +37,13 @@ impl FMStats {
     }
 }
 
-impl FMFileStats {
+impl CDFileStats {
 
     pub fn new(name: String, coverage: BTreeMap<u32, u64>) -> Self {
         let (total, covered, lines) = Self::get_coverage(coverage);
         Self {
             name,
-            stats: FMStats::new(total, covered),
+            stats: CDStats::new(total, covered),
             coverage: lines,
         }
     }
@@ -75,7 +75,7 @@ impl FMFileStats {
     }
 }
 
-impl FMDirStats {
+impl CDDirStats {
 
     pub fn new(name: String) -> Self {
         Self {

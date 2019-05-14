@@ -35,8 +35,8 @@ pub use crate::output::*;
 mod reader;
 pub use crate::reader::*;
 
-mod fuzzmanager;
-pub use crate::fuzzmanager::*;
+mod covdir;
+pub use crate::covdir::*;
 
 use std::collections::{btree_map, hash_map};
 use std::fs;
