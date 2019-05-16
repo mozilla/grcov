@@ -3,13 +3,13 @@ extern crate grcov;
 extern crate rustc_hash;
 extern crate test;
 
-use grcov::{CovResult, Function};
+use grcov::{CovResult, Function, FunctionMap};
 use rustc_hash::FxHashMap;
 use test::{black_box, Bencher};
 
 #[bench]
 fn bench_filter_covered(b: &mut Bencher) {
-    let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+    let mut functions: FunctionMap = FxHashMap::default();
     functions.insert(
         "f1".to_string(),
         Function {
@@ -44,7 +44,7 @@ fn bench_filter_covered_no_functions(b: &mut Bencher) {
 
 #[bench]
 fn bench_filter_uncovered_no_lines_executed(b: &mut Bencher) {
-    let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+    let mut functions: FunctionMap = FxHashMap::default();
     functions.insert(
         "f1".to_string(),
         Function {
@@ -69,7 +69,7 @@ fn bench_filter_uncovered_no_lines_executed(b: &mut Bencher) {
 
 #[bench]
 fn bench_filter_covered_functions_executed(b: &mut Bencher) {
-    let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+    let mut functions: FunctionMap = FxHashMap::default();
     functions.insert(
         "top-level".to_string(),
         Function {
@@ -94,7 +94,7 @@ fn bench_filter_covered_functions_executed(b: &mut Bencher) {
 
 #[bench]
 fn bench_filter_covered_toplevel_executed(b: &mut Bencher) {
-    let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+    let mut functions: FunctionMap = FxHashMap::default();
     functions.insert(
         "top-level".to_string(),
         Function {
@@ -112,7 +112,7 @@ fn bench_filter_covered_toplevel_executed(b: &mut Bencher) {
 
 #[bench]
 fn bench_filter_uncovered_functions_not_executed(b: &mut Bencher) {
-    let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+    let mut functions: FunctionMap = FxHashMap::default();
     functions.insert(
         "top-level".to_string(),
         Function {

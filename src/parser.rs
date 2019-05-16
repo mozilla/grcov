@@ -402,8 +402,8 @@ fn parse_jacoco_report_method<T: Read>(
 fn parse_jacoco_report_class<T: Read>(
     parser: &mut EventReader<T>,
     class_name: &str,
-) -> Result<FxHashMap<String, Function>, ParserError> {
-    let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+) -> Result<FunctionMap, ParserError> {
+    let mut functions: FunctionMap = FxHashMap::default();
 
     loop {
         match parser.next() {
@@ -1502,7 +1502,7 @@ mod tests {
         lines.insert(1, 0);
         lines.insert(4, 1);
         lines.insert(6, 1);
-        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+        let mut functions: FunctionMap = FxHashMap::default();
         functions.insert(
             String::from("hello#<init>"),
             Function {
@@ -1541,7 +1541,7 @@ mod tests {
         for i in vec![5, 10, 14, 15, 18, 22, 23, 25, 27, 31, 34, 37, 44, 49] {
             lines.insert(i, 0);
         }
-        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+        let mut functions: FunctionMap = FxHashMap::default();
 
         for (name, start, executed) in vec![
             ("Person$InnerClassForPerson#getSomethingElse", 31, false),

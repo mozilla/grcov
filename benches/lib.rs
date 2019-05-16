@@ -5,7 +5,7 @@ extern crate rustc_hash;
 extern crate test;
 
 use crossbeam::crossbeam_channel::unbounded;
-use grcov::{CovResult, Function};
+use grcov::{CovResult, Function, FunctionMap};
 use rustc_hash::FxHashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -16,7 +16,7 @@ use grcov::*;
 
 #[bench]
 fn bench_lib_merge_results(b: &mut Bencher) {
-    let mut functions1: FxHashMap<String, Function> = FxHashMap::default();
+    let mut functions1: FunctionMap = FxHashMap::default();
     functions1.insert(
         "f1".to_string(),
         Function {
@@ -44,7 +44,7 @@ fn bench_lib_merge_results(b: &mut Bencher) {
         functions: functions1,
     };
 
-    let mut functions2: FxHashMap<String, Function> = FxHashMap::default();
+    let mut functions2: FunctionMap = FxHashMap::default();
     functions2.insert(
         "f1".to_string(),
         Function {
