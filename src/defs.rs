@@ -48,6 +48,8 @@ pub struct WorkItem {
     pub name: String,
 }
 
+pub type FunctionMap = FxHashMap<String, Function>;
+
 pub type JobReceiver = Receiver<Option<WorkItem>>;
 pub type JobSender = Sender<Option<WorkItem>>;
 
