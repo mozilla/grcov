@@ -16,7 +16,7 @@ pub struct Function {
 pub struct CovResult {
     pub lines: BTreeMap<u32, u64>,
     pub branches: BTreeMap<u32, Vec<bool>>,
-    pub functions: FxHashMap<String, Function>,
+    pub functions: FunctionMap,
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -47,6 +47,8 @@ pub struct WorkItem {
     pub item: ItemType,
     pub name: String,
 }
+
+pub type FunctionMap = FxHashMap<String, Function>;
 
 pub type JobReceiver = Receiver<Option<WorkItem>>;
 pub type JobSender = Sender<Option<WorkItem>>;

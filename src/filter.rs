@@ -27,7 +27,7 @@ mod tests {
 
     #[test]
     fn test_covered() {
-        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+        let mut functions: FunctionMap = FxHashMap::default();
         functions.insert(
             "f1".to_string(),
             Function {
@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_uncovered_no_lines_executed() {
-        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+        let mut functions: FunctionMap = FxHashMap::default();
         functions.insert(
             "f1".to_string(),
             Function {
@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn test_covered_functions_executed() {
-        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+        let mut functions: FunctionMap = FxHashMap::default();
         functions.insert(
             "top-level".to_string(),
             Function {
@@ -116,7 +116,7 @@ mod tests {
 
     #[test]
     fn test_covered_toplevel_executed() {
-        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+        let mut functions: FunctionMap = FxHashMap::default();
         functions.insert(
             "top-level".to_string(),
             Function {
@@ -135,7 +135,7 @@ mod tests {
 
     #[test]
     fn test_uncovered_functions_not_executed() {
-        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+        let mut functions: FunctionMap = FxHashMap::default();
         functions.insert(
             "top-level".to_string(),
             Function {

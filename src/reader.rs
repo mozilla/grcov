@@ -956,7 +956,8 @@ impl GcovFunction {
 #[cfg(test)]
 mod tests {
 
-    use super::*;
+use crate::defs::FunctionMap;
+use super::*;
 
     fn get_input_string(path: &str) -> String {
         let path = PathBuf::from(path);
@@ -1081,7 +1082,7 @@ mod tests {
 
         let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
         lines.insert(2, 1);
-        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+        let mut functions: FunctionMap = FxHashMap::default();
         functions.insert(
             String::from("main"),
             Function {
@@ -1137,7 +1138,7 @@ mod tests {
             lines.insert(x.0, x.1);
         });
 
-        let mut functions: FxHashMap<String, Function> = FxHashMap::default();
+        let mut functions: FunctionMap = FxHashMap::default();
         functions.insert(
             String::from("foo"),
             Function {

@@ -236,7 +236,7 @@ mod tests {
 
     #[test]
     fn test_merge_results() {
-        let mut functions1: FxHashMap<String, Function> = FxHashMap::default();
+        let mut functions1: FunctionMap = FxHashMap::default();
         functions1.insert(
             "f1".to_string(),
             Function {
@@ -263,7 +263,7 @@ mod tests {
             .collect(),
             functions: functions1,
         };
-        let mut functions2: FxHashMap<String, Function> = FxHashMap::default();
+        let mut functions2: FunctionMap = FxHashMap::default();
         functions2.insert(
             "f1".to_string(),
             Function {
