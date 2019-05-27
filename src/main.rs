@@ -22,6 +22,7 @@ fn main() {
     let default_num_threads = (num_cpus::get() * 2).to_string();
 
     let matches = App::new("grcov")
+                          .version(crate_version!())
                           .author(crate_authors!("\n"))
                           .about("Parse, collect and aggregate code coverage data for multiple source files")
 
