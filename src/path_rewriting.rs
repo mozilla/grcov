@@ -291,36 +291,39 @@ pub fn rewrite_paths(
         };
 
         // Get absolute path to the source file.
-        if let Some((abs_path, rel_path)) = get_abs_path(&source_dir, rel_path, &mut cache) {
-            if to_ignore_globset.is_match(&rel_path) {
-                return None;
-            }
-
-            if ignore_not_existing && !abs_path.exists() {
-                return None;
-            }
-
-            // Always return results with '/'.
-            let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
-
-            match filter_option {
-                Some(true) => {
-                    if !is_covered(&result) {
-                        return None;
-                    }
-                }
-                Some(false) => {
-                    if is_covered(&result) {
-                        return None;
-                    }
-                }
-                None => (),
-            };
-
-            Some((abs_path, rel_path, result))
-        } else {
-            None
+        let paths = get_abs_path(&source_dir, rel_path, &mut cache);
+        if paths.is_none() {
+            return None;
         }
+
+        let (abs_path, rel_path) = paths.unwrap();
+
+        if to_ignore_globset.is_match(&rel_path) {
+            return None;
+        }
+
+        if ignore_not_existing && !abs_path.exists() {
+            return None;
+        }
+
+        // Always return results with '/'.
+        let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
+
+        match filter_option {
+            Some(true) => {
+                if !is_covered(&result) {
+                    return None;
+                }
+            }
+            Some(false) => {
+                if is_covered(&result) {
+                    return None;
+                }
+            }
+            None => (),
+        };
+
+        Some((abs_path, rel_path, result))
     }))
 }
 
