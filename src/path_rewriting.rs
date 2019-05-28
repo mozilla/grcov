@@ -40,14 +40,33 @@ pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     Ok(path)
 }
 
-fn normalize_path<P: AsRef<Path>>(path: P) -> PathBuf {
-    let mut new_path = PathBuf::from("");
-    for component in path.as_ref().components() {
-        if component != Component::CurDir {
-            new_path.push(component);
+
+pub fn normalize_path<P: AsRef<Path>>(path: P) -> PathBuf {
+    // Copied from Cargo sources: https://github.com/rust-lang/cargo/blob/master/src/cargo/util/paths.rs#L65
+    let mut components = path.as_ref().components().peekable();
+    let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+        components.next();
+        PathBuf::from(c.as_os_str())
+    } else {
+        PathBuf::new()
+    };
+
+    for component in components {
+        match component {
+            Component::Prefix(..) => unreachable!(),
+            Component::RootDir => {
+                ret.push(component.as_os_str());
+            }
+            Component::CurDir => {}
+            Component::ParentDir => {
+                ret.pop();
+            }
+            Component::Normal(c) => {
+                ret.push(c);
+            }
         }
     }
-    new_path
+    ret
 }
 
 // Search the source file's path in the mapping.
@@ -134,6 +153,7 @@ fn get_abs_path(
     
     // Normalize the path in removing './' or '//'
     let rel_path = normalize_path(rel_path);
+    let abs_path = normalize_path(abs_path);
 
     (abs_path, rel_path)
 }
@@ -1203,7 +1223,10 @@ mod tests {
 
     #[test]
     fn test_normalize_path() {
+        assert_eq!(normalize_path("./foo/bar"), PathBuf::from("foo/bar"));
         assert_eq!(normalize_path("./foo//bar"), PathBuf::from("foo/bar"));
         assert_eq!(normalize_path("./foo/./bar/./oof/"), PathBuf::from("foo/bar/oof"));
+        assert_eq!(normalize_path("./foo/../bar/./oof/"), PathBuf::from("bar/oof"));
+        assert_eq!(normalize_path("../bar/oof/"), PathBuf::from("bar/oof"));
     }
 }
