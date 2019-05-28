@@ -41,7 +41,7 @@ pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
 }
 
 
-pub fn normalize_path<P: AsRef<Path>>(path: P) -> PathBuf {
+pub fn normalize_path<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
     // Copied from Cargo sources: https://github.com/rust-lang/cargo/blob/master/src/cargo/util/paths.rs#L65
     let mut components = path.as_ref().components().peekable();
     let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
@@ -59,14 +59,17 @@ pub fn normalize_path<P: AsRef<Path>>(path: P) -> PathBuf {
             }
             Component::CurDir => {}
             Component::ParentDir => {
-                ret.pop();
+                if !ret.pop() {
+                    eprintln!("Warning: {:?} cannot be normalized because of \"..\", so skip it.", path.as_ref());
+                    return None;
+                }
             }
             Component::Normal(c) => {
                 ret.push(c);
             }
         }
     }
-    ret
+    Some(ret)
 }
 
 // Search the source file's path in the mapping.
@@ -126,7 +129,7 @@ fn get_abs_path(
     source_dir: &Option<PathBuf>,
     rel_path: PathBuf,
     cache: &mut Option<PathBuf>,
-) -> (PathBuf, PathBuf) {
+) -> Option<(PathBuf, PathBuf)> {
     let mut abs_path = if !rel_path.is_relative() {
         rel_path.clone()
     } else if let Some(ref source_dir) = source_dir {
@@ -151,11 +154,15 @@ fn get_abs_path(
     // Fixup the relative path, in case the absolute path was a symlink.
     let rel_path = fixup_rel_path(&source_dir, &abs_path, rel_path);
     
-    // Normalize the path in removing './' or '//'
+    // Normalize the path in removing './' or '//' or '..'
     let rel_path = normalize_path(rel_path);
     let abs_path = normalize_path(abs_path);
 
-    (abs_path, rel_path)
+    if rel_path.is_none() || abs_path.is_none() {
+        None
+    } else {
+        Some((abs_path.unwrap(), rel_path.unwrap()))
+    }
 }
 
 fn check_extension(path: &PathBuf, e: &str) -> bool {
@@ -284,34 +291,36 @@ pub fn rewrite_paths(
         };
 
         // Get absolute path to the source file.
-        let (abs_path, rel_path) = get_abs_path(&source_dir, rel_path, &mut cache);
-
-        if to_ignore_globset.is_match(&rel_path) {
-            return None;
-        }
-
-        if ignore_not_existing && !abs_path.exists() {
-            return None;
-        }
-
-        // Always return results with '/'.
-        let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
-
-        match filter_option {
-            Some(true) => {
-                if !is_covered(&result) {
-                    return None;
-                }
+        if let Some((abs_path, rel_path)) = get_abs_path(&source_dir, rel_path, &mut cache) {
+            if to_ignore_globset.is_match(&rel_path) {
+                return None;
             }
-            Some(false) => {
-                if is_covered(&result) {
-                    return None;
-                }
-            }
-            None => (),
-        };
 
-        Some((abs_path, rel_path, result))
+            if ignore_not_existing && !abs_path.exists() {
+                return None;
+            }
+
+            // Always return results with '/'.
+            let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
+
+            match filter_option {
+                Some(true) => {
+                    if !is_covered(&result) {
+                        return None;
+                    }
+                }
+                Some(false) => {
+                    if is_covered(&result) {
+                        return None;
+                    }
+                }
+                None => (),
+            };
+
+            Some((abs_path, rel_path, result))
+        } else {
+            None
+        }
     }))
 }
 
@@ -1223,10 +1232,11 @@ mod tests {
 
     #[test]
     fn test_normalize_path() {
-        assert_eq!(normalize_path("./foo/bar"), PathBuf::from("foo/bar"));
-        assert_eq!(normalize_path("./foo//bar"), PathBuf::from("foo/bar"));
-        assert_eq!(normalize_path("./foo/./bar/./oof/"), PathBuf::from("foo/bar/oof"));
-        assert_eq!(normalize_path("./foo/../bar/./oof/"), PathBuf::from("bar/oof"));
-        assert_eq!(normalize_path("../bar/oof/"), PathBuf::from("bar/oof"));
+        assert_eq!(normalize_path("./foo/bar").unwrap(), PathBuf::from("foo/bar"));
+        assert_eq!(normalize_path("./foo//bar").unwrap(), PathBuf::from("foo/bar"));
+        assert_eq!(normalize_path("./foo/./bar/./oof/").unwrap(), PathBuf::from("foo/bar/oof"));
+        assert_eq!(normalize_path("./foo/../bar/./oof/").unwrap(), PathBuf::from("bar/oof"));
+        assert!(normalize_path("../bar/oof/").is_none());
+        assert!(normalize_path("bar/foo/../../../oof/").is_none());
     }
 }
