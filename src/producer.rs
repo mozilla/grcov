@@ -351,7 +351,7 @@ fn gcno_gcda_producer(
                             || (num == 0 && !ignore_orphan_gcno)
                         {
                             send_job(
-                                ItemType::Path(gcno_path),
+                                ItemType::Path((stem.clone(), gcno_path)),
                                 gcda_archive.get_name().to_string(),
                             );
                         }
@@ -378,7 +378,7 @@ fn gcno_gcda_producer(
                         let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
                         if gcno_archive.extract(&gcno, &physical_gcno_path) {
                             send_job(
-                                ItemType::Path(physical_gcno_path),
+                                ItemType::Path((stem.clone(), physical_gcno_path)),
                                 gcno_archive.get_name().to_string(),
                             );
                         }
@@ -550,7 +550,7 @@ mod tests {
 
                     match x.item {
                         ItemType::Content(_) => !elem.1,
-                        ItemType::Path(ref p) => elem.1 && p.ends_with(elem.2),
+                        ItemType::Path((_, ref p)) => elem.1 && p.ends_with(elem.2),
                         ItemType::Buffers(ref b) => b.stem.replace("\\", "/").ends_with(elem.2),
                     }
                 }),
@@ -569,7 +569,7 @@ mod tests {
 
                     match v.item {
                         ItemType::Content(_) => !x.1,
-                        ItemType::Path(ref p) => x.1 && p.ends_with(x.2),
+                        ItemType::Path((_, ref p)) => x.1 && p.ends_with(x.2),
                         ItemType::Buffers(ref b) => b.stem.replace("\\", "/").ends_with(x.2),
                     }
                 }),

@@ -36,7 +36,7 @@ pub struct GcnoBuffers {
 
 #[derive(Debug)]
 pub enum ItemType {
-    Path(PathBuf),
+    Path((String, PathBuf)),
     Content(Vec<u8>),
     Buffers(GcnoBuffers),
 }

@@ -40,6 +40,18 @@ pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     Ok(path)
 }
 
+pub fn is_single_file(path: &str) -> bool {
+    let path = PathBuf::from(path);
+    if let Some(parent) = path.parent() {
+        if let Some(parent) = parent.to_str() {
+            parent == ""
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
 
 pub fn normalize_path<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
     // Copied from Cargo sources: https://github.com/rust-lang/cargo/blob/master/src/cargo/util/paths.rs#L65
@@ -1241,5 +1253,18 @@ mod tests {
         assert_eq!(normalize_path("./foo/../bar/./oof/").unwrap(), PathBuf::from("bar/oof"));
         assert!(normalize_path("../bar/oof/").is_none());
         assert!(normalize_path("bar/foo/../../../oof/").is_none());
+    }
+
+    #[test]
+    fn test_is_single_file() {
+        assert!(is_single_file("foo.bar"));
+        assert!(is_single_file("foo"));
+        assert!(!is_single_file("/foo.bar"));
+        assert!(!is_single_file("./foo.bar"));
+        assert!(!is_single_file("../foo.bar"));
+        assert!(!is_single_file("foo/foo.bar"));
+        assert!(!is_single_file("bar/foo/foo.bar"));
+        assert!(!is_single_file("/"));
+        assert!(!is_single_file("/foo/bar.oof"));
     }
 }

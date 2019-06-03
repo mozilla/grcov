@@ -145,6 +145,7 @@ fn run_grcov(paths: Vec<&Path>, source_root: &Path, output_format: &str) -> Stri
     args.push("/usr/*");
     args.push("--ignore-dir");
     args.push("/Applications/*");
+    args.push("--guess-directory-when-missing");
 
     let mut cmd_path = if cfg!(windows) {
         ".\\target\\debug\\grcov.exe"
@@ -687,4 +688,15 @@ fn test_integration_zip_dir() {
 
         do_clean(path);
     }
+}
+
+#[test]
+fn test_integration_guess_single_file() {
+    let zip_path = PathBuf::from("tests/guess_single_file.zip");
+    let json_path = PathBuf::from("tests/guess_single_file.json");
+
+    check_equal_covdir(
+        &read_file(&json_path),
+        &run_grcov(vec![&zip_path], &PathBuf::from(""), "covdir"),
+    );
 }
