@@ -119,7 +119,7 @@ fn rename_single_files(results: &mut Vec<(String, CovResult)>, stem: &str) {
     // we guess the filename in using the buffer stem
     if let Some(parent) = PathBuf::from(stem).parent() {
         for (file, _) in results.iter_mut() {
-            if is_single_file(file) {
+            if has_no_parent(file) {
                 *file = parent.join(&file).to_str().unwrap().to_string();
             }
         }

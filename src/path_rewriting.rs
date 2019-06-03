@@ -40,17 +40,8 @@ pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     Ok(path)
 }
 
-pub fn is_single_file(path: &str) -> bool {
-    let path = PathBuf::from(path);
-    if let Some(parent) = path.parent() {
-        if let Some(parent) = parent.to_str() {
-            parent == ""
-        } else {
-            false
-        }
-    } else {
-        false
-    }
+pub fn has_no_parent(path: &str) -> bool {
+    PathBuf::from(path).parent() == Some(&PathBuf::from(""))
 }
 
 pub fn normalize_path<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
@@ -1256,15 +1247,15 @@ mod tests {
     }
 
     #[test]
-    fn test_is_single_file() {
-        assert!(is_single_file("foo.bar"));
-        assert!(is_single_file("foo"));
-        assert!(!is_single_file("/foo.bar"));
-        assert!(!is_single_file("./foo.bar"));
-        assert!(!is_single_file("../foo.bar"));
-        assert!(!is_single_file("foo/foo.bar"));
-        assert!(!is_single_file("bar/foo/foo.bar"));
-        assert!(!is_single_file("/"));
-        assert!(!is_single_file("/foo/bar.oof"));
+    fn test_has_no_parent() {
+        assert!(has_no_parent("foo.bar"));
+        assert!(has_no_parent("foo"));
+        assert!(!has_no_parent("/foo.bar"));
+        assert!(!has_no_parent("./foo.bar"));
+        assert!(!has_no_parent("../foo.bar"));
+        assert!(!has_no_parent("foo/foo.bar"));
+        assert!(!has_no_parent("bar/foo/foo.bar"));
+        assert!(!has_no_parent("/"));
+        assert!(!has_no_parent("/foo/bar.oof"));
     }
 }
