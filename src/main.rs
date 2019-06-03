@@ -145,6 +145,9 @@ fn main() {
                                .default_value(&default_num_threads)
                                .takes_value(true))
 
+                          .arg(Arg::with_name("guess_directory")
+                               .long("guess-directory-when-missing"))
+
                           .get_matches();
 
     let paths: Vec<_> = matches.values_of("paths").unwrap().collect();
@@ -181,6 +184,7 @@ fn main() {
         .unwrap()
         .parse()
         .expect("Number of threads should be a number");
+    let guess_directory = matches.is_present("guess_directory");
 
     let source_root = if source_dir != "" {
         Some(canonicalize_path(&source_dir).expect("Source directory does not exist."))
@@ -250,6 +254,7 @@ fn main() {
                     &result_map,
                     receiver,
                     branch_enabled,
+                    guess_directory,
                 );
             })
             .unwrap();

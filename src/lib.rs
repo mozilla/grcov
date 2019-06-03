@@ -113,6 +113,19 @@ fn add_results(
     }
 }
 
+fn rename_single_files(results: &mut Vec<(String, CovResult)>, stem: &str) {
+    // sometimes the gcno just contains foo.c
+    // so in such case (with option --guess-directory-when-missing)
+    // we guess the filename in using the buffer stem
+    if let Some(parent) = PathBuf::from(stem).parent() {
+        for (file, _) in results.iter_mut() {
+            if has_no_parent(file) {
+                *file = parent.join(&file).to_str().unwrap().to_string();
+            }
+        }
+    }
+}
+
 // Some versions of GCC, because of a bug, generate multiple gcov files for each
 // gcno, so we have to support this case too for the time being.
 #[derive(PartialEq, Eq)]
@@ -141,6 +154,7 @@ pub fn consumer(
     result_map: &SyncCovResultMap,
     receiver: JobReceiver,
     branch_enabled: bool,
+    guess_directory: bool,
 ) {
     let mut gcov_type = GcovType::Unknown;
 
@@ -152,7 +166,7 @@ pub fn consumer(
         let new_results = match work_item.format {
             ItemFormat::GCNO => {
                 match work_item.item {
-                    ItemType::Path(gcno_path) => {
+                    ItemType::Path((stem, gcno_path)) => {
                         // GCC
                         run_gcov(&gcno_path, branch_enabled, working_dir);
                         let gcov_path =
@@ -166,7 +180,7 @@ pub fn consumer(
                             };
                         }
 
-                        if gcov_type == GcovType::SingleFile {
+                        let mut new_results = if gcov_type == GcovType::SingleFile {
                             let new_results = try_parse!(parse_gcov(&gcov_path), work_item.name);
                             fs::remove_file(gcov_path).unwrap();
                             new_results
@@ -186,7 +200,12 @@ pub fn consumer(
                             }
 
                             new_results
+                        };
+
+                        if guess_directory {
+                            rename_single_files(&mut new_results, &stem);
                         }
+                        new_results
                     }
                     ItemType::Buffers(buffers) => {
                         // LLVM
@@ -196,7 +215,12 @@ pub fn consumer(
                             buffers.gcda_buf,
                             branch_enabled,
                         ) {
-                            Ok(r) => r,
+                            Ok(mut r) => {
+                                if guess_directory {
+                                    rename_single_files(&mut r, &buffers.stem);
+                                }
+                                r
+                            },
                             Err(e) => {
                                 // Just print the error, don't panic and continue
                                 eprintln!("Error in computing counters:\n{}", e);

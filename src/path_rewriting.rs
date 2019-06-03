@@ -40,6 +40,9 @@ pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     Ok(path)
 }
 
+pub fn has_no_parent(path: &str) -> bool {
+    PathBuf::from(path).parent() == Some(&PathBuf::from(""))
+}
 
 pub fn normalize_path<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
     // Copied from Cargo sources: https://github.com/rust-lang/cargo/blob/master/src/cargo/util/paths.rs#L65
@@ -1241,5 +1244,18 @@ mod tests {
         assert_eq!(normalize_path("./foo/../bar/./oof/").unwrap(), PathBuf::from("bar/oof"));
         assert!(normalize_path("../bar/oof/").is_none());
         assert!(normalize_path("bar/foo/../../../oof/").is_none());
+    }
+
+    #[test]
+    fn test_has_no_parent() {
+        assert!(has_no_parent("foo.bar"));
+        assert!(has_no_parent("foo"));
+        assert!(!has_no_parent("/foo.bar"));
+        assert!(!has_no_parent("./foo.bar"));
+        assert!(!has_no_parent("../foo.bar"));
+        assert!(!has_no_parent("foo/foo.bar"));
+        assert!(!has_no_parent("bar/foo/foo.bar"));
+        assert!(!has_no_parent("/"));
+        assert!(!has_no_parent("/foo/bar.oof"));
     }
 }
