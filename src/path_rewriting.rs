@@ -156,7 +156,7 @@ fn get_abs_path(
 
     // Fixup the relative path, in case the absolute path was a symlink.
     let rel_path = fixup_rel_path(&source_dir, &abs_path, rel_path);
-    
+
     // Normalize the path in removing './' or '//' or '..'
     let rel_path = normalize_path(rel_path);
     let abs_path = normalize_path(abs_path);
@@ -207,9 +207,10 @@ fn map_partial_path(file_to_paths: &FxHashMap<String, Vec<PathBuf>>, path: PathB
         }
     }
 
-    match result {
-        Some(result) => result.clone(),
-        None => path,
+    if let Some(result) = result {
+        result.clone()
+    } else {
+        path
     }
 }
 

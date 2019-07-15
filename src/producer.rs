@@ -140,10 +140,13 @@ impl Archive {
     fn check_file(file: FilePath, checker: &Fn(&mut Read) -> bool) -> bool {
         match file {
             FilePath::File(reader) => checker(reader),
-            FilePath::Path(path) => match File::open(path) {
-                Ok(mut f) => checker(&mut f),
-                Err(_) => false,
-            },
+            FilePath::Path(path) => {
+                if let Ok(mut f) = File::open(path) {
+                    checker(&mut f)
+                } else {
+                    false
+                }
+            }
         }
     }
 
@@ -250,23 +253,31 @@ impl Archive {
     pub fn extract(&self, name: &str, path: &PathBuf) -> bool {
         let dest_parent = path.parent().unwrap();
         if !dest_parent.exists() {
-            match fs::create_dir_all(dest_parent) {
-                Ok(_) => {}
-                Err(_) => panic!("Cannot create parent directory"),
-            };
+            if let Ok(_) = fs::create_dir_all(dest_parent) {}
+            else {
+                panic!("Cannot create parent directory")
+            }
         }
 
         match *self.item.borrow_mut() {
             ArchiveType::Zip(ref mut zip) => {
                 let mut zip = zip.borrow_mut();
                 let zipfile = zip.by_name(&name);
-                match zipfile {
-                    Ok(mut f) => {
-                        let mut file = File::create(&path).expect("Failed to create file");
-                        io::copy(&mut f, &mut file).expect("Failed to copy file from ZIP");
-                        true
-                    }
-                    Err(_) => false,
+                // match zipfile {
+                //     Ok(mut f) => {
+                //         let mut file = File::create(&path).expect("Failed to create file");
+                //         io::copy(&mut f, &mut file).expect("Failed to copy file from ZIP");
+                //         true
+                //     }
+                //     Err(_) => false,
+                // }
+
+                if let Ok(mut f) = zipfile {
+                    let mut file = File::create(&path).expect("Failed to create file");
+                    io::copy(&mut f, &mut file).expect("Failed to copy file from ZIP");
+                    true
+                } else {
+                    false
                 }
             }
             ArchiveType::Dir(ref dir) => {

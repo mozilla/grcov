@@ -53,9 +53,10 @@ macro_rules! try_parse {
 
 macro_rules! try_next {
     ($v:expr, $l:expr) => {
-        match $v.next() {
-            Some(val) => val,
-            None => return Err(ParserError::InvalidRecord($l.to_string())),
+        if let Some(val) = $v.next() {
+            val
+        } else {
+            return Err(ParserError::InvalidRecord($l.to_string()))
         }
     };
 }
