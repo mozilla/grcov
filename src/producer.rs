@@ -257,15 +257,6 @@ impl Archive {
             ArchiveType::Zip(ref mut zip) => {
                 let mut zip = zip.borrow_mut();
                 let zipfile = zip.by_name(&name);
-                // match zipfile {
-                //     Ok(mut f) => {
-                //         let mut file = File::create(&path).expect("Failed to create file");
-                //         io::copy(&mut f, &mut file).expect("Failed to copy file from ZIP");
-                //         true
-                //     }
-                //     Err(_) => false,
-                // }
-
                 if let Ok(mut f) = zipfile {
                     let mut file = File::create(&path).expect("Failed to create file");
                     io::copy(&mut f, &mut file).expect("Failed to copy file from ZIP");
