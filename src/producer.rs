@@ -140,12 +140,9 @@ impl Archive {
     fn check_file(file: FilePath, checker: &Fn(&mut Read) -> bool) -> bool {
         match file {
             FilePath::File(reader) => checker(reader),
-            FilePath::Path(path) => {
-                if let Ok(mut f) = File::open(path) {
-                    checker(&mut f)
-                } else {
-                    false
-                }
+            FilePath::Path(path) => match File::open(path) {
+                Ok(mut f) => checker(&mut f),
+                Err(_) => false,
             }
         }
     }
