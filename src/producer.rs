@@ -394,83 +394,6 @@ fn gcno_gcda_producer(
                 }
             }
         }
-        // match gcda_stem_archives.get(stem) {
-        //     Some(gcda_archives) => {
-        //         let gcno_archive = *gcno_archive;
-        //         let gcno = format!("{}.gcno", stem).to_string();
-        //         let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
-        //         if gcno_stem.llvm {
-        //             let mut gcno_buffer: Vec<u8> = Vec::new();
-        //             let mut gcda_buffers: Vec<Vec<u8>> = Vec::with_capacity(gcda_archives.len());
-        //             gcno_archive.read_in_buffer(&gcno, &mut gcno_buffer);
-        //             for gcda_archive in gcda_archives {
-        //                 let mut gcda_buf: Vec<u8> = Vec::new();
-        //                 let gcda = format!("{}.gcda", stem).to_string();
-        //                 if gcda_archive.read_in_buffer(&gcda, &mut gcda_buf) {
-        //                     gcda_buffers.push(gcda_buf);
-        //                 }
-        //             }
-        //             send_job(
-        //                 ItemType::Buffers(GcnoBuffers {
-        //                     stem: stem.clone(),
-        //                     gcno_buf: gcno_buffer,
-        //                     gcda_buf: gcda_buffers,
-        //                 }),
-        //                 "".to_string(),
-        //             );
-        //         } else {
-        //             gcno_archive.extract(&gcno, &physical_gcno_path);
-        //             for (num, &gcda_archive) in gcda_archives.iter().enumerate() {
-        //                 let gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, num + 1));
-        //                 let gcda = format!("{}.gcda", stem).to_string();
-        //
-        //                 // Create symlinks.
-        //                 if num != 0 {
-        //                     fs::hard_link(&physical_gcno_path, &gcno_path).unwrap_or_else(|_| {
-        //                         panic!("Failed to create hardlink {:?}", gcno_path)
-        //                     });
-        //                 }
-        //
-        //                 let gcda_path = tmp_dir.join(format!("{}_{}.gcda", stem, num + 1));
-        //                 if gcda_archive.extract(&gcda, &gcda_path)
-        //                     || (num == 0 && !ignore_orphan_gcno)
-        //                 {
-        //                     send_job(
-        //                         ItemType::Path((stem.clone(), gcno_path)),
-        //                         gcda_archive.get_name().to_string(),
-        //                     );
-        //                 }
-        //             }
-        //         }
-        //     }
-        //     None => {
-        //         if !ignore_orphan_gcno {
-        //             let gcno_archive = *gcno_archive;
-        //             let gcno = format!("{}.gcno", stem).to_string();
-        //             if gcno_stem.llvm {
-        //                 let mut buffer: Vec<u8> = Vec::new();
-        //                 gcno_archive.read_in_buffer(&gcno, &mut buffer);
-        //
-        //                 send_job(
-        //                     ItemType::Buffers(GcnoBuffers {
-        //                         stem: stem.clone(),
-        //                         gcno_buf: buffer,
-        //                         gcda_buf: Vec::new(),
-        //                     }),
-        //                     gcno_archive.get_name().to_string(),
-        //                 );
-        //             } else {
-        //                 let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
-        //                 if gcno_archive.extract(&gcno, &physical_gcno_path) {
-        //                     send_job(
-        //                         ItemType::Path((stem.clone(), physical_gcno_path)),
-        //                         gcno_archive.get_name().to_string(),
-        //                     );
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
     }
 }
 
@@ -493,13 +416,12 @@ fn file_content_producer(
 }
 
 pub fn get_mapping(linked_files_maps: &FxHashMap<String, &Archive>) -> Option<Vec<u8>> {
-    match linked_files_maps.iter().next() {
-        Some((ref name, archive)) => {
-            let mut buffer = Vec::new();
-            archive.read_in_buffer(name, &mut buffer);
-            Some(buffer)
-        }
-        None => None,
+    if let Some((ref name, archive)) = linked_files_maps.iter().next() {
+        let mut buffer = Vec::new();
+        archive.read_in_buffer(name, &mut buffer);
+        Some(buffer)
+    } else {
+        None
     }
 }
 
@@ -1549,15 +1471,12 @@ mod tests {
 
         let expected = vec![(ItemFormat::INFO, false, "prova_1.info", true)];
 
-        match File::open(json_path) {
-            Ok(mut reader) => {
-                let mut json = Vec::new();
-                reader.read_to_end(&mut json).unwrap();
-                assert_eq!(json, mapping);
-            }
-            Err(_) => {
-                assert!(false, format!("Failed to read the file: {}", json_path));
-            }
+        if let Ok(mut reader) = File::open(json_path) {
+            let mut json = Vec::new();
+            reader.read_to_end(&mut json).unwrap();
+            assert_eq!(json, mapping);
+        } else {
+            assert!(false, format!("Failed to read the file: {}", json_path));
         }
 
         check_produced(tmp_path, &receiver, expected);
