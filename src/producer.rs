@@ -250,10 +250,7 @@ impl Archive {
     pub fn extract(&self, name: &str, path: &PathBuf) -> bool {
         let dest_parent = path.parent().unwrap();
         if !dest_parent.exists() {
-            if let Ok(_) = fs::create_dir_all(dest_parent) {}
-            else {
-                panic!("Cannot create parent directory")
-            }
+            fs::create_dir_all(dest_parent).expect("Cannot create parent directory");
         }
 
         match *self.item.borrow_mut() {
