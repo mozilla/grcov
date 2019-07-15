@@ -143,7 +143,7 @@ impl Archive {
             FilePath::Path(path) => match File::open(path) {
                 Ok(mut f) => checker(&mut f),
                 Err(_) => false,
-            }
+            },
         }
     }
 
