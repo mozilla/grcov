@@ -137,7 +137,7 @@ pub fn output_covdir(results: CovResultIter, output_file: Option<&str>) {
     let mut relative: FxHashMap<PathBuf, Rc<RefCell<CDDirStats>>> = FxHashMap::default();
     let global = Rc::new(RefCell::new(CDDirStats::new("".to_string())));
     relative.insert(PathBuf::from(""), global.clone());
-    
+
     for (abs_path, rel_path, result) in results {
         let path = if rel_path.is_relative() {
             rel_path
@@ -253,15 +253,14 @@ pub fn output_lcov(results: CovResultIter, output_file: Option<&str>) {
 }
 
 fn get_digest(path: PathBuf) -> String {
-    match File::open(path) {
-        Ok(mut f) => {
-            let mut buffer = Vec::new();
-            f.read_to_end(&mut buffer).unwrap();
-            let mut hasher = Md5::new();
-            hasher.input(buffer.as_slice());
-            format!("{:x}", hasher.result())
-        }
-        Err(_) => Uuid::new_v4().to_string(),
+    if let Ok(mut f) = File::open(path) {
+        let mut buffer = Vec::new();
+        f.read_to_end(&mut buffer).unwrap();
+        let mut hasher = Md5::new();
+        hasher.input(buffer.as_slice());
+        format!("{:x}", hasher.result())
+    } else {
+        Uuid::new_v4().to_string()
     }
 }
 
@@ -367,7 +366,7 @@ mod tests {
         f.read_to_string(&mut s).unwrap();
         s
     }
-    
+
     #[test]
     fn test_covdir() {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
@@ -406,7 +405,7 @@ mod tests {
         ];
 
         let results = Box::new(results.into_iter());
-        output_covdir(results, Some(file_path.to_str().unwrap()));        
+        output_covdir(results, Some(file_path.to_str().unwrap()));
 
         let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
         let expected_path = PathBuf::from("./test/").join(&file_name);

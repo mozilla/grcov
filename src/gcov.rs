@@ -4,9 +4,10 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn get_gcov() -> String {
-    match env::var("GCOV") {
-        Ok(s) => s,
-        Err(_) => "gcov".to_string(),
+    if let Ok(s) = env::var("GCOV") {
+        s
+    } else {
+        "gcov".to_string()
     }
 }
 

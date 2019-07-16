@@ -95,9 +95,10 @@ fn add_results(
         let path = match source_dir {
             Some(source_dir) => {
                 // the goal here is to be able to merge results for paths like foo/./bar and foo/bar
-                match canonicalize_path(source_dir.join(&result.0)) {
-                    Ok(p) => String::from(p.to_str().unwrap()),
-                    Err(_) => result.0,
+                if let Ok(p) = canonicalize_path(source_dir.join(&result.0)) {
+                    String::from(p.to_str().unwrap())
+                } else {
+                    result.0
                 }
             }
             None => result.0,
