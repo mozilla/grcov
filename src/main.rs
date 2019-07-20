@@ -46,7 +46,7 @@ fn main() {
                                .long("output-type")
                                .value_name("OUTPUT TYPE")
                                .default_value("lcov")
-                               .possible_values(&["ade", "lcov", "coveralls", "coveralls+", "files", "covdir"])
+                               .possible_values(&["ade", "lcov", "coveralls", "coveralls+", "files", "covdir", "html"])
                                .takes_value(true))
 
                           .arg(Arg::with_name("output_file")
@@ -323,6 +323,8 @@ fn main() {
         output_files(iterator, output_file_path);
     } else if output_type == "covdir" {
         output_covdir(iterator, output_file_path);
+    } else if output_type == "html" {
+        output_html(iterator, output_file_path, num_threads);
     } else {
         assert!(false, "{} is not a supported output type", output_type);
     }
