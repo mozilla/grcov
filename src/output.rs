@@ -366,11 +366,11 @@ pub fn output_html(results: CovResultIter, output_dir: Option<&str>, num_threads
 
     if output.exists() {
         if !output.is_dir() {
-            eprintln!("./html is not a directory");
+            eprintln!("{} is not a directory", output.to_str().unwrap());
             return;
         }
     } else if std::fs::create_dir(&output).is_err() {
-        eprintln!("Cannot create directory ./html");
+        eprintln!("Cannot create directory {}", output.to_str().unwrap());
         return;
     }
 
