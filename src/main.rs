@@ -179,6 +179,7 @@ fn main() {
     let service_name = matches.value_of("service_name").unwrap_or("");
     let service_number = matches.value_of("service_number").unwrap_or("");
     let service_job_number = matches.value_of("service_job_number").unwrap_or("");
+    let branch = matches.value_of("branch").unwrap_or("master");
     let num_threads: usize = matches
         .value_of("threads")
         .unwrap()
@@ -202,7 +203,9 @@ fn main() {
     let tmp_path = tmp_dir.path().to_owned();
     assert!(tmp_path.exists());
 
-    let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(FxHashMap::with_capacity_and_hasher(20_000, Default::default())));
+    let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
+        FxHashMap::with_capacity_and_hasher(20_000, Default::default()),
+    ));
     let (sender, receiver) = unbounded();
     let path_mapping: Arc<Mutex<Option<Value>>> = Arc::new(Mutex::new(None));
 
@@ -307,6 +310,7 @@ fn main() {
             commit_sha,
             false,
             output_file_path,
+            branch,
         );
     } else if output_type == "coveralls+" {
         output_coveralls(
@@ -318,6 +322,7 @@ fn main() {
             commit_sha,
             true,
             output_file_path,
+            branch,
         );
     } else if output_type == "files" {
         output_files(iterator, output_file_path);
