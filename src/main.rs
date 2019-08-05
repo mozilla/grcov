@@ -307,6 +307,7 @@ fn main() {
             commit_sha,
             false,
             output_file_path,
+            branch,
         );
     } else if output_type == "coveralls+" {
         output_coveralls(
@@ -318,6 +319,7 @@ fn main() {
             commit_sha,
             true,
             output_file_path,
+            branch,
         );
     } else if output_type == "files" {
         output_files(iterator, output_file_path);
