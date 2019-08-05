@@ -1,0 +1,27 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.2.3
+    hooks:
+    -   id: check-yaml
+-   repo: local
+    hooks:
+      - id: fmt
+        name: fmt
+        language: system
+        files: '\.rs$'
+        exclude: '.*/templates/.*\.rs$'
+        entry: cargo fmt
+
+      - id: clippy
+        name: clippy
+        language: system
+        files: '\.rs$'
+        entry: cargo clippy --all-targets --all -- -Dwarnings 
+        pass_filenames: false
+
+      - id: test
+        name: test
+        language: system
+        files: '\.rs$'
+        entry: cargo test
+        pass_filenames: false
