@@ -179,6 +179,7 @@ fn main() {
     let service_name = matches.value_of("service_name").unwrap_or("");
     let service_number = matches.value_of("service_number").unwrap_or("");
     let service_job_number = matches.value_of("service_job_number").unwrap_or("");
+    let branch = matches.value_of("branch").unwrap_or("master");
     let num_threads: usize = matches
         .value_of("threads")
         .unwrap()
