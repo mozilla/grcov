@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 pub use crate::defs::*;
 
 impl CDStats {
-
     pub fn new(total: usize, covered: usize) -> Self {
         let missed = total - covered;
         Self {
@@ -38,7 +37,6 @@ impl CDStats {
 }
 
 impl CDFileStats {
-
     pub fn new(name: String, coverage: BTreeMap<u32, u64>) -> Self {
         let (total, covered, lines) = Self::get_coverage(coverage);
         Self {
@@ -76,7 +74,6 @@ impl CDFileStats {
 }
 
 impl CDDirStats {
-
     pub fn new(name: String) -> Self {
         Self {
             name,

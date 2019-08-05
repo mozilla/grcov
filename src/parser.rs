@@ -56,7 +56,7 @@ macro_rules! try_next {
         if let Some(val) = $v.next() {
             val
         } else {
-            return Err(ParserError::InvalidRecord($l.to_string()))
+            return Err(ParserError::InvalidRecord($l.to_string()));
         }
     };
 }
