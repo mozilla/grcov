@@ -151,6 +151,7 @@ fn main() {
                           .arg(Arg::with_name("vcs_branch")
                                .help("Set the branch for coveralls report. Defaults to 'master'")
                                .long("vcs-branch")
+                               .default_value("master")
                                .value_name("VCS BRANCH")
                                .takes_value(true))
 
@@ -185,7 +186,7 @@ fn main() {
     let service_name = matches.value_of("service_name").unwrap_or("");
     let service_number = matches.value_of("service_number").unwrap_or("");
     let service_job_number = matches.value_of("service_job_number").unwrap_or("");
-    let vcs_branch = matches.value_of("vcs_branch").unwrap_or("master");
+    let vcs_branch = matches.value_of("vcs_branch").unwrap_or("");
     let num_threads: usize = matches
         .value_of("threads")
         .unwrap()
