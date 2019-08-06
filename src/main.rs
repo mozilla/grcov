@@ -153,6 +153,7 @@ fn main() {
                                .long("vcs-branch")
                                .value_name("VCS BRANCH")
                                .takes_value(true))
+
                           .get_matches();
 
     let paths: Vec<_> = matches.values_of("paths").unwrap().collect();
@@ -184,7 +185,7 @@ fn main() {
     let service_name = matches.value_of("service_name").unwrap_or("");
     let service_number = matches.value_of("service_number").unwrap_or("");
     let service_job_number = matches.value_of("service_job_number").unwrap_or("");
-    let branch = matches.value_of("vcs_branch").unwrap_or("master");
+    let vcs_branch = matches.value_of("vcs_branch").unwrap_or("master");
     let num_threads: usize = matches
         .value_of("threads")
         .unwrap()
@@ -313,7 +314,7 @@ fn main() {
             commit_sha,
             false,
             output_file_path,
-            branch,
+            vcs_branch,
         );
     } else if output_type == "coveralls+" {
         output_coveralls(
@@ -325,7 +326,7 @@ fn main() {
             commit_sha,
             true,
             output_file_path,
-            branch,
+            vcs_branch,
         );
     } else if output_type == "files" {
         output_files(iterator, output_file_path);
