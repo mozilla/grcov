@@ -9,7 +9,6 @@ repos:
         name: fmt
         language: system
         files: '\.rs$'
-        exclude: '.*/templates/.*\.rs$'
         entry: cargo fmt
 
       - id: clippy
