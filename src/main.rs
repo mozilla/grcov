@@ -147,7 +147,7 @@ fn main() {
 
                           .arg(Arg::with_name("guess_directory")
                                .long("guess-directory-when-missing"))
-                          
+
                           .arg(Arg::with_name("vcs_branch")
                                .help("Set the branch for coveralls report. Defaults to 'master'")
                                .long("vcs-branch")
