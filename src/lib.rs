@@ -1,6 +1,10 @@
+#![recursion_limit = "1024"]
+extern crate chrono;
 #[macro_use]
 extern crate serde_json;
 extern crate crossbeam;
+#[macro_use]
+extern crate fomat_macros;
 extern crate globset;
 extern crate rustc_hash;
 extern crate semver;
@@ -38,11 +42,14 @@ pub use crate::reader::*;
 mod covdir;
 pub use crate::covdir::*;
 
+pub mod html;
+
 use std::collections::{btree_map, hash_map};
 use std::fs;
 use std::io::{BufReader, Cursor};
 use std::path::PathBuf;
 use walkdir::WalkDir;
+
 
 // Merge results, without caring about duplicate lines (they will be removed at the end).
 pub fn merge_results(result: &mut CovResult, result2: CovResult) {

@@ -46,7 +46,7 @@ fn main() {
                                .long("output-type")
                                .value_name("OUTPUT TYPE")
                                .default_value("lcov")
-                               .possible_values(&["ade", "lcov", "coveralls", "coveralls+", "files", "covdir"])
+                               .possible_values(&["ade", "lcov", "coveralls", "coveralls+", "files", "covdir", "html"])
                                .takes_value(true))
 
                           .arg(Arg::with_name("output_file")
@@ -147,6 +147,13 @@ fn main() {
 
                           .arg(Arg::with_name("guess_directory")
                                .long("guess-directory-when-missing"))
+                          
+                          .arg(Arg::with_name("vcs_branch")
+                               .help("Set the branch for coveralls report. Defaults to 'master'")
+                               .long("vcs-branch")
+                               .default_value("master")
+                               .value_name("VCS BRANCH")
+                               .takes_value(true))
 
                           .arg(Arg::with_name("vcs_branch")
                                .help("Set the branch for coveralls report. Defaults to 'master'")
@@ -335,6 +342,8 @@ fn main() {
         output_files(iterator, output_file_path);
     } else if output_type == "covdir" {
         output_covdir(iterator, output_file_path);
+    } else if output_type == "html" {
+        output_html(iterator, output_file_path, num_threads);
     } else {
         assert!(false, "{} is not a supported output type", output_type);
     }

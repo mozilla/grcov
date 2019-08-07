@@ -1,7 +1,7 @@
 use crossbeam::channel::{Receiver, Sender};
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Mutex;
@@ -79,3 +79,39 @@ pub struct CDDirStats {
     pub dirs: Vec<Rc<RefCell<CDDirStats>>>,
     pub stats: CDStats,
 }
+
+#[derive(Debug)]
+pub struct HtmlItem {
+    pub abs_path: PathBuf,
+    pub rel_path: PathBuf,
+    pub result: CovResult,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct HtmlStats {
+    pub total_lines: usize,
+    pub covered_lines: usize,
+    pub total_funs: usize,
+    pub covered_funs: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct HtmlFileStats {
+    pub file_name: String,
+    pub stats: HtmlStats,
+}
+
+#[derive(Clone, Debug)]
+pub struct HtmlDirStats {
+    pub files: BTreeSet<HtmlFileStats>,
+    pub stats: HtmlStats,
+}
+
+#[derive(Debug, Default)]
+pub struct HtmlGlobalStats {
+    pub dirs: BTreeMap<String, HtmlDirStats>,
+    pub stats: HtmlStats,
+}
+
+pub type HtmlJobReceiver = Receiver<Option<HtmlItem>>;
+pub type HtmlJobSender = Sender<Option<HtmlItem>>;

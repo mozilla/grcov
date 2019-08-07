@@ -1,6 +1,7 @@
 use crossbeam::crossbeam_channel::unbounded;
 use rustc_hash::FxHashMap;
 use serde_json::{self, Value};
+use std::{process, thread};
 use std::cell::RefCell;
 use std::collections::{hash_map, BTreeSet};
 use std::fs::File;
@@ -11,6 +12,7 @@ use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 use crate::defs::*;
+use crate::html;
 
 fn get_target_output_writable(output_file: Option<&str>) -> Box<Write> {
     let write_target: Box<Write> = match output_file {
@@ -356,6 +358,70 @@ pub fn output_files(results: CovResultIter, output_file: Option<&str>) {
         writeln!(writer, "{}", rel_path.display()).unwrap();
     }
 }
+
+pub fn output_html(results: CovResultIter, output_dir: Option<&str>, num_threads: usize) {
+    let output = if let Some(output_dir) = output_dir {
+        PathBuf::from(output_dir)
+    } else {
+        PathBuf::from("./html")
+    };
+
+    if output.exists() {
+        if !output.is_dir() {
+            eprintln!("{} is not a directory", output.to_str().unwrap());
+            return;
+        }
+    } else if std::fs::create_dir(&output).is_err() {
+        eprintln!("Cannot create directory {}", output.to_str().unwrap());
+        return;
+    }
+
+    let (sender, receiver) = unbounded();
+
+    let stats = Arc::new(Mutex::new(HtmlGlobalStats::default()));
+    let mut threads = Vec::with_capacity(num_threads);
+    let config = html::get_config();
+    for i in 0..num_threads {
+        let receiver = receiver.clone();
+        let output = output.clone();
+        let config = config.clone();
+        let stats = stats.clone();
+        let t = thread::Builder::new().name(format!("Consumer HTML {}", i)).spawn(move || {
+            html::consumer_html(
+                receiver,
+                stats,
+                output,
+                config
+            );
+        }).unwrap();
+
+        threads.push(t);
+    }
+
+    for (abs_path, rel_path, result) in results {
+        sender.send(Some(HtmlItem {
+            abs_path,
+            rel_path,
+            result,
+        })).unwrap();
+    }
+
+    for _ in 0..num_threads {
+        sender.send(None).unwrap();
+    }
+
+    for t in threads {
+        if t.join().is_err() {
+            process::exit(1);
+        }
+    }
+
+    let global = Arc::try_unwrap(stats).unwrap().into_inner().unwrap();
+
+    html::gen_index(global, config, &output);
+    html::write_static_files(output);
+}
+
 
 #[cfg(test)]
 mod tests {

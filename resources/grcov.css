@@ -1,0 +1,240 @@
+body {
+    color: #000000;
+    background-color: #FFFFFF;
+}
+
+.sourceCode {
+    display: table;
+    unicode-bidi: embed;
+    font-family: monospace;
+    white-space: pre;
+}
+
+.line span {
+    display: table-cell;
+}
+
+.line {
+    display: table-row;
+}
+
+.lineNum {
+    background-color: #EFE383;
+    padding-right: 1em;
+}
+
+.counterUnCov, .counterCov, .counterNoCov {
+    border-right: 1px solid black;
+    padding-right: 0.5em;
+    text-align: right;
+}
+
+.lineUnCov, .lineCov, .lineNoCov {
+    padding-left: 1em;
+}
+
+.counterCov, .lineCov {
+    background-color: #CAD7FE;
+}
+
+.counterNoCov, .lineNoCov {
+    background-color: #FF6230;
+}
+
+.header {
+    display: inline-block;
+    width: 100%;
+    border-top: 3px solid #6688D4;
+    border-bottom: 3px solid #6688D4;
+}
+
+.header a:link {
+    color: #284FA8;
+    text-decoration: underline;
+}
+
+.header a:visited {
+    color: #00CB40;
+    text-decoration: underline;
+}
+
+.header a:active {
+    color: #FF0040;
+    text-decoration: underline;
+}
+
+.view {
+    display: table;
+    float: left;
+    width: 20%;
+}
+
+.viewRow {
+    display: table-row;
+}
+
+.viewRow > span {
+    display: table-cell;
+    font-family: sans-serif;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.viewItem
+{
+    text-align: right;
+    padding-right: 6px;
+    vertical-align: top;
+}
+
+.viewValue
+{
+    text-align: left;
+    color: #284FA8;
+}
+
+.stats {
+    display: table;
+    float: right;
+    width: 50%;
+}
+
+.statsRow {
+    display: table-row;
+    text-align: right;
+}
+
+.statsRow span {
+    display: table-cell;
+    border: 1px solid white;
+    font-family: sans-serif;
+}
+
+.statsLine, .statsFun {
+    font-weight: bold;
+}
+
+.linesHit, .linesTotal, .linesPercentage, .funsHit, .funsTotal, .funsPercentage {
+    background-color: #DAE7FE;
+    color: #284FA8;
+    white-space: nowrap;
+    padding-left: 12px;
+    padding-right: 4px;
+    font-weight: bold;
+}
+
+.linesPercentage, .funsPercentage {
+    color: black;
+}
+
+.statsHit, .statsTotal, .statsCoverage {
+  text-align: center;
+  padding-right: 6px;
+  padding-left: 6px;
+  padding-bottom: 0px;
+  font-family: sans-serif;
+  font-size: 80%;
+  white-space: nowrap;
+}
+
+.funHi, .lineHi {
+    background-color: #A7FC9D;
+}
+
+.funMed, .lineMed {
+    background-color: #FFEA20;
+}
+
+.funLow, .lineLow {
+    background-color: #FF0000;
+}
+
+.dirStats, .dirStatsHeader {
+    display: table;
+    width: 80%;
+    margin-left: 10%;
+    margin-right: 10%;
+}
+
+.lineDir {
+    display: table-row;
+    background-color: #DAE7FE;
+}
+
+.lineDir > span {
+    display: table-cell;
+    border: 1px solid white;
+    padding-top: 0.1em;
+    padding-bottom: 0.1em;
+}
+
+.dirStatsHeader {
+    font-family: sans-serif;
+    font-weight: bold;
+    color: #FFFFFF;
+}
+
+.dirStatsLineHeader {
+    display: table-row;
+    background-color: #6688d4;
+}
+
+.dirStatsLineHeader > span {
+    display: table-cell;
+    border: 1px solid white;
+    padding-top: 0.1em;
+    padding-bottom: 0.1em;
+}
+
+.dirBar {
+    display: inline-block;
+    width: 80%;
+    height: 0.8em;
+    border: 1px solid black;
+    background-color: white;
+}
+
+.percentBar {
+    height: 100%;
+    float: left;
+}
+
+.dirBarPer {
+    text-align: center;
+}
+
+.dirLinesPer, .dirLinesRatio, .dirFunsPer, .dirFunsRatio {
+    text-align: right;
+    padding-right: 1em;
+}
+
+.dirBarPer, .dirLinesPer, .dirLinesRatio, .dirFunsPer, .dirFunsRatio {
+    width: 10%;
+}
+
+.dirLinesPer, .dirFunsPer {
+    font-weight: bold;    
+}
+
+.dirLineCovHeader, .dirNameHeader, .dirFunsHeader {
+    text-align: center;
+}
+
+.dirLineCovHeader {
+    width: 30%;
+    padding-left: 1em;
+}
+
+.dirFunsHeader {
+    width: 20%;
+    padding-left: 1em;
+}
+
+.dirName, .dirNameHeader {
+    width: 50%;
+    padding-left: 1em;
+}
+
+.dirStats {
+    font-family: sans-serif;
+}
