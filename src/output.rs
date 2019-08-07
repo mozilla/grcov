@@ -275,7 +275,7 @@ pub fn output_coveralls(
     commit_sha: &str,
     with_function_info: bool,
     output_file: Option<&str>,
-    branch: &str,
+    vcs_branch: &str,
 ) {
     let mut source_files = Vec::new();
 
@@ -338,7 +338,7 @@ pub fn output_coveralls(
               "head": {
                 "id": commit_sha,
               },
-              "branch": branch,
+              "branch": vcs_branch,
             },
             "source_files": source_files,
             "service_name": service_name,

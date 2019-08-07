@@ -147,6 +147,13 @@ fn main() {
 
                           .arg(Arg::with_name("guess_directory")
                                .long("guess-directory-when-missing"))
+                          
+                          .arg(Arg::with_name("vcs_branch")
+                               .help("Set the branch for coveralls report. Defaults to 'master'")
+                               .long("vcs-branch")
+                               .default_value("master")
+                               .value_name("VCS BRANCH")
+                               .takes_value(true))
 
                           .get_matches();
 
@@ -179,7 +186,7 @@ fn main() {
     let service_name = matches.value_of("service_name").unwrap_or("");
     let service_number = matches.value_of("service_number").unwrap_or("");
     let service_job_number = matches.value_of("service_job_number").unwrap_or("");
-    let branch = matches.value_of("branch").unwrap_or("master");
+    let vcs_branch = matches.value_of("vcs_branch").unwrap_or("");
     let num_threads: usize = matches
         .value_of("threads")
         .unwrap()
@@ -310,7 +317,7 @@ fn main() {
             commit_sha,
             false,
             output_file_path,
-            branch,
+            vcs_branch,
         );
     } else if output_type == "coveralls+" {
         output_coveralls(
@@ -322,7 +329,7 @@ fn main() {
             commit_sha,
             true,
             output_file_path,
-            branch,
+            vcs_branch,
         );
     } else if output_type == "files" {
         output_files(iterator, output_file_path);
