@@ -235,7 +235,7 @@ pub fn consumer(
                             },
                             Err(e) => {
                                 // Just print the error, don't panic and continue
-                                error!("Error in computing counters:\n{}", e);
+                                error!("Error in computing counters: {}", e);
                                 Vec::new()
                             }
                         }

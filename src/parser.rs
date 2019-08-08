@@ -229,12 +229,8 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
     let mut cur_functions = FxHashMap::default();
     let mut results = Vec::new();
 
-    let f = match File::open(&gcov_path) {
-        Ok(f) => f,
-        Err(e) => {
-            return Err(ParserError::Io(e));
-        }
-    };
+    let f = File::open(&gcov_path)
+        .unwrap_or_else(|_| panic!("Failed to open gcov file {}", gcov_path.display()));
 
     let mut file = BufReader::new(&f);
     let mut l = vec![];
