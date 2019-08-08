@@ -147,7 +147,7 @@ fn main() {
 
                           .arg(Arg::with_name("guess_directory")
                                .long("guess-directory-when-missing"))
-                          
+
                           .arg(Arg::with_name("vcs_branch")
                                .help("Set the branch for coveralls report. Defaults to 'master'")
                                .long("vcs-branch")
@@ -210,7 +210,9 @@ fn main() {
     let tmp_path = tmp_dir.path().to_owned();
     assert!(tmp_path.exists());
 
-    let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(FxHashMap::with_capacity_and_hasher(20_000, Default::default())));
+    let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
+        FxHashMap::with_capacity_and_hasher(20_000, Default::default()),
+    ));
     let (sender, receiver) = unbounded();
     let path_mapping: Arc<Mutex<Option<Value>>> = Arc::new(Mutex::new(None));
 

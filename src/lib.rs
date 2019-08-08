@@ -6,6 +6,7 @@ extern crate crossbeam;
 #[macro_use]
 extern crate fomat_macros;
 extern crate globset;
+extern crate rustc_hash;
 extern crate semver;
 extern crate smallvec;
 extern crate tempfile;
@@ -13,7 +14,6 @@ extern crate uuid;
 extern crate walkdir;
 extern crate xml;
 extern crate zip;
-extern crate rustc_hash;
 
 mod defs;
 pub use crate::defs::*;
@@ -49,7 +49,6 @@ use std::fs;
 use std::io::{BufReader, Cursor};
 use std::path::PathBuf;
 use walkdir::WalkDir;
-
 
 // Merge results, without caring about duplicate lines (they will be removed at the end).
 pub fn merge_results(result: &mut CovResult, result2: CovResult) {
@@ -228,7 +227,7 @@ pub fn consumer(
                                     rename_single_files(&mut r, &buffers.stem);
                                 }
                                 r
-                            },
+                            }
                             Err(e) => {
                                 // Just print the error, don't panic and continue
                                 eprintln!("Error in computing counters:\n{}", e);
@@ -362,7 +361,9 @@ mod tests {
             .expect("Failed to open lcov file");
         let file = BufReader::new(&f);
         let results = parse_lcov(file, false).unwrap();
-        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(FxHashMap::with_capacity_and_hasher(1, Default::default())));
+        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
+            FxHashMap::with_capacity_and_hasher(1, Default::default()),
+        ));
         add_results(
             results,
             &result_map,
@@ -393,7 +394,9 @@ mod tests {
             .expect("Failed to open lcov file");
         let file = BufReader::new(&f);
         let results = parse_lcov(file, false).unwrap();
-        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(FxHashMap::with_capacity_and_hasher(3, Default::default())));
+        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
+            FxHashMap::with_capacity_and_hasher(3, Default::default()),
+        ));
         add_results(results, &result_map, &None);
         let result_map = Arc::try_unwrap(result_map).unwrap().into_inner().unwrap();
 

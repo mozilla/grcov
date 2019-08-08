@@ -296,11 +296,13 @@ fn gcno_gcda_producer(
     ignore_orphan_gcno: bool,
 ) {
     let send_job = |item, name| {
-        sender.send(Some(WorkItem {
-            format: ItemFormat::GCNO,
-            item: item,
-            name: name,
-        })).unwrap()
+        sender
+            .send(Some(WorkItem {
+                format: ItemFormat::GCNO,
+                item: item,
+                name: name,
+            }))
+            .unwrap()
     };
 
     for (gcno_stem, gcno_archive) in gcno_stem_archives {
@@ -342,8 +344,7 @@ fn gcno_gcda_producer(
                     }
 
                     let gcda_path = tmp_dir.join(format!("{}_{}.gcda", stem, num + 1));
-                    if gcda_archive.extract(&gcda, &gcda_path)
-                        || (num == 0 && !ignore_orphan_gcno)
+                    if gcda_archive.extract(&gcda, &gcda_path) || (num == 0 && !ignore_orphan_gcno)
                     {
                         send_job(
                             ItemType::Path((stem.clone(), gcno_path)),
@@ -391,11 +392,13 @@ fn file_content_producer(
         for archive in archives {
             let mut buffer = Vec::new();
             archive.read_in_buffer(name, &mut buffer);
-            sender.send(Some(WorkItem {
-                format: item_format,
-                item: ItemType::Content(buffer),
-                name: archive.get_name().to_string(),
-            })).unwrap();
+            sender
+                .send(Some(WorkItem {
+                    format: item_format,
+                    item: ItemType::Content(buffer),
+                    name: archive.get_name().to_string(),
+                }))
+                .unwrap();
         }
     }
 }

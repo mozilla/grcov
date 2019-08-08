@@ -956,8 +956,8 @@ impl GcovFunction {
 #[cfg(test)]
 mod tests {
 
-use crate::defs::FunctionMap;
-use super::*;
+    use super::*;
+    use crate::defs::FunctionMap;
 
     fn get_input_string(path: &str) -> String {
         let path = PathBuf::from(path);
