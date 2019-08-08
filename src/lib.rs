@@ -6,6 +6,8 @@ extern crate crossbeam;
 #[macro_use]
 extern crate fomat_macros;
 extern crate globset;
+#[macro_use]
+extern crate log;
 extern crate semver;
 extern crate smallvec;
 extern crate tempfile;
@@ -148,9 +150,8 @@ macro_rules! try_parse {
         match $v {
             Ok(val) => val,
             Err(err) => {
-                eprintln!("Error parsing file {}:", $f);
-                eprintln!("{}", err);
-                std::process::exit(1);
+                error!("Error parsing file {}: {}", $f, err);
+                continue;
             }
         }
     };
@@ -176,7 +177,10 @@ pub fn consumer(
                 match work_item.item {
                     ItemType::Path((stem, gcno_path)) => {
                         // GCC
-                        run_gcov(&gcno_path, branch_enabled, working_dir);
+                        if let Err(e) = run_gcov(&gcno_path, branch_enabled, working_dir) {
+                            error!("Error when running gcov: {}", e);
+                            continue;
+                        };
                         let gcov_path =
                             gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov";
                         let gcov_path = working_dir.join(gcov_path);
@@ -231,13 +235,14 @@ pub fn consumer(
                             },
                             Err(e) => {
                                 // Just print the error, don't panic and continue
-                                eprintln!("Error in computing counters:\n{}", e);
+                                error!("Error in computing counters: {}", e);
                                 Vec::new()
                             }
                         }
                     }
                     ItemType::Content(_) => {
-                        panic!("Invalid content type");
+                        error!("Invalid content type");
+                        continue;
                     }
                 }
             }
@@ -250,7 +255,8 @@ pub fn consumer(
                         try_parse!(parse_jacoco_xml_report(buffer), work_item.name)
                     }
                 } else {
-                    panic!("Invalid content type")
+                    error!("Invalid content type");
+                    continue;
                 }
             }
         };
