@@ -129,6 +129,12 @@ script:
       bash <(curl -s https://codecov.io/bash) -f lcov.info;
 ```
 
+### Auto-formatting
+
+This project is using pre-commit. Please run `pre-commit install` to install the git pre-commit hooks on your clone. Instructions on how to install pre-commit can be found [here](https://pre-commit.com/#install).
+
+Every time you will try to commit, pre-commit will run checks on your files to make sure they follow our style standards and they aren't affected by some simple issues. If the checks fail, pre-commit won't let you commit.
+
 ## Build & Test
 
 In order to build, either LLVM 7 or LLVM 8 libraries and headers are required. If one of these versions is sucessfully installed, build with:

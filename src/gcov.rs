@@ -31,7 +31,11 @@ fn get_gcov() -> String {
     }
 }
 
-pub fn run_gcov(gcno_path: &PathBuf, branch_enabled: bool, working_dir: &PathBuf) -> Result<(), GcovError> {
+pub fn run_gcov(
+    gcno_path: &PathBuf,
+    branch_enabled: bool,
+    working_dir: &PathBuf,
+) -> Result<(), GcovError> {
     let mut command = Command::new(&get_gcov());
     let command = if branch_enabled {
         command.arg("-b").arg("-c")

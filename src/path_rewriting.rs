@@ -63,7 +63,10 @@ pub fn normalize_path<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
             Component::CurDir => {}
             Component::ParentDir => {
                 if !ret.pop() {
-                    eprintln!("Warning: {:?} cannot be normalized because of \"..\", so skip it.", path.as_ref());
+                    eprintln!(
+                        "Warning: {:?} cannot be normalized because of \"..\", so skip it.",
+                        path.as_ref()
+                    );
                     return None;
                 }
             }
@@ -1239,10 +1242,22 @@ mod tests {
 
     #[test]
     fn test_normalize_path() {
-        assert_eq!(normalize_path("./foo/bar").unwrap(), PathBuf::from("foo/bar"));
-        assert_eq!(normalize_path("./foo//bar").unwrap(), PathBuf::from("foo/bar"));
-        assert_eq!(normalize_path("./foo/./bar/./oof/").unwrap(), PathBuf::from("foo/bar/oof"));
-        assert_eq!(normalize_path("./foo/../bar/./oof/").unwrap(), PathBuf::from("bar/oof"));
+        assert_eq!(
+            normalize_path("./foo/bar").unwrap(),
+            PathBuf::from("foo/bar")
+        );
+        assert_eq!(
+            normalize_path("./foo//bar").unwrap(),
+            PathBuf::from("foo/bar")
+        );
+        assert_eq!(
+            normalize_path("./foo/./bar/./oof/").unwrap(),
+            PathBuf::from("foo/bar/oof")
+        );
+        assert_eq!(
+            normalize_path("./foo/../bar/./oof/").unwrap(),
+            PathBuf::from("bar/oof")
+        );
         assert!(normalize_path("../bar/oof/").is_none());
         assert!(normalize_path("bar/foo/../../../oof/").is_none());
     }

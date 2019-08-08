@@ -58,7 +58,7 @@ macro_rules! try_next {
         if let Some(val) = $v.next() {
             val
         } else {
-            return Err(ParserError::InvalidRecord($l.to_string()))
+            return Err(ParserError::InvalidRecord($l.to_string()));
         }
     };
 }
@@ -201,7 +201,10 @@ pub fn parse_lcov<T: Read>(
                     if let Some(f) = cur_functions.get_mut(f_name) {
                         f.executed |= executed;
                     } else {
-                        return Err(ParserError::Parse(format!("FN record missing for function {}", f_name)));
+                        return Err(ParserError::Parse(format!(
+                            "FN record missing for function {}",
+                            f_name
+                        )));
                     }
                 }
                 "BRDA" => {
@@ -508,7 +511,10 @@ fn parse_jacoco_report_package<T: Read>(
 
     for (class, result) in &results_map {
         if result.lines.is_empty() && result.branches.is_empty() {
-            return Err(ParserError::InvalidData(format!("Class {}/{} is not the top class in its file.", package, class)));
+            return Err(ParserError::InvalidData(format!(
+                "Class {}/{} is not the top class in its file.",
+                package, class
+            )));
         }
     }
 

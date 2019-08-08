@@ -1,7 +1,7 @@
 use crossbeam::crossbeam_channel::unbounded;
+use md5::{Digest, Md5};
 use rustc_hash::FxHashMap;
 use serde_json::{self, Value};
-use std::{process, thread};
 use std::cell::RefCell;
 use std::collections::{hash_map, BTreeSet};
 use std::fs::File;
@@ -9,8 +9,8 @@ use std::io::{self, BufWriter, Read, Write};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use std::{process, thread};
 use uuid::Uuid;
-use md5::{Md5, Digest};
 
 use crate::defs::*;
 use crate::html;
@@ -170,24 +170,26 @@ pub fn output_covdir(results: CovResultIter, output_file: Option<&str>) {
                     } else {
                         ancestor.file_name().unwrap().to_str().unwrap().to_string()
                     };
-                    prev_stats.dirs.push(Rc::new(RefCell::new(CDDirStats::new(path_tail))));
+                    prev_stats
+                        .dirs
+                        .push(Rc::new(RefCell::new(CDDirStats::new(path_tail))));
                     let last = prev_stats.dirs.last_mut().unwrap();
                     p.insert(last.clone());
                     last.clone()
-                },
+                }
             };
         }
 
-        prev_stats.borrow_mut().files.push(CDFileStats::new(path.file_name().unwrap().to_str().unwrap().to_string(), result.lines));
+        prev_stats.borrow_mut().files.push(CDFileStats::new(
+            path.file_name().unwrap().to_str().unwrap().to_string(),
+            result.lines,
+        ));
     }
 
     let mut global = global.borrow_mut();
     global.set_stats();
 
-    serde_json::to_writer(
-        &mut writer,
-        &global.to_json(),
-    ).unwrap();
+    serde_json::to_writer(&mut writer, &global.to_json()).unwrap();
 }
 
 pub fn output_lcov(results: CovResultIter, output_file: Option<&str>) {
@@ -385,24 +387,24 @@ pub fn output_html(results: CovResultIter, output_dir: Option<&str>, num_threads
         let output = output.clone();
         let config = config.clone();
         let stats = stats.clone();
-        let t = thread::Builder::new().name(format!("Consumer HTML {}", i)).spawn(move || {
-            html::consumer_html(
-                receiver,
-                stats,
-                output,
-                config
-            );
-        }).unwrap();
+        let t = thread::Builder::new()
+            .name(format!("Consumer HTML {}", i))
+            .spawn(move || {
+                html::consumer_html(receiver, stats, output, config);
+            })
+            .unwrap();
 
         threads.push(t);
     }
 
     for (abs_path, rel_path, result) in results {
-        sender.send(Some(HtmlItem {
-            abs_path,
-            rel_path,
-            result,
-        })).unwrap();
+        sender
+            .send(Some(HtmlItem {
+                abs_path,
+                rel_path,
+                result,
+            }))
+            .unwrap();
     }
 
     for _ in 0..num_threads {
@@ -421,7 +423,6 @@ pub fn output_html(results: CovResultIter, output_dir: Option<&str>, num_threads
     html::write_static_files(output);
 }
 
-
 #[cfg(test)]
 mod tests {
 
@@ -430,7 +431,8 @@ mod tests {
     use std::collections::BTreeMap;
 
     fn read_file(path: &PathBuf) -> String {
-        let mut f = File::open(path).expect(format!("{:?} file not found", path.file_name()).as_str());
+        let mut f =
+            File::open(path).expect(format!("{:?} file not found", path.file_name()).as_str());
         let mut s = String::new();
         f.read_to_string(&mut s).unwrap();
         s
@@ -443,34 +445,42 @@ mod tests {
         let file_path = tmp_dir.path().join(&file_name);
 
         let results = vec![
-            (PathBuf::from("foo/bar/a.cpp"),
-             PathBuf::from("foo/bar/a.cpp"),
-             CovResult {
-                 lines: [(1, 10), (2, 11)].iter().cloned().collect(),
-                 branches: BTreeMap::new(),
-                 functions: FxHashMap::default(),
-             }),
-            (PathBuf::from("foo/bar/b.cpp"),
-             PathBuf::from("foo/bar/b.cpp"),
-             CovResult {
-                 lines: [(1, 0), (2, 10), (4, 0)].iter().cloned().collect(),
-                 branches: BTreeMap::new(),
-                 functions: FxHashMap::default(),
-             }),
-            (PathBuf::from("foo/c.cpp"),
-             PathBuf::from("foo/c.cpp"),
-             CovResult {
-                 lines: [(1, 10), (4, 1)].iter().cloned().collect(),
-                 branches: BTreeMap::new(),
-                 functions: FxHashMap::default(),
-             }),
-            (PathBuf::from("/foo/d.cpp"),
-             PathBuf::from("/foo/d.cpp"),
-             CovResult {
-                 lines: [(1, 10), (2, 0)].iter().cloned().collect(),
-                 branches: BTreeMap::new(),
-                 functions: FxHashMap::default(),
-             }),
+            (
+                PathBuf::from("foo/bar/a.cpp"),
+                PathBuf::from("foo/bar/a.cpp"),
+                CovResult {
+                    lines: [(1, 10), (2, 11)].iter().cloned().collect(),
+                    branches: BTreeMap::new(),
+                    functions: FxHashMap::default(),
+                },
+            ),
+            (
+                PathBuf::from("foo/bar/b.cpp"),
+                PathBuf::from("foo/bar/b.cpp"),
+                CovResult {
+                    lines: [(1, 0), (2, 10), (4, 0)].iter().cloned().collect(),
+                    branches: BTreeMap::new(),
+                    functions: FxHashMap::default(),
+                },
+            ),
+            (
+                PathBuf::from("foo/c.cpp"),
+                PathBuf::from("foo/c.cpp"),
+                CovResult {
+                    lines: [(1, 10), (4, 1)].iter().cloned().collect(),
+                    branches: BTreeMap::new(),
+                    functions: FxHashMap::default(),
+                },
+            ),
+            (
+                PathBuf::from("/foo/d.cpp"),
+                PathBuf::from("/foo/d.cpp"),
+                CovResult {
+                    lines: [(1, 10), (2, 0)].iter().cloned().collect(),
+                    branches: BTreeMap::new(),
+                    functions: FxHashMap::default(),
+                },
+            ),
         ];
 
         let results = Box::new(results.into_iter());

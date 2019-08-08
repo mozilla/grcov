@@ -13,7 +13,7 @@ use crossbeam::crossbeam_channel::unbounded;
 use log::error;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
-use simplelog::{Config, LevelFilter, TerminalMode, TermLogger, WriteLogger};
+use simplelog::{Config, LevelFilter, TermLogger, TerminalMode, WriteLogger};
 use std::fs::{self, File};
 use std::ops::Deref;
 use std::panic;
@@ -154,7 +154,7 @@ fn main() {
 
                           .arg(Arg::with_name("guess_directory")
                                .long("guess-directory-when-missing"))
-                          
+
                           .arg(Arg::with_name("vcs_branch")
                                .help("Set the branch for coveralls report. Defaults to 'master'")
                                .long("vcs-branch")
@@ -205,29 +205,37 @@ fn main() {
     match log {
         "stdout" => {
             let _ = TermLogger::init(LevelFilter::Error, Config::default(), TerminalMode::Stdout);
-        },
+        }
         "stderr" => {
             let _ = TermLogger::init(LevelFilter::Error, Config::default(), TerminalMode::Stderr);
-        },
+        }
         log => {
             if let Ok(file) = File::create(log) {
                 let _ = WriteLogger::init(LevelFilter::Error, Config::default(), file);
             } else {
-                let _ = TermLogger::init(LevelFilter::Error, Config::default(), TerminalMode::Stderr);
+                let _ =
+                    TermLogger::init(LevelFilter::Error, Config::default(), TerminalMode::Stderr);
                 error!("Enable to create log file: {}. Swtich to stderr", log);
             }
         }
     };
 
     panic::set_hook(Box::new(|panic_info| {
-        let (filename, line) =
-            panic_info.location().map(|loc| (loc.file(), loc.line()))
+        let (filename, line) = panic_info
+            .location()
+            .map(|loc| (loc.file(), loc.line()))
             .unwrap_or(("<unknown>", 0));
-        let cause = panic_info.payload().downcast_ref::<String>().map(String::deref);
-        let cause = cause.unwrap_or_else(||
-                                         panic_info.payload().downcast_ref::<&str>().map(|s| *s)
-                                         .unwrap_or("<cause unknown>")
-        );
+        let cause = panic_info
+            .payload()
+            .downcast_ref::<String>()
+            .map(String::deref);
+        let cause = cause.unwrap_or_else(|| {
+            panic_info
+                .payload()
+                .downcast_ref::<&str>()
+                .map(|s| *s)
+                .unwrap_or("<cause unknown>")
+        });
         error!("A panic occurred at {}:{}: {}", filename, line, cause);
     }));
 
@@ -254,7 +262,9 @@ fn main() {
     let tmp_path = tmp_dir.path().to_owned();
     assert!(tmp_path.exists());
 
-    let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(FxHashMap::with_capacity_and_hasher(20_000, Default::default())));
+    let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
+        FxHashMap::with_capacity_and_hasher(20_000, Default::default()),
+    ));
     let (sender, receiver) = unbounded();
     let path_mapping: Arc<Mutex<Option<Value>>> = Arc::new(Mutex::new(None));
 
