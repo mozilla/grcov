@@ -84,12 +84,14 @@ fn main() {
                                .long("ignore-dir")
                                .value_name("PATH")
                                .multiple(true)
+                               .number_of_values(1)
                                .takes_value(true))
 
                           .arg(Arg::with_name("path_mapping")
                                .long("path-mapping")
                                .value_name("PATH")
                                .multiple(true)
+                               .number_of_values(1)
                                .takes_value(true))
 
                           .arg(Arg::with_name("branch")
