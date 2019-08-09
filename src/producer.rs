@@ -353,30 +353,28 @@ fn gcno_gcda_producer(
                     }
                 }
             }
-        } else {
-            if !ignore_orphan_gcno {
-                let gcno_archive = *gcno_archive;
-                let gcno = format!("{}.gcno", stem).to_string();
-                if gcno_stem.llvm {
-                    let mut buffer: Vec<u8> = Vec::new();
-                    gcno_archive.read_in_buffer(&gcno, &mut buffer);
+        } else if !ignore_orphan_gcno {
+            let gcno_archive = *gcno_archive;
+            let gcno = format!("{}.gcno", stem).to_string();
+            if gcno_stem.llvm {
+                let mut buffer: Vec<u8> = Vec::new();
+                gcno_archive.read_in_buffer(&gcno, &mut buffer);
 
+                send_job(
+                    ItemType::Buffers(GcnoBuffers {
+                        stem: stem.clone(),
+                        gcno_buf: buffer,
+                        gcda_buf: Vec::new(),
+                    }),
+                    gcno_archive.get_name().to_string(),
+                );
+            } else {
+                let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
+                if gcno_archive.extract(&gcno, &physical_gcno_path) {
                     send_job(
-                        ItemType::Buffers(GcnoBuffers {
-                            stem: stem.clone(),
-                            gcno_buf: buffer,
-                            gcda_buf: Vec::new(),
-                        }),
+                        ItemType::Path((stem.clone(), physical_gcno_path)),
                         gcno_archive.get_name().to_string(),
                     );
-                } else {
-                    let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
-                    if gcno_archive.extract(&gcno, &physical_gcno_path) {
-                        send_job(
-                            ItemType::Path((stem.clone(), physical_gcno_path)),
-                            gcno_archive.get_name().to_string(),
-                        );
-                    }
                 }
             }
         }
