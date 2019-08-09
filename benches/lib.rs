@@ -109,7 +109,7 @@ fn bench_lib_consumer(b: &mut Bencher) {
             let t = thread::Builder::new()
                 .name(format!("Consumer {}", i))
                 .spawn(move || {
-                    consumer(&working_dir, &source_root, &result_map, receiver, false);
+                    consumer(&working_dir, &source_root, &result_map, receiver, false, false);
                 })
                 .unwrap();
 
