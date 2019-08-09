@@ -189,7 +189,7 @@ pub fn parse_lcov<T: Read>(
                     cur_functions.insert(
                         f_name.to_owned(),
                         Function {
-                            start: start,
+                            start,
                             executed: false,
                         },
                     );
@@ -280,8 +280,8 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
                 cur_functions.insert(
                     f_name.to_owned(),
                     Function {
-                        start: start,
-                        executed: executed,
+                        start,
+                        executed,
                     },
                 );
             }

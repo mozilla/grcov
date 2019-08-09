@@ -45,7 +45,7 @@ mod tests {
         let result = CovResult {
             lines: [(1, 21), (2, 7), (7, 0)].iter().cloned().collect(),
             branches: [].iter().cloned().collect(),
-            functions: functions,
+            functions,
         };
 
         assert!(is_covered(&result));
@@ -127,7 +127,7 @@ mod tests {
         let result = CovResult {
             lines: [(1, 21), (2, 7), (7, 0)].iter().cloned().collect(),
             branches: [].iter().cloned().collect(),
-            functions: functions,
+            functions,
         };
 
         assert!(is_covered(&result));
@@ -153,7 +153,7 @@ mod tests {
         let result = CovResult {
             lines: [(1, 21), (2, 7), (7, 0)].iter().cloned().collect(),
             branches: [].iter().cloned().collect(),
-            functions: functions,
+            functions,
         };
 
         assert!(!is_covered(&result));

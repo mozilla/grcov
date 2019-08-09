@@ -81,7 +81,7 @@ impl Archive {
                     gcno_stem_archives.borrow_mut().insert(
                         GCNOStem {
                             stem: filename,
-                            llvm: llvm,
+                            llvm,
                         },
                         self,
                     );
@@ -299,8 +299,8 @@ fn gcno_gcda_producer(
         sender
             .send(Some(WorkItem {
                 format: ItemFormat::GCNO,
-                item: item,
-                name: name,
+                item,
+                name,
             }))
             .unwrap()
     };
