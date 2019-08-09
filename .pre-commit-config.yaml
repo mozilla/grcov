@@ -9,7 +9,7 @@ repos:
         name: fmt
         language: system
         files: '\.rs$'
-        entry: cargo fmt -- --check # rustup run nightly rustfmt
+        entry: cargo fmt -- --check
 
       # - id: clippy
       #   name: clippy
