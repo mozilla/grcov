@@ -277,13 +277,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
                 let start = try_parse_next!(f_splits, l);
                 let executed = try_next!(f_splits, l) != "0";
                 let f_name = try_next!(f_splits, l);
-                cur_functions.insert(
-                    f_name.to_owned(),
-                    Function {
-                        start,
-                        executed,
-                    },
-                );
+                cur_functions.insert(f_name.to_owned(), Function { start, executed });
             }
             "lcount" => {
                 let mut values = value.splitn(2, ',');

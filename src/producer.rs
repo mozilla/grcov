@@ -36,13 +36,14 @@ pub struct GCNOStem {
     pub llvm: bool,
 }
 
+#[cfg(not(windows))]
 fn clean_path(path: &PathBuf) -> String {
-    let path = path.to_str().unwrap().to_string();
+    path.to_str().unwrap().to_string()
+}
 
-    #[cfg(windows)]
-    let path = path.replace("\\", "/");
-
-    path
+#[cfg(windows)]
+fn clean_path(path: &PathBuf) -> String {
+    path.replace("\\", "/");
 }
 
 impl Archive {
