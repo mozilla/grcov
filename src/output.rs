@@ -23,7 +23,7 @@ fn get_target_output_writable(output_file: Option<&str>) -> Box<Write> {
             Box::new(stdout)
         }
     };
-    return write_target;
+    write_target
 }
 
 pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>) {
