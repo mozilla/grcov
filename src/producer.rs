@@ -20,7 +20,7 @@ pub enum ArchiveType {
 }
 
 pub enum FilePath<'a> {
-    File(&'a mut Read),
+    File(&'a mut dyn Read),
     Path(&'a Path),
 }
 
@@ -115,13 +115,13 @@ impl Archive {
         }
     }
 
-    fn is_gcno_llvm(reader: &mut Read) -> bool {
+    fn is_gcno_llvm(reader: &mut dyn Read) -> bool {
         let mut bytes: [u8; 8] = [0; 8];
         reader.read_exact(&mut bytes).is_ok()
             && bytes == [b'o', b'n', b'c', b'g', b'*', b'2', b'0', b'4']
     }
 
-    fn is_jacoco(reader: &mut Read) -> bool {
+    fn is_jacoco(reader: &mut dyn Read) -> bool {
         let mut bytes: [u8; 256] = [0; 256];
         if reader.read_exact(&mut bytes).is_ok() {
             return match String::from_utf8(bytes.to_vec()) {
@@ -132,13 +132,13 @@ impl Archive {
         false
     }
 
-    fn is_info(reader: &mut Read) -> bool {
+    fn is_info(reader: &mut dyn Read) -> bool {
         let mut bytes: [u8; 3] = [0; 3];
         reader.read_exact(&mut bytes).is_ok()
             && (bytes == [b'T', b'N', b':'] || bytes == [b'S', b'F', b':'])
     }
 
-    fn check_file(file: FilePath, checker: &Fn(&mut Read) -> bool) -> bool {
+    fn check_file(file: FilePath, checker: &Fn(&mut dyn Read) -> bool) -> bool {
         match file {
             FilePath::File(reader) => checker(reader),
             FilePath::Path(path) => match File::open(path) {

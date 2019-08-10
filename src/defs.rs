@@ -55,7 +55,7 @@ pub type JobSender = Sender<Option<WorkItem>>;
 
 pub type CovResultMap = FxHashMap<String, CovResult>;
 pub type SyncCovResultMap = Mutex<CovResultMap>;
-pub type CovResultIter = Box<Iterator<Item = (PathBuf, PathBuf, CovResult)>>;
+pub type CovResultIter = Box<dyn Iterator<Item = (PathBuf, PathBuf, CovResult)>>;
 
 #[derive(Debug, Default)]
 pub struct CDStats {

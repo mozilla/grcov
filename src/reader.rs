@@ -328,7 +328,7 @@ impl GCNO {
         self.read_functions(&mut reader)
     }
 
-    fn read_edges(fun: &mut GcovFunction, reader: &mut GcovReader) -> Result<u32, GcovError> {
+    fn read_edges(fun: &mut GcovFunction, reader: &mut dyn GcovReader) -> Result<u32, GcovError> {
         let mut tag = reader.read_u32()?;
         let edges = &mut fun.edges;
         let blocks = &mut fun.blocks;
@@ -375,7 +375,7 @@ impl GCNO {
 
     fn read_lines(
         fun: &mut GcovFunction,
-        reader: &mut GcovReader,
+        reader: &mut dyn GcovReader,
         tag: u32,
     ) -> Result<u32, GcovError> {
         let mut tag = tag;
@@ -426,7 +426,7 @@ impl GCNO {
         Ok(tag)
     }
 
-    fn read_functions(&mut self, reader: &mut GcovReader) -> Result<(), GcovError> {
+    fn read_functions(&mut self, reader: &mut dyn GcovReader) -> Result<(), GcovError> {
         let mut tag = reader.read_u32()?;
         while tag == 0x0100_0000 {
             let _dummy = reader.skip_u32()?;
@@ -526,7 +526,7 @@ impl GCNO {
         version: u32,
         checksum: u32,
         fun: &mut GcovFunction,
-        reader: &mut GcovReader,
+        reader: &mut dyn GcovReader,
     ) -> Result<(), GcovError> {
         let tag = reader.read_u32()?;
         if tag != 0x0100_0000 {
@@ -638,7 +638,7 @@ impl GCNO {
         &mut self,
         path: &PathBuf,
         file_name: &str,
-        writer: &mut Write,
+        writer: &mut dyn Write,
     ) -> Result<(), GcovError> {
         let file = File::open(path)?;
         let mut reader = BufReader::new(file);

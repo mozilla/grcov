@@ -15,8 +15,8 @@ use uuid::Uuid;
 use crate::defs::*;
 use crate::html;
 
-fn get_target_output_writable(output_file: Option<&str>) -> Box<Write> {
-    let write_target: Box<Write> = match output_file {
+fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
+    let write_target: Box<dyn Write> = match output_file {
         Some(filename) => Box::new(File::create(filename).unwrap()),
         None => {
             let stdout = io::stdout();
