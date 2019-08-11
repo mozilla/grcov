@@ -22,7 +22,7 @@ repos:
         name: test
         language: system
         files: '\.rs$'
-        entry: cargo test
+        entry: cargo test --lib
         pass_filenames: false
 
 default_language_version:
