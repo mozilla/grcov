@@ -14,7 +14,7 @@ extern crate smallvec;
 extern crate tempfile;
 extern crate uuid;
 extern crate walkdir;
-extern crate xml;
+extern crate quick_xml as xml;
 extern crate zip;
 
 mod defs;
