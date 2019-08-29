@@ -330,13 +330,13 @@ fn get_xml_attribute<R: BufRead>(reader: &Reader<R>, event: &BytesStart, name: &
 
 fn parse_jacoco_report_sourcefile<T: BufRead>(
     parser: &mut Reader<T>,
+    buf: &mut Vec<u8>,
 ) -> Result<(BTreeMap<u32, u64>, BTreeMap<u32, Vec<bool>>), ParserError> {
     let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
     let mut branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();
-    let mut buf = Vec::new();
 
     loop {
-        match parser.read_event(&mut buf) {
+        match parser.read_event(buf) {
             Ok(Event::Start(ref e)) if e.local_name() == b"line" => {
                 let ci = get_xml_attribute(parser, e, "ci")?.parse::<u64>()?;
                 let cb = get_xml_attribute(parser, e, "cb")?.parse::<u64>()?;
@@ -370,13 +370,13 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
 
 fn parse_jacoco_report_method<T: BufRead>(
     parser: &mut Reader<T>,
+    buf: &mut Vec<u8>,
     start: u32,
 ) -> Result<Function, ParserError> {
     let mut executed = false;
-    let mut buf = Vec::new();
 
     loop {
-        match parser.read_event(&mut buf) {
+        match parser.read_event(buf) {
             Ok(Event::Start(ref e)) if e.local_name() == b"counter" => {
                 if get_xml_attribute(parser, e, "type")? == "METHOD" {
                     executed = get_xml_attribute(parser, e, "covered")?.parse::<u32>()? > 0;
@@ -394,19 +394,19 @@ fn parse_jacoco_report_method<T: BufRead>(
 
 fn parse_jacoco_report_class<T: BufRead>(
     parser: &mut Reader<T>,
+    buf: &mut Vec<u8>,
     class_name: &str,
 ) -> Result<FunctionMap, ParserError> {
     let mut functions: FunctionMap = FxHashMap::default();
-    let mut buf = Vec::new();
 
     loop {
-        match parser.read_event(&mut buf) {
+        match parser.read_event(buf) {
             Ok(Event::Start(ref e)) if e.local_name() == b"method" => {
                 let name = get_xml_attribute(parser, e, "name")?;
                 let full_name = format!("{}#{}", class_name, name);
 
                 let start_line = get_xml_attribute(parser, e, "line")?.parse::<u32>()?;
-                let function = parse_jacoco_report_method(parser, start_line)?;
+                let function = parse_jacoco_report_method(parser, buf, start_line)?;
                 functions.insert(full_name, function);
             }
             Ok(Event::End(ref e)) if e.local_name() == b"class" => break,
@@ -421,13 +421,13 @@ fn parse_jacoco_report_class<T: BufRead>(
 
 fn parse_jacoco_report_package<T: BufRead>(
     parser: &mut Reader<T>,
+    buf: &mut Vec<u8>,
     package: &str,
 ) -> Result<Vec<(String, CovResult)>, ParserError> {
     let mut results_map: FxHashMap<String, CovResult> = FxHashMap::default();
-    let mut buf = Vec::new();
 
     loop {
-        match parser.read_event(&mut buf) {
+        match parser.read_event(buf) {
             Ok(Event::Start(ref e)) => {
                 match e.local_name() {
                     b"class" => {
@@ -445,7 +445,7 @@ fn parse_jacoco_report_package<T: BufRead>(
                             .expect("Failed to parse top class name");
 
                         // Process all <method /> and <counter /> for this class
-                        let functions = parse_jacoco_report_class(parser, class)?;
+                        let functions = parse_jacoco_report_class(parser, buf, class)?;
 
                         match results_map.entry(top_class.to_string()) {
                             hash_map::Entry::Occupied(obj) => {
@@ -463,7 +463,7 @@ fn parse_jacoco_report_package<T: BufRead>(
                     b"sourcefile" => {
                         let sourcefile = get_xml_attribute(parser, e, "name")?;
                         let class = sourcefile.trim_end_matches(".java");
-                        let (lines, branches) = parse_jacoco_report_sourcefile(parser)?;
+                        let (lines, branches) = parse_jacoco_report_sourcefile(parser, buf)?;
 
                         match results_map.entry(class.to_string()) {
                             hash_map::Entry::Occupied(obj) => {
@@ -527,7 +527,7 @@ pub fn parse_jacoco_xml_report<T: Read>(
         match parser.read_event(&mut buf) {
             Ok(Event::Start(ref e)) if e.local_name() == b"package" => {
                 let package = get_xml_attribute(&parser, e, "name")?;
-                let mut package_results = parse_jacoco_report_package(&mut parser, &package)?;
+                let mut package_results = parse_jacoco_report_package(&mut parser, &mut buf, &package)?;
                 results.append(&mut package_results);
             }
             Ok(Event::Eof) => break,
