@@ -29,7 +29,10 @@ impl From<io::Error> for ParserError {
 
 impl From<xml::Error> for ParserError {
     fn from(err: xml::Error) -> ParserError {
-        ParserError::Parse(format!("{:?}", err))
+        match err {
+            xml::Error::Io(e) => ParserError::Io(e),
+            _ => ParserError::Parse(format!("{:?}", err)),
+        }
     }
 }
 
@@ -338,10 +341,28 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
     loop {
         match parser.read_event(buf) {
             Ok(Event::Start(ref e)) if e.local_name() == b"line" => {
-                let ci = get_xml_attribute(parser, e, "ci")?.parse::<u64>()?;
-                let cb = get_xml_attribute(parser, e, "cb")?.parse::<u64>()?;
-                let mb = get_xml_attribute(parser, e, "mb")?.parse::<u64>()?;
-                let nr = get_xml_attribute(parser, e, "nr")?.parse::<u32>()?;
+                let (mut ci, mut cb, mut mb, mut nr) = (None, None, None, None);
+                for a in e.attributes() {
+                    let a = a?;
+                    match a.key {
+                        b"ci" => ci = Some(parser.decode(&a.value)?.parse::<u64>()?),
+                        b"cb" => cb = Some(parser.decode(&a.value)?.parse::<u64>()?),
+                        b"mb" => mb = Some(parser.decode(&a.value)?.parse::<u64>()?),
+                        b"nr" => nr = Some(parser.decode(&a.value)?.parse::<u32>()?),
+                        _ => (),
+                    }
+                }
+
+                fn try_att<T>(opt: Option<T>, name: &str) -> Result<T, ParserError> {
+                    opt.ok_or_else(|| {
+                        ParserError::InvalidRecord(format!("Attribute {} not found", name))
+                    })
+                }
+
+                let ci = try_att(ci, "ci")?;
+                let cb = try_att(cb, "cb")?;
+                let mb = try_att(mb, "mb")?;
+                let nr = try_att(nr, "nr")?;
 
                 if mb > 0 || cb > 0 {
                     // This line is a branch.
