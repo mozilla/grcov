@@ -164,22 +164,10 @@ pub fn parse_lcov<T: Read>(
                     let line_no = try_parse_next!(values, l);
                     let execution_count = try_next!(values, l);
                     if execution_count == "0" || execution_count.starts_with('-') {
-                        match cur_lines.entry(line_no) {
-                            btree_map::Entry::Occupied(_) => {}
-                            btree_map::Entry::Vacant(v) => {
-                                v.insert(0);
-                            }
-                        };
+                        cur_lines.entry(line_no).or_insert(0);
                     } else {
-                        let execution_count = try_parse!(execution_count, l);
-                        match cur_lines.entry(line_no) {
-                            btree_map::Entry::Occupied(c) => {
-                                *c.into_mut() += execution_count;
-                            }
-                            btree_map::Entry::Vacant(v) => {
-                                v.insert(execution_count);
-                            }
-                        };
+                        let execution_count: u64 = try_parse!(execution_count, l);
+                        *cur_lines.entry(line_no).or_insert(0) += execution_count;
                     }
                 }
                 "FN" => {
