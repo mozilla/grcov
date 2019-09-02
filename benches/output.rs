@@ -8,8 +8,8 @@ use grcov::{
     FunctionMap,
 };
 use rustc_hash::FxHashMap;
-use std::fs::remove_file;
 use std::path::PathBuf;
+use tempfile::tempdir;
 use test::{black_box, Bencher};
 
 fn generate_cov_result_iter() -> CovResultIter {
@@ -48,27 +48,33 @@ fn generate_cov_result_iter() -> CovResultIter {
 }
 #[bench]
 fn bench_output_activedata_etl(b: &mut Bencher) {
+    let dir = tempdir().unwrap();
     b.iter(|| {
         black_box(output_activedata_etl(
             generate_cov_result_iter(),
-            Some("./temp"),
+            Some(dir.path().join("temp").to_str().unwrap()),
         ))
     });
-    remove_file("./temp").expect("failed to remove temp bench file during activedata_etl bench");
 }
 
 #[bench]
 fn bench_output_covdir(b: &mut Bencher) {
+    let dir = tempdir().unwrap();
     b.iter(|| {
-        black_box(output_covdir(generate_cov_result_iter(), Some("./temp")));
+        black_box(output_covdir(
+            generate_cov_result_iter(),
+            Some(dir.path().join("temp").to_str().unwrap()),
+        ));
     });
-    remove_file("./temp").expect("failed to remove temp bench file during output_covdir");
 }
 
 #[bench]
 fn bench_output_lcov(b: &mut Bencher) {
+    let dir = tempdir().unwrap();
     b.iter(|| {
-        black_box(output_lcov(generate_cov_result_iter(), Some("./temp")));
+        black_box(output_lcov(
+            generate_cov_result_iter(),
+            Some(dir.path().join("temp").to_str().unwrap()),
+        ));
     });
-    remove_file("./temp").expect("failed to remove temp bench file during output_lcov bench");
 }
