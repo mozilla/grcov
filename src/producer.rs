@@ -43,7 +43,7 @@ fn clean_path(path: &PathBuf) -> String {
 
 #[cfg(windows)]
 fn clean_path(path: &PathBuf) -> String {
-    path.replace("\\", "/")
+    path.to_str().unwrap().to_string().replace("\\", "/")
 }
 
 impl Archive {
