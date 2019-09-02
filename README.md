@@ -143,9 +143,14 @@ In order to build, either LLVM 7 or LLVM 8 libraries and headers are required. I
 cargo build
 ```
 
-To run tests:
+To run unit and integration tests:
 ```
 cargo test
+```
+
+To run just unit tests:
+```
+cargo test --lib
 ```
 
 ## Minimum requirements
