@@ -365,7 +365,13 @@ fn check_equal_covdir(expected_output: &str, output: &str) {
 
     println!("{}", serde_json::to_string_pretty(&actual).unwrap());
 
-    for field in vec!["coveragePercent", "linesCovered", "linesMissed", "linesTotal", "name"] {
+    for field in vec![
+        "coveragePercent",
+        "linesCovered",
+        "linesMissed",
+        "linesTotal",
+        "name",
+    ] {
         assert_eq!(expected[field], actual[field])
     }
 }
@@ -574,15 +580,9 @@ fn test_integration_zip_zip() {
             &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], path, "coveralls"),
             false,
         );
-                
+
         check_equal_covdir(
-            &read_expected(
-                path,
-                &name,
-                &compiler_version,
-                "covdir",
-                Some("_no_gcda"),
-            ),
+            &read_expected(path, &name, &compiler_version, "covdir", Some("_no_gcda")),
             &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], path, "covdir"),
         );
 
@@ -621,13 +621,7 @@ fn test_integration_zip_zip() {
         );
 
         check_equal_covdir(
-            &read_expected(
-                path,
-                &name,
-                &compiler_version,
-                "covdir",
-                Some("_two_gcda"),
-            ),
+            &read_expected(path, &name, &compiler_version, "covdir", Some("_two_gcda")),
             &run_grcov(
                 vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path],
                 path,

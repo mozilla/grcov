@@ -1,7 +1,14 @@
+#![recursion_limit = "1024"]
+extern crate chrono;
 #[macro_use]
 extern crate serde_json;
 extern crate crossbeam;
+#[macro_use]
+extern crate fomat_macros;
 extern crate globset;
+extern crate rustc_hash;
+#[macro_use]
+extern crate log;
 extern crate semver;
 extern crate smallvec;
 extern crate tempfile;
@@ -9,7 +16,6 @@ extern crate uuid;
 extern crate walkdir;
 extern crate xml;
 extern crate zip;
-extern crate rustc_hash;
 
 mod defs;
 pub use crate::defs::*;
@@ -37,6 +43,8 @@ pub use crate::reader::*;
 
 mod covdir;
 pub use crate::covdir::*;
+
+pub mod html;
 
 use std::collections::{btree_map, hash_map};
 use std::fs;
@@ -95,9 +103,10 @@ fn add_results(
         let path = match source_dir {
             Some(source_dir) => {
                 // the goal here is to be able to merge results for paths like foo/./bar and foo/bar
-                match canonicalize_path(source_dir.join(&result.0)) {
-                    Ok(p) => String::from(p.to_str().unwrap()),
-                    Err(_) => result.0,
+                if let Ok(p) = canonicalize_path(source_dir.join(&result.0)) {
+                    String::from(p.to_str().unwrap())
+                } else {
+                    result.0
                 }
             }
             None => result.0,
@@ -140,9 +149,8 @@ macro_rules! try_parse {
         match $v {
             Ok(val) => val,
             Err(err) => {
-                eprintln!("Error parsing file {}:", $f);
-                eprintln!("{}", err);
-                std::process::exit(1);
+                error!("Error parsing file {}: {}", $f, err);
+                continue;
             }
         }
     };
@@ -168,7 +176,10 @@ pub fn consumer(
                 match work_item.item {
                     ItemType::Path((stem, gcno_path)) => {
                         // GCC
-                        run_gcov(&gcno_path, branch_enabled, working_dir);
+                        if let Err(e) = run_gcov(&gcno_path, branch_enabled, working_dir) {
+                            error!("Error when running gcov: {}", e);
+                            continue;
+                        };
                         let gcov_path =
                             gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov";
                         let gcov_path = working_dir.join(gcov_path);
@@ -220,16 +231,17 @@ pub fn consumer(
                                     rename_single_files(&mut r, &buffers.stem);
                                 }
                                 r
-                            },
+                            }
                             Err(e) => {
                                 // Just print the error, don't panic and continue
-                                eprintln!("Error in computing counters:\n{}", e);
+                                error!("Error in computing counters: {}", e);
                                 Vec::new()
                             }
                         }
                     }
                     ItemType::Content(_) => {
-                        panic!("Invalid content type");
+                        error!("Invalid content type");
+                        continue;
                     }
                 }
             }
@@ -242,7 +254,8 @@ pub fn consumer(
                         try_parse!(parse_jacoco_xml_report(buffer), work_item.name)
                     }
                 } else {
-                    panic!("Invalid content type")
+                    error!("Invalid content type");
+                    continue;
                 }
             }
         };
@@ -354,7 +367,9 @@ mod tests {
             .expect("Failed to open lcov file");
         let file = BufReader::new(&f);
         let results = parse_lcov(file, false).unwrap();
-        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(FxHashMap::with_capacity_and_hasher(1, Default::default())));
+        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
+            FxHashMap::with_capacity_and_hasher(1, Default::default()),
+        ));
         add_results(
             results,
             &result_map,
@@ -385,7 +400,9 @@ mod tests {
             .expect("Failed to open lcov file");
         let file = BufReader::new(&f);
         let results = parse_lcov(file, false).unwrap();
-        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(FxHashMap::with_capacity_and_hasher(3, Default::default())));
+        let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
+            FxHashMap::with_capacity_and_hasher(3, Default::default()),
+        ));
         add_results(results, &result_map, &None);
         let result_map = Arc::try_unwrap(result_map).unwrap().into_inner().unwrap();
 

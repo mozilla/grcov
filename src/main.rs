@@ -5,13 +5,18 @@ extern crate grcov;
 extern crate num_cpus;
 extern crate rustc_hash;
 extern crate serde_json;
+extern crate simplelog;
 extern crate tempfile;
 
 use clap::{App, Arg};
 use crossbeam::crossbeam_channel::unbounded;
+use log::error;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
+use simplelog::{Config, LevelFilter, TermLogger, TerminalMode, WriteLogger};
 use std::fs::{self, File};
+use std::ops::Deref;
+use std::panic;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::{process, thread};
@@ -46,7 +51,7 @@ fn main() {
                                .long("output-type")
                                .value_name("OUTPUT TYPE")
                                .default_value("lcov")
-                               .possible_values(&["ade", "lcov", "coveralls", "coveralls+", "files", "covdir"])
+                               .possible_values(&["ade", "lcov", "coveralls", "coveralls+", "files", "covdir", "html"])
                                .takes_value(true))
 
                           .arg(Arg::with_name("output_file")
@@ -79,12 +84,14 @@ fn main() {
                                .long("ignore-dir")
                                .value_name("PATH")
                                .multiple(true)
+                               .number_of_values(1)
                                .takes_value(true))
 
                           .arg(Arg::with_name("path_mapping")
                                .long("path-mapping")
                                .value_name("PATH")
                                .multiple(true)
+                               .number_of_values(1)
                                .takes_value(true))
 
                           .arg(Arg::with_name("branch")
@@ -148,6 +155,20 @@ fn main() {
                           .arg(Arg::with_name("guess_directory")
                                .long("guess-directory-when-missing"))
 
+                          .arg(Arg::with_name("vcs_branch")
+                               .help("Set the branch for coveralls report. Defaults to 'master'")
+                               .long("vcs-branch")
+                               .default_value("master")
+                               .value_name("VCS BRANCH")
+                               .takes_value(true))
+
+                          .arg(Arg::with_name("log")
+                               .help("Set the file where to log (or stderr or stdout). Defaults to 'stderr'")
+                               .long("log")
+                               .default_value("stderr")
+                               .value_name("LOG")
+                               .takes_value(true))
+
                           .get_matches();
 
     let paths: Vec<_> = matches.values_of("paths").unwrap().collect();
@@ -179,6 +200,45 @@ fn main() {
     let service_name = matches.value_of("service_name").unwrap_or("");
     let service_number = matches.value_of("service_number").unwrap_or("");
     let service_job_number = matches.value_of("service_job_number").unwrap_or("");
+    let vcs_branch = matches.value_of("vcs_branch").unwrap_or("");
+    let log = matches.value_of("log").unwrap_or("");
+    match log {
+        "stdout" => {
+            let _ = TermLogger::init(LevelFilter::Error, Config::default(), TerminalMode::Stdout);
+        }
+        "stderr" => {
+            let _ = TermLogger::init(LevelFilter::Error, Config::default(), TerminalMode::Stderr);
+        }
+        log => {
+            if let Ok(file) = File::create(log) {
+                let _ = WriteLogger::init(LevelFilter::Error, Config::default(), file);
+            } else {
+                let _ =
+                    TermLogger::init(LevelFilter::Error, Config::default(), TerminalMode::Stderr);
+                error!("Enable to create log file: {}. Swtich to stderr", log);
+            }
+        }
+    };
+
+    panic::set_hook(Box::new(|panic_info| {
+        let (filename, line) = panic_info
+            .location()
+            .map(|loc| (loc.file(), loc.line()))
+            .unwrap_or(("<unknown>", 0));
+        let cause = panic_info
+            .payload()
+            .downcast_ref::<String>()
+            .map(String::deref);
+        let cause = cause.unwrap_or_else(|| {
+            panic_info
+                .payload()
+                .downcast_ref::<&str>()
+                .map(|s| *s)
+                .unwrap_or("<cause unknown>")
+        });
+        error!("A panic occurred at {}:{}: {}", filename, line, cause);
+    }));
+
     let num_threads: usize = matches
         .value_of("threads")
         .unwrap()
@@ -202,7 +262,9 @@ fn main() {
     let tmp_path = tmp_dir.path().to_owned();
     assert!(tmp_path.exists());
 
-    let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(FxHashMap::with_capacity_and_hasher(20_000, Default::default())));
+    let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
+        FxHashMap::with_capacity_and_hasher(20_000, Default::default()),
+    ));
     let (sender, receiver) = unbounded();
     let path_mapping: Arc<Mutex<Option<Value>>> = Arc::new(Mutex::new(None));
 
@@ -307,6 +369,7 @@ fn main() {
             commit_sha,
             false,
             output_file_path,
+            vcs_branch,
         );
     } else if output_type == "coveralls+" {
         output_coveralls(
@@ -318,11 +381,14 @@ fn main() {
             commit_sha,
             true,
             output_file_path,
+            vcs_branch,
         );
     } else if output_type == "files" {
         output_files(iterator, output_file_path);
     } else if output_type == "covdir" {
         output_covdir(iterator, output_file_path);
+    } else if output_type == "html" {
+        output_html(iterator, output_file_path, num_threads);
     } else {
         assert!(false, "{} is not a supported output type", output_type);
     }

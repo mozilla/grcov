@@ -18,6 +18,7 @@ pub enum ParserError {
     Io(io::Error),
     Parse(String),
     InvalidRecord(String),
+    InvalidData(String),
 }
 
 impl From<io::Error> for ParserError {
@@ -38,6 +39,7 @@ impl fmt::Display for ParserError {
             ParserError::Io(ref err) => write!(f, "IO error: {}", err),
             ParserError::Parse(ref s) => write!(f, "Record containing invalid integer: '{}'", s),
             ParserError::InvalidRecord(ref s) => write!(f, "Invalid record: '{}'", s),
+            ParserError::InvalidData(ref s) => write!(f, "Invalid data: '{}'", s),
         }
     }
 }
@@ -53,9 +55,10 @@ macro_rules! try_parse {
 
 macro_rules! try_next {
     ($v:expr, $l:expr) => {
-        match $v.next() {
-            Some(val) => val,
-            None => return Err(ParserError::InvalidRecord($l.to_string())),
+        if let Some(val) = $v.next() {
+            val
+        } else {
+            return Err(ParserError::InvalidRecord($l.to_string()));
         }
     };
 }
@@ -195,10 +198,14 @@ pub fn parse_lcov<T: Read>(
                     let mut f_splits = value.splitn(2, ',');
                     let executed = try_next!(f_splits, l) != "0";
                     let f_name = try_next!(f_splits, l);
-                    let f = cur_functions
-                        .get_mut(f_name)
-                        .unwrap_or_else(|| panic!("FN record missing for function {}", f_name));
-                    f.executed |= executed;
+                    if let Some(f) = cur_functions.get_mut(f_name) {
+                        f.executed |= executed;
+                    } else {
+                        return Err(ParserError::Parse(format!(
+                            "FN record missing for function {}",
+                            f_name
+                        )));
+                    }
                 }
                 "BRDA" => {
                     if branch_enabled {
@@ -227,6 +234,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
 
     let f = File::open(&gcov_path)
         .unwrap_or_else(|_| panic!("Failed to open gcov file {}", gcov_path.display()));
+
     let mut file = BufReader::new(&f);
     let mut l = vec![];
 
@@ -503,10 +511,10 @@ fn parse_jacoco_report_package<T: Read>(
 
     for (class, result) in &results_map {
         if result.lines.is_empty() && result.branches.is_empty() {
-            panic!(
+            return Err(ParserError::InvalidData(format!(
                 "Class {}/{} is not the top class in its file.",
                 package, class
-            );
+            )));
         }
     }
 

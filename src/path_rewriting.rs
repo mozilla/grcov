@@ -63,7 +63,10 @@ pub fn normalize_path<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
             Component::CurDir => {}
             Component::ParentDir => {
                 if !ret.pop() {
-                    eprintln!("Warning: {:?} cannot be normalized because of \"..\", so skip it.", path.as_ref());
+                    eprintln!(
+                        "Warning: {:?} cannot be normalized because of \"..\", so skip it.",
+                        path.as_ref()
+                    );
                     return None;
                 }
             }
@@ -156,7 +159,7 @@ fn get_abs_path(
 
     // Fixup the relative path, in case the absolute path was a symlink.
     let rel_path = fixup_rel_path(&source_dir, &abs_path, rel_path);
-    
+
     // Normalize the path in removing './' or '//' or '..'
     let rel_path = normalize_path(rel_path);
     let abs_path = normalize_path(abs_path);
@@ -207,9 +210,10 @@ fn map_partial_path(file_to_paths: &FxHashMap<String, Vec<PathBuf>>, path: PathB
         }
     }
 
-    match result {
-        Some(result) => result.clone(),
-        None => path,
+    if let Some(result) = result {
+        result.clone()
+    } else {
+        path
     }
 }
 
@@ -1238,10 +1242,22 @@ mod tests {
 
     #[test]
     fn test_normalize_path() {
-        assert_eq!(normalize_path("./foo/bar").unwrap(), PathBuf::from("foo/bar"));
-        assert_eq!(normalize_path("./foo//bar").unwrap(), PathBuf::from("foo/bar"));
-        assert_eq!(normalize_path("./foo/./bar/./oof/").unwrap(), PathBuf::from("foo/bar/oof"));
-        assert_eq!(normalize_path("./foo/../bar/./oof/").unwrap(), PathBuf::from("bar/oof"));
+        assert_eq!(
+            normalize_path("./foo/bar").unwrap(),
+            PathBuf::from("foo/bar")
+        );
+        assert_eq!(
+            normalize_path("./foo//bar").unwrap(),
+            PathBuf::from("foo/bar")
+        );
+        assert_eq!(
+            normalize_path("./foo/./bar/./oof/").unwrap(),
+            PathBuf::from("foo/bar/oof")
+        );
+        assert_eq!(
+            normalize_path("./foo/../bar/./oof/").unwrap(),
+            PathBuf::from("bar/oof")
+        );
         assert!(normalize_path("../bar/oof/").is_none());
         assert!(normalize_path("bar/foo/../../../oof/").is_none());
     }
