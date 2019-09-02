@@ -27,7 +27,7 @@ fn bench_filter_covered(b: &mut Bencher) {
     let result = CovResult {
         lines: [(1, 21), (2, 7), (7, 0)].iter().cloned().collect(),
         branches: [].iter().cloned().collect(),
-        functions: functions,
+        functions,
     };
     b.iter(|| black_box(grcov::is_covered(&result)));
 }
@@ -87,7 +87,7 @@ fn bench_filter_covered_functions_executed(b: &mut Bencher) {
     let result = CovResult {
         lines: [(1, 21), (2, 7), (7, 0)].iter().cloned().collect(),
         branches: [].iter().cloned().collect(),
-        functions: functions,
+        functions,
     };
     b.iter(|| black_box(grcov::is_covered(&result)));
 }
@@ -105,7 +105,7 @@ fn bench_filter_covered_toplevel_executed(b: &mut Bencher) {
     let result = CovResult {
         lines: [(1, 21), (2, 7), (7, 0)].iter().cloned().collect(),
         branches: [].iter().cloned().collect(),
-        functions: functions,
+        functions,
     };
     b.iter(|| black_box(grcov::is_covered(&result)));
 }
@@ -130,7 +130,7 @@ fn bench_filter_uncovered_functions_not_executed(b: &mut Bencher) {
     let result = CovResult {
         lines: [(1, 21), (2, 7), (7, 0)].iter().cloned().collect(),
         branches: [].iter().cloned().collect(),
-        functions: functions,
+        functions,
     };
     b.iter(|| black_box(grcov::is_covered(&result)));
 }

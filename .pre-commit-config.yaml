@@ -9,14 +9,14 @@ repos:
         name: fmt
         language: system
         files: '\.rs$'
-        entry: cargo fmt -- --check # rustup run nightly rustfmt
+        entry: cargo fmt -- --check
 
-      # - id: clippy
-      #   name: clippy
-      #   language: system
-      #   files: '\.rs$'
-      #   entry: cargo clippy --all-targets --all -- -Dwarnings 
-      #   pass_filenames: false
+      - id: clippy
+        name: clippy
+        language: system
+        files: '\.rs$'
+        entry: cargo clippy --all-targets --all -- -D warnings # Use -D warnings option to ensure the job fails when encountering warnings
+        pass_filenames: false
 
       - id: test
         name: test

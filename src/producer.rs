@@ -20,7 +20,7 @@ pub enum ArchiveType {
 }
 
 pub enum FilePath<'a> {
-    File(&'a mut Read),
+    File(&'a mut dyn Read),
     Path(&'a Path),
 }
 
@@ -36,13 +36,14 @@ pub struct GCNOStem {
     pub llvm: bool,
 }
 
+#[cfg(not(windows))]
 fn clean_path(path: &PathBuf) -> String {
-    let path = path.to_str().unwrap().to_string();
+    path.to_str().unwrap().to_string()
+}
 
-    #[cfg(windows)]
-    let path = path.replace("\\", "/");
-
-    path
+#[cfg(windows)]
+fn clean_path(path: &PathBuf) -> String {
+    path.to_str().unwrap().to_string().replace("\\", "/")
 }
 
 impl Archive {
@@ -81,7 +82,7 @@ impl Archive {
                     gcno_stem_archives.borrow_mut().insert(
                         GCNOStem {
                             stem: filename,
-                            llvm: llvm,
+                            llvm,
                         },
                         self,
                     );
@@ -114,13 +115,13 @@ impl Archive {
         }
     }
 
-    fn is_gcno_llvm(reader: &mut Read) -> bool {
+    fn is_gcno_llvm(reader: &mut dyn Read) -> bool {
         let mut bytes: [u8; 8] = [0; 8];
         reader.read_exact(&mut bytes).is_ok()
             && bytes == [b'o', b'n', b'c', b'g', b'*', b'2', b'0', b'4']
     }
 
-    fn is_jacoco(reader: &mut Read) -> bool {
+    fn is_jacoco(reader: &mut dyn Read) -> bool {
         let mut bytes: [u8; 256] = [0; 256];
         if reader.read_exact(&mut bytes).is_ok() {
             return match String::from_utf8(bytes.to_vec()) {
@@ -131,13 +132,13 @@ impl Archive {
         false
     }
 
-    fn is_info(reader: &mut Read) -> bool {
+    fn is_info(reader: &mut dyn Read) -> bool {
         let mut bytes: [u8; 3] = [0; 3];
         reader.read_exact(&mut bytes).is_ok()
             && (bytes == [b'T', b'N', b':'] || bytes == [b'S', b'F', b':'])
     }
 
-    fn check_file(file: FilePath, checker: &Fn(&mut Read) -> bool) -> bool {
+    fn check_file(file: FilePath, checker: &Fn(&mut dyn Read) -> bool) -> bool {
         match file {
             FilePath::File(reader) => checker(reader),
             FilePath::Path(path) => match File::open(path) {
@@ -299,8 +300,8 @@ fn gcno_gcda_producer(
         sender
             .send(Some(WorkItem {
                 format: ItemFormat::GCNO,
-                item: item,
-                name: name,
+                item,
+                name,
             }))
             .unwrap()
     };
@@ -353,30 +354,28 @@ fn gcno_gcda_producer(
                     }
                 }
             }
-        } else {
-            if !ignore_orphan_gcno {
-                let gcno_archive = *gcno_archive;
-                let gcno = format!("{}.gcno", stem).to_string();
-                if gcno_stem.llvm {
-                    let mut buffer: Vec<u8> = Vec::new();
-                    gcno_archive.read_in_buffer(&gcno, &mut buffer);
+        } else if !ignore_orphan_gcno {
+            let gcno_archive = *gcno_archive;
+            let gcno = format!("{}.gcno", stem).to_string();
+            if gcno_stem.llvm {
+                let mut buffer: Vec<u8> = Vec::new();
+                gcno_archive.read_in_buffer(&gcno, &mut buffer);
 
+                send_job(
+                    ItemType::Buffers(GcnoBuffers {
+                        stem: stem.clone(),
+                        gcno_buf: buffer,
+                        gcda_buf: Vec::new(),
+                    }),
+                    gcno_archive.get_name().to_string(),
+                );
+            } else {
+                let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
+                if gcno_archive.extract(&gcno, &physical_gcno_path) {
                     send_job(
-                        ItemType::Buffers(GcnoBuffers {
-                            stem: stem.clone(),
-                            gcno_buf: buffer,
-                            gcda_buf: Vec::new(),
-                        }),
+                        ItemType::Path((stem.clone(), physical_gcno_path)),
                         gcno_archive.get_name().to_string(),
                     );
-                } else {
-                    let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
-                    if gcno_archive.extract(&gcno, &physical_gcno_path) {
-                        send_job(
-                            ItemType::Path((stem.clone(), physical_gcno_path)),
-                            gcno_archive.get_name().to_string(),
-                        );
-                    }
                 }
             }
         }
