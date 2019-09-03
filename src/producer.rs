@@ -138,7 +138,7 @@ impl Archive {
             && (bytes == [b'T', b'N', b':'] || bytes == [b'S', b'F', b':'])
     }
 
-    fn check_file(file: FilePath, checker: &Fn(&mut dyn Read) -> bool) -> bool {
+    fn check_file(file: FilePath, checker: &dyn Fn(&mut dyn Read) -> bool) -> bool {
         match file {
             FilePath::File(reader) => checker(reader),
             FilePath::Path(path) => match File::open(path) {
