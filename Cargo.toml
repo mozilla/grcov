@@ -43,7 +43,7 @@ clap = "^2.32"
 fomat-macros = "^0.3"
 chrono = "^0.4"
 log = "^0.4"
-simplelog = "^0.6"
+simplelog = "^0.7"
 
 
 [dev-dependencies]
