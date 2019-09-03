@@ -9,12 +9,12 @@ extern crate globset;
 extern crate rustc_hash;
 #[macro_use]
 extern crate log;
+extern crate quick_xml as xml;
 extern crate semver;
 extern crate smallvec;
 extern crate tempfile;
 extern crate uuid;
 extern crate walkdir;
-extern crate quick_xml as xml;
 extern crate zip;
 
 mod defs;

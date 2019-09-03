@@ -6,8 +6,8 @@ use std::num::ParseIntError;
 use std::path::Path;
 use std::str;
 
+use xml::events::{BytesStart, Event};
 use xml::Reader;
-use xml::events::{Event, BytesStart};
 
 use rustc_hash::FxHashMap;
 
@@ -318,11 +318,15 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
     Ok(results)
 }
 
-fn get_xml_attribute<R: BufRead>(reader: &Reader<R>, event: &BytesStart, name: &str) -> Result<String, ParserError> {
+fn get_xml_attribute<R: BufRead>(
+    reader: &Reader<R>,
+    event: &BytesStart,
+    name: &str,
+) -> Result<String, ParserError> {
     for a in event.attributes() {
         let a = a?;
         if a.key == name.as_bytes() {
-            return Ok(a.unescape_and_decode_value(reader)?)
+            return Ok(a.unescape_and_decode_value(reader)?);
         }
     }
     Err(ParserError::InvalidRecord(format!(
@@ -548,7 +552,8 @@ pub fn parse_jacoco_xml_report<T: Read>(
         match parser.read_event(&mut buf) {
             Ok(Event::Start(ref e)) if e.local_name() == b"package" => {
                 let package = get_xml_attribute(&parser, e, "name")?;
-                let mut package_results = parse_jacoco_report_package(&mut parser, &mut buf, &package)?;
+                let mut package_results =
+                    parse_jacoco_report_package(&mut parser, &mut buf, &package)?;
                 results.append(&mut package_results);
             }
             Ok(Event::Eof) => break,
