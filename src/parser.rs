@@ -335,7 +335,7 @@ fn get_xml_attribute<R: BufRead>(
     )))
 }
 
-fn parse_jacoco_report_sourcefile<T: BufRead>(
+#[allow(clippy::type_complexity)] fn parse_jacoco_report_sourcefile<T: BufRead>(
     parser: &mut Reader<T>,
     buf: &mut Vec<u8>,
 ) -> Result<(BTreeMap<u32, u64>, BTreeMap<u32, Vec<bool>>), ParserError> {

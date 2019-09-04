@@ -299,9 +299,7 @@ pub fn rewrite_paths(
 
         // Get absolute path to the source file.
         let paths = get_abs_path(&source_dir, rel_path, &mut cache);
-        if paths.is_none() {
-            return None;
-        }
+        paths.as_ref()?;
 
         let (abs_path, rel_path) = paths.unwrap();
 

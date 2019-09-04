@@ -240,7 +240,7 @@ impl Archive {
             ArchiveType::Plain(_) => match File::open(name) {
                 Ok(mut f) => {
                     f.read_to_end(buf)
-                        .expect(&format!("Failed to read file: {}.", name));
+                        .unwrap_or_else(|_| panic!("Failed to read file: {}.", name));
                     true
                 }
                 Err(_) => false,

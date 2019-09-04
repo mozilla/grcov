@@ -386,7 +386,7 @@ impl GCNO {
                 if len > 0 {
                     // Read the word that pads the beginning of the line table. This may be a
                     // flag of some sort, but seems to always be zero.
-                    let _dummy = reader.skip_u32()?;
+                    reader.skip_u32()?;
 
                     let file_name = reader.read_string()?;
                     let len = len - 2 - ((file_name.len() as u32 / 4) + 1);
@@ -414,7 +414,7 @@ impl GCNO {
                     }
                 }
                 // Just read 2 zeros
-                let _dummy = reader.skip_u64()?;
+                reader.skip_u64()?;
                 tag = reader.read_u32()?;
             } else {
                 return Err(GcovError::Str(format!(
