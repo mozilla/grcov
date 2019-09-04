@@ -95,6 +95,7 @@ impl CDDirStats {
         self.stats.set_percent();
     }
 
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_json(&mut self) -> serde_json::Value {
         let mut children = Map::new();
         for file in self.files.drain(..) {

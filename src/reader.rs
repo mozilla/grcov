@@ -455,7 +455,7 @@ impl GCNO {
                 let count = reader.read_u32()? as usize;
                 let mut blocks: SmallVec<[GcovBlock; 16]> = SmallVec::with_capacity(count);
                 for no in 0..count {
-                    let _flags = reader.skip_u32()?;
+                    reader.skip_u32()?;
                     blocks.push(GcovBlock {
                         no,
                         source: SmallVec::new(),
@@ -549,7 +549,7 @@ impl GCNO {
             )));
         }
 
-        let _chk_sum = reader.skip_u32()?;
+        reader.skip_u32()?;
         if version != 402 {
             let cfg_sum = reader.read_u32()?;
             if cfg_sum != checksum {
