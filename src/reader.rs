@@ -429,7 +429,7 @@ impl GCNO {
     fn read_functions(&mut self, reader: &mut dyn GcovReader) -> Result<(), GcovError> {
         let mut tag = reader.read_u32()?;
         while tag == 0x0100_0000 {
-            let _dummy = reader.skip_u32()?;
+            reader.skip_u32()?;
             let identifier = reader.read_u32()?;
             let line_checksum = reader.read_u32()?;
             if self.version != 402 {
