@@ -438,20 +438,17 @@ fn create_zip(zip_path: &Path, base_dir: &Path, base_dir_in_zip: Option<&str>, f
             .unwrap_or_else(|_| panic!("Cannot write {:?}", zip_path));
     }
 
-    match base_dir_in_zip {
-        Some(path) => {
-            let path = PathBuf::from(path);
-            let mut path = Some(path.as_path());
-            while let Some(parent) = path {
-                let ancestor = parent.to_str().unwrap();
-                if !ancestor.is_empty() {
-                    zip.add_directory(ancestor, FileOptions::default())
-                        .unwrap_or_else(|_| panic!("Cannot add a directory"));
-                }
-                path = parent.parent();
+    if let Some(path) = base_dir_in_zip {
+        let path = PathBuf::from(path);
+        let mut path = Some(path.as_path());
+        while let Some(parent) = path {
+            let ancestor = parent.to_str().unwrap();
+            if !ancestor.is_empty() {
+                zip.add_directory(ancestor, FileOptions::default())
+                    .unwrap_or_else(|_| panic!("Cannot add a directory"));
             }
+            path = parent.parent();
         }
-        None => {}
     }
 
     zip.finish()
