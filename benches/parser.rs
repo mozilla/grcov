@@ -12,7 +12,7 @@ fn bench_parser_lcov(b: &mut Bencher) {
     b.iter(|| {
         let f = File::open("./test/prova.info").expect("Failed to open lcov file");
         let file = BufReader::new(&f);
-        black_box(grcov::parse_lcov(file, true));
+        black_box(grcov::parse_lcov(file, true))
     });
 }
 

@@ -660,6 +660,7 @@ mod tests {
 
     #[test]
     #[should_panic]
+    #[allow(unused_must_use)]
     fn test_rewrite_paths_rewrite_path_using_relative_source_directory() {
         let result_map: CovResultMap = FxHashMap::default();
         rewrite_paths(
