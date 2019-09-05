@@ -391,7 +391,7 @@ fn get_version(compiler: &str) -> String {
     get_compiler_major(&version)
 }
 
-fn get_compiler_major(version: &String) -> String {
+fn get_compiler_major(version: &str) -> String {
     let re = Regex::new(r"(?:version |(?:gcc \([^\)]+\) )*)([0-9]+)\.[0-9]+\.[0-9]+").unwrap();
     match re.captures(version) {
         Some(caps) => caps.get(1).unwrap().as_str().to_string(),
@@ -411,18 +411,19 @@ fn create_zip(zip_path: &Path, base_dir: &Path, base_dir_in_zip: Option<&str>, f
         }
     }
 
-    let zipfile =
-        File::create(base_dir.join(zip_path)).expect(&format!("Cannot create file {:?}", zip_path));
+    let zipfile = File::create(base_dir.join(zip_path))
+        .unwrap_or_else(|_| panic!("Cannot create file {:?}", zip_path));
     let mut zip = ZipWriter::new(zipfile);
-    for ref file_path in files {
-        let mut file = File::open(file_path).expect(&format!("Cannot open file {:?}", file_path));
+    for file_path in &files {
+        let mut file =
+            File::open(file_path).unwrap_or_else(|_| panic!("Cannot open file {:?}", file_path));
         let file_size = file
             .metadata()
-            .expect(&format!("Cannot get metadata for {:?}", file_path))
+            .unwrap_or_else(|_| panic!("Cannot get metadata for {:?}", file_path))
             .len() as usize;
         let mut content: Vec<u8> = Vec::with_capacity(file_size + 1);
         file.read_to_end(&mut content)
-            .expect(&format!("Cannot read {:?}", file_path));
+            .unwrap_or_else(|_| panic!("Cannot read {:?}", file_path));
 
         let filename_in_zip = file_path.file_name().unwrap().to_str().unwrap();
         let filename_in_zip = match base_dir_in_zip {
@@ -431,9 +432,9 @@ fn create_zip(zip_path: &Path, base_dir: &Path, base_dir_in_zip: Option<&str>, f
         };
 
         zip.start_file(filename_in_zip, FileOptions::default())
-            .expect(&format!("Cannot create zip for {:?}", zip_path));
+            .unwrap_or_else(|_| panic!("Cannot create zip for {:?}", zip_path));
         zip.write_all(content.as_slice())
-            .expect(&format!("Cannot write {:?}", zip_path));
+            .unwrap_or_else(|_| panic!("Cannot write {:?}", zip_path));
     }
 
     match base_dir_in_zip {
@@ -444,7 +445,7 @@ fn create_zip(zip_path: &Path, base_dir: &Path, base_dir_in_zip: Option<&str>, f
                 let ancestor = parent.to_str().unwrap();
                 if !ancestor.is_empty() {
                     zip.add_directory(ancestor, FileOptions::default())
-                        .expect(&format!("Cannot add a directory"));
+                        .unwrap_or_else(|_| panic!("Cannot add a directory"));
                 }
                 path = parent.parent();
             }
@@ -453,7 +454,7 @@ fn create_zip(zip_path: &Path, base_dir: &Path, base_dir_in_zip: Option<&str>, f
     }
 
     zip.finish()
-        .expect(&format!("Unable to write zip structure for {:?}", zip_path));
+        .unwrap_or_else(|_| panic!("Unable to wripe zip structure for {:?}", zip_path));
 }
 
 #[test]
@@ -596,7 +597,7 @@ fn test_integration_zip_zip() {
 
         // two gcdas
         std::fs::copy(&gcda_zip_path, &gcda1_zip_path)
-            .expect(&format!("Failed to copy {:?}", &gcda_zip_path));
+            .unwrap_or_else(|_| panic!("Failed to copy {:?}", &gcda_zip_path));
 
         println!("Two gcdas");
         check_equal_coveralls(
