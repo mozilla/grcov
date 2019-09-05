@@ -46,6 +46,8 @@ fn generate_cov_result_iter() -> CovResultIter {
             }),
     )
 }
+
+#[allow(clippy::unit_arg)]
 #[bench]
 fn bench_output_activedata_etl(b: &mut Bencher) {
     let dir = tempdir().unwrap();
@@ -57,6 +59,7 @@ fn bench_output_activedata_etl(b: &mut Bencher) {
     });
 }
 
+#[allow(clippy::unit_arg)]
 #[bench]
 fn bench_output_covdir(b: &mut Bencher) {
     let dir = tempdir().unwrap();
@@ -68,6 +71,7 @@ fn bench_output_covdir(b: &mut Bencher) {
     });
 }
 
+#[allow(clippy::unit_arg)]
 #[bench]
 fn bench_output_lcov(b: &mut Bencher) {
     let dir = tempdir().unwrap();

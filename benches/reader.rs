@@ -6,6 +6,7 @@ use grcov::{GcovReaderBuf, GCNO};
 use std::path::PathBuf;
 use test::{black_box, Bencher};
 
+#[allow(clippy::unit_arg)]
 #[bench]
 fn bench_reader_gcno(b: &mut Bencher) {
     let mut gcno = GCNO::new();
@@ -15,6 +16,7 @@ fn bench_reader_gcno(b: &mut Bencher) {
     });
 }
 
+#[allow(clippy::unit_arg)]
 #[bench]
 fn bench_reader_gcda(b: &mut Bencher) {
     let mut gcno = GCNO::new();
@@ -27,6 +29,7 @@ fn bench_reader_gcda(b: &mut Bencher) {
     });
 }
 
+#[allow(clippy::unit_arg)]
 #[bench]
 fn bench_reader_gcno_dump(b: &mut Bencher) {
     let mut gcno = GCNO::new();
@@ -45,6 +48,7 @@ fn bench_reader_gcno_dump(b: &mut Bencher) {
     });
 }
 
+#[allow(clippy::unit_arg)]
 #[bench]
 fn bench_reader_gcno_gcda_dump(b: &mut Bencher) {
     let mut gcno = GCNO::new();

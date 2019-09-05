@@ -366,13 +366,14 @@ fn check_equal_covdir(expected_output: &str, output: &str) {
 
     println!("{}", serde_json::to_string_pretty(&actual).unwrap());
 
-    for field in vec![
+    let vec = vec![
         "coveragePercent",
         "linesCovered",
         "linesMissed",
         "linesTotal",
         "name",
-    ] {
+    ];
+    for field in vec {
         assert_eq!(expected[field], actual[field])
     }
 }

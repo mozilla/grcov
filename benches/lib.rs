@@ -14,6 +14,7 @@ use test::{black_box, Bencher};
 
 use grcov::*;
 
+#[allow(clippy::unit_arg)]
 #[bench]
 fn bench_lib_merge_results(b: &mut Bencher) {
     let mut functions1: FunctionMap = FxHashMap::default();
