@@ -542,12 +542,7 @@ fn test_integration_zip_zip() {
         let path = &PathBuf::from("tests/basic_zip_zip");
 
         println!("\n{}", name.to_uppercase());
-        let compiler_version = if is_llvm {
-            let clang_version = get_version(&compiler);
-            clang_version
-        } else {
-            get_version(&compiler)
-        };
+        let compiler_version = get_version(&compiler);
 
         do_clean(path);
         make(path, &compiler);
@@ -649,12 +644,7 @@ fn test_integration_zip_dir() {
         let path = &base_path.join("foo_dir").join("bar_dir");
 
         println!("\n{}", name.to_uppercase());
-        let compiler_version = if is_llvm {
-            let clang_version = get_version(&compiler);
-            clang_version
-        } else {
-            get_version(&compiler)
-        };
+        let compiler_version = get_version(&compiler);
 
         do_clean(path);
         make(path, &compiler);
