@@ -23,6 +23,7 @@ use std::{process, thread};
 
 use grcov::*;
 
+#[allow(deprecated)]
 fn main() {
     let default_num_threads = (num_cpus::get() * 2).to_string();
 
