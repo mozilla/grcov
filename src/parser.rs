@@ -335,7 +335,8 @@ fn get_xml_attribute<R: BufRead>(
     )))
 }
 
-#[allow(clippy::type_complexity)] fn parse_jacoco_report_sourcefile<T: BufRead>(
+#[allow(clippy::type_complexity)]
+fn parse_jacoco_report_sourcefile<T: BufRead>(
     parser: &mut Reader<T>,
     buf: &mut Vec<u8>,
 ) -> Result<(BTreeMap<u32, u64>, BTreeMap<u32, Vec<bool>>), ParserError> {
@@ -1552,8 +1553,8 @@ mod tests {
     #[test]
     fn test_parser_jacoco_xml_inner_classes() {
         let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
-        for i in vec![5, 10, 14, 15, 18, 22, 23, 25, 27, 31, 34, 37, 44, 49] {
-            lines.insert(i, 0);
+        for i in &[5, 10, 14, 15, 18, 22, 23, 25, 27, 31, 34, 37, 44, 49] {
+            lines.insert(*i, 0);
         }
         let mut functions: FunctionMap = FxHashMap::default();
         let vec = vec![

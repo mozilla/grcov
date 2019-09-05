@@ -97,6 +97,7 @@ macro_rules! read_u_le {
         let start = $buf.pos;
         $buf.pos += size;
         if $buf.pos <= $buf.buffer.len() {
+            #[allow(clippy::transmute_ptr_to_ptr)]
             Ok(unsafe {
                 *std::mem::transmute::<*const u8, *const $ty>($buf.buffer[start..].as_ptr())
                 // *$buf.buffer[start..].as_ptr() as $ty

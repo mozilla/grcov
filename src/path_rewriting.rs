@@ -560,15 +560,7 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("main.cpp".to_string(), empty_result!());
         result_map.insert("mydir/prova.h".to_string(), empty_result!());
-        let results = rewrite_paths(
-            result_map,
-            None,
-            None,
-            None,
-            false,
-            &mut ["mydir/*"],
-            None,
-        );
+        let results = rewrite_paths(result_map, None, None, None, false, &mut ["mydir/*"], None);
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
