@@ -572,25 +572,25 @@ mod tests {
 
     #[test]
     fn test_remove_newline() {
-        let mut l = "Marco".as_bytes().to_vec();
+        let mut l = b"Marco".to_vec();
         remove_newline(&mut l);
-        assert_eq!(l, "Marco".as_bytes().to_vec());
+        assert_eq!(l, b"Marco".to_vec());
 
-        let mut l = "Marco\n".as_bytes().to_vec();
+        let mut l = b"Marco\n".to_vec();
         remove_newline(&mut l);
-        assert_eq!(l, "Marco".as_bytes().to_vec());
+        assert_eq!(l, b"Marco".to_vec());
 
-        let mut l = "Marco\r".as_bytes().to_vec();
+        let mut l = b"Marco\r".to_vec();
         remove_newline(&mut l);
-        assert_eq!(l, "Marco".as_bytes().to_vec());
+        assert_eq!(l, b"Marco".to_vec());
 
-        let mut l = "Marco\r\n".as_bytes().to_vec();
+        let mut l = b"Marco\r\n".to_vec();
         remove_newline(&mut l);
-        assert_eq!(l, "Marco".as_bytes().to_vec());
+        assert_eq!(l, b"Marco".to_vec());
 
         let mut l = "\r\n".as_bytes().to_vec();
         remove_newline(&mut l);
-        assert_eq!(l, "".as_bytes().to_vec());
+        assert_eq!(l, b"".to_vec());
     }
 
     #[test]
@@ -1556,8 +1556,7 @@ mod tests {
             lines.insert(i, 0);
         }
         let mut functions: FunctionMap = FxHashMap::default();
-
-        for (name, start, executed) in vec![
+        let vec = vec![
             ("Person$InnerClassForPerson#getSomethingElse", 31, false),
             ("Person#getSurname", 10, false),
             ("Person$InnerClassForPerson#<init>", 25, false),
@@ -1576,7 +1575,8 @@ mod tests {
                 false,
             ),
             ("Person#setAge", 22, false),
-        ] {
+        ];
+        for (name, start, executed) in vec {
             functions.insert(String::from(name), Function { executed, start });
         }
         let branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();

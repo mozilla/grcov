@@ -566,7 +566,7 @@ mod tests {
             None,
             None,
             false,
-            &mut vec!["mydir/*"],
+            &mut ["mydir/*"],
             None,
         );
         let mut count = 0;

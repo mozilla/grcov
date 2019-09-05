@@ -432,7 +432,7 @@ mod tests {
 
     fn read_file(path: &PathBuf) -> String {
         let mut f =
-            File::open(path).expect(format!("{:?} file not found", path.file_name()).as_str());
+            File::open(path).unwrap_or_else(|_| panic!("{:?} file not found", path.file_name()));
         let mut s = String::new();
         f.read_to_string(&mut s).unwrap();
         s
