@@ -513,6 +513,7 @@ pub fn producer(
 }
 
 #[cfg(test)]
+#[allow(clippy::block_in_if_condition_stmt)]
 mod tests {
     use super::*;
     use crossbeam::crossbeam_channel::unbounded;
@@ -1430,10 +1431,10 @@ mod tests {
                     assert_eq!(buffers.gcno_buf, gcno_buf);
                     assert_eq!(buffers.gcda_buf, vec![gcda1_buf.clone(), gcda2_buf.clone()]);
                 } else {
-                    assert!(false, "Unexpected file: {:?}", stem);
+                    panic!("Unexpected file: {:?}", stem);
                 }
             } else {
-                assert!(false, "Buffers expected");
+                panic!("Buffers expected");
             }
         }
     }
@@ -1463,7 +1464,7 @@ mod tests {
             reader.read_to_end(&mut json).unwrap();
             assert_eq!(json, mapping);
         } else {
-            assert!(false, format!("Failed to read the file: {}", json_path));
+            panic!(format!("Failed to read the file: {}", json_path));
         }
 
         check_produced(tmp_path, &receiver, expected);
