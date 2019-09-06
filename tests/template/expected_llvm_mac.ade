@@ -1,14 +1,247 @@
-{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoINSt3__112basic_stringIwNS0_11char_traitsIwEENS0_9allocatorIwEEEEED1Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[20],"name":"_ZN4CiaoINSt3__112basic_stringIwNS0_11char_traitsIwEENS0_9allocatorIwEEEEE4get2Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[20],"name":"_ZN4CiaoINSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEE4get2Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoINSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEEC1Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoINSt3__112basic_stringIwNS0_11char_traitsIwEENS0_9allocatorIwEEEEED2Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoINSt3__112basic_stringIwNS0_11char_traitsIwEENS0_9allocatorIwEEEEEC2Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoINSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEED1Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoINSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEED2Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[12,13],"name":"_ZN4CiaoINSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEE3setES6_","percentage_covered":1.0,"total_covered":2,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[25,26,28,29,30,31,32],"name":"main","percentage_covered":1.0,"total_covered":7,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoINSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEEC2Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[16],"name":"_ZN4CiaoINSt3__112basic_stringIwNS0_11char_traitsIwEENS0_9allocatorIwEEEEE3getEv","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"name":"main.cpp"},"language":"c/c++","method":{"covered":[6],"name":"_ZN4CiaoINSt3__112basic_stringIwNS0_11char_traitsIwEENS0_9allocatorIwEEEEEC1Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"file":{"covered":[6,12,13,16,20,25,26,28,29,30,31,32],"name":"main.cpp","percentage_covered":1.0,"total_covered":12,"total_uncovered":0,"uncovered":[]},"is_file":true,"language":"c/c++","method":{"covered":[],"percentage_covered":null,"total_covered":0,"total_uncovered":0,"uncovered":[]}}
+{
+  "file": {
+    "name": "main.cpp"
+  },
+  "language": "c/c++",
+  "method": {
+    "covered": [
+      6
+    ],
+    "name": "_ZN4CiaoINSt3__112basic_stringIwNS0_11char_traitsIwEENS0_9allocatorIwEEEEED1Ev",
+    "percentage_covered": 1,
+    "total_covered": 1,
+    "total_uncovered": 0,
+    "uncovered": []
+  }
+}
+{
+  "file": {
+    "name": "main.cpp"
+  },
+  "language": "c/c++",
+  "method": {
+    "covered": [
+      20
+    ],
+    "name": "_ZN4CiaoINSt3__112basic_stringIwNS0_11char_traitsIwEENS0_9allocatorIwEEEEE4get2Ev",
+    "percentage_covered": 1,
+    "total_covered": 1,
+    "total_uncovered": 0,
+    "uncovered": []
+  }
+}
+{
+  "file": {
+    "name": "main.cpp"
+  },
+  "language": "c/c++",
+  "method": {
+    "covered": [
+      20
+    ],
+    "name": "_ZN4CiaoINSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEE4get2Ev",
+    "percentage_covered": 1,
+    "total_covered": 1,
+    "total_uncovered": 0,
+    "uncovered": []
+  }
+}
+{
+  "file": {
+    "name": "main.cpp"
+  },
+  "language": "c/c++",
+  "method": {
+    "covered": [
+      6
+    ],
+    "name": "_ZN4CiaoINSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEEC1Ev",
+    "percentage_covered": 1,
+    "total_covered": 1,
+    "total_uncovered": 0,
+    "uncovered": []
+  }
+}
+{
+  "file": {
+    "name": "main.cpp"
+  },
+  "language": "c/c++",
+  "method": {
+    "covered": [
+      6
+    ],
+    "name": "_ZN4CiaoINSt3__112basic_stringIwNS0_11char_traitsIwEENS0_9allocatorIwEEEEED2Ev",
+    "percentage_covered": 1,
+    "total_covered": 1,
+    "total_uncovered": 0,
+    "uncovered": []
+  }
+}
+{
+  "file": {
+    "name": "main.cpp"
+  },
+  "language": "c/c++",
+  "method": {
+    "covered": [
+      6
+    ],
+    "name": "_ZN4CiaoINSt3__112basic_stringIwNS0_11char_traitsIwEENS0_9allocatorIwEEEEEC2Ev",
+    "percentage_covered": 1,
+    "total_covered": 1,
+    "total_uncovered": 0,
+    "uncovered": []
+  }
+}
+{
+  "file": {
+    "name": "main.cpp"
+  },
+  "language": "c/c++",
+  "method": {
+    "covered": [
+      6
+    ],
+    "name": "_ZN4CiaoINSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEED1Ev",
+    "percentage_covered": 1,
+    "total_covered": 1,
+    "total_uncovered": 0,
+    "uncovered": []
+  }
+}
+{
+  "file": {
+    "name": "main.cpp"
+  },
+  "language": "c/c++",
+  "method": {
+    "covered": [
+      6
+    ],
+    "name": "_ZN4CiaoINSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEED2Ev",
+    "percentage_covered": 1,
+    "total_covered": 1,
+    "total_uncovered": 0,
+    "uncovered": []
+  }
+}
+{
+  "file": {
+    "name": "main.cpp"
+  },
+  "language": "c/c++",
+  "method": {
+    "covered": [
+      12,
+      13
+    ],
+    "name": "_ZN4CiaoINSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEE3setES6_",
+    "percentage_covered": 1,
+    "total_covered": 2,
+    "total_uncovered": 0,
+    "uncovered": []
+  }
+}
+{
+  "file": {
+    "name": "main.cpp"
+  },
+  "language": "c/c++",
+  "method": {
+    "covered": [
+      25,
+      26,
+      28,
+      29,
+      30,
+      31,
+      32
+    ],
+    "name": "main",
+    "percentage_covered": 1,
+    "total_covered": 7,
+    "total_uncovered": 0,
+    "uncovered": []
+  }
+}
+{
+  "file": {
+    "name": "main.cpp"
+  },
+  "language": "c/c++",
+  "method": {
+    "covered": [
+      6
+    ],
+    "name": "_ZN4CiaoINSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEEC2Ev",
+    "percentage_covered": 1,
+    "total_covered": 1,
+    "total_uncovered": 0,
+    "uncovered": []
+  }
+}
+{
+  "file": {
+    "name": "main.cpp"
+  },
+  "language": "c/c++",
+  "method": {
+    "covered": [
+      16
+    ],
+    "name": "_ZN4CiaoINSt3__112basic_stringIwNS0_11char_traitsIwEENS0_9allocatorIwEEEEE3getEv",
+    "percentage_covered": 1,
+    "total_covered": 1,
+    "total_uncovered": 0,
+    "uncovered": []
+  }
+}
+{
+  "file": {
+    "name": "main.cpp"
+  },
+  "language": "c/c++",
+  "method": {
+    "covered": [
+      6
+    ],
+    "name": "_ZN4CiaoINSt3__112basic_stringIwNS0_11char_traitsIwEENS0_9allocatorIwEEEEEC1Ev",
+    "percentage_covered": 1,
+    "total_covered": 1,
+    "total_uncovered": 0,
+    "uncovered": []
+  }
+}
+{
+  "file": {
+    "covered": [
+      6,
+      12,
+      13,
+      16,
+      20,
+      25,
+      26,
+      28,
+      29,
+      30,
+      31,
+      32
+    ],
+    "name": "main.cpp",
+    "percentage_covered": 1,
+    "total_covered": 12,
+    "total_uncovered": 0,
+    "uncovered": []
+  },
+  "is_file": true,
+  "language": "c/c++",
+  "method": {
+    "covered": [],
+    "percentage_covered": null,
+    "total_covered": 0,
+    "total_uncovered": 0,
+    "uncovered": []
+  }
+}
