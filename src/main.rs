@@ -175,7 +175,10 @@ fn main() {
     let paths: Vec<String> = paths.iter().map(|s| s.to_string()).collect();
     let output_type = matches.value_of("output_type").unwrap();
     let output_file_path = matches.value_of("output_file");
-    let source_dir = matches.value_of("source_dir").unwrap_or("");
+    let current_dir = std::env::current_dir().unwrap();
+    let source_dir = matches
+        .value_of("source_dir")
+        .unwrap_or(current_dir.to_str().unwrap());
     let prefix_dir = matches.value_of("prefix_dir").unwrap_or("");
     let ignore_not_existing = matches.is_present("ignore_not_existing");
     let mut to_ignore_dirs: Vec<_> = if let Some(to_ignore_dirs) = matches.values_of("ignore_dir") {
