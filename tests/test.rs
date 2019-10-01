@@ -139,11 +139,11 @@ fn run_grcov(paths: Vec<&Path>, source_root: &Path, output_format: &str) -> Stri
         args.push(source_root.to_str().unwrap());
         args.push("--branch");
     }
-    args.push("--ignore-dir");
+    args.push("--ignore");
     args.push("C:/*");
-    args.push("--ignore-dir");
+    args.push("--ignore");
     args.push("/usr/*");
-    args.push("--ignore-dir");
+    args.push("--ignore");
     args.push("/Applications/*");
     args.push("--guess-directory-when-missing");
 

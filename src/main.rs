@@ -80,7 +80,7 @@ fn main() {
 
                           .arg(Arg::with_name("ignore_dir")
                                .help("Ignore files/directories specified as globs")
-                               .long("ignore-dir")
+                               .long("ignore")
                                .value_name("PATH")
                                .multiple(true)
                                .number_of_values(1)
