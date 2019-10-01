@@ -47,4 +47,4 @@ simplelog = "^0.7"
 
 
 [dev-dependencies]
-regex = "^1.1"
+regex = "^1.3"
