@@ -6,7 +6,6 @@ extern crate crossbeam;
 #[macro_use]
 extern crate fomat_macros;
 extern crate globset;
-extern crate rustc_hash;
 #[macro_use]
 extern crate log;
 extern crate quick_xml as xml;
@@ -267,13 +266,13 @@ pub fn consumer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rustc_hash::FxHashMap;
+    use std::collections::HashMap;
     use std::fs::File;
     use std::sync::{Arc, Mutex};
 
     #[test]
     fn test_merge_results() {
-        let mut functions1: FunctionMap = FxHashMap::default();
+        let mut functions1: FunctionMap = HashMap::default();
         functions1.insert(
             "f1".to_string(),
             Function {
@@ -300,7 +299,7 @@ mod tests {
             .collect(),
             functions: functions1,
         };
-        let mut functions2: FunctionMap = FxHashMap::default();
+        let mut functions2: FunctionMap = HashMap::default();
         functions2.insert(
             "f1".to_string(),
             Function {
@@ -368,7 +367,7 @@ mod tests {
         let file = BufReader::new(&f);
         let results = parse_lcov(file, false).unwrap();
         let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
-            FxHashMap::with_capacity_and_hasher(1, Default::default()),
+            HashMap::with_capacity_and_hasher(1, Default::default()),
         ));
         add_results(
             results,
@@ -401,7 +400,7 @@ mod tests {
         let file = BufReader::new(&f);
         let results = parse_lcov(file, false).unwrap();
         let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
-            FxHashMap::with_capacity_and_hasher(3, Default::default()),
+            HashMap::with_capacity_and_hasher(3, Default::default()),
         ));
         add_results(results, &result_map, &None);
         let result_map = Arc::try_unwrap(result_map).unwrap().into_inner().unwrap();

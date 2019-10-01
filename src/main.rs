@@ -3,7 +3,6 @@ extern crate clap;
 extern crate crossbeam;
 extern crate grcov;
 extern crate num_cpus;
-extern crate rustc_hash;
 extern crate serde_json;
 extern crate simplelog;
 extern crate tempfile;
@@ -11,9 +10,9 @@ extern crate tempfile;
 use clap::{App, Arg};
 use crossbeam::crossbeam_channel::unbounded;
 use log::error;
-use rustc_hash::FxHashMap;
 use serde_json::Value;
 use simplelog::{Config, LevelFilter, TermLogger, TerminalMode, WriteLogger};
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::ops::Deref;
 use std::panic;
@@ -263,7 +262,7 @@ fn main() {
     assert!(tmp_path.exists());
 
     let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
-        FxHashMap::with_capacity_and_hasher(20_000, Default::default()),
+        HashMap::with_capacity_and_hasher(20_000, Default::default()),
     ));
     let (sender, receiver) = unbounded();
     let path_mapping: Arc<Mutex<Option<Value>>> = Arc::new(Mutex::new(None));

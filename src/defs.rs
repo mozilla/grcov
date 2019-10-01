@@ -1,6 +1,6 @@
 use crossbeam::channel::{Receiver, Sender};
-use rustc_hash::FxHashMap;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -48,12 +48,12 @@ pub struct WorkItem {
     pub name: String,
 }
 
-pub type FunctionMap = FxHashMap<String, Function>;
+pub type FunctionMap = HashMap<String, Function>;
 
 pub type JobReceiver = Receiver<Option<WorkItem>>;
 pub type JobSender = Sender<Option<WorkItem>>;
 
-pub type CovResultMap = FxHashMap<String, CovResult>;
+pub type CovResultMap = HashMap<String, CovResult>;
 pub type SyncCovResultMap = Mutex<CovResultMap>;
 pub type CovResultIter = Box<dyn Iterator<Item = (PathBuf, PathBuf, CovResult)>>;
 

@@ -1,7 +1,6 @@
-use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use std::cmp;
-use std::collections::{btree_map, hash_map, BTreeMap};
+use std::collections::{btree_map, hash_map, BTreeMap, HashMap};
 use std::convert::From;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
@@ -28,7 +27,7 @@ struct GcovFunction {
     name: String,
     blocks: SmallVec<[GcovBlock; 16]>,
     edges: SmallVec<[GcovEdge; 16]>,
-    lines: FxHashMap<u32, u64>,
+    lines: HashMap<u32, u64>,
     executed: bool,
 }
 
@@ -473,7 +472,7 @@ impl GCNO {
                     name,
                     blocks,
                     edges: SmallVec::new(),
-                    lines: FxHashMap::default(),
+                    lines: HashMap::default(),
                     executed: false,
                 };
                 tag = GCNO::read_edges(&mut fun, reader)?;
@@ -612,12 +611,12 @@ impl GCNO {
         Ok(())
     }
 
-    fn collect_lines(&self) -> FxHashMap<&str, FxHashMap<u32, u64>> {
-        let mut results: FxHashMap<&str, FxHashMap<u32, u64>> = FxHashMap::default();
+    fn collect_lines(&self) -> HashMap<&str, HashMap<u32, u64>> {
+        let mut results: HashMap<&str, HashMap<u32, u64>> = HashMap::default();
         for function in &self.functions {
             let lines = match results.entry(&function.file_name) {
                 hash_map::Entry::Occupied(l) => l.into_mut(),
-                hash_map::Entry::Vacant(p) => p.insert(FxHashMap::default()),
+                hash_map::Entry::Vacant(p) => p.insert(HashMap::default()),
             };
 
             for (line, counter) in &function.lines {
@@ -693,7 +692,7 @@ impl GCNO {
     }
 
     pub fn finalize(&mut self, branch_enabled: bool) -> Vec<(String, CovResult)> {
-        let mut results: FxHashMap<&str, CovResult> = FxHashMap::default();
+        let mut results: HashMap<&str, CovResult> = HashMap::default();
         for fun in &mut self.functions {
             fun.add_line_count();
             let res = match results.entry(&fun.file_name) {
@@ -701,7 +700,7 @@ impl GCNO {
                 hash_map::Entry::Vacant(p) => p.insert(CovResult {
                     lines: BTreeMap::new(),
                     branches: BTreeMap::new(),
-                    functions: FxHashMap::default(),
+                    functions: HashMap::default(),
                 }),
             };
             res.functions.insert(
@@ -920,7 +919,7 @@ impl GcovFunction {
     fn add_line_count(&mut self) {
         self.executed = self.edges.first().unwrap().counter > 0;
         if self.executed {
-            let mut lines_to_block: FxHashMap<u32, Vec<usize>> = FxHashMap::default();
+            let mut lines_to_block: HashMap<u32, Vec<usize>> = HashMap::default();
             for block in &self.blocks {
                 let n = block.no;
                 for line in &block.lines {
@@ -1082,7 +1081,7 @@ mod tests {
 
         let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
         lines.insert(2, 1);
-        let mut functions: FunctionMap = FxHashMap::default();
+        let mut functions: FunctionMap = HashMap::default();
         functions.insert(
             String::from("main"),
             Function {
@@ -1138,7 +1137,7 @@ mod tests {
             lines.insert(x.0, x.1);
         });
 
-        let mut functions: FunctionMap = FxHashMap::default();
+        let mut functions: FunctionMap = HashMap::default();
         functions.insert(
             String::from("foo"),
             Function {
