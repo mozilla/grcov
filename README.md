@@ -18,71 +18,45 @@ USAGE:
     grcov [FLAGS] [OPTIONS] <paths>...
 
 FLAGS:
-        --branch
-            Enables parsing branch coverage information
-
-    -h, --help
-            Prints help information
-
-        --ignore-not-existing
-            Ignore source files that can't be found on the disk
-
-        --llvm
-            Speeds-up parsing, when the code coverage information is exclusively coming from a llvm build
-
-    -V, --version
-            Prints version information
-
+        --branch                          Enables parsing branch coverage information
+        --guess-directory-when-missing
+    -h, --help                            Prints help information
+        --ignore-not-existing             Ignore source files that can't be found on the disk
+        --llvm                            Speeds-up parsing, when the code coverage information is exclusively coming
+                                          from a llvm build
+    -V, --version                         Prints version information
 
 OPTIONS:
-        --commit-sha <COMMIT HASH>
-            Sets the hash of the commit used to generate the code coverage data
-
+        --commit-sha <COMMIT HASH>                   Sets the hash of the commit used to generate the code coverage data
         --filter <filter>
             Filters out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered' to only return
             uncovered files [possible values: covered, uncovered]
-        --ignore-dir <PATH>...
-            Ignore files/directories specified as globs
+        --ignore <PATH>...                           Ignore files/directories specified as globs
+        --log <LOG>
+            Set the file where to log (or stderr or stdout). Defaults to 'stderr' [default: stderr]
 
-    -o, --output-file <FILE>
-            Specifies the output file
-
+    -o, --output-file <FILE>                         Specifies the output file
     -t, --output-type <OUTPUT TYPE>
-            Sets a custom output type:
-            - *lcov* for the lcov INFO format;
-            - *coveralls* for the Coveralls specific format;
-            - *coveralls+* for the Coveralls specific format with function information;
-            - *ade* for the ActiveData-ETL specific format;
-            - *files* to only return a list of files.
-             [default: lcov]  [possible values: ade, lcov, coveralls, coveralls+, files]
+            Sets a custom output type [default: lcov]  [possible values: ade, lcov, coveralls, coveralls+, files,
+            covdir, html]
         --path-mapping <PATH>...
-
-
     -p, --prefix-dir <PATH>
             Specifies a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that
             generated the code coverage information)
-        --service-job-number <SERVICE JOB NUMBER>
-            Sets the service job number
-
-        --service-name <SERVICE NAME>
-            Sets the service name
-
-        --service-number <SERVICE NUMBER>
-            Sets the service number
-
-    -s, --source-dir <DIRECTORY>
-            Specifies the root directory of the source files
-
-        --threads <NUMBER>
-             [default: 24]
-
+        --service-job-number <SERVICE JOB NUMBER>    Sets the service job number
+        --service-name <SERVICE NAME>                Sets the service name
+        --service-number <SERVICE NUMBER>            Sets the service number
+    -s, --source-dir <DIRECTORY>                     Specifies the root directory of the source files
+        --threads <NUMBER>                            [default: 16]
         --token <TOKEN>
             Sets the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' formats
 
+        --vcs-branch <VCS BRANCH>
+            Set the branch for coveralls report. Defaults to 'master' [default: master]
+
 
 ARGS:
-    <paths>...
-            Sets the input paths to use
+    <paths>...    Sets the input paths to use
 ```
 
 Let's see a few examples, assuming the source directory is `~/Documents/mozilla-central` and the build directory is `~/Documents/mozilla-central/build`.
