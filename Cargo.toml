@@ -1,6 +1,6 @@
 [package]
 name = "grcov"
-version = "0.5.4"
+version = "0.5.5"
 authors = ["Marco Castelluccio <mcastelluccio@mozilla.com>"]
 description="Rust tool to collect and aggregate code coverage data for multiple source files"
 license="MPL-2.0"
