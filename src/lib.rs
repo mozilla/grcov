@@ -1,14 +1,13 @@
 #![recursion_limit = "1024"]
 extern crate chrono;
 extern crate crossbeam;
-extern crate serde_json;
-#[macro_use]
 extern crate fomat_macros;
 extern crate globset;
 extern crate log;
 extern crate quick_xml as xml;
 extern crate rustc_hash;
 extern crate semver;
+extern crate serde_json;
 extern crate smallvec;
 extern crate tempfile;
 extern crate uuid;
