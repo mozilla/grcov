@@ -280,6 +280,7 @@ pub fn output_coveralls(
     with_function_info: bool,
     output_file: Option<&str>,
     vcs_branch: &str,
+    parallel: bool,
 ) {
     let mut source_files = Vec::new();
 
@@ -348,6 +349,7 @@ pub fn output_coveralls(
             "service_name": service_name,
             "service_number": service_number,
             "service_job_number": service_job_number,
+            "parallel": parallel,
         }),
     )
     .unwrap();

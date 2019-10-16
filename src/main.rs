@@ -146,6 +146,10 @@ fn main() {
                                .value_name("SERVICE JOB NUMBER")
                                .takes_value(true))
 
+                          .arg(Arg::with_name("parallel")
+                               .help("Sets the build type to be parallel for 'coveralls' and 'coveralls+' formats")
+                               .long("parallel"))
+
                           .arg(Arg::with_name("threads")
                                .long("threads")
                                .value_name("NUMBER")
@@ -198,6 +202,7 @@ fn main() {
     let repo_token = matches.value_of("token").unwrap_or("");
     let commit_sha = matches.value_of("commit_sha").unwrap_or("");
     let service_name = matches.value_of("service_name").unwrap_or("");
+    let is_parallel = matches.is_present("parallel");
     let service_number = matches.value_of("service_number").unwrap_or("");
     let service_job_number = matches.value_of("service_job_number").unwrap_or("");
     let vcs_branch = matches.value_of("vcs_branch").unwrap_or("");
@@ -370,6 +375,7 @@ fn main() {
             false,
             output_file_path,
             vcs_branch,
+            is_parallel,
         );
     } else if output_type == "coveralls+" {
         output_coveralls(
@@ -382,6 +388,7 @@ fn main() {
             true,
             output_file_path,
             vcs_branch,
+            is_parallel,
         );
     } else if output_type == "files" {
         output_files(iterator, output_file_path);
