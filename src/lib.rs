@@ -1,8 +1,7 @@
 #![recursion_limit = "1024"]
 extern crate chrono;
-#[macro_use]
-extern crate serde_json;
 extern crate crossbeam;
+extern crate serde_json;
 #[macro_use]
 extern crate fomat_macros;
 extern crate globset;
