@@ -5,10 +5,9 @@ extern crate serde_json;
 #[macro_use]
 extern crate fomat_macros;
 extern crate globset;
-extern crate rustc_hash;
-#[macro_use]
 extern crate log;
 extern crate quick_xml as xml;
+extern crate rustc_hash;
 extern crate semver;
 extern crate smallvec;
 extern crate tempfile;
@@ -45,6 +44,7 @@ pub use crate::covdir::*;
 
 pub mod html;
 
+use log::error;
 use std::collections::{btree_map, hash_map};
 use std::fs;
 use std::io::{BufReader, Cursor};
