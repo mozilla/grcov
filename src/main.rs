@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate clap;
 extern crate crossbeam;
 extern crate grcov;
@@ -8,7 +7,7 @@ extern crate serde_json;
 extern crate simplelog;
 extern crate tempfile;
 
-use clap::{App, Arg};
+use clap::{crate_authors, crate_version, App, Arg};
 use crossbeam::crossbeam_channel::unbounded;
 use log::error;
 use rustc_hash::FxHashMap;
