@@ -1,7 +1,7 @@
 use crossbeam::crossbeam_channel::unbounded;
 use md5::{Digest, Md5};
 use rustc_hash::FxHashMap;
-use serde_json::{self, Value};
+use serde_json::{self, json, Value};
 use std::cell::RefCell;
 use std::collections::{hash_map, BTreeSet};
 use std::fs::File;
