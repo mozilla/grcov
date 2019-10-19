@@ -34,7 +34,7 @@ semver = "^0.9"
 md-5 = "^0.8"
 zip = { version = "^0.4", features = ["deflate-zlib"], default-features = false }
 tempfile = "^3"
-uuid = { version = "^0.7", features = ["v4"] }
+uuid = { version = "^0.8", features = ["v4"] }
 globset = "^0.4"
 quick-xml = "^0.17"
 smallvec = "^0.6"
