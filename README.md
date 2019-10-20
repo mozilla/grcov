@@ -116,14 +116,19 @@ Build with:
 cargo build
 ```
 
-To run unit and integration tests:
-```
-cargo test
-```
-
-To run just unit tests:
+To run unit tests:
 ```
 cargo test --lib
+```
+
+To run integration tests, it is suggested to use the Docker image defined in tests/Dockerfile. Simply build the image to run them:
+```
+docker build -t marcocas/grcov -f tests/Dockerfile .
+```
+
+Otherwise, if you don't want to use Docker, the only prerequisite is to install GCC 7, setting the `GCC_CXX` environment variable to `g++-7` and the `GCOV` environment variable to `gcov-7`. Then run the tests with:
+```
+cargo test
 ```
 
 ## Minimum requirements

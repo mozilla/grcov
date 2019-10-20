@@ -1,0 +1,20 @@
+# Git
+.git
+.gitignore
+
+# CI
+appveyor.yml
+.travis.yml
+
+# Docker
+docker-compose.yml
+.docker
+
+# Vim swap files
+*.swp
+*/*.swp
+*/*/*.swp
+*/*/*/*.swp
+
+# Obj files
+target/
