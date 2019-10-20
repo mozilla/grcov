@@ -111,8 +111,7 @@ Every time you will try to commit, pre-commit will run checks on your files to m
 
 ## Build & Test
 
-In order to build, either LLVM 7 or LLVM 8 libraries and headers are required. If one of these versions is successfully installed, build with:
-
+Build with:
 ```
 cargo build
 ```
