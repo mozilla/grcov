@@ -10,7 +10,6 @@ matrix:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-7
           packages:
-            - llvm-7-dev
             - clang-7
             - g++-5
       env:
@@ -27,7 +26,6 @@ matrix:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-7
           packages:
-            - llvm-7-dev
             - clang-7
             - g++-5
       env:
@@ -44,7 +42,6 @@ matrix:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-7
           packages:
-            - llvm-7-dev
             - clang-7
             - g++-6
       env:
@@ -61,7 +58,6 @@ matrix:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-7
           packages:
-            - llvm-7-dev
             - clang-7
             - g++-7
       env:
@@ -78,7 +74,6 @@ matrix:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-8
           packages:
-            - llvm-8-dev
             - clang-8
             - g++-7
       env:
@@ -95,7 +90,6 @@ matrix:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty
           packages:
-            - llvm-dev
             - clang
             - g++-7
       env:
