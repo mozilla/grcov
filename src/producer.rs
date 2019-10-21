@@ -19,11 +19,6 @@ pub enum ArchiveType {
     Plain(Vec<PathBuf>),
 }
 
-pub enum FilePath<'a> {
-    File(&'a mut dyn Read),
-    Path(&'a Path),
-}
-
 #[derive(Debug)]
 pub struct Archive {
     pub name: String,
