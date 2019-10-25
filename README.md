@@ -8,7 +8,7 @@ grcov collects and aggregates code coverage information for multiple source file
 
 This is a project initiated by Mozilla to gather code coverage results on Firefox.
 
-## Table of contents
+## Table of Contents
 * [Usage](#usage)
     * [LCOV output](#lcov-output)
     * [Coveralls/Codecov output](#coverallscodecov-output)
