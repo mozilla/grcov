@@ -8,6 +8,16 @@ grcov collects and aggregates code coverage information for multiple source file
 
 This is a project initiated by Mozilla to gather code coverage results on Firefox.
 
+## Table of Contents
+* [Usage](#usage)
+    * [LCOV output](#lcov-output)
+    * [Coveralls/Codecov output](#coverallscodecov-output)
+    * [grcov with Travis](#grcov-with-travis)
+    * [Auto Formatting](#auto-formatting)
+* [Build & Test](#build--test)
+* [Minimum requirements](#minimum-requirements)
+* [License](#license)
+
 ## Usage
 
 1. Download grcov from https://github.com/mozilla/grcov/releases or run ```cargo install grcov```
