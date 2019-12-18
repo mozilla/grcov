@@ -6,6 +6,8 @@ use std::num::ParseIntError;
 use std::path::Path;
 use std::str;
 
+use log::error;
+
 use xml::events::{BytesStart, Event};
 use xml::Reader;
 
@@ -192,7 +194,7 @@ pub fn parse_lcov<T: Read>(
 
                         while cur_functions.contains_key(&f_name) {
                             if i == 1 {
-                                eprintln!("{} FN duplicated in a lcov file", f_name);
+                                error!("{} FN duplicated in a lcov file", f_name);
                             }
 
                             f_name = format!("top-level{}", i);
