@@ -655,6 +655,7 @@ mod tests {
             (ItemFormat::INFO, false, "prova_fn_with_commas.info", false),
             (ItemFormat::INFO, false, "empty_line.info", false),
             (ItemFormat::INFO, false, "invalid_DA_record.info", false),
+            (ItemFormat::INFO, false, "duplicate_fn_fnda.info", false),
             (
                 ItemFormat::INFO,
                 false,
