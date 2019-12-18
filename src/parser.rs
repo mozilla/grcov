@@ -213,7 +213,7 @@ pub fn parse_lcov<T: Read>(
                 "FNDA" => {
                     let mut f_splits = value.splitn(2, ',');
                     let executed = try_next!(f_splits, l) != "0";
-                    let mut f_name = try_next!(f_splits, l).to_string();
+                    let mut f_name = try_next!(f_splits, l).to_owned();
 
                     // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1597997.
                     let mut is_top_level = false;
