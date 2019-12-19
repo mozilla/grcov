@@ -129,6 +129,7 @@ pub fn parse_lcov<T: Read>(
     let mut cur_functions = FxHashMap::default();
     // Only needed for the workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1597997.
     let mut cur_fndas = HashSet::new();
+    let mut duplicated_error_logged = false;
 
     let mut results = Vec::new();
 
@@ -193,8 +194,9 @@ pub fn parse_lcov<T: Read>(
                         let mut i = 1;
 
                         while cur_functions.contains_key(&f_name) {
-                            if i == 1 {
-                                error!("{} FN duplicated in a lcov file", f_name);
+                            if i == 1 && !duplicated_error_logged {
+                                error!("top-level FN duplicated in a lcov file");
+                                duplicated_error_logged = true;
                             }
 
                             f_name = format!("top-level{}", i);
