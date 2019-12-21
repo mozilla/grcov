@@ -276,6 +276,7 @@ pub fn output_coveralls(
     service_name: &str,
     service_number: &str,
     service_job_number: &str,
+    service_pull_request: &str,
     commit_sha: &str,
     with_function_info: bool,
     output_file: Option<&str>,
@@ -349,6 +350,7 @@ pub fn output_coveralls(
             "service_name": service_name,
             "service_number": service_number,
             "service_job_number": service_job_number,
+            "service_pull_request": service_pull_request,
             "parallel": parallel,
         }),
     )

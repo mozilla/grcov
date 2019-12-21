@@ -145,6 +145,12 @@ fn main() {
                                .value_name("SERVICE JOB NUMBER")
                                .takes_value(true))
 
+                          .arg(Arg::with_name("service_pull_request")
+                               .help("Sets the service pull request number")
+                               .long("service-pull-request")
+                               .value_name("SERVICE PULL REQUEST")
+                               .takes_value(true))
+
                           .arg(Arg::with_name("parallel")
                                .help("Sets the build type to be parallel for 'coveralls' and 'coveralls+' formats")
                                .long("parallel"))
@@ -204,6 +210,7 @@ fn main() {
     let is_parallel = matches.is_present("parallel");
     let service_number = matches.value_of("service_number").unwrap_or("");
     let service_job_number = matches.value_of("service_job_number").unwrap_or("");
+    let service_pull_request = matches.value_of("service_pull_request").unwrap_or("");
     let vcs_branch = matches.value_of("vcs_branch").unwrap_or("");
     let log = matches.value_of("log").unwrap_or("");
     match log {
@@ -370,6 +377,7 @@ fn main() {
             service_name,
             service_number,
             service_job_number,
+            service_pull_request,
             commit_sha,
             false,
             output_file_path,
@@ -383,6 +391,7 @@ fn main() {
             service_name,
             service_number,
             service_job_number,
+            service_pull_request,
             commit_sha,
             true,
             output_file_path,
