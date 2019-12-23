@@ -4,12 +4,16 @@ use rustc_hash::FxHashMap;
 use serde_json::{self, json, Value};
 use std::cell::RefCell;
 use std::collections::{hash_map, BTreeSet};
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{self, BufWriter, Read, Write};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
-use std::{process, thread};
+use std::{
+    process::{self, Command, Stdio},
+    thread,
+};
 use uuid::Uuid;
 
 use crate::defs::*;
@@ -270,6 +274,96 @@ fn get_digest(path: PathBuf) -> String {
     }
 }
 
+/// Runs git with given array of arguments (as strings), and returns whatever git printed to
+/// stdout. On error, returns empty string. Standard input and error are redirected from/to null.
+fn get_git_output<I, S>(args: I) -> String
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    Command::new("git")
+        .args(args)
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .stdout(Stdio::piped())
+        .spawn()
+        .and_then(|child| child.wait_with_output())
+        .ok() // Discard the error type -- we won't handle it anyway
+        .and_then(|output| String::from_utf8(output.stdout).ok())
+        .unwrap_or_else(|| String::new())
+}
+
+/// Returns a JSON object describing the given commit. Coveralls uses that to display commit info.
+///
+/// \a vcs_branch is what user passed on the command line via `--vcs-branch`. This is included in
+/// the output, but doesn't affect the rest of the info (e.g. this function doesn't check if that
+/// branch actually points to the given commit).
+fn get_coveralls_git_info(commit_sha: &str, vcs_branch: &str) -> Value {
+    let status = Command::new("git")
+        .arg("status")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|exit_status| exit_status.success());
+    if let Ok(true) = status {
+        // We have a valid Git repo -- the rest of the function will handle this case
+    } else {
+        return json!({
+            "head": {
+                "id": commit_sha,
+            },
+            "branch": vcs_branch,
+        });
+    }
+
+    // Runs `git log` with a given format, to extract some piece of commit info. On failure,
+    // returns empty string.
+    let gitlog = |format| -> String {
+        get_git_output(&[
+            "log",
+            "--max-count=1",
+            &format!("--pretty=format:{}", format),
+            commit_sha,
+        ])
+    };
+
+    let author_name = gitlog("%aN");
+    let author_email = gitlog("%ae");
+    let committer_name = gitlog("%cN");
+    let committer_email = gitlog("%ce");
+    let message = gitlog("%s");
+
+    let remotes: Value = {
+        let output = get_git_output(&["remote", "--verbose"]);
+
+        let mut remotes = Vec::<Value>::new();
+        for line in output.lines() {
+            if line.ends_with(" (fetch)") {
+                let mut fields = line.split_whitespace();
+                match (fields.next(), fields.next()) {
+                    (Some(name), Some(url)) => remotes.push(json!({"name": name, "url": url})),
+                    _ => (),
+                };
+            }
+        }
+        json!(remotes)
+    };
+
+    json!({
+        "head": {
+            "id": commit_sha,
+            "author_name": author_name,
+            "author_email": author_email,
+            "committer_name": committer_name,
+            "committer_email": committer_email,
+            "message": message,
+        },
+        "branch": vcs_branch,
+        "remotes": remotes,
+    })
+}
+
 pub fn output_coveralls(
     results: CovResultIter,
     repo_token: &str,
@@ -335,17 +429,14 @@ pub fn output_coveralls(
         }
     }
 
+    let git = get_coveralls_git_info(commit_sha, vcs_branch);
+
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     serde_json::to_writer(
         &mut writer,
         &json!({
             "repo_token": repo_token,
-            "git": {
-              "head": {
-                "id": commit_sha,
-              },
-              "branch": vcs_branch,
-            },
+            "git": git,
             "source_files": source_files,
             "service_name": service_name,
             "service_number": service_number,
