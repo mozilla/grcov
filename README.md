@@ -56,6 +56,9 @@ OPTIONS:
         --service-job-number <SERVICE JOB NUMBER>    Sets the service job number
         --service-name <SERVICE NAME>                Sets the service name
         --service-number <SERVICE NUMBER>            Sets the service number
+        --service-pull-request <SERVICE PULL REQUEST>
+                                                     Sets the service pull request number
+
     -s, --source-dir <DIRECTORY>                     Specifies the root directory of the source files
         --threads <NUMBER>                            [default: 16]
         --token <TOKEN>
