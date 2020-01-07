@@ -17,6 +17,9 @@ exclude = [
     ".travis.yml",
     "appveyor.yml",
     ".gitignore",
+    ".dockerignore",
+    ".pre-commit-config.yaml",
+    "CODE_OF_CONDUCT.md",
 ]
 edition = "2018"
 
