@@ -1,4 +1,4 @@
-use std::collections::{btree_map, hash_map, BTreeMap, HashSet};
+use std::collections::{btree_map, hash_map, BTreeMap};
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read};
@@ -127,8 +127,8 @@ pub fn parse_lcov<T: Read>(
     let mut cur_lines = BTreeMap::new();
     let mut cur_branches = BTreeMap::new();
     let mut cur_functions = FxHashMap::default();
-    // Only needed for the workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1597997.
-    let mut cur_fndas = HashSet::new();
+
+    // We only log the duplicated FN error once per parse_lcov call.
     let mut duplicated_error_logged = false;
 
     let mut results = Vec::new();
@@ -187,25 +187,17 @@ pub fn parse_lcov<T: Read>(
                 "FN" => {
                     let mut f_splits = value.splitn(2, ',');
                     let start = try_parse_next!(f_splits, l);
-                    let mut f_name = try_next!(f_splits, l).to_owned();
-
-                    // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1597997.
-                    if f_name == "top-level" {
-                        let mut i = 1;
-
-                        while cur_functions.contains_key(&f_name) {
-                            if i == 1 && !duplicated_error_logged {
-                                error!("top-level FN duplicated in a lcov file");
-                                duplicated_error_logged = true;
-                            }
-
-                            f_name = format!("top-level{}", i);
-                            i += 1;
-                        }
+                    let f_name = try_next!(f_splits, l);
+                    if !duplicated_error_logged && cur_functions.contains_key(f_name) {
+                        error!(
+                            "FN '{}' duplicated for '{}' in a lcov file",
+                            f_name,
+                            cur_file.as_ref().unwrap()
+                        );
+                        duplicated_error_logged = true;
                     }
-
                     cur_functions.insert(
-                        f_name,
+                        f_name.to_owned(),
                         Function {
                             start,
                             executed: false,
@@ -215,38 +207,14 @@ pub fn parse_lcov<T: Read>(
                 "FNDA" => {
                     let mut f_splits = value.splitn(2, ',');
                     let executed = try_next!(f_splits, l) != "0";
-                    let mut f_name = try_next!(f_splits, l).to_owned();
-
-                    // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1597997.
-                    let mut is_top_level = false;
-                    if f_name == "top-level" {
-                        is_top_level = true;
-
-                        let mut i = 1;
-
-                        while cur_fndas.contains(&f_name) {
-                            let new_f_name = format!("top-level{}", i);
-                            i += 1;
-
-                            if cur_functions.contains_key(&new_f_name) {
-                                f_name = new_f_name;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-
-                    if let Some(f) = cur_functions.get_mut(&f_name) {
+                    let f_name = try_next!(f_splits, l);
+                    if let Some(f) = cur_functions.get_mut(f_name) {
                         f.executed |= executed;
                     } else {
                         return Err(ParserError::Parse(format!(
                             "FN record missing for function {}",
                             f_name
                         )));
-                    }
-
-                    if is_top_level {
-                        cur_fndas.insert(f_name);
                     }
                 }
                 "BRDA" => {
@@ -1007,288 +975,6 @@ mod tests {
         let file = BufReader::new(&f);
         let result = parse_lcov(file, true);
         assert!(result.is_err());
-    }
-
-    // Test for the workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1597997.
-    #[test]
-    fn test_lcov_parser_duplicate_fn_fnda() {
-        let f = File::open("./test/duplicate_fn_fnda.info").expect("Failed to open lcov file");
-        let file = BufReader::new(&f);
-        let results = parse_lcov(file, true).unwrap();
-
-        assert_eq!(results.len(), 1);
-
-        let (ref source_name, ref result) = results[0];
-        assert_eq!(
-            source_name,
-            "devtools/client/webconsole/components/Output/ConsoleTable.js"
-        );
-        assert_eq!(
-            result.lines,
-            [
-                (9, 1),
-                (10, 1),
-                (11, 1),
-                (16, 1),
-                (17, 1),
-                (18, 1),
-                (21, 2),
-                (22, 1),
-                (25, 2),
-                (26, 1),
-                (27, 1),
-                (28, 1),
-                (31, 1),
-                (33, 1),
-                (35, 1),
-                (36, 1),
-                (37, 0),
-                (38, 0),
-                (39, 0),
-                (40, 0),
-                (41, 0),
-                (43, 0),
-                (48, 2),
-                (49, 2),
-                (50, 2),
-                (54, 3),
-                (55, 2),
-                (57, 2),
-                (58, 2),
-                (59, 0),
-                (63, 2),
-                (64, 2),
-                (65, 2),
-                (66, 0),
-                (68, 2),
-                (69, 2),
-                (73, 0),
-                (74, 0),
-                (75, 0),
-                (76, 0),
-                (77, 0),
-                (80, 2),
-                (82, 3),
-                (83, 2),
-                (84, 2),
-                (85, 12),
-                (86, 12),
-                (87, 6),
-                (88, 6),
-                (89, 6),
-                (90, 6),
-                (91, 6),
-                (93, 6),
-                (97, 2),
-                (98, 2),
-                (100, 3),
-                (101, 2),
-                (103, 6),
-                (104, 4),
-                (105, 4),
-                (107, 16),
-                (108, 12),
-                (110, 12),
-                (111, 4),
-                (112, 16),
-                (113, 8),
-                (114, 8),
-                (115, 8),
-                (116, 8),
-                (117, 8),
-                (120, 24),
-                (121, 24),
-                (122, 12),
-                (123, 12),
-                (124, 12),
-                (125, 12),
-                (127, 12),
-                (131, 4),
-                (132, 4),
-                (133, 2),
-                (135, 3),
-                (136, 2),
-                (137, 2),
-                (140, 2),
-                (143, 2),
-                (144, 2),
-                (145, 0),
-                (148, 2),
-                (149, 0),
-                (152, 2),
-                (156, 2),
-                (157, 2),
-                (158, 0),
-                (160, 4),
-                (161, 2),
-                (162, 2),
-                (163, 2),
-                (164, 2),
-                (165, 2),
-                (166, 2),
-                (167, 2),
-                (170, 2),
-                (171, 2),
-                (173, 2),
-                (176, 2),
-                (177, 2),
-                (180, 2),
-                (181, 0),
-                (182, 2),
-                (185, 2),
-                (187, 2),
-                (188, 2),
-                (190, 2),
-                (191, 2),
-                (192, 0),
-                (194, 2),
-                (195, 2),
-                (196, 0),
-                (198, 2),
-                (199, 2),
-                (200, 2),
-                (202, 1),
-                (203, 1),
-                (206, 2),
-                (207, 2),
-                (208, 2),
-                (209, 2),
-                (210, 2),
-                (211, 0),
-                (212, 2),
-                (213, 2),
-                (219, 2),
-                (220, 0),
-                (221, 0),
-                (226, 2),
-                (227, 2),
-                (229, 2),
-                (230, 2),
-                (232, 2),
-                (233, 4),
-                (234, 12),
-                (237, 2),
-                (239, 10),
-                (240, 8),
-                (241, 8),
-                (244, 8),
-                (245, 6),
-                (246, 6),
-                (247, 0),
-                (248, 0),
-                (250, 6),
-                (254, 2),
-                (255, 4),
-                (256, 4),
-                (259, 4),
-                (260, 4),
-                (263, 4),
-                (265, 4),
-                (266, 2),
-                (267, 2),
-                (269, 4),
-                (270, 2),
-                (271, 2),
-                (272, 2),
-                (275, 2),
-                (276, 2),
-                (277, 0),
-                (279, 0),
-                (280, 0),
-                (282, 2),
-                (285, 4),
-                (287, 4),
-                (288, 0),
-                (294, 2),
-                (295, 0),
-                (299, 2),
-                (300, 2),
-                (301, 2),
-                (302, 2),
-                (306, 2),
-                (307, 2),
-                (308, 2),
-                (309, 2),
-                (312, 2),
-                (313, 2),
-                (314, 2),
-                (316, 2),
-                (322, 0),
-                (323, 0),
-                (325, 0),
-                (326, 0),
-                (328, 0),
-                (329, 0),
-                (330, 0),
-                (333, 0),
-                (335, 0),
-                (336, 0),
-                (337, 0),
-                (340, 0),
-                (341, 0),
-                (342, 0),
-                (343, 0),
-                (344, 0),
-                (346, 0),
-                (350, 0),
-                (351, 0),
-                (352, 0),
-                (355, 0),
-                (356, 0),
-                (359, 0),
-                (361, 0),
-                (363, 0),
-                (364, 0),
-                (365, 0),
-                (366, 0),
-                (367, 0),
-                (368, 0),
-                (369, 0),
-                (370, 0),
-                (371, 0),
-                (374, 0),
-                (375, 0),
-                (378, 0),
-                (379, 0),
-                (380, 0),
-                (382, 0),
-                (383, 0),
-                (386, 0),
-                (389, 0),
-                (391, 0),
-                (392, 0),
-                (398, 0),
-                (399, 0),
-                (403, 0),
-                (404, 0),
-                (405, 0),
-                (406, 0),
-                (410, 0),
-                (411, 0),
-                (412, 0),
-                (413, 0),
-                (416, 0),
-                (417, 0),
-                (418, 0),
-                (420, 0),
-                (422, 1),
-            ]
-            .iter()
-            .cloned()
-            .collect()
-        );
-        assert!(result.functions.contains_key("top-level"));
-        let func = result.functions.get("top-level").unwrap();
-        assert_eq!(func.start, 1);
-        assert_eq!(func.executed, true);
-        assert!(result.functions.contains_key("top-level1"));
-        let func = result.functions.get("top-level1").unwrap();
-        assert_eq!(func.start, 17);
-        assert_eq!(func.executed, true);
-        assert!(result.functions.contains_key("top-level2"));
-        let func = result.functions.get("top-level2").unwrap();
-        assert_eq!(func.start, 176);
-        assert_eq!(func.executed, true);
     }
 
     #[test]
