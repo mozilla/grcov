@@ -6,6 +6,8 @@ use std::num::ParseIntError;
 use std::path::Path;
 use std::str;
 
+use log::error;
+
 use xml::events::{BytesStart, Event};
 use xml::Reader;
 
@@ -183,6 +185,13 @@ pub fn parse_lcov<T: Read>(
                     let mut f_splits = value.splitn(2, ',');
                     let start = try_parse_next!(f_splits, l);
                     let f_name = try_next!(f_splits, l);
+                    if cur_functions.contains_key(f_name) {
+                        error!(
+                            "FN '{}' duplicated for '{}' in a lcov file",
+                            f_name,
+                            cur_file.as_ref().unwrap()
+                        );
+                    }
                     cur_functions.insert(
                         f_name.to_owned(),
                         Function {
