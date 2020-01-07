@@ -128,6 +128,9 @@ pub fn parse_lcov<T: Read>(
     let mut cur_branches = BTreeMap::new();
     let mut cur_functions = FxHashMap::default();
 
+    // We only log the duplicated FN error once per parse_lcov call.
+    let mut duplicated_error_logged = false;
+
     let mut results = Vec::new();
 
     let mut l = vec![];
@@ -185,12 +188,13 @@ pub fn parse_lcov<T: Read>(
                     let mut f_splits = value.splitn(2, ',');
                     let start = try_parse_next!(f_splits, l);
                     let f_name = try_next!(f_splits, l);
-                    if cur_functions.contains_key(f_name) {
+                    if !duplicated_error_logged && cur_functions.contains_key(f_name) {
                         error!(
                             "FN '{}' duplicated for '{}' in a lcov file",
                             f_name,
                             cur_file.as_ref().unwrap()
                         );
+                        duplicated_error_logged = true;
                     }
                     cur_functions.insert(
                         f_name.to_owned(),
