@@ -381,7 +381,7 @@ dependencies = [
 
 [[package]]
 name = "grcov"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "chrono 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
