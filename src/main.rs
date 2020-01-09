@@ -23,7 +23,7 @@ use std::{process, thread};
 use grcov::*;
 
 fn main() {
-    let default_num_threads = (num_cpus::get() * 2).to_string();
+    let default_num_threads = 1.max(num_cpus::get() - 1).to_string();
 
     let matches = App::new("grcov")
                           .version(crate_version!())
