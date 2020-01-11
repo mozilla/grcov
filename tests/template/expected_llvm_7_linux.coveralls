@@ -6,7 +6,7 @@
     }
   },
   "repo_token": "TOKEN",
-  "service_job_number": "",
+  "service_job_id": "",
   "service_name": "",
   "service_number": "",
   "source_files": [

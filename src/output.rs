@@ -440,7 +440,7 @@ pub fn output_coveralls(
             "source_files": source_files,
             "service_name": service_name,
             "service_number": service_number,
-            "service_job_number": service_job_number,
+            "service_job_id": service_job_number,
             "service_pull_request": service_pull_request,
             "parallel": parallel,
         }),

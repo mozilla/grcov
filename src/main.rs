@@ -140,7 +140,7 @@ fn main() {
                                .takes_value(true))
 
                           .arg(Arg::with_name("service_job_number")
-                               .help("Sets the service job number")
+                               .help("Sets the service job number (\"service job id\" in Coveralls' terms)")
                                .long("service-job-number")
                                .value_name("SERVICE JOB NUMBER")
                                .takes_value(true))
