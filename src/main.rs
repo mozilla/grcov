@@ -121,11 +121,7 @@ fn main() {
                                .help("Sets the hash of the commit used to generate the code coverage data")
                                .long("commit-sha")
                                .value_name("COMMIT HASH")
-                               .takes_value(true)
-                               .required_ifs(&[
-                                   ("output_type", "coveralls"),
-                                   ("output_type", "coveralls+")
-                               ]))
+                               .takes_value(true))
 
                           .arg(Arg::with_name("service_name")
                                .help("Sets the service name")
