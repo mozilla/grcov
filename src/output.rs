@@ -587,4 +587,43 @@ mod tests {
 
         assert_eq!(results, expected);
     }
+
+    #[test]
+    fn test_coveralls_service_job_id() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_coveralls_service_job_id.json";
+        let file_path = tmp_dir.path().join(&file_name);
+
+        let results = vec![(
+            PathBuf::from("foo/bar/a.cpp"),
+            PathBuf::from("foo/bar/a.cpp"),
+            CovResult {
+                lines: [(1, 10), (2, 11)].iter().cloned().collect(),
+                branches: BTreeMap::new(),
+                functions: FxHashMap::default(),
+            },
+        )];
+
+        let results = Box::new(results.into_iter());
+        let expected_service_job_id: &str = "100500";
+        let with_function_info: bool = true;
+        let parallel: bool = true;
+        output_coveralls(
+            results,
+            "unused",
+            "unused",
+            "unused",
+            expected_service_job_id,
+            "unused",
+            "unused",
+            with_function_info,
+            Some(file_path.to_str().unwrap()),
+            "unused",
+            parallel,
+        );
+
+        let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
+
+        assert_eq!(results["service_job_id"], expected_service_job_id);
+    }
 }
