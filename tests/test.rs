@@ -152,6 +152,10 @@ fn run_grcov(paths: Vec<&Path>, source_root: &Path, output_format: &str) -> Stri
     if output_format == "coveralls" {
         args.push("--token");
         args.push("TOKEN");
+        args.push("--service-name");
+        args.push("");
+        args.push("--service-job-id");
+        args.push("");
         args.push("--commit-sha");
         args.push("COMMIT");
         args.push("-s");

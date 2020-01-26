@@ -210,12 +210,12 @@ fn main() {
         None
     };
     let is_llvm = matches.is_present("llvm");
-    let repo_token = matches.value_of("token").unwrap_or("");
+    let repo_token = matches.value_of("token");
     let commit_sha = matches.value_of("commit_sha").unwrap_or("");
-    let service_name = matches.value_of("service_name").unwrap_or("");
+    let service_name = matches.value_of("service_name");
     let is_parallel = matches.is_present("parallel");
     let service_number = matches.value_of("service_number").unwrap_or("");
-    let service_job_id = matches.value_of("service_job_id").unwrap_or("");
+    let service_job_id = matches.value_of("service_job_id");
     let service_pull_request = matches.value_of("service_pull_request").unwrap_or("");
     let vcs_branch = matches.value_of("vcs_branch").unwrap_or("");
     let log = matches.value_of("log").unwrap_or("");
