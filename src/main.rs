@@ -121,11 +121,7 @@ fn main() {
                                .help("Sets the hash of the commit used to generate the code coverage data")
                                .long("commit-sha")
                                .value_name("COMMIT HASH")
-                               .takes_value(true)
-                               .required_ifs(&[
-                                   ("output_type", "coveralls"),
-                                   ("output_type", "coveralls+")
-                               ]))
+                               .takes_value(true))
 
                           .arg(Arg::with_name("service_name")
                                .help("Sets the service name")
@@ -140,10 +136,18 @@ fn main() {
                                .takes_value(true))
 
                           .arg(Arg::with_name("service_job_number")
-                               .help("Sets the service job number")
+                               .help("Sets the service job number (deprecated in favour of --service-job-id)")
                                .long("service-job-number")
                                .value_name("SERVICE JOB NUMBER")
-                               .takes_value(true))
+                               .takes_value(true)
+                               .conflicts_with("service_job_id"))
+
+                          .arg(Arg::with_name("service_job_id")
+                               .help("Sets the service job id")
+                               .long("service-job-id")
+                               .value_name("SERVICE JOB ID")
+                               .takes_value(true)
+                               .conflicts_with("service_job_number"))
 
                           .arg(Arg::with_name("service_pull_request")
                                .help("Sets the service pull request number")
@@ -209,7 +213,10 @@ fn main() {
     let service_name = matches.value_of("service_name").unwrap_or("");
     let is_parallel = matches.is_present("parallel");
     let service_number = matches.value_of("service_number").unwrap_or("");
-    let service_job_number = matches.value_of("service_job_number").unwrap_or("");
+    let service_job_id = matches
+        .value_of("service_job_id")
+        .or_else(|| matches.value_of("service_job_number"))
+        .unwrap_or("");
     let service_pull_request = matches.value_of("service_pull_request").unwrap_or("");
     let vcs_branch = matches.value_of("vcs_branch").unwrap_or("");
     let log = matches.value_of("log").unwrap_or("");
@@ -376,7 +383,7 @@ fn main() {
             repo_token,
             service_name,
             service_number,
-            service_job_number,
+            service_job_id,
             service_pull_request,
             commit_sha,
             false,
@@ -390,7 +397,7 @@ fn main() {
             repo_token,
             service_name,
             service_number,
-            service_job_number,
+            service_job_id,
             service_pull_request,
             commit_sha,
             true,

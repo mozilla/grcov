@@ -274,7 +274,7 @@ fn check_equal_coveralls(expected_output: &str, output: &str, skip_branches: boo
     assert_eq!(expected["git"]["branch"], actual["git"]["branch"]);
     assert_eq!(expected["git"]["head"]["id"], actual["git"]["head"]["id"]);
     assert_eq!(expected["repo_token"], actual["repo_token"]);
-    assert_eq!(expected["service_job_number"], actual["service_job_number"]);
+    assert_eq!(expected["service_job_id"], actual["service_job_id"]);
     assert_eq!(expected["service_name"], actual["service_name"]);
     assert_eq!(expected["service_number"], actual["service_number"]);
 

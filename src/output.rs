@@ -369,7 +369,7 @@ pub fn output_coveralls(
     repo_token: &str,
     service_name: &str,
     service_number: &str,
-    service_job_number: &str,
+    service_job_id: &str,
     service_pull_request: &str,
     commit_sha: &str,
     with_function_info: bool,
@@ -440,7 +440,7 @@ pub fn output_coveralls(
             "source_files": source_files,
             "service_name": service_name,
             "service_number": service_number,
-            "service_job_number": service_job_number,
+            "service_job_id": service_job_id,
             "service_pull_request": service_pull_request,
             "parallel": parallel,
         }),
@@ -586,5 +586,44 @@ mod tests {
         let expected: Value = serde_json::from_str(&read_file(&expected_path)).unwrap();
 
         assert_eq!(results, expected);
+    }
+
+    #[test]
+    fn test_coveralls_service_job_id() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_coveralls_service_job_id.json";
+        let file_path = tmp_dir.path().join(&file_name);
+
+        let results = vec![(
+            PathBuf::from("foo/bar/a.cpp"),
+            PathBuf::from("foo/bar/a.cpp"),
+            CovResult {
+                lines: [(1, 10), (2, 11)].iter().cloned().collect(),
+                branches: BTreeMap::new(),
+                functions: FxHashMap::default(),
+            },
+        )];
+
+        let results = Box::new(results.into_iter());
+        let expected_service_job_id: &str = "100500";
+        let with_function_info: bool = true;
+        let parallel: bool = true;
+        output_coveralls(
+            results,
+            "unused",
+            "unused",
+            "unused",
+            expected_service_job_id,
+            "unused",
+            "unused",
+            with_function_info,
+            Some(file_path.to_str().unwrap()),
+            "unused",
+            parallel,
+        );
+
+        let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
+
+        assert_eq!(results["service_job_id"], expected_service_job_id);
     }
 }
