@@ -7,7 +7,7 @@ extern crate serde_json;
 extern crate simplelog;
 extern crate tempfile;
 
-use clap::{crate_authors, crate_version, App, Arg};
+use clap::{crate_authors, crate_version, App, Arg, ArgGroup};
 use crossbeam::crossbeam_channel::unbounded;
 use log::error;
 use rustc_hash::FxHashMap;
@@ -51,7 +51,11 @@ fn main() {
                                .value_name("OUTPUT TYPE")
                                .default_value("lcov")
                                .possible_values(&["ade", "lcov", "coveralls", "coveralls+", "files", "covdir", "html"])
-                               .takes_value(true))
+                               .takes_value(true)
+                               .requires_ifs(&[
+                                   ("coveralls", "coveralls_auth"),
+                                   ("coveralls+", "coveralls_auth")
+                               ]))
 
                           .arg(Arg::with_name("output_file")
                                .help("Specifies the output file")
@@ -111,11 +115,7 @@ fn main() {
                                .help("Sets the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' formats")
                                .long("token")
                                .value_name("TOKEN")
-                               .takes_value(true)
-                               .required_ifs(&[
-                                   ("output_type", "coveralls"),
-                                   ("output_type", "coveralls+")
-                               ]))
+                               .takes_value(true))
 
                           .arg(Arg::with_name("commit_sha")
                                .help("Sets the hash of the commit used to generate the code coverage data")
@@ -140,7 +140,8 @@ fn main() {
                                .long("service-job-id")
                                .value_name("SERVICE JOB ID")
                                .takes_value(true)
-                               .visible_alias("service-job-number"))
+                               .visible_alias("service-job-number")
+                               .requires("service_name"))
 
                           .arg(Arg::with_name("service_pull_request")
                                .help("Sets the service pull request number")
@@ -174,6 +175,14 @@ fn main() {
                                .default_value("stderr")
                                .value_name("LOG")
                                .takes_value(true))
+
+                          // This group requires that at least one of --token and --service-job-id
+                          // be present. --service-job-id requires --service-name, so this
+                          // effectively means we accept the following combinations:
+                          // - --token
+                          // - --token --service-job-id --service-name
+                          // - --service-job-id --service-name
+                          .group(ArgGroup::with_name("coveralls_auth").args(&["token", "service_job_id"]).multiple(true))
 
                           .get_matches();
 

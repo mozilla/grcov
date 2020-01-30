@@ -10,7 +10,7 @@ use serde_json::Value;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::{env, fs};
 use walkdir::WalkDir;
 use zip::write::FileOptions;
@@ -122,6 +122,25 @@ fn read_expected(
     read_file(&path.join(&name))
 }
 
+/// Returns the path to grcov executable.
+fn get_cmd_path() -> &'static str {
+    let mut cmd_path = if cfg!(windows) {
+        ".\\target\\debug\\grcov.exe"
+    } else {
+        "./target/debug/grcov"
+    };
+
+    if !PathBuf::from(cmd_path).exists() {
+        cmd_path = if cfg!(windows) {
+            ".\\target\\release\\grcov.exe"
+        } else {
+            "./target/release/grcov"
+        };
+    }
+
+    cmd_path
+}
+
 fn run_grcov(paths: Vec<&Path>, source_root: &Path, output_format: &str) -> String {
     let mut args: Vec<&str> = Vec::new();
 
@@ -147,21 +166,7 @@ fn run_grcov(paths: Vec<&Path>, source_root: &Path, output_format: &str) -> Stri
     args.push("/Applications/*");
     args.push("--guess-directory-when-missing");
 
-    let mut cmd_path = if cfg!(windows) {
-        ".\\target\\debug\\grcov.exe"
-    } else {
-        "./target/debug/grcov"
-    };
-
-    if !PathBuf::from(cmd_path).exists() {
-        cmd_path = if cfg!(windows) {
-            ".\\target\\release\\grcov.exe"
-        } else {
-            "./target/release/grcov"
-        };
-    }
-
-    let output = Command::new(cmd_path)
+    let output = Command::new(get_cmd_path())
         .args(args)
         .output()
         .expect("Failed to run grcov");
@@ -693,4 +698,64 @@ fn test_integration_guess_single_file() {
         &read_file(&json_path),
         &run_grcov(vec![&zip_path], &PathBuf::from(""), "covdir"),
     );
+}
+
+#[test]
+fn test_coveralls_works_with_just_token_arg() {
+    for output in &["coveralls", "coveralls+"] {
+        let status = Command::new(get_cmd_path())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .args(vec![".", "-t", output, "--token", "123"])
+            .status()
+            .expect("Failed to run grcov");
+        assert!(status.success());
+    }
+}
+
+#[test]
+fn test_coveralls_works_with_just_service_name_and_job_id_args() {
+    for output in &["coveralls", "coveralls+"] {
+        let status = Command::new(get_cmd_path())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .args(vec![
+                ".",
+                "-t",
+                output,
+                "--service-name",
+                "travis-ci",
+                "--service-job-id",
+                "456",
+            ])
+            .status()
+            .expect("Failed to run grcov");
+        assert!(status.success());
+    }
+}
+
+#[test]
+fn test_coveralls_service_name_is_not_sufficient() {
+    for output in &["coveralls", "coveralls+"] {
+        let status = Command::new(get_cmd_path())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .args(vec![".", "-t", output, "--service-name", "travis-ci"])
+            .status()
+            .expect("Failed to run grcov");
+        assert!(!status.success());
+    }
+}
+
+#[test]
+fn test_coveralls_service_job_id_is_not_sufficient() {
+    for output in &["coveralls", "coveralls+"] {
+        let status = Command::new(get_cmd_path())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .args(vec![".", "-t", output, "--service-job-id", "456"])
+            .status()
+            .expect("Failed to run grcov");
+        assert!(!status.success());
+    }
 }
