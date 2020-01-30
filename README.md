@@ -54,8 +54,7 @@ OPTIONS:
     -p, --prefix-dir <PATH>
             Specifies a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that
             generated the code coverage information)
-        --service-job-id <SERVICE JOB ID>            Sets the service job id
-        --service-job-number <SERVICE JOB NUMBER>    Sets the service job number (deprecated in favour of --service-job-id)
+        --service-job-id <SERVICE JOB ID>            Sets the service job id [aliases: service-job-number]
         --service-name <SERVICE NAME>                Sets the service name
         --service-number <SERVICE NUMBER>            Sets the service number
         --service-pull-request <SERVICE PULL REQUEST>

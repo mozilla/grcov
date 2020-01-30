@@ -135,19 +135,12 @@ fn main() {
                                .value_name("SERVICE NUMBER")
                                .takes_value(true))
 
-                          .arg(Arg::with_name("service_job_number")
-                               .help("Sets the service job number (deprecated in favour of --service-job-id)")
-                               .long("service-job-number")
-                               .value_name("SERVICE JOB NUMBER")
-                               .takes_value(true)
-                               .conflicts_with("service_job_id"))
-
                           .arg(Arg::with_name("service_job_id")
                                .help("Sets the service job id")
                                .long("service-job-id")
                                .value_name("SERVICE JOB ID")
                                .takes_value(true)
-                               .conflicts_with("service_job_number"))
+                               .visible_alias("service-job-number"))
 
                           .arg(Arg::with_name("service_pull_request")
                                .help("Sets the service pull request number")
@@ -213,10 +206,7 @@ fn main() {
     let service_name = matches.value_of("service_name").unwrap_or("");
     let is_parallel = matches.is_present("parallel");
     let service_number = matches.value_of("service_number").unwrap_or("");
-    let service_job_id = matches
-        .value_of("service_job_id")
-        .or_else(|| matches.value_of("service_job_number"))
-        .unwrap_or("");
+    let service_job_id = matches.value_of("service_job_id").unwrap_or("");
     let service_pull_request = matches.value_of("service_pull_request").unwrap_or("");
     let vcs_branch = matches.value_of("vcs_branch").unwrap_or("");
     let log = matches.value_of("log").unwrap_or("");
