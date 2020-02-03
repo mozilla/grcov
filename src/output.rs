@@ -366,10 +366,10 @@ fn get_coveralls_git_info(commit_sha: &str, vcs_branch: &str) -> Value {
 
 pub fn output_coveralls(
     results: CovResultIter,
-    repo_token: &str,
-    service_name: &str,
+    repo_token: Option<&str>,
+    service_name: Option<&str>,
     service_number: &str,
-    service_job_id: &str,
+    service_job_id: Option<&str>,
     service_pull_request: &str,
     commit_sha: &str,
     with_function_info: bool,
@@ -431,21 +431,28 @@ pub fn output_coveralls(
 
     let git = get_coveralls_git_info(commit_sha, vcs_branch);
 
+    let mut result = json!({
+        "git": git,
+        "source_files": source_files,
+        "service_number": service_number,
+        "service_pull_request": service_pull_request,
+        "parallel": parallel,
+    });
+
+    if let (Some(repo_token), Some(obj)) = (repo_token, result.as_object_mut()) {
+        obj.insert("repo_token".to_string(), json!(repo_token));
+    }
+
+    if let (Some(service_name), Some(obj)) = (service_name, result.as_object_mut()) {
+        obj.insert("service_name".to_string(), json!(service_name));
+    }
+
+    if let (Some(service_job_id), Some(obj)) = (service_job_id, result.as_object_mut()) {
+        obj.insert("service_job_id".to_string(), json!(service_job_id));
+    }
+
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
-    serde_json::to_writer(
-        &mut writer,
-        &json!({
-            "repo_token": repo_token,
-            "git": git,
-            "source_files": source_files,
-            "service_name": service_name,
-            "service_number": service_number,
-            "service_job_id": service_job_id,
-            "service_pull_request": service_pull_request,
-            "parallel": parallel,
-        }),
-    )
-    .unwrap();
+    serde_json::to_writer(&mut writer, &result).unwrap();
 }
 
 pub fn output_files(results: CovResultIter, output_file: Option<&str>) {
@@ -610,10 +617,10 @@ mod tests {
         let parallel: bool = true;
         output_coveralls(
             results,
+            None,
+            None,
             "unused",
-            "unused",
-            "unused",
-            expected_service_job_id,
+            Some(expected_service_job_id),
             "unused",
             "unused",
             with_function_info,
@@ -625,5 +632,85 @@ mod tests {
         let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
 
         assert_eq!(results["service_job_id"], expected_service_job_id);
+    }
+
+    #[test]
+    fn test_coveralls_token_field_is_absent_if_arg_is_none() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_coveralls_token.json";
+        let file_path = tmp_dir.path().join(&file_name);
+
+        let results = vec![(
+            PathBuf::from("foo/bar/a.cpp"),
+            PathBuf::from("foo/bar/a.cpp"),
+            CovResult {
+                lines: [(1, 10), (2, 11)].iter().cloned().collect(),
+                branches: BTreeMap::new(),
+                functions: FxHashMap::default(),
+            },
+        )];
+
+        let results = Box::new(results.into_iter());
+        let token = None;
+        let with_function_info: bool = true;
+        let parallel: bool = true;
+        output_coveralls(
+            results,
+            token,
+            None,
+            "unused",
+            None,
+            "unused",
+            "unused",
+            with_function_info,
+            Some(file_path.to_str().unwrap()),
+            "unused",
+            parallel,
+        );
+
+        let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
+
+        assert_eq!(results.get("repo_token"), None);
+    }
+
+    #[test]
+    fn test_coveralls_service_fields_are_absent_if_args_are_none() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_coveralls_service_fields.json";
+        let file_path = tmp_dir.path().join(&file_name);
+
+        let results = vec![(
+            PathBuf::from("foo/bar/a.cpp"),
+            PathBuf::from("foo/bar/a.cpp"),
+            CovResult {
+                lines: [(1, 10), (2, 11)].iter().cloned().collect(),
+                branches: BTreeMap::new(),
+                functions: FxHashMap::default(),
+            },
+        )];
+
+        let results = Box::new(results.into_iter());
+        let service_name = None;
+        let service_job_id = None;
+        let with_function_info: bool = true;
+        let parallel: bool = true;
+        output_coveralls(
+            results,
+            None,
+            service_name,
+            "unused",
+            service_job_id,
+            "unused",
+            "unused",
+            with_function_info,
+            Some(file_path.to_str().unwrap()),
+            "unused",
+            parallel,
+        );
+
+        let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
+
+        assert_eq!(results.get("service_name"), None);
+        assert_eq!(results.get("service_job_id"), None);
     }
 }
