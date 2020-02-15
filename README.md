@@ -6,7 +6,7 @@
 ![crates.io](https://img.shields.io/crates/v/grcov.svg)
 
 grcov collects and aggregates code coverage information for multiple source files. 
-It should be possible to run grcov on Linux, OSX and Windows.
+Linux, OSX and Windows are supported.
 
 This is a project initiated by Mozilla to gather code coverage results on Firefox.
 
@@ -55,22 +55,6 @@ grcov ./target/debug/ -s . -t html --llvm --branch --ignore-not-existing -o ./ta
 You can see the report in `target/debug/coverage/index.html`.
 
 (or alterntatively with `-t lcov` grcov will output a lcov compatible coverage report that you could then feed into lcov's `genhtml` command).
-
-
-## Alternative reports
-
-grcov provides the following output types:
-
-| output type    | Description |
-| ---            | ---         |
-| lcov  default  | lcov's INFO format that is compatible with the linux coverage project. |
-| ade            | ActiveData\-ETL format. Only useful for mozilla projects               |
-| coveralls      | Upload coverage output directly to coveralls.io (requires token parameter). | 
-| coveralls+     | Like coveralls but with function level information. |
-| files          | Output a file list of source files. |
-| covdir         | Provides coverage in a JSON format. |
-| html           | Output a directory full of html files showing in detail the covered and uncovered source.  |
-
 
 ### lcov's genhtml
 
@@ -162,6 +146,20 @@ OPTIONS:
 ARGS:
     <paths>...    Sets the input paths to use
 ```
+
+## Alternative reports
+
+grcov provides the following output types:
+
+| Output Type `-t` | Description |
+| ---            | ---         |
+| lcov (default) | lcov's INFO format that is compatible with the linux coverage project. |
+| ade            | ActiveData\-ETL format. Only useful for mozilla projects               |
+| coveralls      | Upload coverage output directly to coveralls.io (requires token parameter). | 
+| coveralls+     | Like coveralls but with function level information. |
+| files          | Output a file list of source files. |
+| covdir         | Provides coverage in a JSON format. |
+| html           | Output a directory full of html files showing in detail the covered and uncovered source.  |
 
 ### Auto-formatting
 
