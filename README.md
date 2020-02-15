@@ -38,30 +38,66 @@ These will ensure that things like dead code elimination do not skew the coverag
 `cargo build`
 
 If you look in `target/debug/deps` dir you will see `.gcno` files have appeared. These are the locations that could be covered.
-f
+
 4. Run your tests:
 
 `cargo test`
 
 In the `target/debug/deps/` dir you will now also see `.gcda` files. These contain the hit counts on which of those locations have been reached. Both sets of files are used as inputs to `grcov`.
  
-4. Run grcov!
+5. Run grcov!
 
+Generate a html coverage report like this:
 ```sh
-grcov ./target/debug/ -s . -t lcov --llvm --branch --ignore-not-existing -o ./target/debug/lcov.info
+grcov ./target/debug/ -s . -t html --llvm --branch --ignore-not-existing -o ./target/debug/coverage/
 ```
 
-5. Create reports
+You can see the report in `target/debug/coverage/index.html`.
 
-As the LCOV output is compatible with `lcov`, `genhtml` can be used to generate a HTML summary of the code coverage.
+(or alterntatively with `-t lcov` grcov will output a lcov compatible coverage report that you could then feed into lcov's `genhtml` command).
 
-The `genhtml` command is part of `lcov` - the linux coverage project (availble from cygwin/msys2 package managers on windows).
 
+## Alternative reports
+
+### lcov's genhtml
+
+By passing `-t lcov` you could generate an lcov.info file and pass it to genhtml:
 ```sh
 genhtml -o ./target/debug/coverage/ --show-details --highlight --ignore-errors source --legend ./target/debug/lcov.info
 ```
 
-You can now see the report in `target/debug/coverage/index.html`.
+### Coveralls/Codecov output
+
+Coverage can also be sent directly from grcov to coveralls:
+
+```sh
+grcov ./target/debug -t coveralls -s . --token YOUR_COVERALLS_TOKEN > coveralls.json
+```
+
+### grcov with Travis
+
+Here is an example of .travis.yml file
+```YAML
+language: rust
+
+before_install:
+  - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
+
+matrix:
+  include:
+    - os: linux
+      rust: nightly
+
+script:
+    - export CARGO_INCREMENTAL=0
+    - export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"
+    - cargo build --verbose $CARGO_OPTIONS
+    - cargo test --verbose $CARGO_OPTIONS
+    - |
+      zip -0 ccov.zip `find . \( -name "YOUR_PROJECT_NAME*.gc*" \) -print`;
+      ./grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o lcov.info;
+      bash <(curl -s https://codecov.io/bash) -f lcov.info;
+```
 
 ## man grcov:
 
@@ -112,39 +148,6 @@ OPTIONS:
 
 ARGS:
     <paths>...    Sets the input paths to use
-```
-
-### Coveralls/Codecov output
-
-Coverage can also be sent directly from grcov to coveralls:
-
-```sh
-grcov ./target/debug -t coveralls -s . --token YOUR_COVERALLS_TOKEN > coveralls.json
-```
-
-### grcov with Travis
-
-Here is an example of .travis.yml file
-```YAML
-language: rust
-
-before_install:
-  - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
-
-matrix:
-  include:
-    - os: linux
-      rust: nightly
-
-script:
-    - export CARGO_INCREMENTAL=0
-    - export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"
-    - cargo build --verbose $CARGO_OPTIONS
-    - cargo test --verbose $CARGO_OPTIONS
-    - |
-      zip -0 ccov.zip `find . \( -name "YOUR_PROJECT_NAME*.gc*" \) -print`;
-      ./grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o lcov.info;
-      bash <(curl -s https://codecov.io/bash) -f lcov.info;
 ```
 
 ### Auto-formatting
