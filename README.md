@@ -61,15 +61,16 @@ You can see the report in `target/debug/coverage/index.html`.
 
 grcov provides the following output types:
 
-| output type   | Description                                                                                
---------------------------------------------------------------------------------------------------------------
-| lcov (default)| lcov's INFO format that is compatible with the linux coverage project.                     
-| ade           | ActiveData-ETL format (Probably only useful for mozilla projects)                          
-| coveralls     | Upload coverage output directly to coveralls.io (requires --token).                        
-| coveralls+    | Like coveralls but with function level information.                                        
-| files         | Output a file list of source files.                                                        
-| covdir        | Provides coverage in a JSON format.                                                        
-| html          | Output a directory full of html files showing in detail the covered and uncovered source.  
+| output type    | Description |
+| ---            | ---         |
+| lcov  default  | lcov's INFO format that is compatible with the linux coverage project. |
+| ade            | ActiveData\-ETL format. Only useful for mozilla projects               |
+| coveralls      | Upload coverage output directly to coveralls.io (requires token parameter). | 
+| coveralls+     | Like coveralls but with function level information. |
+| files          | Output a file list of source files. |
+| covdir         | Provides coverage in a JSON format. |
+| html           | Output a directory full of html files showing in detail the covered and uncovered source.  |
+
 
 ### lcov's genhtml
 
