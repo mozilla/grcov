@@ -5,7 +5,8 @@
 [![codecov](https://codecov.io/gh/mozilla/grcov/branch/master/graph/badge.svg)](https://codecov.io/gh/mozilla/grcov)
 ![crates.io](https://img.shields.io/crates/v/grcov.svg)
 
-grcov collects and aggregates code coverage information for multiple source files. 
+grcov collects and aggregates code coverage information for multiple source files.
+grcov processes .gcda files which can be generated from llvm/clang or gcc.
 Linux, OSX and Windows are supported.
 
 This is a project initiated by Mozilla to gather code coverage results on Firefox.
@@ -20,12 +21,70 @@ This is a project initiated by Mozilla to gather code coverage results on Firefo
 * [Minimum requirements](#minimum-requirements)
 * [License](#license)
 
+## man grcov:
 
-## How to get a coverage report
+```
+USAGE:
+    grcov [FLAGS] [OPTIONS] <paths>...
 
-1. Download grcov from [releases](https://github.com/mozilla/grcov/releases) or run `cargo install grcov`
+FLAGS:
+        --branch                          Enables parsing branch coverage information
+        --guess-directory-when-missing
+    -h, --help                            Prints help information
+        --ignore-not-existing             Ignore source files that can't be found on the disk
+        --llvm                            Speeds-up parsing, when the code coverage information is exclusively coming
+                                          from a llvm build
+    -V, --version                         Prints version information
 
-2. Ensure that the following environment variables are set up:
+OPTIONS:
+        --commit-sha <COMMIT HASH>                   Sets the hash of the commit used to generate the code coverage data
+        --filter <filter>
+            Filters out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered' to only return
+            uncovered files [possible values: covered, uncovered]
+        --ignore <PATH>...                           Ignore files/directories specified as globs
+        --log <LOG>
+            Set the file where to log (or stderr or stdout). Defaults to 'stderr' [default: stderr]
+
+    -o, --output-file <FILE>                         Specifies the output file
+    -t, --output-type <OUTPUT TYPE>
+            Sets a custom output type [default: lcov]  [possible values: ade, lcov, coveralls, coveralls+, files,
+            covdir, html]
+        --path-mapping <PATH>...
+    -p, --prefix-dir <PATH>
+            Specifies a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that
+            generated the code coverage information)
+        --service-job-number <SERVICE JOB NUMBER>    Sets the service job number
+        --service-name <SERVICE NAME>                Sets the service name
+        --service-number <SERVICE NUMBER>            Sets the service number
+        --service-pull-request <SERVICE PULL REQUEST>
+                                                     Sets the service pull request number
+
+    -s, --source-dir <DIRECTORY>                     Specifies the root directory of the source files
+        --threads <NUMBER>                            [default: 16]
+        --token <TOKEN>
+            Sets the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' formats
+
+        --vcs-branch <VCS BRANCH>
+            Set the branch for coveralls report. Defaults to 'master' [default: master]
+
+
+ARGS:
+    <paths>...    Sets the input paths to use
+```
+
+
+## How to get grcov
+
+Grcov can be download grcov from [releases](https://github.com/mozilla/grcov/releases) or if you have rust installed,
+you can run `cargo install grcov`.
+
+## Example: How to generate .gcda files for from C/C++
+
+Pass `-ftest-coverage` and `-fprofile-arcs` options to `gcc` (see [gcc docs](https://gcc.gnu.org/onlinedocs/gcc/Gcov-Data-Files.html)), or pass the `--coverage` option to `clang`
+
+## Example: How to generate .gcda fiels for a Rust project
+
+1. Ensure that the following environment variables are set up:
 
 ```sh
 export CARGO_INCREMENTAL=0
@@ -33,19 +92,19 @@ export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-c
 ```
 These will ensure that things like dead code elimination do not skew the coverage.
 
-3. Build your code:
+2. Build your code:
 
 `cargo build`
 
 If you look in `target/debug/deps` dir you will see `.gcno` files have appeared. These are the locations that could be covered.
 
-4. Run your tests:
+3. Run your tests:
 
 `cargo test`
 
-In the `target/debug/deps/` dir you will now also see `.gcda` files. These contain the hit counts on which of those locations have been reached. Both sets of files are used as inputs to `grcov`.
- 
-5. Run grcov!
+In the `target/debug/deps/` dir you will now also see `.gcda` files. These contain the hit counts on which of those locations have been reached. Both sets of files are used as inputs to `grcov`. 
+
+## Genrate a coverage report from .gcda files
 
 Generate a html coverage report like this:
 ```sh
@@ -96,57 +155,6 @@ script:
       bash <(curl -s https://codecov.io/bash) -f lcov.info;
 ```
 
-## man grcov:
-
-```
-USAGE:
-    grcov [FLAGS] [OPTIONS] <paths>...
-
-FLAGS:
-        --branch                          Enables parsing branch coverage information
-        --guess-directory-when-missing
-    -h, --help                            Prints help information
-        --ignore-not-existing             Ignore source files that can't be found on the disk
-        --llvm                            Speeds-up parsing, when the code coverage information is exclusively coming
-                                          from a llvm build
-    -V, --version                         Prints version information
-
-OPTIONS:
-        --commit-sha <COMMIT HASH>                   Sets the hash of the commit used to generate the code coverage data
-        --filter <filter>
-            Filters out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered' to only return
-            uncovered files [possible values: covered, uncovered]
-        --ignore <PATH>...                           Ignore files/directories specified as globs
-        --log <LOG>
-            Set the file where to log (or stderr or stdout). Defaults to 'stderr' [default: stderr]
-
-    -o, --output-file <FILE>                         Specifies the output file
-    -t, --output-type <OUTPUT TYPE>
-            Sets a custom output type [default: lcov]  [possible values: ade, lcov, coveralls, coveralls+, files,
-            covdir, html]
-        --path-mapping <PATH>...
-    -p, --prefix-dir <PATH>
-            Specifies a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that
-            generated the code coverage information)
-        --service-job-id <SERVICE JOB ID>            Sets the service job id [aliases: service-job-number]
-        --service-name <SERVICE NAME>                Sets the service name
-        --service-number <SERVICE NUMBER>            Sets the service number
-        --service-pull-request <SERVICE PULL REQUEST>
-                                                     Sets the service pull request number
-
-    -s, --source-dir <DIRECTORY>                     Specifies the root directory of the source files
-        --threads <NUMBER>                            [default: 16]
-        --token <TOKEN>
-            Sets the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' formats
-
-        --vcs-branch <VCS BRANCH>
-            Set the branch for coveralls report. Defaults to 'master' [default: master]
-
-
-ARGS:
-    <paths>...    Sets the input paths to use
-```
-
 ## Alternative reports
 
 grcov provides the following output types:
@@ -154,12 +162,12 @@ grcov provides the following output types:
 | Output Type `-t` | Description |
 | ---            | ---         |
 | lcov (default) | lcov's INFO format that is compatible with the linux coverage project. |
-| ade            | ActiveData\-ETL format. Only useful for mozilla projects               |
-| coveralls      | Upload coverage output directly to coveralls.io (requires token parameter). | 
+| ade            | ActiveData\-ETL format. Only useful for Mozilla projects. |
+| coveralls      | Generates coverage in  Coveralls format (and optionally takes a token parameter). | 
 | coveralls+     | Like coveralls but with function level information. |
-| files          | Output a file list of source files. |
-| covdir         | Provides coverage in a JSON format. |
-| html           | Output a directory full of html files showing in detail the covered and uncovered source.  |
+| files          | Output a file list of covered or uncovered source files. |
+| covdir         | Provides coverage in a recursive JSON format. |
+| html           | Output a HTML coverage report. |
 
 ### Auto-formatting
 
