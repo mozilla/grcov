@@ -228,6 +228,7 @@ pub fn output_lcov(results: CovResultIter, output_file: Option<&str>) {
         }
 
         // branch coverage information
+        let mut branch_count = 0;
         let mut branch_hit = 0;
         for (line, ref taken) in &result.branches {
             for (n, b_t) in taken.iter().enumerate() {
@@ -242,10 +243,11 @@ pub fn output_lcov(results: CovResultIter, output_file: Option<&str>) {
                 if *b_t {
                     branch_hit += 1;
                 }
+                branch_count += 1;
             }
         }
 
-        writeln!(writer, "BRF:{}", result.branches.len()).unwrap();
+        writeln!(writer, "BRF:{}", branch_count).unwrap();
         writeln!(writer, "BRH:{}", branch_hit).unwrap();
 
         for (line, execution_count) in &result.lines {
