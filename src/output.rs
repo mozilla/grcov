@@ -228,8 +228,10 @@ pub fn output_lcov(results: CovResultIter, output_file: Option<&str>) {
         }
 
         // branch coverage information
+        let mut branch_count = 0;
         let mut branch_hit = 0;
         for (line, ref taken) in &result.branches {
+            branch_count += taken.len();
             for (n, b_t) in taken.iter().enumerate() {
                 writeln!(
                     writer,
@@ -245,7 +247,7 @@ pub fn output_lcov(results: CovResultIter, output_file: Option<&str>) {
             }
         }
 
-        writeln!(writer, "BRF:{}", result.branches.len()).unwrap();
+        writeln!(writer, "BRF:{}", branch_count).unwrap();
         writeln!(writer, "BRH:{}", branch_hit).unwrap();
 
         for (line, execution_count) in &result.lines {
@@ -538,6 +540,39 @@ mod tests {
         let mut s = String::new();
         f.read_to_string(&mut s).unwrap();
         s
+    }
+
+    #[test]
+    fn test_lcov_brf_brh() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_lcov_brf_brh.info";
+        let file_path = tmp_dir.path().join(&file_name);
+
+        let results = vec![
+            (
+                PathBuf::from("foo/bar/a.cpp"),
+                PathBuf::from("foo/bar/a.cpp"),
+                CovResult {
+                    lines: [(1, 10), (2, 11)].iter().cloned().collect(),
+                    branches: {
+                        let mut map = BTreeMap::new();
+                        // 3 hit branches over 10
+                        map.insert(1, vec![true, false, false, true, false, false]);
+                        map.insert(2, vec![false, false, false, true]);
+                        map
+                    },
+                    functions: FxHashMap::default(),
+                },
+            ),
+        ];
+
+        let results = Box::new(results.into_iter());
+        output_lcov(results, Some(file_path.to_str().unwrap()));
+
+        let results = read_file(&file_path);
+
+        assert!(results.contains("BRF:10\n"));
+        assert!(results.contains("BRH:3\n"));
     }
 
     #[test]
