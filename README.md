@@ -104,7 +104,7 @@ If you look in `target/debug/deps` dir you will see `.gcno` files have appeared.
 
 In the `target/debug/deps/` dir you will now also see `.gcda` files. These contain the hit counts on which of those locations have been reached. Both sets of files are used as inputs to `grcov`. 
 
-## Genrate a coverage report from .gcda files
+## Generate a coverage report from .gcda files
 
 Generate a html coverage report like this:
 ```sh
