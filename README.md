@@ -75,7 +75,7 @@ ARGS:
 
 ## How to get grcov
 
-Grcov can be download grcov from [releases](https://github.com/mozilla/grcov/releases) or if you have rust installed,
+Grcov can be downloaded from [releases](https://github.com/mozilla/grcov/releases) or, if you have Rust installed,
 you can run `cargo install grcov`.
 
 ## Example: How to generate .gcda files for from C/C++
