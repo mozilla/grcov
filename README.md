@@ -80,7 +80,7 @@ you can run `cargo install grcov`.
 
 ## Example: How to generate .gcda files for from C/C++
 
-Pass `-ftest-coverage` and `-fprofile-arcs` options to `gcc` (see [gcc docs](https://gcc.gnu.org/onlinedocs/gcc/Gcov-Data-Files.html)), or pass the `--coverage` option to `clang`
+Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-coverage` and `-fprofile-arcs` options (see [gcc docs](https://gcc.gnu.org/onlinedocs/gcc/Gcov-Data-Files.html)).
 
 ## Example: How to generate .gcda fiels for a Rust project
 
@@ -124,7 +124,7 @@ genhtml -o ./target/debug/coverage/ --show-details --highlight --ignore-errors s
 
 ### Coveralls/Codecov output
 
-Coverage can also be sent directly from grcov to coveralls:
+Coverage can also be generated in coveralls format:
 
 ```sh
 grcov ./target/debug -t coveralls -s . --token YOUR_COVERALLS_TOKEN > coveralls.json
