@@ -2,6 +2,8 @@ extern crate tempfile;
 
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
+use std::collections::hash_map;
+use std::convert::TryInto;
 use std::env;
 use std::fs::{self, File};
 use std::io::{self, BufReader, Read};
@@ -34,6 +36,19 @@ pub struct Archive {
 pub struct GCNOStem {
     pub stem: String,
     pub llvm: bool,
+    pub stamp: u32,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct GCDAId {
+    pub file_name: String,
+    pub stamp: u32,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct GCDAStem {
+    pub stem: String,
+    pub valid: bool,
 }
 
 #[cfg(not(windows))]
@@ -69,6 +84,7 @@ impl Archive {
         path: &PathBuf,
         gcno_stem_archives: &RefCell<FxHashMap<GCNOStem, &'a Archive>>,
         gcda_stem_archives: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        gcda_id_stem: &RefCell<FxHashMap<GCDAId, GCDAStem>>,
         infos: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         xmls: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         linked_files_maps: &RefCell<FxHashMap<String, &'a Archive>>,
@@ -77,18 +93,42 @@ impl Archive {
         if let Some(ext) = path.extension() {
             match ext.to_str().unwrap() {
                 "gcno" => {
-                    let llvm = is_llvm || Archive::check_file(file, &Archive::is_gcno_llvm);
+                    let (llvm, stamp) = Archive::get_llvm_stamp(file);
+                    let llvm = is_llvm || llvm;
                     let filename = clean_path(&path.with_extension(""));
                     gcno_stem_archives.borrow_mut().insert(
                         GCNOStem {
                             stem: filename,
                             llvm,
+                            stamp,
                         },
                         self,
                     );
                 }
                 "gcda" => {
-                    let filename = clean_path(&path.with_extension(""));
+                    let (_, stamp) = Archive::get_llvm_stamp(file);
+                    let no_ext = path.with_extension("");
+                    let filename = clean_path(&no_ext);
+
+                    let mut gcda_id_stem = gcda_id_stem.borrow_mut();
+                    let id = GCDAId {
+                        file_name: no_ext.file_name().unwrap().to_str().unwrap().to_string(),
+                        stamp,
+                    };
+
+                    match gcda_id_stem.entry(id) {
+                        hash_map::Entry::Occupied(mut e) => {
+                            let stem = e.get_mut();
+                            stem.valid = stem.valid && stem.stem == filename;
+                        }
+                        hash_map::Entry::Vacant(e) => {
+                            e.insert(GCDAStem {
+                                stem: filename.clone(),
+                                valid: true,
+                            });
+                        }
+                    }
+
                     self.insert_vec(filename, gcda_stem_archives);
                 }
                 "info" => {
@@ -113,12 +153,6 @@ impl Archive {
                 _ => {}
             }
         }
-    }
-
-    fn is_gcno_llvm(reader: &mut dyn Read) -> bool {
-        let mut bytes: [u8; 8] = [0; 8];
-        reader.read_exact(&mut bytes).is_ok()
-            && bytes == [b'o', b'n', b'c', b'g', b'*', b'2', b'0', b'4']
     }
 
     fn is_jacoco(reader: &mut dyn Read) -> bool {
@@ -148,6 +182,26 @@ impl Archive {
         }
     }
 
+    fn get_llvm_stamp(file: FilePath) -> (bool, u32) {
+        let mut bytes: [u8; 12] = [0; 12];
+        let has_been_read = match file {
+            FilePath::File(reader) => reader.read_exact(&mut bytes).is_ok(),
+            FilePath::Path(path) => match File::open(path) {
+                Ok(mut f) => f.read_exact(&mut bytes).is_ok(),
+                Err(_) => false,
+            },
+        };
+
+        if has_been_read {
+            (
+                &bytes[0..8] == b"oncg*204",
+                u32::from_le_bytes(bytes[8..].try_into().unwrap()),
+            )
+        } else {
+            (false, 0)
+        }
+    }
+
     pub fn get_name(&self) -> &String {
         &self.name
     }
@@ -156,6 +210,7 @@ impl Archive {
         &'a mut self,
         gcno_stem_archives: &RefCell<FxHashMap<GCNOStem, &'a Archive>>,
         gcda_stem_archives: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        gcda_id_stem: &RefCell<FxHashMap<GCDAId, GCDAStem>>,
         infos: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         xmls: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         linked_files_maps: &RefCell<FxHashMap<String, &'a Archive>>,
@@ -172,6 +227,7 @@ impl Archive {
                         &path,
                         gcno_stem_archives,
                         gcda_stem_archives,
+                        gcda_id_stem,
                         infos,
                         xmls,
                         linked_files_maps,
@@ -191,6 +247,7 @@ impl Archive {
                             &path.to_path_buf(),
                             gcno_stem_archives,
                             gcda_stem_archives,
+                            gcda_id_stem,
                             infos,
                             xmls,
                             linked_files_maps,
@@ -207,6 +264,7 @@ impl Archive {
                         &full_path,
                         gcno_stem_archives,
                         gcda_stem_archives,
+                        gcda_id_stem,
                         infos,
                         xmls,
                         linked_files_maps,
@@ -293,6 +351,7 @@ fn gcno_gcda_producer(
     tmp_dir: &Path,
     gcno_stem_archives: &FxHashMap<GCNOStem, &Archive>,
     gcda_stem_archives: &FxHashMap<String, Vec<&Archive>>,
+    gcda_id_stem: &FxHashMap<GCDAId, GCDAStem>,
     sender: &JobSender,
     ignore_orphan_gcno: bool,
 ) {
@@ -308,7 +367,34 @@ fn gcno_gcda_producer(
 
     for (gcno_stem, gcno_archive) in gcno_stem_archives {
         let stem = &gcno_stem.stem;
-        if let Some(gcda_archives) = gcda_stem_archives.get(stem) {
+        let (gcda_archives, true_gcda_stem) =
+            if let Some(gcda_archives) = gcda_stem_archives.get(stem) {
+                (Some(gcda_archives), None)
+            } else {
+                let stamp = gcno_stem.stamp;
+                let path = PathBuf::from(stem);
+                let file_name = path.file_name().unwrap();
+                let file_name = file_name.to_str().unwrap().to_string();
+                let id = GCDAId { file_name, stamp };
+
+                if let Some(gcda_stem) = gcda_id_stem.get(&id) {
+                    if gcda_stem.valid {
+                        (
+                            gcda_stem_archives.get(&gcda_stem.stem),
+                            Some(gcda_stem.stem.clone()),
+                        )
+                    } else {
+                        panic!(
+                            "Paths in gcno and in gcda archives don't match: {}.gcno != {}.gcda",
+                            stem, gcda_stem.stem
+                        );
+                    }
+                } else {
+                    (None, None)
+                }
+            };
+
+        if let Some(gcda_archives) = gcda_archives {
             let gcno_archive = *gcno_archive;
             let gcno = format!("{}.gcno", stem).to_string();
             let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
@@ -318,7 +404,12 @@ fn gcno_gcda_producer(
                 gcno_archive.read_in_buffer(&gcno, &mut gcno_buffer);
                 for gcda_archive in gcda_archives {
                     let mut gcda_buf: Vec<u8> = Vec::new();
-                    let gcda = format!("{}.gcda", stem).to_string();
+                    let gcda = if let Some(gcda_stem) = true_gcda_stem.as_ref() {
+                        format!("{}.gcda", gcda_stem).to_string()
+                    } else {
+                        format!("{}.gcda", stem).to_string()
+                    };
+
                     if gcda_archive.read_in_buffer(&gcda, &mut gcda_buf) {
                         gcda_buffers.push(gcda_buf);
                     }
@@ -335,7 +426,11 @@ fn gcno_gcda_producer(
                 gcno_archive.extract(&gcno, &physical_gcno_path);
                 for (num, &gcda_archive) in gcda_archives.iter().enumerate() {
                     let gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, num + 1));
-                    let gcda = format!("{}.gcda", stem).to_string();
+                    let gcda = if let Some(gcda_stem) = true_gcda_stem.as_ref() {
+                        format!("{}.gcda", gcda_stem).to_string()
+                    } else {
+                        format!("{}.gcda", stem).to_string()
+                    };
 
                     // Create symlinks.
                     if num != 0 {
@@ -476,6 +571,7 @@ pub fn producer(
         RefCell::new(FxHashMap::default());
     let gcda_stems_archives: RefCell<FxHashMap<String, Vec<&Archive>>> =
         RefCell::new(FxHashMap::default());
+    let gcda_id_stem: RefCell<FxHashMap<GCDAId, GCDAStem>> = RefCell::new(FxHashMap::default());
     let infos: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
     let xmls: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
     let linked_files_maps: RefCell<FxHashMap<String, &Archive>> =
@@ -485,6 +581,7 @@ pub fn producer(
         archive.explore(
             &gcno_stems_archives,
             &gcda_stems_archives,
+            &gcda_id_stem,
             &infos,
             &xmls,
             &linked_files_maps,
@@ -505,6 +602,7 @@ pub fn producer(
         tmp_dir,
         &gcno_stems_archives.into_inner(),
         &gcda_stems_archives.into_inner(),
+        &gcda_id_stem.into_inner(),
         sender,
         ignore_orphan_gcno,
     );
@@ -596,7 +694,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dir_producer() {
+    fn test_dir_producer_toto() {
         let (sender, receiver) = unbounded();
 
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
@@ -688,6 +786,9 @@ mod tests {
                 "jacoco/full-junit4-report-multiple-top-level-classes.xml",
                 false,
             ),
+            // Platform_another_1.gcda is in bad_dir/ so the paths in the archives differ
+            // but thanks to name + stamp we can match them
+            (ItemFormat::GCNO, true, "Platform_another_1.gcno", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
