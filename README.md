@@ -163,7 +163,7 @@ grcov provides the following output types:
 | ---            | ---         |
 | lcov (default) | lcov's INFO format that is compatible with the linux coverage project. |
 | ade            | ActiveData\-ETL format. Only useful for Mozilla projects. |
-| coveralls      | Generates coverage in  Coveralls format (and optionally takes a token parameter). | 
+| coveralls      | Generates coverage in Coveralls format. | 
 | coveralls+     | Like coveralls but with function level information. |
 | files          | Output a file list of covered or uncovered source files. |
 | covdir         | Provides coverage in a recursive JSON format. |
