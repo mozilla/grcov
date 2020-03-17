@@ -6,6 +6,8 @@
 ![crates.io](https://img.shields.io/crates/v/grcov.svg)
 
 grcov collects and aggregates code coverage information for multiple source files.
+grcov processes .gcda files which can be generated from llvm/clang or gcc.
+Linux, OSX and Windows are supported.
 
 This is a project initiated by Mozilla to gather code coverage results on Firefox.
 
@@ -19,10 +21,7 @@ This is a project initiated by Mozilla to gather code coverage results on Firefo
 * [Minimum requirements](#minimum-requirements)
 * [License](#license)
 
-## Usage
-
-1. Download grcov from https://github.com/mozilla/grcov/releases or run ```cargo install grcov```
-2. Run grcov:
+## man grcov:
 
 ```
 USAGE:
@@ -73,23 +72,62 @@ ARGS:
     <paths>...    Sets the input paths to use
 ```
 
-Let's see a few examples, assuming the source directory is `~/Documents/mozilla-central` and the build directory is `~/Documents/mozilla-central/build`.
 
-### LCOV output
+## How to get grcov
+
+Grcov can be downloaded from [releases](https://github.com/mozilla/grcov/releases) or, if you have Rust installed,
+you can run `cargo install grcov`.
+
+## Example: How to generate .gcda files for from C/C++
+
+Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-coverage` and `-fprofile-arcs` options (see [gcc docs](https://gcc.gnu.org/onlinedocs/gcc/Gcov-Data-Files.html)).
+
+## Example: How to generate .gcda fiels for a Rust project
+
+1. Ensure that the following environment variables are set up:
 
 ```sh
-grcov ~/Documents/mozilla-central/build -t lcov > lcov.info
+export CARGO_INCREMENTAL=0
+export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"
+```
+These will ensure that things like dead code elimination do not skew the coverage.
+
+2. Build your code:
+
+`cargo build`
+
+If you look in `target/debug/deps` dir you will see `.gcno` files have appeared. These are the locations that could be covered.
+
+3. Run your tests:
+
+`cargo test`
+
+In the `target/debug/deps/` dir you will now also see `.gcda` files. These contain the hit counts on which of those locations have been reached. Both sets of files are used as inputs to `grcov`. 
+
+## Generate a coverage report from .gcda files
+
+Generate a html coverage report like this:
+```sh
+grcov ./target/debug/ -s . -t html --llvm --branch --ignore-not-existing -o ./target/debug/coverage/
 ```
 
-As the LCOV output is compatible with `lcov`, `genhtml` can be used to generate a HTML summary of the code coverage:
+You can see the report in `target/debug/coverage/index.html`.
+
+(or alterntatively with `-t lcov` grcov will output a lcov compatible coverage report that you could then feed into lcov's `genhtml` command).
+
+### lcov's genhtml
+
+By passing `-t lcov` you could generate an lcov.info file and pass it to genhtml:
 ```sh
-genhtml -o report/ --show-details --highlight --ignore-errors source --legend lcov.info
+genhtml -o ./target/debug/coverage/ --show-details --highlight --ignore-errors source --legend ./target/debug/lcov.info
 ```
 
 ### Coveralls/Codecov output
 
+Coverage can also be generated in coveralls format:
+
 ```sh
-grcov ~/Documents/FD/mozilla-central/build -t coveralls -s ~/Documents/FD/mozilla-central --token YOUR_COVERALLS_TOKEN > coveralls.json
+grcov ./target/debug -t coveralls -s . --token YOUR_COVERALLS_TOKEN > coveralls.json
 ```
 
 ### grcov with Travis
@@ -116,6 +154,20 @@ script:
       ./grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o lcov.info;
       bash <(curl -s https://codecov.io/bash) -f lcov.info;
 ```
+
+## Alternative reports
+
+grcov provides the following output types:
+
+| Output Type `-t` | Description |
+| ---            | ---         |
+| lcov (default) | lcov's INFO format that is compatible with the linux coverage project. |
+| ade            | ActiveData\-ETL format. Only useful for Mozilla projects. |
+| coveralls      | Generates coverage in Coveralls format. | 
+| coveralls+     | Like coveralls but with function level information. |
+| files          | Output a file list of covered or uncovered source files. |
+| covdir         | Provides coverage in a recursive JSON format. |
+| html           | Output a HTML coverage report. |
 
 ### Auto-formatting
 
