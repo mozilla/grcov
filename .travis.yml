@@ -106,6 +106,10 @@ matrix:
 
     - os: osx
       rust: nightly
+      addons:
+        homebrew:
+          packages:
+            - gperftools
       env:
         - CLANG_CXX=clang++
         - DEPLOY=1
