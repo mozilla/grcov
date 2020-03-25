@@ -217,34 +217,44 @@ impl Archive {
         }
     }
 
-    pub fn read_in_buffer(&self, name: &str, buf: &mut Vec<u8>) -> bool {
+    pub fn read(&self, name: &str) -> Option<Vec<u8>> {
         match *self.item.borrow_mut() {
             ArchiveType::Zip(ref mut zip) => {
                 let mut zip = zip.borrow_mut();
                 let zipfile = zip.by_name(&name);
                 match zipfile {
                     Ok(mut f) => {
-                        f.read_to_end(buf).expect("Failed to read gcda file");
-                        true
+                        let mut buf = Vec::with_capacity(f.size() as usize + 1);
+                        f.read_to_end(&mut buf).expect("Failed to read gcda file");
+                        Some(buf)
                     }
-                    Err(_) => false,
+                    Err(_) => None,
                 }
             }
-            ArchiveType::Dir(ref dir) => match File::open(dir.join(name)) {
-                Ok(mut f) => {
-                    f.read_to_end(buf).expect("Failed to read gcda file");
-                    true
+            ArchiveType::Dir(ref dir) => {
+                let path = dir.join(name);
+                let metadata = fs::metadata(&path).unwrap();
+                match File::open(path) {
+                    Ok(mut f) => {
+                        let mut buf = Vec::with_capacity(metadata.len() as usize + 1);
+                        f.read_to_end(&mut buf).expect("Failed to read gcda file");
+                        Some(buf)
+                    }
+                    Err(_) => None,
                 }
-                Err(_) => false,
-            },
-            ArchiveType::Plain(_) => match File::open(name) {
-                Ok(mut f) => {
-                    f.read_to_end(buf)
-                        .expect(&format!("Failed to read file: {}.", name));
-                    true
+            }
+            ArchiveType::Plain(_) => {
+                let metadata = fs::metadata(name).unwrap();
+                match File::open(name) {
+                    Ok(mut f) => {
+                        let mut buf = Vec::with_capacity(metadata.len() as usize + 1);
+                        f.read_to_end(&mut buf)
+                            .expect(&format!("Failed to read file: {}.", name));
+                        Some(buf)
+                    }
+                    Err(_) => None,
                 }
-                Err(_) => false,
-            },
+            }
         }
     }
 
@@ -313,24 +323,23 @@ fn gcno_gcda_producer(
             let gcno = format!("{}.gcno", stem).to_string();
             let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
             if gcno_stem.llvm {
-                let mut gcno_buffer: Vec<u8> = Vec::new();
                 let mut gcda_buffers: Vec<Vec<u8>> = Vec::with_capacity(gcda_archives.len());
-                gcno_archive.read_in_buffer(&gcno, &mut gcno_buffer);
-                for gcda_archive in gcda_archives {
-                    let mut gcda_buf: Vec<u8> = Vec::new();
-                    let gcda = format!("{}.gcda", stem).to_string();
-                    if gcda_archive.read_in_buffer(&gcda, &mut gcda_buf) {
-                        gcda_buffers.push(gcda_buf);
+                if let Some(gcno_buffer) = gcno_archive.read(&gcno) {
+                    for gcda_archive in gcda_archives {
+                        let gcda = format!("{}.gcda", stem).to_string();
+                        if let Some(gcda_buf) = gcda_archive.read(&gcda) {
+                            gcda_buffers.push(gcda_buf);
+                        }
                     }
+                    send_job(
+                        ItemType::Buffers(GcnoBuffers {
+                            stem: stem.clone(),
+                            gcno_buf: gcno_buffer,
+                            gcda_buf: gcda_buffers,
+                        }),
+                        "".to_string(),
+                    );
                 }
-                send_job(
-                    ItemType::Buffers(GcnoBuffers {
-                        stem: stem.clone(),
-                        gcno_buf: gcno_buffer,
-                        gcda_buf: gcda_buffers,
-                    }),
-                    "".to_string(),
-                );
             } else {
                 gcno_archive.extract(&gcno, &physical_gcno_path);
                 for (num, &gcda_archive) in gcda_archives.iter().enumerate() {
@@ -358,17 +367,16 @@ fn gcno_gcda_producer(
             let gcno_archive = *gcno_archive;
             let gcno = format!("{}.gcno", stem).to_string();
             if gcno_stem.llvm {
-                let mut buffer: Vec<u8> = Vec::new();
-                gcno_archive.read_in_buffer(&gcno, &mut buffer);
-
-                send_job(
-                    ItemType::Buffers(GcnoBuffers {
-                        stem: stem.clone(),
-                        gcno_buf: buffer,
-                        gcda_buf: Vec::new(),
-                    }),
-                    gcno_archive.get_name().to_string(),
-                );
+                if let Some(gcno_buf) = gcno_archive.read(&gcno) {
+                    send_job(
+                        ItemType::Buffers(GcnoBuffers {
+                            stem: stem.clone(),
+                            gcno_buf,
+                            gcda_buf: Vec::new(),
+                        }),
+                        gcno_archive.get_name().to_string(),
+                    );
+                }
             } else {
                 let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
                 if gcno_archive.extract(&gcno, &physical_gcno_path) {
@@ -389,24 +397,22 @@ fn file_content_producer(
 ) {
     for (name, archives) in files {
         for archive in archives {
-            let mut buffer = Vec::new();
-            archive.read_in_buffer(name, &mut buffer);
-            sender
-                .send(Some(WorkItem {
-                    format: item_format,
-                    item: ItemType::Content(buffer),
-                    name: archive.get_name().to_string(),
-                }))
-                .unwrap();
+            if let Some(buffer) = archive.read(name) {
+                sender
+                    .send(Some(WorkItem {
+                        format: item_format,
+                        item: ItemType::Content(buffer),
+                        name: archive.get_name().to_string(),
+                    }))
+                    .unwrap();
+            }
         }
     }
 }
 
 pub fn get_mapping(linked_files_maps: &FxHashMap<String, &Archive>) -> Option<Vec<u8>> {
     if let Some((ref name, archive)) = linked_files_maps.iter().next() {
-        let mut buffer = Vec::new();
-        archive.read_in_buffer(name, &mut buffer);
-        Some(buffer)
+        archive.read(name)
     } else {
         None
     }
