@@ -233,26 +233,32 @@ impl Archive {
             }
             ArchiveType::Dir(ref dir) => {
                 let path = dir.join(name);
-                let metadata = fs::metadata(&path).unwrap();
-                match File::open(path) {
-                    Ok(mut f) => {
-                        let mut buf = Vec::with_capacity(metadata.len() as usize + 1);
-                        f.read_to_end(&mut buf).expect("Failed to read gcda file");
-                        Some(buf)
+                if let Ok(metadata) = fs::metadata(&path) {
+                    match File::open(path) {
+                        Ok(mut f) => {
+                            let mut buf = Vec::with_capacity(metadata.len() as usize + 1);
+                            f.read_to_end(&mut buf).expect("Failed to read gcda file");
+                            Some(buf)
+                        }
+                        Err(_) => None,
                     }
-                    Err(_) => None,
+                } else {
+                    None
                 }
             }
             ArchiveType::Plain(_) => {
-                let metadata = fs::metadata(name).unwrap();
-                match File::open(name) {
-                    Ok(mut f) => {
-                        let mut buf = Vec::with_capacity(metadata.len() as usize + 1);
-                        f.read_to_end(&mut buf)
-                            .expect(&format!("Failed to read file: {}.", name));
-                        Some(buf)
+                if let Ok(metadata) = fs::metadata(name) {
+                    match File::open(name) {
+                        Ok(mut f) => {
+                            let mut buf = Vec::with_capacity(metadata.len() as usize + 1);
+                            f.read_to_end(&mut buf)
+                                .expect(&format!("Failed to read file: {}.", name));
+                            Some(buf)
+                        }
+                        Err(_) => None,
                     }
-                    Err(_) => None,
+                } else {
+                    None
                 }
             }
         }
