@@ -1,3 +1,9 @@
+#[cfg(unix)]
+use tcmalloc::TCMalloc;
+
+#[cfg_attr(unix, global_allocator)]
+static GLOBAL: TCMalloc = TCMalloc;
+
 extern crate clap;
 extern crate crossbeam;
 extern crate grcov;

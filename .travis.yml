@@ -12,6 +12,7 @@ matrix:
           packages:
             - clang-7
             - g++-5
+            - libgoogle-perftools-dev
       env:
         - GCC_CXX=g++-5
         - GCOV=gcov-5
@@ -28,6 +29,7 @@ matrix:
           packages:
             - clang-7
             - g++-5
+            - libgoogle-perftools-dev
       env:
         - GCC_CXX=g++-5
         - GCOV=gcov-5
@@ -44,6 +46,7 @@ matrix:
           packages:
             - clang-7
             - g++-6
+            - libgoogle-perftools-dev
       env:
         - GCC_CXX=g++-6
         - GCOV=gcov-6
@@ -60,6 +63,7 @@ matrix:
           packages:
             - clang-7
             - g++-7
+            - libgoogle-perftools-dev
       env:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
@@ -76,6 +80,7 @@ matrix:
           packages:
             - clang-8
             - g++-7
+            - libgoogle-perftools-dev
       env:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
@@ -92,6 +97,7 @@ matrix:
           packages:
             - clang
             - g++-7
+            - libgoogle-perftools-dev
       env:
         - GCC_CXX=g++-7
         - GCOV=gcov-7

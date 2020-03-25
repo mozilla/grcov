@@ -48,6 +48,9 @@ chrono = "^0.4"
 log = "^0.4"
 simplelog = "^0.7"
 
+[target.'cfg(unix)'.dependencies]
+#tcmalloc = { version = "^0.3", features = ["bundled"] }
+tcmalloc = "^0.3"
 
 [dev-dependencies]
 regex = "^1.3"
