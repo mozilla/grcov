@@ -106,16 +106,13 @@ matrix:
 
     - os: osx
       rust: nightly
-      addons:
-        homebrew:
-          packages:
-            - gperftools
       env:
         - CLANG_CXX=clang++
         - DEPLOY=1
 install:
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo softwareupdate -i "Command Line Tools (macOS High Sierra version 10.13) for Xcode-9.4"; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew cask uninstall --force oclint; fi
+    - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install gperftools; fi
 script:
     - $CLANG_CXX --version
     - |
