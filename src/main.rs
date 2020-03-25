@@ -1,7 +1,8 @@
 #[cfg(unix)]
 use tcmalloc::TCMalloc;
 
-#[cfg_attr(unix, global_allocator)]
+#[cfg(unix)]
+#[global_allocator]
 static GLOBAL: TCMalloc = TCMalloc;
 
 extern crate clap;
