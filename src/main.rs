@@ -1,7 +1,7 @@
-#[cfg(unix)]
+#[cfg(feature = "tc")]
 use tcmalloc::TCMalloc;
 
-#[cfg(unix)]
+#[cfg(feature = "tc")]
 #[global_allocator]
 static GLOBAL: TCMalloc = TCMalloc;
 
