@@ -148,182 +148,165 @@ pub fn parse_lcov(
 
     let mut line = 0;
 
-    loop {
-        if let Some(c) = iter.next() {
-            line += 1;
-            match *c {
-                b'e' => {
-                    // we've a end_of_record
-                    results.push((
-                        cur_file.unwrap(),
-                        CovResult {
-                            lines: cur_lines,
-                            branches: cur_branches,
-                            functions: cur_functions,
-                        },
-                    ));
+    while let Some(c) = iter.next() {
+        line += 1;
+        match *c {
+            b'e' => {
+                // we've a end_of_record
+                results.push((
+                    cur_file.unwrap(),
+                    CovResult {
+                        lines: cur_lines,
+                        branches: cur_branches,
+                        functions: cur_functions,
+                    },
+                ));
 
-                    cur_file = None;
-                    cur_lines = BTreeMap::new();
-                    cur_branches = BTreeMap::new();
-                    cur_functions = FxHashMap::default();
-                    iter.take_while(|&&c| c != b'\n').fold(0, |_, _| 0);
-                }
-                b'\n' => {
+                cur_file = None;
+                cur_lines = BTreeMap::new();
+                cur_branches = BTreeMap::new();
+                cur_functions = FxHashMap::default();
+                iter.take_while(|&&c| c != b'\n').last();
+            }
+            b'\n' => {
+                continue;
+            }
+            _ => {
+                if *c != b'S' && *c != b'D' && *c != b'F' && *c != b'B' {
+                    iter.take_while(|&&c| c != b'\n').last();
                     continue;
                 }
-                _ => {
-                    if *c != b'S' && *c != b'D' && *c != b'F' && *c != b'B' {
-                        iter.take_while(|&&c| c != b'\n').fold(0, |_, _| 0);
-                        continue;
-                    }
 
-                    let key = iter
-                        .take_while(|&&c| c != b':')
-                        .fold(*c as u32, |r, &x| r * (1 << 8) + u32::from(x));
-                    match key {
-                        SF => {
-                            // SF:string
-                            cur_file = Some(iter.take_while(|&&c| c != b'\n' && c != b'\r').fold(
-                                String::new(),
-                                |mut b, &c| {
-                                    b.push(c as char);
-                                    b
-                                },
-                            ));
+                let key = iter
+                    .take_while(|&&c| c != b':')
+                    .fold(*c as u32, |r, &x| r * (1 << 8) + u32::from(x));
+                match key {
+                    SF => {
+                        // SF:string
+                        cur_file = Some(
+                            iter.take_while(|&&c| c != b'\n' && c != b'\r')
+                                .map(|&c| c as char)
+                                .collect(),
+                        );
+                    }
+                    DA => {
+                        // DA:uint,int
+                        let line_no = iter
+                            .take_while(|&&c| c != b',')
+                            .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
+                        if iter.peek().is_none() {
+                            return Err(ParserError::InvalidRecord(format!("DA at line {}", line)));
                         }
-                        DA => {
-                            // DA:uint,int
+                        let execution_count = if let Some(c) = iter.next() {
+                            if *c == b'-' {
+                                iter.take_while(|&&c| c != b'\n').last();
+                                0
+                            } else {
+                                iter.take_while(|&&c| c != b'\n' && c != b'\r')
+                                    .fold(u64::from(*c - b'0'), |r, &x| {
+                                        r * 10 + u64::from(x - b'0')
+                                    })
+                            }
+                        } else {
+                            0
+                        };
+                        *cur_lines.entry(line_no).or_insert(0) += execution_count;
+                    }
+                    FN => {
+                        // FN:int,string
+                        let start = iter
+                            .take_while(|&&c| c != b',')
+                            .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
+                        if iter.peek().is_none() {
+                            return Err(ParserError::InvalidRecord(format!("FN at line {}", line)));
+                        }
+                        let f_name: String = iter
+                            .take_while(|&&c| c != b'\n' && c != b'\r')
+                            .map(|&c| c as char)
+                            .collect();
+                        if !duplicated_error_logged && cur_functions.contains_key(&f_name) {
+                            error!(
+                                "FN '{}' duplicated for '{}' in a lcov file",
+                                f_name,
+                                cur_file.as_ref().unwrap()
+                            );
+                            duplicated_error_logged = true;
+                        }
+                        cur_functions.insert(
+                            f_name,
+                            Function {
+                                start,
+                                executed: false,
+                            },
+                        );
+                    }
+                    FNDA => {
+                        // FNDA:int,string
+                        let executed = iter
+                            .take_while(|&&c| c != b',')
+                            .fold(0, |r, &x| r * 10 + u64::from(x - b'0'));
+                        if iter.peek().is_none() {
+                            return Err(ParserError::InvalidRecord(format!(
+                                "FNDA at line {}",
+                                line
+                            )));
+                        }
+                        let f_name: String = iter
+                            .take_while(|&&c| c != b'\n' && c != b'\r')
+                            .map(|&c| c as char)
+                            .collect();
+                        if let Some(f) = cur_functions.get_mut(&f_name) {
+                            f.executed |= executed != 0;
+                        } else {
+                            return Err(ParserError::Parse(format!(
+                                "FN record missing for function {}",
+                                f_name
+                            )));
+                        }
+                    }
+                    BRDA => {
+                        // BRDA:int,int,int,int or -
+                        if branch_enabled {
                             let line_no = iter
                                 .take_while(|&&c| c != b',')
                                 .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
                             if iter.peek().is_none() {
                                 return Err(ParserError::InvalidRecord(format!(
-                                    "DA at line {}",
+                                    "BRDA at line {}",
                                     line
                                 )));
                             }
-                            let execution_count = if let Some(c) = iter.next() {
-                                if *c == b'-' {
-                                    iter.take_while(|&&c| c != b'\n').fold(0, |_, _| 0)
-                                } else {
-                                    iter.take_while(|&&c| c != b'\n' && c != b'\r')
-                                        .fold(u64::from(*c - b'0'), |r, &x| {
-                                            r * 10 + u64::from(x - b'0')
-                                        })
-                                }
-                            } else {
-                                0
-                            };
-                            *cur_lines.entry(line_no).or_insert(0) += execution_count;
-                        }
-                        FN => {
-                            // FN:int,string
-                            let start = iter
-                                .take_while(|&&c| c != b',')
-                                .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
-                            if iter.peek().is_none() {
-                                return Err(ParserError::InvalidRecord(format!(
-                                    "FN at line {}",
-                                    line
-                                )));
-                            }
-                            let f_name = iter.take_while(|&&c| c != b'\n' && c != b'\r').fold(
-                                String::new(),
-                                |mut b, &c| {
-                                    b.push(c as char);
-                                    b
-                                },
-                            );
-                            if !duplicated_error_logged && cur_functions.contains_key(&f_name) {
-                                error!(
-                                    "FN '{}' duplicated for '{}' in a lcov file",
-                                    f_name,
-                                    cur_file.as_ref().unwrap()
-                                );
-                                duplicated_error_logged = true;
-                            }
-                            cur_functions.insert(
-                                f_name,
-                                Function {
-                                    start,
-                                    executed: false,
-                                },
-                            );
-                        }
-                        FNDA => {
-                            // FNDA:int,string
-                            let executed = iter
+                            let _block_number = iter
                                 .take_while(|&&c| c != b',')
                                 .fold(0, |r, &x| r * 10 + u64::from(x - b'0'));
                             if iter.peek().is_none() {
                                 return Err(ParserError::InvalidRecord(format!(
-                                    "FNDA at line {}",
+                                    "BRDA at line {}",
                                     line
                                 )));
                             }
-                            let f_name = iter.take_while(|&&c| c != b'\n' && c != b'\r').fold(
-                                String::new(),
-                                |mut b, &c| {
-                                    b.push(c as char);
-                                    b
-                                },
-                            );
-                            if let Some(f) = cur_functions.get_mut(&f_name) {
-                                f.executed |= executed != 0;
-                            } else {
-                                return Err(ParserError::Parse(format!(
-                                    "FN record missing for function {}",
-                                    f_name
+                            let branch_number = iter
+                                .take_while(|&&c| c != b',')
+                                .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
+                            if iter.peek().is_none() {
+                                return Err(ParserError::InvalidRecord(format!(
+                                    "BRDA at line {}",
+                                    line
                                 )));
                             }
+                            let taken = iter
+                                .take_while(|&&c| c != b'\n' && c != b'\r')
+                                .fold(false, |r, &x| r || x != b'-');
+                            add_branch(&mut cur_branches, line_no, branch_number, taken);
+                        } else {
+                            iter.take_while(|&&c| c != b'\n').last();
                         }
-                        BRDA => {
-                            // BRDA:int,int,int,int or -
-                            if branch_enabled {
-                                let line_no = iter
-                                    .take_while(|&&c| c != b',')
-                                    .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
-                                if iter.peek().is_none() {
-                                    return Err(ParserError::InvalidRecord(format!(
-                                        "BRDA at line {}",
-                                        line
-                                    )));
-                                }
-                                let _block_number = iter
-                                    .take_while(|&&c| c != b',')
-                                    .fold(0, |r, &x| r * 10 + u64::from(x - b'0'));
-                                if iter.peek().is_none() {
-                                    return Err(ParserError::InvalidRecord(format!(
-                                        "BRDA at line {}",
-                                        line
-                                    )));
-                                }
-                                let branch_number = iter
-                                    .take_while(|&&c| c != b',')
-                                    .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
-                                if iter.peek().is_none() {
-                                    return Err(ParserError::InvalidRecord(format!(
-                                        "BRDA at line {}",
-                                        line
-                                    )));
-                                }
-                                let taken = iter
-                                    .take_while(|&&c| c != b'\n' && c != b'\r')
-                                    .fold(false, |r, &x| r || x != b'-');
-                                add_branch(&mut cur_branches, line_no, branch_number, taken);
-                            } else {
-                                iter.take_while(|&&c| c != b'\n').fold(0, |_, _| 0);
-                            }
-                        }
-                        _ => {
-                            iter.take_while(|&&c| c != b'\n').fold(0, |_, _| 0);
-                        }
+                    }
+                    _ => {
+                        iter.take_while(|&&c| c != b'\n').last();
                     }
                 }
             }
-        } else {
-            break;
         }
     }
 
