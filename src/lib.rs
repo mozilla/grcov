@@ -245,10 +245,10 @@ pub fn consumer(
             }
             ItemFormat::INFO | ItemFormat::JACOCO_XML => {
                 if let ItemType::Content(content) = work_item.item {
-                    let buffer = BufReader::new(Cursor::new(content));
                     if work_item.format == ItemFormat::INFO {
-                        try_parse!(parse_lcov(buffer, branch_enabled), work_item.name)
+                        try_parse!(parse_lcov(content, branch_enabled), work_item.name)
                     } else {
+                        let buffer = BufReader::new(Cursor::new(content));
                         try_parse!(parse_jacoco_xml_report(buffer), work_item.name)
                     }
                 } else {
@@ -268,6 +268,7 @@ mod tests {
     use rustc_hash::FxHashMap;
     use std::fs::File;
     use std::sync::{Arc, Mutex};
+    use std::io::Read;
 
     #[test]
     fn test_merge_results() {
@@ -361,10 +362,11 @@ mod tests {
 
     #[test]
     fn test_merge_relative_path() {
-        let f = File::open("./test/relative_path/relative_path.info")
+        let mut f = File::open("./test/relative_path/relative_path.info")
             .expect("Failed to open lcov file");
-        let file = BufReader::new(&f);
-        let results = parse_lcov(file, false).unwrap();
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf).unwrap();
+        let results = parse_lcov(buf, false).unwrap();
         let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
             FxHashMap::with_capacity_and_hasher(1, Default::default()),
         ));
@@ -394,10 +396,11 @@ mod tests {
 
     #[test]
     fn test_ignore_relative_path() {
-        let f = File::open("./test/relative_path/relative_path.info")
+        let mut f = File::open("./test/relative_path/relative_path.info")
             .expect("Failed to open lcov file");
-        let file = BufReader::new(&f);
-        let results = parse_lcov(file, false).unwrap();
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf).unwrap();
+        let results = parse_lcov(buf, false).unwrap();
         let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
             FxHashMap::with_capacity_and_hasher(3, Default::default()),
         ));
