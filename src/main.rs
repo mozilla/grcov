@@ -15,7 +15,7 @@ extern crate simplelog;
 extern crate tempfile;
 
 use clap::{crate_authors, crate_version, App, Arg, ArgGroup};
-use crossbeam::crossbeam_channel::unbounded;
+use crossbeam::crossbeam_channel::bounded;
 use log::error;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -289,7 +289,7 @@ fn main() {
     let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
         FxHashMap::with_capacity_and_hasher(20_000, Default::default()),
     ));
-    let (sender, receiver) = unbounded();
+    let (sender, receiver) = bounded(2 * num_threads);
     let path_mapping: Arc<Mutex<Option<Value>>> = Arc::new(Mutex::new(None));
 
     let producer = {
