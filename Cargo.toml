@@ -23,6 +23,10 @@ exclude = [
 ]
 edition = "2018"
 
+[features]
+default = []
+tc = ["tcmalloc"]
+
 [badges]
 appveyor = { repository = "marco-c/grcov" }
 travis-ci = { repository = "mozilla/grcov" }
@@ -50,7 +54,7 @@ simplelog = "^0.7"
 
 [target.'cfg(unix)'.dependencies]
 #tcmalloc = { version = "^0.3", features = ["bundled"] }
-tcmalloc = "^0.3"
+tcmalloc = { version = "^0.3", optional = true }
 
 [dev-dependencies]
 regex = "^1.3"
