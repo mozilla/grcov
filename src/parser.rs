@@ -119,8 +119,8 @@ pub fn add_branch(branches: &mut BTreeMap<u32, Vec<bool>>, line_no: u32, no: u32
     };
 }
 
-pub fn parse_lcov<T: Read>(
-    mut lcov_reader: BufReader<T>,
+pub fn parse_lcov(
+    buffer: Vec<u8>,
     branch_enabled: bool,
 ) -> Result<Vec<(String, CovResult)>, ParserError> {
     let mut cur_file = None;
@@ -132,102 +132,180 @@ pub fn parse_lcov<T: Read>(
     let mut duplicated_error_logged = false;
 
     let mut results = Vec::new();
+    let iter = &mut buffer.iter().peekable();
 
-    let mut l = vec![];
+    const SF: u32 = (b'S' as u32) * (1 << 8) + (b'F' as u32);
+    const DA: u32 = (b'D' as u32) * (1 << 8) + (b'A' as u32);
+    const FN: u32 = (b'F' as u32) * (1 << 8) + (b'N' as u32);
+    const FNDA: u32 = (b'F' as u32) * (1 << 24)
+        + (b'N' as u32) * (1 << 16)
+        + (b'D' as u32) * (1 << 8)
+        + (b'A' as u32);
+    const BRDA: u32 = (b'B' as u32) * (1 << 24)
+        + (b'R' as u32) * (1 << 16)
+        + (b'D' as u32) * (1 << 8)
+        + (b'A' as u32);
 
-    loop {
-        l.clear();
+    let mut line = 0;
 
-        let num_bytes = lcov_reader.read_until(b'\n', &mut l)?;
-        if num_bytes == 0 {
-            break;
-        }
-        remove_newline(&mut l);
+    while let Some(c) = iter.next() {
+        line += 1;
+        match *c {
+            b'e' => {
+                // we've a end_of_record
+                results.push((
+                    cur_file.unwrap(),
+                    CovResult {
+                        lines: cur_lines,
+                        branches: cur_branches,
+                        functions: cur_functions,
+                    },
+                ));
 
-        let l = unsafe { str::from_utf8_unchecked(&l) };
-
-        if l == "end_of_record" {
-            results.push((
-                cur_file.unwrap(),
-                CovResult {
-                    lines: cur_lines,
-                    branches: cur_branches,
-                    functions: cur_functions,
-                },
-            ));
-
-            cur_file = None;
-            cur_lines = BTreeMap::new();
-            cur_branches = BTreeMap::new();
-            cur_functions = FxHashMap::default();
-        } else {
-            let mut key_value = l.splitn(2, ':');
-            let key = try_next!(key_value, l);
-            let value = key_value.next();
-            if value.is_none() {
-                // Ignore lines without a ':' character.
+                cur_file = None;
+                cur_lines = BTreeMap::new();
+                cur_branches = BTreeMap::new();
+                cur_functions = FxHashMap::default();
+                iter.take_while(|&&c| c != b'\n').last();
+            }
+            b'\n' => {
                 continue;
             }
-            let value = value.unwrap();
-            match key {
-                "SF" => {
-                    cur_file = Some(value.to_owned());
+            _ => {
+                if *c != b'S' && *c != b'D' && *c != b'F' && *c != b'B' {
+                    iter.take_while(|&&c| c != b'\n').last();
+                    continue;
                 }
-                "DA" => {
-                    let mut values = value.splitn(3, ',');
-                    let line_no = try_parse_next!(values, l);
-                    let execution_count = try_next!(values, l);
-                    if execution_count == "0" || execution_count.starts_with('-') {
-                        cur_lines.entry(line_no).or_insert(0);
-                    } else {
-                        let execution_count: u64 = try_parse!(execution_count, l);
+
+                let key = iter
+                    .take_while(|&&c| c != b':')
+                    .fold(*c as u32, |r, &x| r * (1 << 8) + u32::from(x));
+                match key {
+                    SF => {
+                        // SF:string
+                        cur_file = Some(
+                            iter.take_while(|&&c| c != b'\n' && c != b'\r')
+                                .map(|&c| c as char)
+                                .collect(),
+                        );
+                    }
+                    DA => {
+                        // DA:uint,int
+                        let line_no = iter
+                            .take_while(|&&c| c != b',')
+                            .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
+                        if iter.peek().is_none() {
+                            return Err(ParserError::InvalidRecord(format!("DA at line {}", line)));
+                        }
+                        let execution_count = if let Some(c) = iter.next() {
+                            if *c == b'-' {
+                                iter.take_while(|&&c| c != b'\n').last();
+                                0
+                            } else {
+                                iter.take_while(|&&c| c != b'\n' && c != b'\r')
+                                    .fold(u64::from(*c - b'0'), |r, &x| {
+                                        r * 10 + u64::from(x - b'0')
+                                    })
+                            }
+                        } else {
+                            0
+                        };
                         *cur_lines.entry(line_no).or_insert(0) += execution_count;
                     }
-                }
-                "FN" => {
-                    let mut f_splits = value.splitn(2, ',');
-                    let start = try_parse_next!(f_splits, l);
-                    let f_name = try_next!(f_splits, l);
-                    if !duplicated_error_logged && cur_functions.contains_key(f_name) {
-                        error!(
-                            "FN '{}' duplicated for '{}' in a lcov file",
+                    FN => {
+                        // FN:int,string
+                        let start = iter
+                            .take_while(|&&c| c != b',')
+                            .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
+                        if iter.peek().is_none() {
+                            return Err(ParserError::InvalidRecord(format!("FN at line {}", line)));
+                        }
+                        let f_name: String = iter
+                            .take_while(|&&c| c != b'\n' && c != b'\r')
+                            .map(|&c| c as char)
+                            .collect();
+                        if !duplicated_error_logged && cur_functions.contains_key(&f_name) {
+                            error!(
+                                "FN '{}' duplicated for '{}' in a lcov file",
+                                f_name,
+                                cur_file.as_ref().unwrap()
+                            );
+                            duplicated_error_logged = true;
+                        }
+                        cur_functions.insert(
                             f_name,
-                            cur_file.as_ref().unwrap()
+                            Function {
+                                start,
+                                executed: false,
+                            },
                         );
-                        duplicated_error_logged = true;
                     }
-                    cur_functions.insert(
-                        f_name.to_owned(),
-                        Function {
-                            start,
-                            executed: false,
-                        },
-                    );
-                }
-                "FNDA" => {
-                    let mut f_splits = value.splitn(2, ',');
-                    let executed = try_next!(f_splits, l) != "0";
-                    let f_name = try_next!(f_splits, l);
-                    if let Some(f) = cur_functions.get_mut(f_name) {
-                        f.executed |= executed;
-                    } else {
-                        return Err(ParserError::Parse(format!(
-                            "FN record missing for function {}",
-                            f_name
-                        )));
+                    FNDA => {
+                        // FNDA:int,string
+                        let executed = iter
+                            .take_while(|&&c| c != b',')
+                            .fold(0, |r, &x| r * 10 + u64::from(x - b'0'));
+                        if iter.peek().is_none() {
+                            return Err(ParserError::InvalidRecord(format!(
+                                "FNDA at line {}",
+                                line
+                            )));
+                        }
+                        let f_name: String = iter
+                            .take_while(|&&c| c != b'\n' && c != b'\r')
+                            .map(|&c| c as char)
+                            .collect();
+                        if let Some(f) = cur_functions.get_mut(&f_name) {
+                            f.executed |= executed != 0;
+                        } else {
+                            return Err(ParserError::Parse(format!(
+                                "FN record missing for function {}",
+                                f_name
+                            )));
+                        }
+                    }
+                    BRDA => {
+                        // BRDA:int,int,int,int or -
+                        if branch_enabled {
+                            let line_no = iter
+                                .take_while(|&&c| c != b',')
+                                .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
+                            if iter.peek().is_none() {
+                                return Err(ParserError::InvalidRecord(format!(
+                                    "BRDA at line {}",
+                                    line
+                                )));
+                            }
+                            let _block_number = iter
+                                .take_while(|&&c| c != b',')
+                                .fold(0, |r, &x| r * 10 + u64::from(x - b'0'));
+                            if iter.peek().is_none() {
+                                return Err(ParserError::InvalidRecord(format!(
+                                    "BRDA at line {}",
+                                    line
+                                )));
+                            }
+                            let branch_number = iter
+                                .take_while(|&&c| c != b',')
+                                .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
+                            if iter.peek().is_none() {
+                                return Err(ParserError::InvalidRecord(format!(
+                                    "BRDA at line {}",
+                                    line
+                                )));
+                            }
+                            let taken = iter
+                                .take_while(|&&c| c != b'\n' && c != b'\r')
+                                .fold(false, |r, &x| r || x != b'-');
+                            add_branch(&mut cur_branches, line_no, branch_number, taken);
+                        } else {
+                            iter.take_while(|&&c| c != b'\n').last();
+                        }
+                    }
+                    _ => {
+                        iter.take_while(|&&c| c != b'\n').last();
                     }
                 }
-                "BRDA" => {
-                    if branch_enabled {
-                        let mut values = value.splitn(4, ',');
-                        let line_no = try_parse_next!(values, l);
-                        values.next();
-                        let branch_number = try_parse_next!(values, l);
-                        let taken = try_next!(values, l) != "-";
-                        add_branch(&mut cur_branches, line_no, branch_number, taken);
-                    }
-                }
-                _ => {}
             }
         }
     }
@@ -608,9 +686,10 @@ mod tests {
 
     #[test]
     fn test_lcov_parser() {
-        let f = File::open("./test/prova.info").expect("Failed to open lcov file");
-        let file = BufReader::new(&f);
-        let results = parse_lcov(file, false).unwrap();
+        let mut f = File::open("./test/prova.info").expect("Failed to open lcov file");
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf).unwrap();
+        let results = parse_lcov(buf, false).unwrap();
 
         assert_eq!(results.len(), 603);
 
@@ -693,9 +772,10 @@ mod tests {
     #[test]
     fn test_lcov_parser_with_branch_parsing() {
         // Parse the same file, but with branch parsing enabled.
-        let f = File::open("./test/prova.info").expect("Failed to open lcov file");
-        let file = BufReader::new(&f);
-        let results = parse_lcov(file, true).unwrap();
+        let mut f = File::open("./test/prova.info").expect("Failed to open lcov file");
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf).unwrap();
+        let results = parse_lcov(buf, true).unwrap();
 
         assert_eq!(results.len(), 603);
 
@@ -790,9 +870,11 @@ mod tests {
 
     #[test]
     fn test_lcov_parser_fn_with_commas() {
-        let f = File::open("./test/prova_fn_with_commas.info").expect("Failed to open lcov file");
-        let file = BufReader::new(&f);
-        let results = parse_lcov(file, true).unwrap();
+        let mut f =
+            File::open("./test/prova_fn_with_commas.info").expect("Failed to open lcov file");
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf).unwrap();
+        let results = parse_lcov(buf, true).unwrap();
 
         assert_eq!(results.len(), 1);
 
@@ -880,9 +962,10 @@ mod tests {
 
     #[test]
     fn test_lcov_parser_empty_line() {
-        let f = File::open("./test/empty_line.info").expect("Failed to open lcov file");
-        let file = BufReader::new(&f);
-        let results = parse_lcov(file, true).unwrap();
+        let mut f = File::open("./test/empty_line.info").expect("Failed to open lcov file");
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf).unwrap();
+        let results = parse_lcov(buf, true).unwrap();
 
         assert_eq!(results.len(), 1);
 
@@ -971,9 +1054,10 @@ mod tests {
     #[allow(non_snake_case)]
     #[test]
     fn test_lcov_parser_invalid_DA_record() {
-        let f = File::open("./test/invalid_DA_record.info").expect("Failed to open lcov file");
-        let file = BufReader::new(&f);
-        let result = parse_lcov(file, true);
+        let mut f = File::open("./test/invalid_DA_record.info").expect("Failed to open lcov file");
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf).unwrap();
+        let result = parse_lcov(buf, true);
         assert!(result.is_err());
     }
 
