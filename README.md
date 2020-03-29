@@ -136,6 +136,11 @@ Here is an example of .travis.yml file
 ```YAML
 language: rust
 
+addons:
+  apt:
+    packages:
+      - libgoogle-perftools-dev
+
 before_install:
   - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
 
