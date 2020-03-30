@@ -78,6 +78,9 @@ ARGS:
 Grcov can be downloaded from [releases](https://github.com/mozilla/grcov/releases) or, if you have Rust installed,
 you can run `cargo install grcov`.
 
+If you have some memory issues you can try to use [grcov-tcmalloc](https://github.com/mozilla/grcov/releases) built with tcmalloc.
+It'll require to have `libtcmalloc.so` on your system (e.g. on debian it's in package `libgoogle-perftools4`).
+
 ## Example: How to generate .gcda files for from C/C++
 
 Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-coverage` and `-fprofile-arcs` options (see [gcc docs](https://gcc.gnu.org/onlinedocs/gcc/Gcov-Data-Files.html)).
@@ -180,6 +183,11 @@ Every time you will try to commit, pre-commit will run checks on your files to m
 Build with:
 ```
 cargo build
+```
+
+If you want to use tcmalloc:
+```
+cargo build --features tc
 ```
 
 To run unit tests:
