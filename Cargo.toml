@@ -51,10 +51,8 @@ fomat-macros = "^0.3"
 chrono = "^0.4"
 log = "^0.4"
 simplelog = "^0.7"
+regex = "^1.3"
 
 [target.'cfg(unix)'.dependencies]
 #tcmalloc = { version = "^0.3", features = ["bundled"] }
 tcmalloc = { version = "^0.3", optional = true }
-
-[dev-dependencies]
-regex = "^1.3"

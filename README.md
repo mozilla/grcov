@@ -38,6 +38,18 @@ FLAGS:
 
 OPTIONS:
         --commit-sha <COMMIT HASH>                   Sets the hash of the commit used to generate the code coverage data
+        --excl_br_line <regex>
+            Lines containing this marker will be excluded.
+        --excl_br_start <regex>
+            Marks the beginning of an excluded section. The current line is part of this section.
+        --excl_br_stop <regex>
+            Marks the end of an excluded section. The current line is part of this section.
+        --excl_line <regex>
+            Lines containing this marker will be excluded.
+        --excl_start <regex>
+            Marks the beginning of an excluded section. The current line is part of this section.
+        --excl_stop <regex>
+            Marks the end of an excluded section. The current line is part of this section.
         --filter <filter>
             Filters out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered' to only return
             uncovered files [possible values: covered, uncovered]

@@ -182,6 +182,42 @@ fn main() {
                                .default_value("stderr")
                                .value_name("LOG")
                                .takes_value(true))
+                               
+                          .arg(Arg::with_name("excl_line")
+                               .help("Lines containing this marker will be excluded.")
+                               .long("excl_line")
+                               .value_name("regex")
+                               .takes_value(true))
+                               
+                            .arg(Arg::with_name("excl_start")
+                                .help("Marks the beginning of an excluded section. The current line is part of this section.")
+                                .long("excl_start")
+                                .value_name("regex")
+                                .takes_value(true))
+                               
+                            .arg(Arg::with_name("excl_stop")
+                                .help("Marks the end of an excluded section. The current line is part of this section.")
+                                .long("excl_stop")
+                                .value_name("regex")
+                                .takes_value(true))
+                               
+                          .arg(Arg::with_name("excl_br_line")
+                               .help("Lines containing this marker will be excluded.")
+                               .long("excl_br_line")
+                               .value_name("regex")
+                               .takes_value(true))
+                               
+                            .arg(Arg::with_name("excl_br_start")
+                                .help("Marks the beginning of an excluded section. The current line is part of this section.")
+                                .long("excl_br_start")
+                                .value_name("regex")
+                                .takes_value(true))
+                               
+                            .arg(Arg::with_name("excl_br_stop")
+                                .help("Marks the end of an excluded section. The current line is part of this section.")
+                                .long("excl_br_stop")
+                                .value_name("regex")
+                                .takes_value(true))
 
                           // This group requires that at least one of --token and --service-job-id
                           // be present. --service-job-id requires --service-name, so this
@@ -243,6 +279,21 @@ fn main() {
             }
         }
     };
+
+    let excl_line = as_regex(matches.value_of("excl_line"));
+    let excl_start = as_regex(matches.value_of("excl_start"));
+    let excl_stop = as_regex(matches.value_of("excl_stop"));
+    let excl_br_line = as_regex(matches.value_of("excl_br_line"));
+    let excl_br_start = as_regex(matches.value_of("excl_br_start"));
+    let excl_br_stop = as_regex(matches.value_of("excl_br_stop"));
+    let file_filter = FileFilter::new(
+        excl_line,
+        excl_start,
+        excl_stop,
+        excl_br_line,
+        excl_br_start,
+        excl_br_stop
+    );
 
     panic::set_hook(Box::new(|panic_info| {
         let (filename, line) = panic_info
@@ -377,6 +428,7 @@ fn main() {
         ignore_not_existing,
         &mut to_ignore_dirs,
         filter_option,
+        file_filter
     );
 
     if output_type == "ade" {
@@ -419,5 +471,13 @@ fn main() {
         output_html(iterator, output_file_path, num_threads);
     } else {
         assert!(false, "{} is not a supported output type", output_type);
+    }
+}
+
+fn as_regex(value: Option<&str>) -> Option<regex::Regex> {
+    if let Some(value) = value {
+        Some(regex::Regex::new(value).expect(&format!("invalid regular expression: {}", value)))
+    } else {
+        None
     }
 }

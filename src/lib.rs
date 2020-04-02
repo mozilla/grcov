@@ -43,6 +43,9 @@ pub use crate::covdir::*;
 
 pub mod html;
 
+mod file_filter;
+pub use crate::file_filter::*;
+
 use log::error;
 use std::collections::{btree_map, hash_map};
 use std::fs;
