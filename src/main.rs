@@ -292,7 +292,7 @@ fn main() {
         excl_stop,
         excl_br_line,
         excl_br_start,
-        excl_br_stop
+        excl_br_stop,
     );
 
     panic::set_hook(Box::new(|panic_info| {
@@ -428,7 +428,7 @@ fn main() {
         ignore_not_existing,
         &mut to_ignore_dirs,
         filter_option,
-        file_filter
+        file_filter,
     );
 
     if output_type == "ade" {

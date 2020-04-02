@@ -237,7 +237,7 @@ pub fn rewrite_paths(
     ignore_not_existing: bool,
     to_ignore_dirs: &mut [&str],
     filter_option: Option<bool>,
-    file_filter: crate::FileFilter
+    file_filter: crate::FileFilter,
 ) -> CovResultIter {
     let mut glob_builder = GlobSetBuilder::new();
 
@@ -282,72 +282,76 @@ pub fn rewrite_paths(
 
     let mut cache: Option<PathBuf> = None;
 
-    Box::new(result_map.into_iter().filter_map(move |(path, mut result)| {
-        let path = path.replace("\\", "/");
+    Box::new(
+        result_map
+            .into_iter()
+            .filter_map(move |(path, mut result)| {
+                let path = path.replace("\\", "/");
 
-        // Get path from the mapping.
-        let rel_path = apply_mapping(&path_mapping, &path);
+                // Get path from the mapping.
+                let rel_path = apply_mapping(&path_mapping, &path);
 
-        // Remove prefix from the path.
-        let rel_path = remove_prefix(&prefix_dir, rel_path);
+                // Remove prefix from the path.
+                let rel_path = remove_prefix(&prefix_dir, rel_path);
 
-        // Try mapping a partial path to a full path.
-        let rel_path = if check_extension(&rel_path, "java") {
-            map_partial_path(&file_to_paths, rel_path)
-        } else {
-            rel_path
-        };
+                // Try mapping a partial path to a full path.
+                let rel_path = if check_extension(&rel_path, "java") {
+                    map_partial_path(&file_to_paths, rel_path)
+                } else {
+                    rel_path
+                };
 
-        // Get absolute path to the source file.
-        let paths = get_abs_path(&source_dir, rel_path, &mut cache);
-        if paths.is_none() {
-            return None;
-        }
-
-        let (abs_path, rel_path) = paths.unwrap();
-
-        if to_ignore_globset.is_match(&rel_path) {
-            return None;
-        }
-
-        if ignore_not_existing && !abs_path.exists() {
-            return None;
-        }
-
-        // Always return results with '/'.
-        let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
-
-        for filter in file_filter.create(&abs_path) {
-            match filter {
-                crate::FilterType::Both(number) => {
-                    result.branches.remove(&number);
-                    result.lines.remove(&number);
-                },
-                crate::FilterType::Line(number) => {
-                    result.lines.remove(&number);
-                },
-                crate::FilterType::Branch(number) => {
-                    result.branches.remove(&number);
-                },
-            }
-        }
-
-        match filter_option {
-            Some(true) => {
-                if !is_covered(&result) {
+                // Get absolute path to the source file.
+                let paths = get_abs_path(&source_dir, rel_path, &mut cache);
+                if paths.is_none() {
                     return None;
                 }
-            }
-            Some(false) => {
-                if is_covered(&result) {
+
+                let (abs_path, rel_path) = paths.unwrap();
+
+                if to_ignore_globset.is_match(&rel_path) {
                     return None;
                 }
-            }
-            None => (),
-        };
 
-        Some((abs_path, rel_path, result))
-    }))
+                if ignore_not_existing && !abs_path.exists() {
+                    return None;
+                }
+
+                // Always return results with '/'.
+                let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
+
+                for filter in file_filter.create(&abs_path) {
+                    match filter {
+                        crate::FilterType::Both(number) => {
+                            result.branches.remove(&number);
+                            result.lines.remove(&number);
+                        }
+                        crate::FilterType::Line(number) => {
+                            result.lines.remove(&number);
+                        }
+                        crate::FilterType::Branch(number) => {
+                            result.branches.remove(&number);
+                        }
+                    }
+                }
+
+                match filter_option {
+                    Some(true) => {
+                        if !is_covered(&result) {
+                            return None;
+                        }
+                    }
+                    Some(false) => {
+                        if is_covered(&result) {
+                            return None;
+                        }
+                    }
+                    None => (),
+                };
+
+                Some((abs_path, rel_path, result))
+            }),
+    )
 }
 
 #[cfg(test)]
@@ -425,7 +429,16 @@ mod tests {
     fn test_rewrite_paths_basic() {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("main.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(result_map, None, None, None, false, &mut Vec::new(), None, Default::default());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            None,
+            None,
+            false,
+            &mut Vec::new(),
+            None,
+            Default::default(),
+        );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -554,7 +567,16 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("tests/class/main.cpp".to_string(), empty_result!());
         result_map.insert("tests/class/doesntexist.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(result_map, None, None, None, true, &mut Vec::new(), None, Default::default());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            None,
+            None,
+            true,
+            &mut Vec::new(),
+            None,
+            Default::default(),
+        );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -576,7 +598,16 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("tests\\class\\main.cpp".to_string(), empty_result!());
         result_map.insert("tests\\class\\doesntexist.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(result_map, None, None, None, true, &mut Vec::new(), None, Default::default());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            None,
+            None,
+            true,
+            &mut Vec::new(),
+            None,
+            Default::default(),
+        );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -717,7 +748,8 @@ mod tests {
             &mut Vec::new(),
             None,
             Default::default(),
-        ).any(|_|{false});
+        )
+        .any(|_| false);
     }
 
     #[cfg(unix)]
@@ -1352,7 +1384,7 @@ mod tests {
                 Some(regex::Regex::new("skip line end").unwrap()),
                 Some(regex::Regex::new("excluded branch").unwrap()),
                 Some(regex::Regex::new("skip branch start").unwrap()),
-                Some(regex::Regex::new("skip branch end").unwrap())
+                Some(regex::Regex::new("skip branch end").unwrap()),
             ),
         );
         let mut count = 0;
@@ -1394,7 +1426,7 @@ mod tests {
                 Some(regex::Regex::new("skip line end").unwrap()),
                 Some(regex::Regex::new("excluded branch").unwrap()),
                 Some(regex::Regex::new("skip branch start").unwrap()),
-                Some(regex::Regex::new("skip branch end").unwrap())
+                Some(regex::Regex::new("skip branch end").unwrap()),
             ),
         );
         let mut count = 0;

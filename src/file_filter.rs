@@ -4,7 +4,7 @@ use std::path::PathBuf;
 pub enum FilterType {
     Line(u32),
     Branch(u32),
-    Both(u32)
+    Both(u32),
 }
 
 pub struct FileFilter {
@@ -57,8 +57,11 @@ impl FileFilter {
     }
 
     pub fn create<'a>(&'a self, file: &PathBuf) -> Vec<FilterType> {
-        if self.excl_line.is_none() && self.excl_start.is_none() &&
-           self.excl_br_line.is_none() && self.excl_br_start.is_none() {
+        if self.excl_line.is_none()
+            && self.excl_start.is_none()
+            && self.excl_br_line.is_none()
+            && self.excl_br_start.is_none()
+        {
             return Vec::new();
         }
 
@@ -68,57 +71,61 @@ impl FileFilter {
         } else {
             return Vec::new();
         };
-        
+
         let mut ignore_br = false;
         let mut ignore = false;
 
-        file.split("\n").enumerate().into_iter().filter_map(move |(number, line)| {
-            let number = (number + 1) as u32;
-            let line = if line.ends_with("\r") {
-                &line[..(line.len() - 1)]
-            } else {
-                line
-            };
-    
-            if ignore_br {
-                if matches(&self.excl_br_stop, line) {
-                    ignore_br = false
+        file.split("\n")
+            .enumerate()
+            .into_iter()
+            .filter_map(move |(number, line)| {
+                let number = (number + 1) as u32;
+                let line = if line.ends_with("\r") {
+                    &line[..(line.len() - 1)]
+                } else {
+                    line
+                };
+
+                if ignore_br {
+                    if matches(&self.excl_br_stop, line) {
+                        ignore_br = false
+                    }
                 }
-            }
 
-            if ignore {
-                if matches(&self.excl_stop, line) {
-                    ignore = false
-                }
-            }
-
-            if matches(&self.excl_br_start, line) {
-                ignore_br = true;
-            }
-            
-            if matches(&self.excl_start, line) {
-                ignore = true;
-            }
-
-            if ignore_br {
                 if ignore {
-                    Some(FilterType::Both(number))
-                } else {
-                    Some(FilterType::Branch(number))
+                    if matches(&self.excl_stop, line) {
+                        ignore = false
+                    }
                 }
-            } else if ignore {
-                Some(FilterType::Line(number))
-            } else if matches(&self.excl_br_line, line) {
-                if matches(&self.excl_line, line) {
-                    Some(FilterType::Both(number))
-                } else {
-                    Some(FilterType::Branch(number))
+
+                if matches(&self.excl_br_start, line) {
+                    ignore_br = true;
                 }
-            } else if matches(&self.excl_line, line) {
-                Some(FilterType::Line(number))
-            } else {
-                None
-            }
-        }).collect()
+
+                if matches(&self.excl_start, line) {
+                    ignore = true;
+                }
+
+                if ignore_br {
+                    if ignore {
+                        Some(FilterType::Both(number))
+                    } else {
+                        Some(FilterType::Branch(number))
+                    }
+                } else if ignore {
+                    Some(FilterType::Line(number))
+                } else if matches(&self.excl_br_line, line) {
+                    if matches(&self.excl_line, line) {
+                        Some(FilterType::Both(number))
+                    } else {
+                        Some(FilterType::Branch(number))
+                    }
+                } else if matches(&self.excl_line, line) {
+                    Some(FilterType::Line(number))
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }
