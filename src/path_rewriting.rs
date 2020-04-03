@@ -1,10 +1,10 @@
 use globset::{Glob, GlobSetBuilder};
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 use std::collections::hash_map;
 use std::fs;
 use std::io;
-use std::mem;
 use std::path::{Component, Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
@@ -92,15 +92,9 @@ fn apply_mapping(mapping: &Option<Value>, path: &str) -> PathBuf {
 }
 
 // Remove common part between the prefix's end and the path's start
-fn guess_abs_path(prefix_dir: &PathBuf, path: &PathBuf, cache: &mut Option<PathBuf>) -> PathBuf {
-    if let Some(cache) = cache {
-        if path.starts_with(&cache) {
-            return prefix_dir.join(path.strip_prefix(cache).unwrap().to_path_buf());
-        }
-    }
+fn guess_abs_path(prefix_dir: &PathBuf, path: &PathBuf) -> PathBuf {
     for ancestor in path.ancestors() {
         if prefix_dir.ends_with(ancestor) && !ancestor.as_os_str().is_empty() {
-            mem::replace(cache, Some(ancestor.to_path_buf()));
             return prefix_dir.join(path.strip_prefix(ancestor).unwrap().to_path_buf());
         }
     }
@@ -134,18 +128,16 @@ fn fixup_rel_path(source_dir: &Option<PathBuf>, abs_path: &PathBuf, rel_path: Pa
 fn get_abs_path(
     source_dir: &Option<PathBuf>,
     rel_path: PathBuf,
-    cache: &mut Option<PathBuf>,
 ) -> Option<(PathBuf, PathBuf)> {
     let mut abs_path = if !rel_path.is_relative() {
         rel_path.clone()
     } else if let Some(ref source_dir) = source_dir {
         if !cfg!(windows) {
-            guess_abs_path(&source_dir, &rel_path, cache)
+            guess_abs_path(&source_dir, &rel_path)
         } else {
             guess_abs_path(
                 &source_dir,
-                &PathBuf::from(&rel_path.to_str().unwrap().replace("/", "\\")),
-                cache,
+                &PathBuf::from(&rel_path.to_str().unwrap().replace("/", "\\"))
             )
         }
     } else {
@@ -237,7 +229,7 @@ pub fn rewrite_paths(
     ignore_not_existing: bool,
     to_ignore_dirs: &mut [&str],
     filter_option: Option<bool>,
-    file_filter: crate::FileFilter,
+    file_filter: crate::FileFilter
 ) -> CovResultIter {
     let mut glob_builder = GlobSetBuilder::new();
 
@@ -280,78 +272,76 @@ pub fn rewrite_paths(
         }
     }
 
-    let mut cache: Option<PathBuf> = None;
+    let results = result_map
+        .into_par_iter()
+        .filter_map(move |(path, mut result)| {
+            let path = path.replace("\\", "/");
 
-    Box::new(
-        result_map
-            .into_iter()
-            .filter_map(move |(path, mut result)| {
-                let path = path.replace("\\", "/");
+            // Get path from the mapping.
+            let rel_path = apply_mapping(&path_mapping, &path);
 
-                // Get path from the mapping.
-                let rel_path = apply_mapping(&path_mapping, &path);
+            // Remove prefix from the path.
+            let rel_path = remove_prefix(&prefix_dir, rel_path);
 
-                // Remove prefix from the path.
-                let rel_path = remove_prefix(&prefix_dir, rel_path);
+            // Try mapping a partial path to a full path.
+            let rel_path = if check_extension(&rel_path, "java") {
+                map_partial_path(&file_to_paths, rel_path)
+            } else {
+                rel_path
+            };
 
-                // Try mapping a partial path to a full path.
-                let rel_path = if check_extension(&rel_path, "java") {
-                    map_partial_path(&file_to_paths, rel_path)
-                } else {
-                    rel_path
-                };
+            // Get absolute path to the source file.
+            let paths = get_abs_path(&source_dir, rel_path);
+            if paths.is_none() {
+                return None;
+            }
 
-                // Get absolute path to the source file.
-                let paths = get_abs_path(&source_dir, rel_path, &mut cache);
-                if paths.is_none() {
-                    return None;
-                }
+            let (abs_path, rel_path) = paths.unwrap();
 
-                let (abs_path, rel_path) = paths.unwrap();
+            if to_ignore_globset.is_match(&rel_path) {
+                return None;
+            }
 
-                if to_ignore_globset.is_match(&rel_path) {
-                    return None;
-                }
+            if ignore_not_existing && !abs_path.exists() {
+                return None;
+            }
 
-                if ignore_not_existing && !abs_path.exists() {
-                    return None;
-                }
+            // Always return results with '/'.
+            let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
 
-                // Always return results with '/'.
-                let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
-
-                for filter in file_filter.create(&abs_path) {
-                    match filter {
-                        crate::FilterType::Both(number) => {
-                            result.branches.remove(&number);
-                            result.lines.remove(&number);
-                        }
-                        crate::FilterType::Line(number) => {
-                            result.lines.remove(&number);
-                        }
-                        crate::FilterType::Branch(number) => {
-                            result.branches.remove(&number);
-                        }
+            for filter in file_filter.create(&abs_path) {
+                match filter {
+                    crate::FilterType::Both(number) => {
+                        result.branches.remove(&number);
+                        result.lines.remove(&number);
+                    }
+                    crate::FilterType::Line(number) => {
+                        result.lines.remove(&number);
+                    }
+                    crate::FilterType::Branch(number) => {
+                        result.branches.remove(&number);
                     }
                 }
+            }
 
-                match filter_option {
-                    Some(true) => {
-                        if !is_covered(&result) {
-                            return None;
-                        }
+            match filter_option {
+                Some(true) => {
+                    if !is_covered(&result) {
+                        return None;
                     }
-                    Some(false) => {
-                        if is_covered(&result) {
-                            return None;
-                        }
+                }
+                Some(false) => {
+                    if is_covered(&result) {
+                        return None;
                     }
-                    None => (),
-                };
+                }
+                None => (),
+            };
 
-                Some((abs_path, rel_path, result))
-            }),
-    )
+            Some((abs_path, rel_path, result))
+        });
+
+    Box::new(results.collect::<Vec<(PathBuf, PathBuf, CovResult)>>().into_iter())
 }
 
 #[cfg(test)]
