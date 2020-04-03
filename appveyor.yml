@@ -56,7 +56,7 @@ test_script:
       If ($env:CHANNEL -eq "nightly" -And $env:APPVEYOR_REPO_TAG -eq "false") {
          mkdir ccov_dir
          Get-ChildItem -Path *\grcov*.gc* -Recurse | Copy-Item -Destination ccov_dir
-         .\target\debug\grcov ccov_dir -s . -t lcov --llvm --branch --ignore-not-existing --ignore "C:*" -o lcov.info
+         .\target\debug\grcov ccov_dir -s . -t lcov --llvm --branch --ignore-not-existing --ignore "C:*" -o lcov.info --excl_line "#\[derive\(" --excl_br_line "#\[derive\("
          (Get-Content lcov.info) | Foreach-Object {$_ -replace "\xEF\xBB\xBF", ""} | Set-Content lcov.info
          ((Get-Content lcov.info) -join "`n") + "`n" | Set-Content -NoNewline lcov.info
          $env:PATH = "C:\msys64\usr\bin;" + $env:PATH

@@ -182,37 +182,37 @@ fn main() {
                                .default_value("stderr")
                                .value_name("LOG")
                                .takes_value(true))
-                               
+
                           .arg(Arg::with_name("excl_line")
-                               .help("Lines containing this marker will be excluded.")
+                               .help("Lines in covered files containing this marker will be excluded.")
                                .long("excl_line")
                                .value_name("regex")
                                .takes_value(true))
-                               
+
                             .arg(Arg::with_name("excl_start")
                                 .help("Marks the beginning of an excluded section. The current line is part of this section.")
                                 .long("excl_start")
                                 .value_name("regex")
                                 .takes_value(true))
-                               
+
                             .arg(Arg::with_name("excl_stop")
                                 .help("Marks the end of an excluded section. The current line is part of this section.")
                                 .long("excl_stop")
                                 .value_name("regex")
                                 .takes_value(true))
-                               
+
                           .arg(Arg::with_name("excl_br_line")
-                               .help("Lines containing this marker will be excluded.")
+                               .help("Lines in covered files containing this marker will be excluded.")
                                .long("excl_br_line")
                                .value_name("regex")
                                .takes_value(true))
-                               
+
                             .arg(Arg::with_name("excl_br_start")
                                 .help("Marks the beginning of an excluded section. The current line is part of this section.")
                                 .long("excl_br_start")
                                 .value_name("regex")
                                 .takes_value(true))
-                               
+
                             .arg(Arg::with_name("excl_br_stop")
                                 .help("Marks the end of an excluded section. The current line is part of this section.")
                                 .long("excl_br_stop")
@@ -280,12 +280,24 @@ fn main() {
         }
     };
 
-    let excl_line = as_regex(matches.value_of("excl_line"));
-    let excl_start = as_regex(matches.value_of("excl_start"));
-    let excl_stop = as_regex(matches.value_of("excl_stop"));
-    let excl_br_line = as_regex(matches.value_of("excl_br_line"));
-    let excl_br_start = as_regex(matches.value_of("excl_br_start"));
-    let excl_br_stop = as_regex(matches.value_of("excl_br_stop"));
+    let excl_line = matches.value_of("excl_line").map_or(None, |f| {
+        Some(regex::Regex::new(f).expect("invalid regex for excl_line."))
+    });
+    let excl_start = matches.value_of("excl_start").map_or(None, |f| {
+        Some(regex::Regex::new(f).expect("invalid regex for excl_start."))
+    });
+    let excl_stop = matches.value_of("excl_stop").map_or(None, |f| {
+        Some(regex::Regex::new(f).expect("invalid regex for excl_stop."))
+    });
+    let excl_br_line = matches.value_of("excl_br_line").map_or(None, |f| {
+        Some(regex::Regex::new(f).expect("invalid regex for excl_br_line."))
+    });
+    let excl_br_start = matches.value_of("excl_br_start").map_or(None, |f| {
+        Some(regex::Regex::new(f).expect("invalid regex for excl_br_start."))
+    });
+    let excl_br_stop = matches.value_of("excl_br_stop").map_or(None, |f| {
+        Some(regex::Regex::new(f).expect("invalid regex for excl_br_stop."))
+    });
     let file_filter = FileFilter::new(
         excl_line,
         excl_start,
@@ -471,13 +483,5 @@ fn main() {
         output_html(iterator, output_file_path, num_threads);
     } else {
         assert!(false, "{} is not a supported output type", output_type);
-    }
-}
-
-fn as_regex(value: Option<&str>) -> Option<regex::Regex> {
-    if let Some(value) = value {
-        Some(regex::Regex::new(value).expect(&format!("invalid regular expression: {}", value)))
-    } else {
-        None
     }
 }

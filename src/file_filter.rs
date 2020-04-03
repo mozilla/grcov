@@ -7,6 +7,7 @@ pub enum FilterType {
     Both(u32),
 }
 
+#[derive(Default)]
 pub struct FileFilter {
     excl_line: Option<Regex>,
     excl_start: Option<Regex>,
@@ -14,19 +15,6 @@ pub struct FileFilter {
     excl_br_line: Option<Regex>,
     excl_br_start: Option<Regex>,
     excl_br_stop: Option<Regex>,
-}
-
-impl Default for FileFilter {
-    fn default() -> Self {
-        Self {
-            excl_line: None,
-            excl_start: None,
-            excl_stop: None,
-            excl_br_line: None,
-            excl_br_start: None,
-            excl_br_stop: None,
-        }
-    }
 }
 
 fn matches(regex: &Option<Regex>, line: &str) -> bool {
@@ -56,7 +44,7 @@ impl FileFilter {
         }
     }
 
-    pub fn create<'a>(&'a self, file: &PathBuf) -> Vec<FilterType> {
+    pub fn create(&self, file: &PathBuf) -> Vec<FilterType> {
         if self.excl_line.is_none()
             && self.excl_start.is_none()
             && self.excl_br_line.is_none()
@@ -79,34 +67,41 @@ impl FileFilter {
             .enumerate()
             .into_iter()
             .filter_map(move |(number, line)| {
+                // Line numbers are 1-based.
                 let number = (number + 1) as u32;
+
+                // The file is split on \n, which may result in a trailing \r
+                // on Windows. Remove it.
                 let line = if line.ends_with("\r") {
                     &line[..(line.len() - 1)]
                 } else {
                     line
                 };
 
-                if ignore_br {
-                    if matches(&self.excl_br_stop, line) {
-                        ignore_br = false
-                    }
+                // End a branch ignore region. Region endings are exclusive.
+                if ignore_br && matches(&self.excl_br_stop, line) {
+                    ignore_br = false
                 }
 
-                if ignore {
-                    if matches(&self.excl_stop, line) {
-                        ignore = false
-                    }
+                // End a line ignore region. Region endings are exclusive.
+                if ignore && matches(&self.excl_stop, line) {
+                    ignore = false
                 }
 
-                if matches(&self.excl_br_start, line) {
+                // Start a branch ignore region. Region starts are inclusive.
+                if !ignore_br && matches(&self.excl_br_start, line) {
                     ignore_br = true;
                 }
 
-                if matches(&self.excl_start, line) {
+                // Start a line ignore region. Region starts are inclusive.
+                if !ignore && matches(&self.excl_start, line) {
                     ignore = true;
                 }
 
                 if ignore_br {
+                    // Consuming code has to eliminate each of these
+                    // individually, so it has to know when both are ignored vs.
+                    // either.
                     if ignore {
                         Some(FilterType::Both(number))
                     } else {
@@ -115,6 +110,9 @@ impl FileFilter {
                 } else if ignore {
                     Some(FilterType::Line(number))
                 } else if matches(&self.excl_br_line, line) {
+                    // Single line exclusion. If single line exclusions occur
+                    // inside a region they are meaningless (would be applied
+                    // anway), so they are lower priority.
                     if matches(&self.excl_line, line) {
                         Some(FilterType::Both(number))
                     } else {
