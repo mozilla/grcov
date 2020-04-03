@@ -125,10 +125,7 @@ fn fixup_rel_path(source_dir: &Option<PathBuf>, abs_path: &PathBuf, rel_path: Pa
 }
 
 // Get the absolute path for the source file's path, resolving symlinks.
-fn get_abs_path(
-    source_dir: &Option<PathBuf>,
-    rel_path: PathBuf,
-) -> Option<(PathBuf, PathBuf)> {
+fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf) -> Option<(PathBuf, PathBuf)> {
     let mut abs_path = if !rel_path.is_relative() {
         rel_path.clone()
     } else if let Some(ref source_dir) = source_dir {
@@ -137,7 +134,7 @@ fn get_abs_path(
         } else {
             guess_abs_path(
                 &source_dir,
-                &PathBuf::from(&rel_path.to_str().unwrap().replace("/", "\\"))
+                &PathBuf::from(&rel_path.to_str().unwrap().replace("/", "\\")),
             )
         }
     } else {
@@ -229,7 +226,7 @@ pub fn rewrite_paths(
     ignore_not_existing: bool,
     to_ignore_dirs: &mut [&str],
     filter_option: Option<bool>,
-    file_filter: crate::FileFilter
+    file_filter: crate::FileFilter,
 ) -> CovResultIter {
     let mut glob_builder = GlobSetBuilder::new();
 
@@ -341,7 +338,11 @@ pub fn rewrite_paths(
             Some((abs_path, rel_path, result))
         });
 
-    Box::new(results.collect::<Vec<(PathBuf, PathBuf, CovResult)>>().into_iter())
+    Box::new(
+        results
+            .collect::<Vec<(PathBuf, PathBuf, CovResult)>>()
+            .into_iter(),
+    )
 }
 
 #[cfg(test)]
