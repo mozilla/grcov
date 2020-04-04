@@ -82,7 +82,7 @@ you can run `cargo install grcov`.
 
 Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-coverage` and `-fprofile-arcs` options (see [gcc docs](https://gcc.gnu.org/onlinedocs/gcc/Gcov-Data-Files.html)).
 
-## Example: How to generate .gcda fiels for a Rust project
+## Example: How to generate .gcda files for a Rust project
 
 1. Ensure that the following environment variables are set up:
 
@@ -102,7 +102,7 @@ If you look in `target/debug/deps` dir you will see `.gcno` files have appeared.
 
 `cargo test`
 
-In the `target/debug/deps/` dir you will now also see `.gcda` files. These contain the hit counts on which of those locations have been reached. Both sets of files are used as inputs to `grcov`. 
+In the `target/debug/deps/` dir you will now also see `.gcda` files. These contain the hit counts on which of those locations have been reached. Both sets of files are used as inputs to `grcov`.
 
 ## Generate a coverage report from .gcda files
 
@@ -163,7 +163,7 @@ grcov provides the following output types:
 | ---            | ---         |
 | lcov (default) | lcov's INFO format that is compatible with the linux coverage project. |
 | ade            | ActiveData\-ETL format. Only useful for Mozilla projects. |
-| coveralls      | Generates coverage in Coveralls format. | 
+| coveralls      | Generates coverage in Coveralls format. |
 | coveralls+     | Like coveralls but with function level information. |
 | files          | Output a file list of covered or uncovered source files. |
 | covdir         | Provides coverage in a recursive JSON format. |
