@@ -280,22 +280,22 @@ fn main() {
         }
     };
 
-    let excl_line = matches.value_of("excl_line").map_or(None, |f| {
+    let excl_line = matches.value_of("excl-line").map_or(None, |f| {
         Some(regex::Regex::new(f).expect("invalid regex for excl_line."))
     });
-    let excl_start = matches.value_of("excl_start").map_or(None, |f| {
+    let excl_start = matches.value_of("excl-start").map_or(None, |f| {
         Some(regex::Regex::new(f).expect("invalid regex for excl_start."))
     });
-    let excl_stop = matches.value_of("excl_stop").map_or(None, |f| {
+    let excl_stop = matches.value_of("excl-stop").map_or(None, |f| {
         Some(regex::Regex::new(f).expect("invalid regex for excl_stop."))
     });
-    let excl_br_line = matches.value_of("excl_br_line").map_or(None, |f| {
+    let excl_br_line = matches.value_of("excl-br-line").map_or(None, |f| {
         Some(regex::Regex::new(f).expect("invalid regex for excl_br_line."))
     });
-    let excl_br_start = matches.value_of("excl_br_start").map_or(None, |f| {
+    let excl_br_start = matches.value_of("excl-br-start").map_or(None, |f| {
         Some(regex::Regex::new(f).expect("invalid regex for excl_br_start."))
     });
-    let excl_br_stop = matches.value_of("excl_br_stop").map_or(None, |f| {
+    let excl_br_stop = matches.value_of("excl-br-stop").map_or(None, |f| {
         Some(regex::Regex::new(f).expect("invalid regex for excl_br_stop."))
     });
     let file_filter = FileFilter::new(
