@@ -185,37 +185,37 @@ fn main() {
 
                           .arg(Arg::with_name("excl-line")
                                .help("Lines in covered files containing this marker will be excluded.")
-                               .long("excl_line")
+                               .long("excl-line")
                                .value_name("regex")
                                .takes_value(true))
 
                             .arg(Arg::with_name("excl-start")
                                 .help("Marks the beginning of an excluded section. The current line is part of this section.")
-                                .long("excl_start")
+                                .long("excl-start")
                                 .value_name("regex")
                                 .takes_value(true))
 
                             .arg(Arg::with_name("excl-stop")
                                 .help("Marks the end of an excluded section. The current line is part of this section.")
-                                .long("excl_stop")
+                                .long("excl-stop")
                                 .value_name("regex")
                                 .takes_value(true))
 
                           .arg(Arg::with_name("excl-br-line")
                                .help("Lines in covered files containing this marker will be excluded.")
-                               .long("excl_br_line")
+                               .long("excl-br-line")
                                .value_name("regex")
                                .takes_value(true))
 
                             .arg(Arg::with_name("excl-br-start")
                                 .help("Marks the beginning of an excluded section. The current line is part of this section.")
-                                .long("excl_br_start")
+                                .long("excl-br-start")
                                 .value_name("regex")
                                 .takes_value(true))
 
                             .arg(Arg::with_name("excl-br-stop")
                                 .help("Marks the end of an excluded section. The current line is part of this section.")
-                                .long("excl_br_stop")
+                                .long("excl-br-stop")
                                 .value_name("regex")
                                 .takes_value(true))
 
