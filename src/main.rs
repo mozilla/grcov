@@ -202,19 +202,19 @@ fn main() {
                                 .takes_value(true))
 
                           .arg(Arg::with_name("excl-br-line")
-                               .help("Lines in covered files containing this marker will be excluded.")
+                               .help("Lines in covered files containing this marker will be excluded from branch coverage.")
                                .long("excl-br-line")
                                .value_name("regex")
                                .takes_value(true))
 
                             .arg(Arg::with_name("excl-br-start")
-                                .help("Marks the beginning of an excluded section. The current line is part of this section.")
+                                .help("Marks the end of a section excluded from branch coverage. The current line is part of this section.")
                                 .long("excl-br-start")
                                 .value_name("regex")
                                 .takes_value(true))
 
                             .arg(Arg::with_name("excl-br-stop")
-                                .help("Marks the end of an excluded section. The current line is part of this section.")
+                                .help("Marks the end of a section excluded from branch coverage. The current line is part of this section.")
                                 .long("excl-br-stop")
                                 .value_name("regex")
                                 .takes_value(true))
