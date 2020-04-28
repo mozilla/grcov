@@ -17,14 +17,6 @@ pub struct FileFilter {
     excl_br_stop: Option<Regex>,
 }
 
-fn matches(regex: &Option<Regex>, line: &str) -> bool {
-    if let Some(regex) = regex {
-        regex.is_match(line)
-    } else {
-        false
-    }
-}
-
 impl FileFilter {
     pub fn new(
         excl_line: Option<Regex>,
@@ -118,16 +110,20 @@ impl FileFilter {
                     }
                 } else if ignore {
                     Some(FilterType::Line(number))
-                } else if matches(&self.excl_br_line, line) {
+                } else if self
+                    .excl_br_line
+                    .as_ref()
+                    .map_or(false, |f| f.is_match(line))
+                {
                     // Single line exclusion. If single line exclusions occur
                     // inside a region they are meaningless (would be applied
                     // anway), so they are lower priority.
-                    if matches(&self.excl_line, line) {
+                    if self.excl_line.as_ref().map_or(false, |f| f.is_match(line)) {
                         Some(FilterType::Both(number))
                     } else {
                         Some(FilterType::Branch(number))
                     }
-                } else if matches(&self.excl_line, line) {
+                } else if self.excl_line.as_ref().map_or(false, |f| f.is_match(line)) {
                     Some(FilterType::Line(number))
                 } else {
                     None
