@@ -63,16 +63,15 @@ impl FileFilter {
         let mut ignore_br = false;
         let mut ignore = false;
 
-        file.split("\n")
+        file.split('\n')
             .enumerate()
-            .into_iter()
             .filter_map(move |(number, line)| {
                 // Line numbers are 1-based.
                 let number = (number + 1) as u32;
 
                 // The file is split on \n, which may result in a trailing \r
                 // on Windows. Remove it.
-                let line = if line.ends_with("\r") {
+                let line = if line.ends_with('\r') {
                     &line[..(line.len() - 1)]
                 } else {
                     line
