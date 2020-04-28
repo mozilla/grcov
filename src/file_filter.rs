@@ -78,22 +78,32 @@ impl FileFilter {
                 };
 
                 // End a branch ignore region. Region endings are exclusive.
-                if ignore_br && matches(&self.excl_br_stop, line) {
+                if ignore_br
+                    && self
+                        .excl_br_stop
+                        .as_ref()
+                        .map_or(false, |f| f.is_match(line))
+                {
                     ignore_br = false
                 }
 
                 // End a line ignore region. Region endings are exclusive.
-                if ignore && matches(&self.excl_stop, line) {
+                if ignore && self.excl_stop.as_ref().map_or(false, |f| f.is_match(line)) {
                     ignore = false
                 }
 
                 // Start a branch ignore region. Region starts are inclusive.
-                if !ignore_br && matches(&self.excl_br_start, line) {
+                if !ignore_br
+                    && self
+                        .excl_br_start
+                        .as_ref()
+                        .map_or(false, |f| f.is_match(line))
+                {
                     ignore_br = true;
                 }
 
                 // Start a line ignore region. Region starts are inclusive.
-                if !ignore && matches(&self.excl_start, line) {
+                if !ignore && self.excl_start.as_ref().map_or(false, |f| f.is_match(line)) {
                     ignore = true;
                 }
 
