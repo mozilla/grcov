@@ -100,7 +100,7 @@ Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-co
 
 ```sh
 export CARGO_INCREMENTAL=0
-export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"
+export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off"
 ```
 These will ensure that things like dead code elimination do not skew the coverage.
 
@@ -158,7 +158,7 @@ matrix:
 
 script:
     - export CARGO_INCREMENTAL=0
-    - export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"
+    - export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off"
     - cargo build --verbose $CARGO_OPTIONS
     - cargo test --verbose $CARGO_OPTIONS
     - |
