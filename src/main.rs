@@ -183,6 +183,42 @@ fn main() {
                                .value_name("LOG")
                                .takes_value(true))
 
+                          .arg(Arg::with_name("excl-line")
+                               .help("Lines in covered files containing this marker will be excluded.")
+                               .long("excl-line")
+                               .value_name("regex")
+                               .takes_value(true))
+
+                            .arg(Arg::with_name("excl-start")
+                                .help("Marks the beginning of an excluded section. The current line is part of this section.")
+                                .long("excl-start")
+                                .value_name("regex")
+                                .takes_value(true))
+
+                            .arg(Arg::with_name("excl-stop")
+                                .help("Marks the end of an excluded section. The current line is part of this section.")
+                                .long("excl-stop")
+                                .value_name("regex")
+                                .takes_value(true))
+
+                          .arg(Arg::with_name("excl-br-line")
+                               .help("Lines in covered files containing this marker will be excluded from branch coverage.")
+                               .long("excl-br-line")
+                               .value_name("regex")
+                               .takes_value(true))
+
+                            .arg(Arg::with_name("excl-br-start")
+                                .help("Marks the end of a section excluded from branch coverage. The current line is part of this section.")
+                                .long("excl-br-start")
+                                .value_name("regex")
+                                .takes_value(true))
+
+                            .arg(Arg::with_name("excl-br-stop")
+                                .help("Marks the end of a section excluded from branch coverage. The current line is part of this section.")
+                                .long("excl-br-stop")
+                                .value_name("regex")
+                                .takes_value(true))
+
                           // This group requires that at least one of --token and --service-job-id
                           // be present. --service-job-id requires --service-name, so this
                           // effectively means we accept the following combinations:
@@ -243,6 +279,33 @@ fn main() {
             }
         }
     };
+
+    let excl_line = matches
+        .value_of("excl-line")
+        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-line.")));
+    let excl_start = matches
+        .value_of("excl-start")
+        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-start.")));
+    let excl_stop = matches
+        .value_of("excl-stop")
+        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-stop.")));
+    let excl_br_line = matches
+        .value_of("excl-br-line")
+        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-br-line.")));
+    let excl_br_start = matches
+        .value_of("excl-br-start")
+        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-br-start.")));
+    let excl_br_stop = matches
+        .value_of("excl-br-stop")
+        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-br-stop.")));
+    let file_filter = FileFilter::new(
+        excl_line,
+        excl_start,
+        excl_stop,
+        excl_br_line,
+        excl_br_start,
+        excl_br_stop,
+    );
 
     panic::set_hook(Box::new(|panic_info| {
         let (filename, line) = panic_info
@@ -377,6 +440,7 @@ fn main() {
         ignore_not_existing,
         &mut to_ignore_dirs,
         filter_option,
+        file_filter,
     );
 
     if output_type == "ade" {

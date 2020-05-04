@@ -126,7 +126,7 @@ script:
     - |
       if [ "$TRAVIS_RUST_VERSION" = "nightly" ] && [ -z "$TRAVIS_TAG" ]; then
         zip -0 ccov.zip `find . \( -name "grcov*.gc*" -o -name "llvmgcov.gc*" \) -print`;
-        ./target/debug/grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o lcov.info;
+        ./target/debug/grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o lcov.info --excl-line "#\[derive\(" --excl-br-line "#\[derive\(";
         bash <(curl -s https://codecov.io/bash) -f lcov.info;
       fi
     - |
