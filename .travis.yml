@@ -118,7 +118,7 @@ script:
     - |
       if [ "$TRAVIS_RUST_VERSION" = "nightly" ] && [ -z "$TRAVIS_TAG" ]; then
         export CARGO_INCREMENTAL=0;
-        export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off";
+        export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort";
       fi
     - if [ "$TRAVIS_TAG" ]; then export CARGO_OPTIONS="--release"; fi
     - cargo build --verbose $CARGO_OPTIONS
