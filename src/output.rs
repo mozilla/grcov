@@ -21,7 +21,18 @@ use crate::html;
 
 fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
     let write_target: Box<dyn Write> = match output_file {
-        Some(filename) => Box::new(File::create(filename).unwrap()),
+        Some(filename) => {
+            let output = PathBuf::from(filename);
+            if output.is_dir() {
+                panic!(
+                    "The output file {} is a directory and must a regular file.",
+                    filename
+                )
+            }
+            Box::new(File::create(output).unwrap_or_else(|_| {
+                panic!("Cannot create the file {} to dump coverage data", filename)
+            }))
+        }
         None => {
             let stdout = io::stdout();
             Box::new(stdout)
