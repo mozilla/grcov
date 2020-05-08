@@ -47,8 +47,10 @@ fn main() {
                                .help("Sets a custom output type")
                                .long_help(
 "Sets a custom output type:
-- *lcov* for the lcov INFO format;
+- *html* for a HTML coverage report;
 - *coveralls* for the Coveralls specific format;
+- *lcov* for the lcov INFO format;
+- *covdir* for the covdir recursive JSON format;
 - *coveralls+* for the Coveralls specific format with function information;
 - *ade* for the ActiveData-ETL specific format;
 - *files* to only return a list of files.
