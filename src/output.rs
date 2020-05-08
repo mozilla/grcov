@@ -25,7 +25,7 @@ fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
             let output = PathBuf::from(filename);
             if output.is_dir() {
                 panic!(
-                    "The output file {} is a directory and must a regular file.",
+                    "The output file {} is a directory, but must be a regular file.",
                     filename
                 )
             }
