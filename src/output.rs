@@ -548,23 +548,21 @@ mod tests {
         let file_name = "test_lcov_brf_brh.info";
         let file_path = tmp_dir.path().join(&file_name);
 
-        let results = vec![
-            (
-                PathBuf::from("foo/bar/a.cpp"),
-                PathBuf::from("foo/bar/a.cpp"),
-                CovResult {
-                    lines: [(1, 10), (2, 11)].iter().cloned().collect(),
-                    branches: {
-                        let mut map = BTreeMap::new();
-                        // 3 hit branches over 10
-                        map.insert(1, vec![true, false, false, true, false, false]);
-                        map.insert(2, vec![false, false, false, true]);
-                        map
-                    },
-                    functions: FxHashMap::default(),
+        let results = vec![(
+            PathBuf::from("foo/bar/a.cpp"),
+            PathBuf::from("foo/bar/a.cpp"),
+            CovResult {
+                lines: [(1, 10), (2, 11)].iter().cloned().collect(),
+                branches: {
+                    let mut map = BTreeMap::new();
+                    // 3 hit branches over 10
+                    map.insert(1, vec![true, false, false, true, false, false]);
+                    map.insert(2, vec![false, false, false, true]);
+                    map
                 },
-            ),
-        ];
+                functions: FxHashMap::default(),
+            },
+        )];
 
         let results = Box::new(results.into_iter());
         output_lcov(results, Some(file_path.to_str().unwrap()));
