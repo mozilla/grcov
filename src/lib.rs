@@ -270,8 +270,8 @@ mod tests {
     use super::*;
     use rustc_hash::FxHashMap;
     use std::fs::File;
-    use std::sync::{Arc, Mutex};
     use std::io::Read;
+    use std::sync::{Arc, Mutex};
 
     #[test]
     fn test_merge_results() {
