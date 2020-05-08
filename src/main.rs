@@ -64,11 +64,11 @@ fn main() {
                                    ("coveralls+", "coveralls_auth")
                                ]))
 
-                          .arg(Arg::with_name("output_file")
-                               .help("Specifies the output file")
+                          .arg(Arg::with_name("output_path")
+                               .help("Specifies the output path")
                                .short("o")
-                               .long("output-file")
-                               .value_name("FILE")
+                               .long("output-path")
+                               .value_name("PATH")
                                .takes_value(true))
 
                           .arg(Arg::with_name("source_dir")
@@ -232,7 +232,7 @@ fn main() {
     let paths: Vec<_> = matches.values_of("paths").unwrap().collect();
     let paths: Vec<String> = paths.iter().map(|s| s.to_string()).collect();
     let output_type = matches.value_of("output_type").unwrap();
-    let output_file_path = matches.value_of("output_file");
+    let output_path = matches.value_of("output_path");
     let source_dir = matches.value_of("source_dir").unwrap_or("");
     let prefix_dir = matches.value_of("prefix_dir").unwrap_or("");
     let ignore_not_existing = matches.is_present("ignore_not_existing");
@@ -444,9 +444,9 @@ fn main() {
     );
 
     if output_type == "ade" {
-        output_activedata_etl(iterator, output_file_path);
+        output_activedata_etl(iterator, output_path);
     } else if output_type == "lcov" {
-        output_lcov(iterator, output_file_path);
+        output_lcov(iterator, output_path);
     } else if output_type == "coveralls" {
         output_coveralls(
             iterator,
@@ -457,7 +457,7 @@ fn main() {
             service_pull_request,
             commit_sha,
             false,
-            output_file_path,
+            output_path,
             vcs_branch,
             is_parallel,
         );
@@ -471,16 +471,16 @@ fn main() {
             service_pull_request,
             commit_sha,
             true,
-            output_file_path,
+            output_path,
             vcs_branch,
             is_parallel,
         );
     } else if output_type == "files" {
-        output_files(iterator, output_file_path);
+        output_files(iterator, output_path);
     } else if output_type == "covdir" {
-        output_covdir(iterator, output_file_path);
+        output_covdir(iterator, output_path);
     } else if output_type == "html" {
-        output_html(iterator, output_file_path, num_threads);
+        output_html(iterator, output_path, num_threads);
     } else {
         assert!(false, "{} is not a supported output type", output_type);
     }

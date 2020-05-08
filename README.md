@@ -57,7 +57,7 @@ OPTIONS:
         --log <LOG>
             Set the file where to log (or stderr or stdout). Defaults to 'stderr' [default: stderr]
 
-    -o, --output-file <FILE>                         Specifies the output file
+    -o, --output-path <PATH>                         Specifies the output path
     -t, --output-type <OUTPUT TYPE>
             Sets a custom output type [default: lcov]  [possible values: ade, lcov, coveralls, coveralls+, files,
             covdir, html]
