@@ -10,6 +10,11 @@ repos:
     -   id: check-vcs-permalinks
     -   id: trailing-whitespace
         exclude: ^test/
+    -   id: mixed-line-ending
+        exclude: ^test/
+-   repo: meta
+    hooks:
+    -   id: check-useless-excludes
 -   repo: local
     hooks:
       - id: fmt
