@@ -32,7 +32,7 @@ FLAGS:
             Enables parsing branch coverage information
 
         --guess-directory-when-missing
-            
+
 
     -h, --help
             Prints help information
@@ -95,7 +95,7 @@ OPTIONS:
             - *files* to only return a list of files.
              [default: lcov]  [possible values: ade, lcov, coveralls, coveralls+, files, covdir, html]
         --path-mapping <PATH>...
-            
+
 
     -p, --prefix-dir <PATH>
             Specifies a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that

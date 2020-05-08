@@ -8,6 +8,8 @@ repos:
     -   id: check-yaml
     -   id: check-json
     -   id: check-vcs-permalinks
+    -   id: trailing-whitespace
+        exclude: ^test/
 -   repo: local
     hooks:
       - id: fmt
