@@ -45,7 +45,7 @@ pub fn has_no_parent(path: &str) -> bool {
 }
 
 pub fn normalize_path<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
-    // Copied from Cargo sources: https://github.com/rust-lang/cargo/blob/master/src/cargo/util/paths.rs#L65
+    // Copied from Cargo sources: https://github.com/rust-lang/cargo/blob/911f0b94e5c10f514b13affbeccd5fd2661a32d9/src/cargo/util/paths.rs#L60
     let mut components = path.as_ref().components().peekable();
     let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
         components.next();
