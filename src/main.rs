@@ -275,7 +275,7 @@ fn main() {
             } else {
                 let _ =
                     TermLogger::init(LevelFilter::Error, Config::default(), TerminalMode::Stderr);
-                error!("Enable to create log file: {}. Swtich to stderr", log);
+                error!("Enable to create log file: {}. Switch to stderr", log);
             }
         }
     };
