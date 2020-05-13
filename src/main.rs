@@ -73,6 +73,12 @@ fn main() {
                                .value_name("PATH")
                                .takes_value(true))
 
+                          .arg(Arg::with_name("output_file")
+                               .help("Specifies the output path (DEPRECATED in favor of --output-path)")
+                               .long("output-file")
+                               .value_name("PATH")
+                               .takes_value(true))
+
                           .arg(Arg::with_name("source_dir")
                                .help("Specifies the root directory of the source files")
                                .short("s")
@@ -234,7 +240,20 @@ fn main() {
     let paths: Vec<_> = matches.values_of("paths").unwrap().collect();
     let paths: Vec<String> = paths.iter().map(|s| s.to_string()).collect();
     let output_type = matches.value_of("output_type").unwrap();
+
     let output_path = matches.value_of("output_path");
+    let output_file = matches.value_of("output_file");
+    let output_path = if output_file.is_some() {
+        eprintln!("--output-file is DEPRECATED in favor of --output-path");
+        if output_path.is_some() {
+            output_path
+        } else {
+            output_file
+        }
+    } else {
+        output_path
+    };
+
     let source_dir = matches.value_of("source_dir").unwrap_or("");
     let prefix_dir = matches.value_of("prefix_dir").unwrap_or("");
     let ignore_not_existing = matches.is_present("ignore_not_existing");
