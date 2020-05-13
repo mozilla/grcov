@@ -70,6 +70,7 @@ fn main() {
                                .help("Specifies the output path")
                                .short("o")
                                .long("output-path")
+                               .alias("output-file")
                                .value_name("PATH")
                                .takes_value(true))
 
