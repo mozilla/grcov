@@ -22,6 +22,7 @@ repos:
         language: system
         types: [file, rust]
         entry: cargo fmt -- --check
+        pass_filenames: false
 
       - id: clippy
         name: clippy
@@ -33,9 +34,9 @@ repos:
       - id: test
         name: test
         language: system
-        files: '\.rs$'
+        types: [file, rust]
         entry: cargo test --lib
         pass_filenames: false
 
 default_language_version:
-    python: python3.7
+    python: python3
