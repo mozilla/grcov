@@ -39,7 +39,7 @@ walkdir = "^2.3"
 num_cpus = "^1.13"
 semver = "^0.10"
 md-5 = "^0.8"
-zip = { version = "^0.4", features = ["deflate-zlib"], default-features = false }
+zip = { version = "^0.5", features = ["deflate-zlib"], default-features = false }
 tempfile = "^3"
 uuid = { version = "^0.8", features = ["v4"] }
 globset = "^0.4"
