@@ -852,7 +852,7 @@ mod tests {
                 None,
                 None,
                 false,
-                &mut gVec::new(),
+                &mut Vec::new(),
                 &keep_only_dirs.clone(),
                 None,
                 Default::default(),
