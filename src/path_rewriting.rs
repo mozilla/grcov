@@ -225,6 +225,7 @@ pub fn rewrite_paths(
     prefix_dir: Option<PathBuf>,
     ignore_not_existing: bool,
     to_ignore_dirs: &mut [&str],
+    to_keep_dirs: &[&str],
     filter_option: Option<bool>,
     file_filter: crate::FileFilter,
 ) -> CovResultIter {
@@ -234,6 +235,13 @@ pub fn rewrite_paths(
         glob_builder.add(Glob::new(&to_ignore_dir).unwrap());
     }
     let to_ignore_globset = glob_builder.build().unwrap();
+
+    glob_builder = GlobSetBuilder::new();
+
+    for to_keep_dir in to_keep_dirs {
+        glob_builder.add(Glob::new(&to_keep_dir).unwrap());
+    }
+    let to_keep_globset = glob_builder.build().unwrap();
 
     if let Some(p) = &source_dir {
         assert!(p.is_absolute());
@@ -296,6 +304,10 @@ pub fn rewrite_paths(
             let (abs_path, rel_path) = paths.unwrap();
 
             if to_ignore_globset.is_match(&rel_path) {
+                return None;
+            }
+
+            if !to_keep_globset.is_empty() && !to_keep_globset.is_match(&rel_path) {
                 return None;
             }
 
@@ -427,6 +439,7 @@ mod tests {
             None,
             false,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -455,6 +468,7 @@ mod tests {
             Some(PathBuf::from("/home/worker/src/workspace/")),
             false,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -483,6 +497,7 @@ mod tests {
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace\\")),
             false,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -511,6 +526,7 @@ mod tests {
             Some(PathBuf::from("C:/Users/worker/src/workspace/")),
             false,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -539,6 +555,7 @@ mod tests {
             Some(PathBuf::from("C:/Users/worker/src/")),
             false,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -565,6 +582,7 @@ mod tests {
             None,
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -596,6 +614,7 @@ mod tests {
             None,
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -623,6 +642,7 @@ mod tests {
             None,
             false,
             &mut vec!["mydir/*"],
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -649,6 +669,7 @@ mod tests {
             None,
             false,
             &mut vec!["mydir/*"],
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -679,6 +700,7 @@ mod tests {
                 None,
                 false,
                 &mut ignore_dirs.clone(),
+                &Vec::new(),
                 None,
                 Default::default(),
             );
@@ -711,6 +733,7 @@ mod tests {
                 None,
                 false,
                 &mut ignore_dirs.clone(),
+                &Vec::new(),
                 None,
                 Default::default(),
             );
@@ -726,6 +749,126 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn test_rewrite_paths_keep_only_a_directory() {
+        let mut result_map: CovResultMap = FxHashMap::default();
+        result_map.insert("main.cpp".to_string(), empty_result!());
+        result_map.insert("mydir/prova.h".to_string(), empty_result!());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            None,
+            None,
+            false,
+            &mut Vec::new(),
+            &vec!["mydir/*"],
+            None,
+            Default::default(),
+        );
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("mydir/prova.h"));
+            assert_eq!(rel_path, PathBuf::from("mydir/prova.h"));
+            assert_eq!(result, empty_result!());
+        }
+        assert_eq!(count, 1);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_rewrite_paths_keep_only_a_directory() {
+        let mut result_map: CovResultMap = FxHashMap::default();
+        result_map.insert("main.cpp".to_string(), empty_result!());
+        result_map.insert("mydir\\prova.h".to_string(), empty_result!());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            None,
+            None,
+            false,
+            &mut Vec::new(),
+            &vec!["mydir/*"],
+            None,
+            Default::default(),
+        );
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("mydir\\prova.h"));
+            assert_eq!(rel_path, PathBuf::from("mydir\\prova.h"));
+            assert_eq!(result, empty_result!());
+        }
+        assert_eq!(count, 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_rewrite_paths_keep_only_multiple_directories() {
+        let mut keep_only_dirs = vec!["mydir/*", "mydir2/*"];
+        for _ in 0..2 {
+            // we run the test twice, one with keep_only_dirs and the other with keep_only_dirs.reverse()
+            let mut result_map: CovResultMap = FxHashMap::default();
+            result_map.insert("main.cpp".to_string(), empty_result!());
+            result_map.insert("mydir/prova.h".to_string(), empty_result!());
+            result_map.insert("mydir2/prova.h".to_string(), empty_result!());
+            let results = rewrite_paths(
+                result_map,
+                None,
+                None,
+                None,
+                false,
+                &mut Vec::new(),
+                &keep_only_dirs.clone(),
+                None,
+                Default::default(),
+            );
+            let mut count = 0;
+            for (abs_path, rel_path, result) in results {
+                count += 1;
+                assert_ne!(abs_path, PathBuf::from("main.cpp"));
+                assert_ne!(rel_path, PathBuf::from("main.cpp"));
+                assert_eq!(result, empty_result!());
+            }
+            assert_eq!(count, 2);
+            keep_only_dirs.reverse();
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_rewrite_paths_keep_only_multiple_directories() {
+        let mut keep_only_dirs = vec!["mydir/*", "mydir2/*"];
+        for _ in 0..2 {
+            // we run the test twice, one with keep_only_dirs and the other with keep_only_dirs.reverse()
+            let mut result_map: CovResultMap = FxHashMap::default();
+            result_map.insert("main.cpp".to_string(), empty_result!());
+            result_map.insert("mydir\\prova.h".to_string(), empty_result!());
+            result_map.insert("mydir2\\prova.h".to_string(), empty_result!());
+            let results = rewrite_paths(
+                result_map,
+                None,
+                None,
+                None,
+                false,
+                &mut gVec::new(),
+                &keep_only_dirs.clone(),
+                None,
+                Default::default(),
+            );
+            let mut count = 0;
+            for (abs_path, rel_path, result) in results {
+                count += 1;
+                assert_ne!(abs_path, PathBuf::from("main.cpp"));
+                assert_ne!(rel_path, PathBuf::from("main.cpp"));
+                assert_eq!(result, empty_result!());
+            }
+            assert_eq!(count, 2);
+            keep_only_dirs.reverse();
+        }
+    }
+
     #[test]
     #[should_panic]
     fn test_rewrite_paths_rewrite_path_using_relative_source_directory() {
@@ -737,6 +880,7 @@ mod tests {
             None,
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         )
@@ -756,6 +900,7 @@ mod tests {
             None,
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -783,6 +928,7 @@ mod tests {
             None,
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -810,6 +956,7 @@ mod tests {
             None,
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -836,6 +983,7 @@ mod tests {
             None,
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -861,6 +1009,7 @@ mod tests {
             None,
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -887,6 +1036,7 @@ mod tests {
             None,
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -916,6 +1066,7 @@ mod tests {
             Some(PathBuf::from("/home/worker/src/workspace")),
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -946,6 +1097,7 @@ mod tests {
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -972,6 +1124,7 @@ mod tests {
             None,
             false,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -997,6 +1150,7 @@ mod tests {
             None,
             false,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -1025,6 +1179,7 @@ mod tests {
             None,
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -1054,6 +1209,7 @@ mod tests {
             None,
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -1083,6 +1239,7 @@ mod tests {
             Some(PathBuf::from("/home/worker/src/workspace")),
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -1115,6 +1272,7 @@ mod tests {
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -1143,6 +1301,7 @@ mod tests {
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -1171,6 +1330,7 @@ mod tests {
             Some(PathBuf::from("c:\\Users\\worker\\src\\workspace")),
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -1199,6 +1359,7 @@ mod tests {
             Some(PathBuf::from("c:\\Users\\worker\\src\\workspace")),
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -1228,6 +1389,7 @@ mod tests {
             Some(PathBuf::from("/home/worker/src/workspace")),
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -1257,6 +1419,7 @@ mod tests {
             Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             Default::default(),
         );
@@ -1283,6 +1446,7 @@ mod tests {
             None,
             false,
             &mut Vec::new(),
+            &Vec::new(),
             Some(true),
             Default::default(),
         );
@@ -1308,6 +1472,7 @@ mod tests {
             None,
             false,
             &mut Vec::new(),
+            &Vec::new(),
             Some(false),
             Default::default(),
         );
@@ -1368,6 +1533,7 @@ mod tests {
             None,
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             crate::FileFilter::new(
                 Some(regex::Regex::new("excluded line").unwrap()),
@@ -1410,6 +1576,7 @@ mod tests {
             None,
             true,
             &mut Vec::new(),
+            &Vec::new(),
             None,
             crate::FileFilter::new(
                 Some(regex::Regex::new("excluded line").unwrap()),

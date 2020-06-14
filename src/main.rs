@@ -100,6 +100,15 @@ fn main() {
                                .number_of_values(1)
                                .takes_value(true))
 
+                          .arg(Arg::with_name("keep_dir")
+                               .help("Keep only files/directories specified as globs")
+                               .long("keep-only")
+                               .value_name("PATH")
+                               .multiple(true)
+                               .number_of_values(1)
+                               .takes_value(true)
+                               .conflicts_with("ignore_dir"))
+
                           .arg(Arg::with_name("path_mapping")
                                .long("path-mapping")
                                .value_name("PATH")
@@ -244,6 +253,9 @@ fn main() {
     } else {
         Vec::new()
     };
+    let to_keep_dirs: Vec<_> = matches
+        .values_of("keep_dir")
+        .map_or_else(|| Vec::new(), |dirs| dirs.collect());
     let path_mapping_file = matches.value_of("path_mapping").unwrap_or("");
     let branch_enabled = matches.is_present("branch");
     let filter_option = if let Some(filter) = matches.value_of("filter") {
@@ -442,6 +454,7 @@ fn main() {
         prefix_dir,
         ignore_not_existing,
         &mut to_ignore_dirs,
+        &to_keep_dirs,
         filter_option,
         file_filter,
     );
