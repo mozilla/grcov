@@ -106,8 +106,7 @@ fn main() {
                                .value_name("PATH")
                                .multiple(true)
                                .number_of_values(1)
-                               .takes_value(true)
-                               .conflicts_with("ignore_dir"))
+                               .takes_value(true))
 
                           .arg(Arg::with_name("path_mapping")
                                .long("path-mapping")

@@ -869,6 +869,64 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn test_rewrite_paths_keep_only_and_ignore() {
+        let mut result_map: CovResultMap = FxHashMap::default();
+        result_map.insert("main.rs".to_string(), empty_result!());
+        result_map.insert("foo/keep.rs".to_string(), empty_result!());
+        result_map.insert("foo/not_keep.cpp".to_string(), empty_result!());
+        result_map.insert("foo/bar_ignore.rs".to_string(), empty_result!());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            None,
+            None,
+            false,
+            &mut vec!["foo/bar_*.rs"],
+            &vec!["foo/*.rs"],
+            None,
+            Default::default(),
+        );
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("foo/keep.rs"));
+            assert_eq!(rel_path, PathBuf::from("foo/keep.rs"));
+            assert_eq!(result, empty_result!());
+        }
+        assert_eq!(count, 1);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_rewrite_paths_keep_only_and_ignore() {
+        let mut result_map: CovResultMap = FxHashMap::default();
+        result_map.insert("main.rs".to_string(), empty_result!());
+        result_map.insert("foo\\keep.rs".to_string(), empty_result!());
+        result_map.insert("foo\\not_keep.cpp".to_string(), empty_result!());
+        result_map.insert("foo\\bar_ignore.rs".to_string(), empty_result!());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            None,
+            None,
+            false,
+            &mut vec!["foo/bar_*.rs"],
+            &vec!["foo/*.rs"],
+            None,
+            Default::default(),
+        );
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert_eq!(abs_path, PathBuf::from("foo\\keep.rs"));
+            assert_eq!(rel_path, PathBuf::from("foo\\keep.rs"));
+            assert_eq!(result, empty_result!());
+        }
+        assert_eq!(count, 1);
+    }
+
     #[test]
     #[should_panic]
     fn test_rewrite_paths_rewrite_path_using_relative_source_directory() {
