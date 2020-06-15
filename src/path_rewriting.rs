@@ -1,4 +1,4 @@
-use globset::{Glob, GlobSetBuilder};
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -218,6 +218,16 @@ fn is_symbolic_link(entry: &DirEntry) -> bool {
     entry.path_is_symlink()
 }
 
+fn to_globset(dirs: &[&str]) -> GlobSet {
+    let mut glob_builder = GlobSetBuilder::new();
+
+    for dir in dirs {
+        glob_builder.add(Glob::new(&dir).unwrap());
+    }
+
+    glob_builder.build().unwrap()
+}
+
 pub fn rewrite_paths(
     result_map: CovResultMap,
     path_mapping: Option<Value>,
@@ -229,19 +239,8 @@ pub fn rewrite_paths(
     filter_option: Option<bool>,
     file_filter: crate::FileFilter,
 ) -> CovResultIter {
-    let mut glob_builder = GlobSetBuilder::new();
-
-    for to_ignore_dir in to_ignore_dirs {
-        glob_builder.add(Glob::new(&to_ignore_dir).unwrap());
-    }
-    let to_ignore_globset = glob_builder.build().unwrap();
-
-    glob_builder = GlobSetBuilder::new();
-
-    for to_keep_dir in to_keep_dirs {
-        glob_builder.add(Glob::new(&to_keep_dir).unwrap());
-    }
-    let to_keep_globset = glob_builder.build().unwrap();
+    let to_ignore_globset = to_globset(to_ignore_dirs);
+    let to_keep_globset = to_globset(to_keep_dirs);
 
     if let Some(p) = &source_dir {
         assert!(p.is_absolute());
