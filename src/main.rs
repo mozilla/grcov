@@ -483,7 +483,7 @@ fn main() {
     } else if output_type == "covdir" {
         output_covdir(iterator, output_path);
     } else if output_type == "html" {
-        output_html(iterator, output_path, num_threads);
+        output_html(iterator, output_path, num_threads, branch_enabled);
     } else {
         assert!(false, "{} is not a supported output type", output_type);
     }

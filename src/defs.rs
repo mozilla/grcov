@@ -93,6 +93,8 @@ pub struct HtmlStats {
     pub covered_lines: usize,
     pub total_funs: usize,
     pub covered_funs: usize,
+    pub total_branches: usize,
+    pub covered_branches: usize,
 }
 
 #[derive(Clone, Debug)]
