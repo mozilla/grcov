@@ -1,3 +1,7 @@
+* {
+  box-sizing: border-box;
+}
+
 body {
     color: #000000;
     background-color: #FFFFFF;
@@ -110,11 +114,13 @@ body {
     font-family: sans-serif;
 }
 
-.statsLine, .statsFun {
+.statsLine, .statsFun, .statsBranches {
     font-weight: bold;
 }
 
-.linesHit, .linesTotal, .linesPercentage, .funsHit, .funsTotal, .funsPercentage {
+.linesHit, .linesTotal, .linesPercentage,
+.funsHit, .funsTotal, .funsPercentage,
+.branchesHit, .branchesTotal, .branchesPercentage {
     background-color: #DAE7FE;
     color: #284FA8;
     white-space: nowrap;
@@ -123,7 +129,7 @@ body {
     font-weight: bold;
 }
 
-.linesPercentage, .funsPercentage {
+.linesPercentage, .funsPercentage, .branchesPercentage {
     color: black;
 }
 
@@ -137,15 +143,15 @@ body {
   white-space: nowrap;
 }
 
-.funHi, .lineHi {
+.funHi, .lineHi, .branchHi {
     background-color: #A7FC9D;
 }
 
-.funMed, .lineMed {
+.funMed, .lineMed, .branchMed {
     background-color: #FFEA20;
 }
 
-.funLow, .lineLow {
+.funLow, .lineLow, .branchLow {
     background-color: #FF0000;
 }
 
@@ -203,35 +209,39 @@ body {
     text-align: center;
 }
 
-.dirLinesPer, .dirLinesRatio, .dirFunsPer, .dirFunsRatio {
+.dirLinesPer, .dirLinesRatio,
+.dirFunsPer, .dirFunsRatio,
+.dirBranchesPer, .dirBranchesRatio {
     text-align: right;
     padding-right: 1em;
 }
 
-.dirBarPer, .dirLinesPer, .dirLinesRatio, .dirFunsPer, .dirFunsRatio {
-    width: 10%;
+.dirBarPer, .dirLinesPer, .dirLinesRatio,
+.dirFunsPer, .dirFunsRatio,
+.dirBranchesPer, .dirBranchesRatio {
+    width: 8%;
 }
 
-.dirLinesPer, .dirFunsPer {
+.dirLinesPer, .dirFunsPer, .dirBranchesPer {
     font-weight: bold;
 }
 
-.dirLineCovHeader, .dirNameHeader, .dirFunsHeader {
+.dirLineCovHeader, .dirNameHeader, .dirFunsHeader, .dirBranchesHeader {
     text-align: center;
 }
 
 .dirLineCovHeader {
-    width: 30%;
+    width: 24%;
     padding-left: 1em;
 }
 
-.dirFunsHeader {
-    width: 20%;
+.dirFunsHeader, .dirBranchesHeader {
+    width: 16%;
     padding-left: 1em;
 }
 
 .dirName, .dirNameHeader {
-    width: 50%;
+    width: 44%;
     padding-left: 1em;
 }
 
