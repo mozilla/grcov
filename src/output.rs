@@ -280,8 +280,8 @@ fn get_digest(path: PathBuf) -> String {
         let mut buffer = Vec::new();
         f.read_to_end(&mut buffer).unwrap();
         let mut hasher = Md5::new();
-        hasher.input(buffer.as_slice());
-        format!("{:x}", hasher.result())
+        hasher.update(buffer.as_slice());
+        format!("{:x}", hasher.finalize())
     } else {
         Uuid::new_v4().to_string()
     }
