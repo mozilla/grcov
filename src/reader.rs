@@ -203,7 +203,7 @@ impl GcovReader for GcovReaderBuf {
                 let bytes = &self.buffer[i..i + 4];
                 Err(GcovError::Str(format!(
                     "Unexpected version: {} in {}",
-                    std::str::from_utf8(&bytes).unwrap(),
+                    String::from_utf8_lossy(&bytes),
                     self.get_stem()
                 )))
             }
