@@ -43,6 +43,9 @@ pub use crate::covdir::*;
 
 pub mod html;
 
+mod file_filter;
+pub use crate::file_filter::*;
+
 use log::error;
 use std::collections::{btree_map, hash_map};
 use std::fs;
@@ -267,8 +270,8 @@ mod tests {
     use super::*;
     use rustc_hash::FxHashMap;
     use std::fs::File;
-    use std::sync::{Arc, Mutex};
     use std::io::Read;
+    use std::sync::{Arc, Mutex};
 
     #[test]
     fn test_merge_results() {

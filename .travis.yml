@@ -109,6 +109,23 @@ matrix:
       env:
         - CLANG_CXX=clang++
         - DEPLOY=1
+
+    - os: linux
+      rust: stable
+      dist: bionic
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - python3-pip
+            - python3-setuptools
+            - python3-wheel
+      script:
+        - rustup component add rustfmt clippy
+        - pip3 install --disable-pip-version-check --quiet --no-cache-dir pre-commit
+        - pre-commit run --all-files
+
 install:
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then sudo softwareupdate -i "Command Line Tools (macOS High Sierra version 10.13) for Xcode-9.4"; fi
     - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew cask uninstall --force oclint; fi
@@ -118,7 +135,8 @@ script:
     - |
       if [ "$TRAVIS_RUST_VERSION" = "nightly" ] && [ -z "$TRAVIS_TAG" ]; then
         export CARGO_INCREMENTAL=0;
-        export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads";
+        export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort";
+        export RUSTDOCFLAGS="-Cpanic=abort";
       fi
     - if [ "$TRAVIS_TAG" ]; then export CARGO_OPTIONS="--release"; fi
     - cargo build --verbose $CARGO_OPTIONS
@@ -126,7 +144,7 @@ script:
     - |
       if [ "$TRAVIS_RUST_VERSION" = "nightly" ] && [ -z "$TRAVIS_TAG" ]; then
         zip -0 ccov.zip `find . \( -name "grcov*.gc*" -o -name "llvmgcov.gc*" \) -print`;
-        ./target/debug/grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o lcov.info;
+        ./target/debug/grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o lcov.info --excl-line "#\[derive\(" --excl-br-line "#\[derive\(";
         bash <(curl -s https://codecov.io/bash) -f lcov.info;
       fi
     - |

@@ -21,7 +21,18 @@ use crate::html;
 
 fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
     let write_target: Box<dyn Write> = match output_file {
-        Some(filename) => Box::new(File::create(filename).unwrap()),
+        Some(filename) => {
+            let output = PathBuf::from(filename);
+            if output.is_dir() {
+                panic!(
+                    "The output file {} is a directory, but must be a regular file.",
+                    filename
+                )
+            }
+            Box::new(File::create(output).unwrap_or_else(|_| {
+                panic!("Cannot create the file {} to dump coverage data", filename)
+            }))
+        }
         None => {
             let stdout = io::stdout();
             Box::new(stdout)
@@ -269,8 +280,8 @@ fn get_digest(path: PathBuf) -> String {
         let mut buffer = Vec::new();
         f.read_to_end(&mut buffer).unwrap();
         let mut hasher = Md5::new();
-        hasher.input(buffer.as_slice());
-        format!("{:x}", hasher.result())
+        hasher.update(buffer.as_slice());
+        format!("{:x}", hasher.finalize())
     } else {
         Uuid::new_v4().to_string()
     }
@@ -464,7 +475,12 @@ pub fn output_files(results: CovResultIter, output_file: Option<&str>) {
     }
 }
 
-pub fn output_html(results: CovResultIter, output_dir: Option<&str>, num_threads: usize) {
+pub fn output_html(
+    results: CovResultIter,
+    output_dir: Option<&str>,
+    num_threads: usize,
+    branch_enabled: bool,
+) {
     let output = if let Some(output_dir) = output_dir {
         PathBuf::from(output_dir)
     } else {
@@ -494,7 +510,7 @@ pub fn output_html(results: CovResultIter, output_dir: Option<&str>, num_threads
         let t = thread::Builder::new()
             .name(format!("Consumer HTML {}", i))
             .spawn(move || {
-                html::consumer_html(receiver, stats, output, config);
+                html::consumer_html(receiver, stats, output, config, branch_enabled);
             })
             .unwrap();
 
@@ -523,7 +539,7 @@ pub fn output_html(results: CovResultIter, output_dir: Option<&str>, num_threads
 
     let global = Arc::try_unwrap(stats).unwrap().into_inner().unwrap();
 
-    html::gen_index(global, config, &output);
+    html::gen_index(global, config, &output, branch_enabled);
     html::write_static_files(output);
 }
 
@@ -548,23 +564,21 @@ mod tests {
         let file_name = "test_lcov_brf_brh.info";
         let file_path = tmp_dir.path().join(&file_name);
 
-        let results = vec![
-            (
-                PathBuf::from("foo/bar/a.cpp"),
-                PathBuf::from("foo/bar/a.cpp"),
-                CovResult {
-                    lines: [(1, 10), (2, 11)].iter().cloned().collect(),
-                    branches: {
-                        let mut map = BTreeMap::new();
-                        // 3 hit branches over 10
-                        map.insert(1, vec![true, false, false, true, false, false]);
-                        map.insert(2, vec![false, false, false, true]);
-                        map
-                    },
-                    functions: FxHashMap::default(),
+        let results = vec![(
+            PathBuf::from("foo/bar/a.cpp"),
+            PathBuf::from("foo/bar/a.cpp"),
+            CovResult {
+                lines: [(1, 10), (2, 11)].iter().cloned().collect(),
+                branches: {
+                    let mut map = BTreeMap::new();
+                    // 3 hit branches over 10
+                    map.insert(1, vec![true, false, false, true, false, false]);
+                    map.insert(2, vec![false, false, false, true]);
+                    map
                 },
-            ),
-        ];
+                functions: FxHashMap::default(),
+            },
+        )];
 
         let results = Box::new(results.into_iter());
         output_lcov(results, Some(file_path.to_str().unwrap()));

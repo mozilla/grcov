@@ -47,8 +47,10 @@ fn main() {
                                .help("Sets a custom output type")
                                .long_help(
 "Sets a custom output type:
-- *lcov* for the lcov INFO format;
+- *html* for a HTML coverage report;
 - *coveralls* for the Coveralls specific format;
+- *lcov* for the lcov INFO format;
+- *covdir* for the covdir recursive JSON format;
 - *coveralls+* for the Coveralls specific format with function information;
 - *ade* for the ActiveData-ETL specific format;
 - *files* to only return a list of files.
@@ -64,11 +66,12 @@ fn main() {
                                    ("coveralls+", "coveralls_auth")
                                ]))
 
-                          .arg(Arg::with_name("output_file")
-                               .help("Specifies the output file")
+                          .arg(Arg::with_name("output_path")
+                               .help("Specifies the output path")
                                .short("o")
-                               .long("output-file")
-                               .value_name("FILE")
+                               .long("output-path")
+                               .alias("output-file")
+                               .value_name("PATH")
                                .takes_value(true))
 
                           .arg(Arg::with_name("source_dir")
@@ -183,6 +186,42 @@ fn main() {
                                .value_name("LOG")
                                .takes_value(true))
 
+                          .arg(Arg::with_name("excl-line")
+                               .help("Lines in covered files containing this marker will be excluded.")
+                               .long("excl-line")
+                               .value_name("regex")
+                               .takes_value(true))
+
+                            .arg(Arg::with_name("excl-start")
+                                .help("Marks the beginning of an excluded section. The current line is part of this section.")
+                                .long("excl-start")
+                                .value_name("regex")
+                                .takes_value(true))
+
+                            .arg(Arg::with_name("excl-stop")
+                                .help("Marks the end of an excluded section. The current line is part of this section.")
+                                .long("excl-stop")
+                                .value_name("regex")
+                                .takes_value(true))
+
+                          .arg(Arg::with_name("excl-br-line")
+                               .help("Lines in covered files containing this marker will be excluded from branch coverage.")
+                               .long("excl-br-line")
+                               .value_name("regex")
+                               .takes_value(true))
+
+                            .arg(Arg::with_name("excl-br-start")
+                                .help("Marks the end of a section excluded from branch coverage. The current line is part of this section.")
+                                .long("excl-br-start")
+                                .value_name("regex")
+                                .takes_value(true))
+
+                            .arg(Arg::with_name("excl-br-stop")
+                                .help("Marks the end of a section excluded from branch coverage. The current line is part of this section.")
+                                .long("excl-br-stop")
+                                .value_name("regex")
+                                .takes_value(true))
+
                           // This group requires that at least one of --token and --service-job-id
                           // be present. --service-job-id requires --service-name, so this
                           // effectively means we accept the following combinations:
@@ -196,7 +235,7 @@ fn main() {
     let paths: Vec<_> = matches.values_of("paths").unwrap().collect();
     let paths: Vec<String> = paths.iter().map(|s| s.to_string()).collect();
     let output_type = matches.value_of("output_type").unwrap();
-    let output_file_path = matches.value_of("output_file");
+    let output_path = matches.value_of("output_path");
     let source_dir = matches.value_of("source_dir").unwrap_or("");
     let prefix_dir = matches.value_of("prefix_dir").unwrap_or("");
     let ignore_not_existing = matches.is_present("ignore_not_existing");
@@ -239,10 +278,37 @@ fn main() {
             } else {
                 let _ =
                     TermLogger::init(LevelFilter::Error, Config::default(), TerminalMode::Stderr);
-                error!("Enable to create log file: {}. Swtich to stderr", log);
+                error!("Enable to create log file: {}. Switch to stderr", log);
             }
         }
     };
+
+    let excl_line = matches
+        .value_of("excl-line")
+        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-line.")));
+    let excl_start = matches
+        .value_of("excl-start")
+        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-start.")));
+    let excl_stop = matches
+        .value_of("excl-stop")
+        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-stop.")));
+    let excl_br_line = matches
+        .value_of("excl-br-line")
+        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-br-line.")));
+    let excl_br_start = matches
+        .value_of("excl-br-start")
+        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-br-start.")));
+    let excl_br_stop = matches
+        .value_of("excl-br-stop")
+        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-br-stop.")));
+    let file_filter = FileFilter::new(
+        excl_line,
+        excl_start,
+        excl_stop,
+        excl_br_line,
+        excl_br_start,
+        excl_br_stop,
+    );
 
     panic::set_hook(Box::new(|panic_info| {
         let (filename, line) = panic_info
@@ -377,12 +443,13 @@ fn main() {
         ignore_not_existing,
         &mut to_ignore_dirs,
         filter_option,
+        file_filter,
     );
 
     if output_type == "ade" {
-        output_activedata_etl(iterator, output_file_path);
+        output_activedata_etl(iterator, output_path);
     } else if output_type == "lcov" {
-        output_lcov(iterator, output_file_path);
+        output_lcov(iterator, output_path);
     } else if output_type == "coveralls" {
         output_coveralls(
             iterator,
@@ -393,7 +460,7 @@ fn main() {
             service_pull_request,
             commit_sha,
             false,
-            output_file_path,
+            output_path,
             vcs_branch,
             is_parallel,
         );
@@ -407,16 +474,16 @@ fn main() {
             service_pull_request,
             commit_sha,
             true,
-            output_file_path,
+            output_path,
             vcs_branch,
             is_parallel,
         );
     } else if output_type == "files" {
-        output_files(iterator, output_file_path);
+        output_files(iterator, output_path);
     } else if output_type == "covdir" {
-        output_covdir(iterator, output_file_path);
+        output_covdir(iterator, output_path);
     } else if output_type == "html" {
-        output_html(iterator, output_file_path, num_threads);
+        output_html(iterator, output_path, num_threads, branch_enabled);
     } else {
         assert!(false, "{} is not a supported output type", output_type);
     }

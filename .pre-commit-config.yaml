@@ -7,6 +7,14 @@ repos:
     -   id: check-symlinks
     -   id: check-yaml
     -   id: check-json
+    -   id: check-vcs-permalinks
+    -   id: trailing-whitespace
+        exclude: ^test/
+    -   id: mixed-line-ending
+        exclude: ^test/
+-   repo: meta
+    hooks:
+    -   id: check-useless-excludes
 -   repo: local
     hooks:
       - id: fmt
@@ -14,20 +22,21 @@ repos:
         language: system
         types: [file, rust]
         entry: cargo fmt -- --check
+        pass_filenames: false
 
       - id: clippy
         name: clippy
         language: system
         types: [file, rust]
-        entry: cargo clippy --all-targets --all # -- -D warnings # Use -D warnings option to ensure the job fails when encountering warnings
+        entry: cargo clippy --bins --tests --examples --all # -- -D warnings # Use -D warnings option to ensure the job fails when encountering warnings
         pass_filenames: false
 
       - id: test
         name: test
         language: system
-        files: '\.rs$'
+        types: [file, rust]
         entry: cargo test --lib
         pass_filenames: false
 
 default_language_version:
-    python: python3.7
+    python: python3

@@ -1,10 +1,10 @@
 use globset::{Glob, GlobSetBuilder};
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 use std::collections::hash_map;
 use std::fs;
 use std::io;
-use std::mem;
 use std::path::{Component, Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
@@ -45,7 +45,7 @@ pub fn has_no_parent(path: &str) -> bool {
 }
 
 pub fn normalize_path<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
-    // Copied from Cargo sources: https://github.com/rust-lang/cargo/blob/master/src/cargo/util/paths.rs#L65
+    // Copied from Cargo sources: https://github.com/rust-lang/cargo/blob/911f0b94e5c10f514b13affbeccd5fd2661a32d9/src/cargo/util/paths.rs#L60
     let mut components = path.as_ref().components().peekable();
     let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
         components.next();
@@ -92,15 +92,9 @@ fn apply_mapping(mapping: &Option<Value>, path: &str) -> PathBuf {
 }
 
 // Remove common part between the prefix's end and the path's start
-fn guess_abs_path(prefix_dir: &PathBuf, path: &PathBuf, cache: &mut Option<PathBuf>) -> PathBuf {
-    if let Some(cache) = cache {
-        if path.starts_with(&cache) {
-            return prefix_dir.join(path.strip_prefix(cache).unwrap().to_path_buf());
-        }
-    }
+fn guess_abs_path(prefix_dir: &PathBuf, path: &PathBuf) -> PathBuf {
     for ancestor in path.ancestors() {
         if prefix_dir.ends_with(ancestor) && !ancestor.as_os_str().is_empty() {
-            mem::replace(cache, Some(ancestor.to_path_buf()));
             return prefix_dir.join(path.strip_prefix(ancestor).unwrap().to_path_buf());
         }
     }
@@ -131,21 +125,16 @@ fn fixup_rel_path(source_dir: &Option<PathBuf>, abs_path: &PathBuf, rel_path: Pa
 }
 
 // Get the absolute path for the source file's path, resolving symlinks.
-fn get_abs_path(
-    source_dir: &Option<PathBuf>,
-    rel_path: PathBuf,
-    cache: &mut Option<PathBuf>,
-) -> Option<(PathBuf, PathBuf)> {
+fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf) -> Option<(PathBuf, PathBuf)> {
     let mut abs_path = if !rel_path.is_relative() {
         rel_path.clone()
     } else if let Some(ref source_dir) = source_dir {
         if !cfg!(windows) {
-            guess_abs_path(&source_dir, &rel_path, cache)
+            guess_abs_path(&source_dir, &rel_path)
         } else {
             guess_abs_path(
                 &source_dir,
                 &PathBuf::from(&rel_path.to_str().unwrap().replace("/", "\\")),
-                cache,
             )
         }
     } else {
@@ -237,6 +226,7 @@ pub fn rewrite_paths(
     ignore_not_existing: bool,
     to_ignore_dirs: &mut [&str],
     filter_option: Option<bool>,
+    file_filter: crate::FileFilter,
 ) -> CovResultIter {
     let mut glob_builder = GlobSetBuilder::new();
 
@@ -279,59 +269,80 @@ pub fn rewrite_paths(
         }
     }
 
-    let mut cache: Option<PathBuf> = None;
+    let results = result_map
+        .into_par_iter()
+        .filter_map(move |(path, mut result)| {
+            let path = path.replace("\\", "/");
 
-    Box::new(result_map.into_iter().filter_map(move |(path, result)| {
-        let path = path.replace("\\", "/");
+            // Get path from the mapping.
+            let rel_path = apply_mapping(&path_mapping, &path);
 
-        // Get path from the mapping.
-        let rel_path = apply_mapping(&path_mapping, &path);
+            // Remove prefix from the path.
+            let rel_path = remove_prefix(&prefix_dir, rel_path);
 
-        // Remove prefix from the path.
-        let rel_path = remove_prefix(&prefix_dir, rel_path);
+            // Try mapping a partial path to a full path.
+            let rel_path = if check_extension(&rel_path, "java") {
+                map_partial_path(&file_to_paths, rel_path)
+            } else {
+                rel_path
+            };
 
-        // Try mapping a partial path to a full path.
-        let rel_path = if check_extension(&rel_path, "java") {
-            map_partial_path(&file_to_paths, rel_path)
-        } else {
-            rel_path
-        };
+            // Get absolute path to the source file.
+            let paths = get_abs_path(&source_dir, rel_path);
+            if paths.is_none() {
+                return None;
+            }
 
-        // Get absolute path to the source file.
-        let paths = get_abs_path(&source_dir, rel_path, &mut cache);
-        if paths.is_none() {
-            return None;
-        }
+            let (abs_path, rel_path) = paths.unwrap();
 
-        let (abs_path, rel_path) = paths.unwrap();
+            if to_ignore_globset.is_match(&rel_path) {
+                return None;
+            }
 
-        if to_ignore_globset.is_match(&rel_path) {
-            return None;
-        }
+            if ignore_not_existing && !abs_path.exists() {
+                return None;
+            }
 
-        if ignore_not_existing && !abs_path.exists() {
-            return None;
-        }
+            // Always return results with '/'.
+            let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
 
-        // Always return results with '/'.
-        let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
-
-        match filter_option {
-            Some(true) => {
-                if !is_covered(&result) {
-                    return None;
+            for filter in file_filter.create(&abs_path) {
+                match filter {
+                    crate::FilterType::Both(number) => {
+                        result.branches.remove(&number);
+                        result.lines.remove(&number);
+                    }
+                    crate::FilterType::Line(number) => {
+                        result.lines.remove(&number);
+                    }
+                    crate::FilterType::Branch(number) => {
+                        result.branches.remove(&number);
+                    }
                 }
             }
-            Some(false) => {
-                if is_covered(&result) {
-                    return None;
-                }
-            }
-            None => (),
-        };
 
-        Some((abs_path, rel_path, result))
-    }))
+            match filter_option {
+                Some(true) => {
+                    if !is_covered(&result) {
+                        return None;
+                    }
+                }
+                Some(false) => {
+                    if is_covered(&result) {
+                        return None;
+                    }
+                }
+                None => (),
+            };
+
+            Some((abs_path, rel_path, result))
+        });
+
+    Box::new(
+        results
+            .collect::<Vec<(PathBuf, PathBuf, CovResult)>>()
+            .into_iter(),
+    )
 }
 
 #[cfg(test)]
@@ -394,11 +405,31 @@ mod tests {
         }};
     }
 
+    macro_rules! skipping_result {
+        () => {{
+            let mut result = empty_result!();
+            for i in 1..20 {
+                result.lines.insert(i, 1);
+                result.branches.insert(i, vec![true]);
+            }
+            result
+        }};
+    }
+
     #[test]
     fn test_rewrite_paths_basic() {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("main.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(result_map, None, None, None, false, &mut Vec::new(), None);
+        let results = rewrite_paths(
+            result_map,
+            None,
+            None,
+            None,
+            false,
+            &mut Vec::new(),
+            None,
+            Default::default(),
+        );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -425,6 +456,7 @@ mod tests {
             false,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -452,6 +484,7 @@ mod tests {
             false,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -479,6 +512,7 @@ mod tests {
             false,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -506,6 +540,7 @@ mod tests {
             false,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -523,7 +558,16 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("tests/class/main.cpp".to_string(), empty_result!());
         result_map.insert("tests/class/doesntexist.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(result_map, None, None, None, true, &mut Vec::new(), None);
+        let results = rewrite_paths(
+            result_map,
+            None,
+            None,
+            None,
+            true,
+            &mut Vec::new(),
+            None,
+            Default::default(),
+        );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -545,7 +589,16 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("tests\\class\\main.cpp".to_string(), empty_result!());
         result_map.insert("tests\\class\\doesntexist.cpp".to_string(), empty_result!());
-        let results = rewrite_paths(result_map, None, None, None, true, &mut Vec::new(), None);
+        let results = rewrite_paths(
+            result_map,
+            None,
+            None,
+            None,
+            true,
+            &mut Vec::new(),
+            None,
+            Default::default(),
+        );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -571,6 +624,7 @@ mod tests {
             false,
             &mut vec!["mydir/*"],
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -596,6 +650,7 @@ mod tests {
             false,
             &mut vec!["mydir/*"],
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -625,6 +680,7 @@ mod tests {
                 false,
                 &mut ignore_dirs.clone(),
                 None,
+                Default::default(),
             );
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
@@ -656,6 +712,7 @@ mod tests {
                 false,
                 &mut ignore_dirs.clone(),
                 None,
+                Default::default(),
             );
             let mut count = 0;
             for (abs_path, rel_path, result) in results {
@@ -681,7 +738,9 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
-        );
+            Default::default(),
+        )
+        .any(|_| false);
     }
 
     #[cfg(unix)]
@@ -698,6 +757,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -724,6 +784,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -750,6 +811,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut results: Vec<(PathBuf, PathBuf, CovResult)> = results.collect();
         assert!(results.len() == 1);
@@ -775,6 +837,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut results: Vec<(PathBuf, PathBuf, CovResult)> = results.collect();
         assert!(results.len() == 1);
@@ -799,6 +862,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -824,6 +888,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -852,6 +917,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -881,6 +947,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -906,6 +973,7 @@ mod tests {
             false,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -930,6 +998,7 @@ mod tests {
             false,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -957,6 +1026,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -985,6 +1055,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -1013,6 +1084,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -1044,6 +1116,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -1071,6 +1144,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -1098,6 +1172,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -1125,6 +1200,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -1153,6 +1229,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -1181,6 +1258,7 @@ mod tests {
             true,
             &mut Vec::new(),
             None,
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -1206,6 +1284,7 @@ mod tests {
             false,
             &mut Vec::new(),
             Some(true),
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -1230,6 +1309,7 @@ mod tests {
             false,
             &mut Vec::new(),
             Some(false),
+            Default::default(),
         );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
@@ -1274,5 +1354,89 @@ mod tests {
         assert!(!has_no_parent("bar/foo/foo.bar"));
         assert!(!has_no_parent("/"));
         assert!(!has_no_parent("/foo/bar.oof"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_rewrite_paths_filter_lines_and_branches() {
+        let mut result_map: CovResultMap = FxHashMap::default();
+        result_map.insert("test/java/skip.java".to_string(), skipping_result!());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            Some(canonicalize_path("test").unwrap()),
+            None,
+            true,
+            &mut Vec::new(),
+            None,
+            crate::FileFilter::new(
+                Some(regex::Regex::new("excluded line").unwrap()),
+                Some(regex::Regex::new("skip line start").unwrap()),
+                Some(regex::Regex::new("skip line end").unwrap()),
+                Some(regex::Regex::new("excluded branch").unwrap()),
+                Some(regex::Regex::new("skip branch start").unwrap()),
+                Some(regex::Regex::new("skip branch end").unwrap()),
+            ),
+        );
+        let mut count = 0;
+        for (_, _, result) in results {
+            count += 1;
+            for inc in [1, 2, 3, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16].iter() {
+                assert!(result.lines.contains_key(&inc));
+            }
+            for inc in [4, 6, 7, 17, 18, 19, 20].iter() {
+                assert!(!result.lines.contains_key(&inc));
+            }
+
+            for inc in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 16, 17].iter() {
+                assert!(result.branches.contains_key(&inc));
+            }
+            for inc in [11, 13, 14, 18, 19, 20].iter() {
+                assert!(!result.branches.contains_key(&inc));
+            }
+        }
+        assert_eq!(count, 1);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_rewrite_paths_filter_lines_and_branches() {
+        let mut result_map: CovResultMap = FxHashMap::default();
+        result_map.insert("test\\java\\skip.java".to_string(), skipping_result!());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            Some(canonicalize_path("test").unwrap()),
+            None,
+            true,
+            &mut Vec::new(),
+            None,
+            crate::FileFilter::new(
+                Some(regex::Regex::new("excluded line").unwrap()),
+                Some(regex::Regex::new("skip line start").unwrap()),
+                Some(regex::Regex::new("skip line end").unwrap()),
+                Some(regex::Regex::new("excluded branch").unwrap()),
+                Some(regex::Regex::new("skip branch start").unwrap()),
+                Some(regex::Regex::new("skip branch end").unwrap()),
+            ),
+        );
+        let mut count = 0;
+        for (_, _, result) in results {
+            count += 1;
+            for inc in [1, 2, 3, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16].iter() {
+                assert!(result.lines.contains_key(&inc));
+            }
+            for inc in [4, 6, 7, 17, 18, 19, 20].iter() {
+                assert!(!result.lines.contains_key(&inc));
+            }
+
+            for inc in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 16, 17].iter() {
+                assert!(result.branches.contains_key(&inc));
+            }
+            for inc in [11, 13, 14, 18, 19, 20].iter() {
+                assert!(!result.branches.contains_key(&inc));
+            }
+        }
+        assert_eq!(count, 1);
     }
 }

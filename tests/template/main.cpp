@@ -7,7 +7,7 @@ class Ciao {
   private:
     T val;
 
-  public: 
+  public:
     void set(T v) {
       val = v;
     }
@@ -17,7 +17,7 @@ class Ciao {
     }
 
     T* get2() {
-      return &val; 
+      return &val;
     }
 };
 

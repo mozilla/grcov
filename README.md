@@ -28,39 +28,96 @@ USAGE:
     grcov [FLAGS] [OPTIONS] <paths>...
 
 FLAGS:
-        --branch                          Enables parsing branch coverage information
+        --branch
+            Enables parsing branch coverage information
+
         --guess-directory-when-missing
-    -h, --help                            Prints help information
-        --ignore-not-existing             Ignore source files that can't be found on the disk
-        --llvm                            Speeds-up parsing, when the code coverage information is exclusively coming
-                                          from a llvm build
-    -V, --version                         Prints version information
+
+
+    -h, --help
+            Prints help information
+
+        --ignore-not-existing
+            Ignore source files that can't be found on the disk
+
+        --llvm
+            Speeds-up parsing, when the code coverage information is exclusively coming from a llvm build
+
+        --parallel
+            Sets the build type to be parallel for 'coveralls' and 'coveralls+' formats
+
+    -V, --version
+            Prints version information
+
 
 OPTIONS:
-        --commit-sha <COMMIT HASH>                   Sets the hash of the commit used to generate the code coverage data
+        --commit-sha <COMMIT HASH>
+            Sets the hash of the commit used to generate the code coverage data
+
+        --excl-br-line <regex>
+            Lines in covered files containing this marker will be excluded from branch coverage.
+
+        --excl-br-start <regex>
+            Marks the end of a section excluded from branch coverage. The current line is part of this section.
+
+        --excl-br-stop <regex>
+            Marks the end of a section excluded from branch coverage. The current line is part of this section.
+
+        --excl-line <regex>
+            Lines in covered files containing this marker will be excluded.
+
+        --excl-start <regex>
+            Marks the beginning of an excluded section. The current line is part of this section.
+
+        --excl-stop <regex>
+            Marks the end of an excluded section. The current line is part of this section.
+
         --filter <filter>
             Filters out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered' to only return
             uncovered files [possible values: covered, uncovered]
-        --ignore <PATH>...                           Ignore files/directories specified as globs
+        --ignore <PATH>...
+            Ignore files/directories specified as globs
+
         --log <LOG>
             Set the file where to log (or stderr or stdout). Defaults to 'stderr' [default: stderr]
 
-    -o, --output-file <FILE>                         Specifies the output file
+    -o, --output-path <PATH>
+            Specifies the output path
+
     -t, --output-type <OUTPUT TYPE>
-            Sets a custom output type [default: lcov]  [possible values: ade, lcov, coveralls, coveralls+, files,
-            covdir, html]
+            Sets a custom output type:
+            - *html* for a HTML coverage report;
+            - *coveralls* for the Coveralls specific format;
+            - *lcov* for the lcov INFO format;
+            - *covdir* for the covdir recursive JSON format;
+            - *coveralls+* for the Coveralls specific format with function information;
+            - *ade* for the ActiveData-ETL specific format;
+            - *files* to only return a list of files.
+             [default: lcov]  [possible values: ade, lcov, coveralls, coveralls+, files, covdir, html]
         --path-mapping <PATH>...
+
+
     -p, --prefix-dir <PATH>
             Specifies a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that
             generated the code coverage information)
-        --service-job-id <SERVICE JOB ID>            Sets the service job id [aliases: service-job-number]
-        --service-name <SERVICE NAME>                Sets the service name
-        --service-number <SERVICE NUMBER>            Sets the service number
-        --service-pull-request <SERVICE PULL REQUEST>
-                                                     Sets the service pull request number
+        --service-job-id <SERVICE JOB ID>
+            Sets the service job id [aliases: service-job-number]
 
-    -s, --source-dir <DIRECTORY>                     Specifies the root directory of the source files
-        --threads <NUMBER>                            [default: 16]
+        --service-name <SERVICE NAME>
+            Sets the service name
+
+        --service-number <SERVICE NUMBER>
+            Sets the service number
+
+        --service-pull-request <SERVICE PULL REQUEST>
+            Sets the service pull request number
+
+    -s, --source-dir <DIRECTORY>
+            Specifies the root directory of the source files
+
+        --threads <NUMBER>
+             [default: 11]
+
         --token <TOKEN>
             Sets the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' formats
 
@@ -69,7 +126,8 @@ OPTIONS:
 
 
 ARGS:
-    <paths>...    Sets the input paths to use
+    <paths>...
+            Sets the input paths to use
 ```
 
 
@@ -88,7 +146,8 @@ Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-co
 
 ```sh
 export CARGO_INCREMENTAL=0
-export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"
+export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
+export RUSTDOCFLAGS="-Cpanic=abort"
 ```
 These will ensure that things like dead code elimination do not skew the coverage.
 
@@ -146,7 +205,8 @@ matrix:
 
 script:
     - export CARGO_INCREMENTAL=0
-    - export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads"
+    - export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
+    - export RUSTDOCFLAGS="-Cpanic=abort"
     - cargo build --verbose $CARGO_OPTIONS
     - cargo test --verbose $CARGO_OPTIONS
     - |
