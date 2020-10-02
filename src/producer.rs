@@ -19,11 +19,6 @@ pub enum ArchiveType {
     Plain(Vec<PathBuf>),
 }
 
-pub enum FilePath<'a> {
-    File(&'a mut dyn Read),
-    Path(&'a Path),
-}
-
 #[derive(Debug)]
 pub struct Archive {
     pub name: String,
@@ -65,7 +60,7 @@ impl Archive {
 
     fn handle_file<'a>(
         &'a self,
-        file: FilePath,
+        file: Option<&mut impl Read>,
         path: &PathBuf,
         gcno_stem_archives: &RefCell<FxHashMap<GCNOStem, &'a Archive>>,
         gcda_stem_archives: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
@@ -138,14 +133,8 @@ impl Archive {
             && (bytes == [b'T', b'N', b':'] || bytes == [b'S', b'F', b':'])
     }
 
-    fn check_file(file: FilePath, checker: &dyn Fn(&mut dyn Read) -> bool) -> bool {
-        match file {
-            FilePath::File(reader) => checker(reader),
-            FilePath::Path(path) => match File::open(path) {
-                Ok(mut f) => checker(&mut f),
-                Err(_) => false,
-            },
-        }
+    fn check_file(file: Option<&mut impl Read>, checker: &dyn Fn(&mut dyn Read) -> bool) -> bool {
+        file.map_or(false, |f| checker(f))
     }
 
     pub fn get_name(&self) -> &String {
@@ -168,7 +157,7 @@ impl Archive {
                     let mut file = zip.by_index(i).unwrap();
                     let path = PathBuf::from(file.name());
                     self.handle_file(
-                        FilePath::File(&mut file),
+                        Some(&mut file),
                         &path,
                         gcno_stem_archives,
                         gcda_stem_archives,
@@ -185,9 +174,10 @@ impl Archive {
                         entry.unwrap_or_else(|_| panic!("Failed to open directory '{:?}'.", dir));
                     let full_path = entry.path();
                     if full_path.is_file() {
+                        let mut file = File::open(full_path).ok();
                         let path = full_path.strip_prefix(dir).unwrap();
                         self.handle_file(
-                            FilePath::Path(full_path),
+                            file.as_mut(),
                             &path.to_path_buf(),
                             gcno_stem_archives,
                             gcda_stem_archives,
@@ -202,8 +192,9 @@ impl Archive {
             ArchiveType::Plain(ref plain) => {
                 // All the paths are absolutes
                 for full_path in plain {
+                    let mut file = File::open(full_path).ok();
                     self.handle_file(
-                        FilePath::Path(full_path),
+                        file.as_mut(),
                         &full_path,
                         gcno_stem_archives,
                         gcda_stem_archives,
@@ -1515,41 +1506,42 @@ mod tests {
 
     #[test]
     fn test_jacoco_files() {
+        let mut file = File::open("./test/jacoco/basic-report.xml").ok();
         assert!(
             Archive::check_file(
-                FilePath::Path(&PathBuf::from("./test/jacoco/basic-report.xml")),
+                file.as_mut(),
                 &Archive::is_jacoco
             ),
             "A Jacoco XML file expected"
         );
+        let mut file = File::open("./test/jacoco/full-junit4-report-multiple-top-level-classes.xml").ok();
         assert!(
             Archive::check_file(
-                FilePath::Path(&PathBuf::from(
-                    "./test/jacoco/full-junit4-report-multiple-top-level-classes.xml"
-                )),
+                file.as_mut(),
                 &Archive::is_jacoco
             ),
             "A Jacoco XML file expected"
         );
+        let mut file = File::open("./test/jacoco/inner-classes.xml").ok();
         assert!(
             Archive::check_file(
-                FilePath::Path(&PathBuf::from("./test/jacoco/inner-classes.xml")),
+                file.as_mut(),
                 &Archive::is_jacoco
             ),
             "A Jacoco XML file expected"
         );
+        let mut file = File::open("./test/jacoco/multiple-top-level-classes.xml").ok();
         assert!(
             Archive::check_file(
-                FilePath::Path(&PathBuf::from(
-                    "./test/jacoco/multiple-top-level-classes.xml"
-                )),
+                file.as_mut(),
                 &Archive::is_jacoco
             ),
             "A Jacoco XML file expected"
         );
+        let mut file = File::open("./test/jacoco/not_jacoco_file.xml").ok();
         assert!(
             !Archive::check_file(
-                FilePath::Path(&PathBuf::from("./test/jacoco/not_jacoco_file.xml")),
+                file.as_mut(),
                 &Archive::is_jacoco
             ),
             "Not a Jacoco XML file expected"
@@ -1558,30 +1550,34 @@ mod tests {
 
     #[test]
     fn test_info_files() {
+        let mut file = File::open("./test/1494603973-2977-7.info").ok();
         assert!(
             Archive::check_file(
-                FilePath::Path(&PathBuf::from("./test/1494603973-2977-7.info")),
+                file.as_mut(),
                 &Archive::is_info
             ),
             "An info file expected"
         );
+        let mut file = File::open("./test/empty_line.info").ok();
         assert!(
             Archive::check_file(
-                FilePath::Path(&PathBuf::from("./test/empty_line.info")),
+                file.as_mut(),
                 &Archive::is_info
             ),
             "An info file expected"
         );
+        let mut file = File::open("./test/relative_path/relative_path.info").ok();
         assert!(
             Archive::check_file(
-                FilePath::Path(&PathBuf::from("./test/relative_path/relative_path.info")),
+                file.as_mut(),
                 &Archive::is_info
             ),
             "An info file expected"
         );
+        let mut file = File::open("./test/not_info_file.info").ok();
         assert!(
             !Archive::check_file(
-                FilePath::Path(&PathBuf::from("./test/not_info_file.info")),
+                file.as_mut(),
                 &Archive::is_info
             ),
             "Not an info file expected"
