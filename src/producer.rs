@@ -1508,42 +1508,28 @@ mod tests {
     fn test_jacoco_files() {
         let mut file = File::open("./test/jacoco/basic-report.xml").ok();
         assert!(
-            Archive::check_file(
-                file.as_mut(),
-                &Archive::is_jacoco
-            ),
+            Archive::check_file(file.as_mut(), &Archive::is_jacoco),
             "A Jacoco XML file expected"
         );
-        let mut file = File::open("./test/jacoco/full-junit4-report-multiple-top-level-classes.xml").ok();
+        let mut file =
+            File::open("./test/jacoco/full-junit4-report-multiple-top-level-classes.xml").ok();
         assert!(
-            Archive::check_file(
-                file.as_mut(),
-                &Archive::is_jacoco
-            ),
+            Archive::check_file(file.as_mut(), &Archive::is_jacoco),
             "A Jacoco XML file expected"
         );
         let mut file = File::open("./test/jacoco/inner-classes.xml").ok();
         assert!(
-            Archive::check_file(
-                file.as_mut(),
-                &Archive::is_jacoco
-            ),
+            Archive::check_file(file.as_mut(), &Archive::is_jacoco),
             "A Jacoco XML file expected"
         );
         let mut file = File::open("./test/jacoco/multiple-top-level-classes.xml").ok();
         assert!(
-            Archive::check_file(
-                file.as_mut(),
-                &Archive::is_jacoco
-            ),
+            Archive::check_file(file.as_mut(), &Archive::is_jacoco),
             "A Jacoco XML file expected"
         );
         let mut file = File::open("./test/jacoco/not_jacoco_file.xml").ok();
         assert!(
-            !Archive::check_file(
-                file.as_mut(),
-                &Archive::is_jacoco
-            ),
+            !Archive::check_file(file.as_mut(), &Archive::is_jacoco),
             "Not a Jacoco XML file expected"
         );
     }
@@ -1552,34 +1538,22 @@ mod tests {
     fn test_info_files() {
         let mut file = File::open("./test/1494603973-2977-7.info").ok();
         assert!(
-            Archive::check_file(
-                file.as_mut(),
-                &Archive::is_info
-            ),
+            Archive::check_file(file.as_mut(), &Archive::is_info),
             "An info file expected"
         );
         let mut file = File::open("./test/empty_line.info").ok();
         assert!(
-            Archive::check_file(
-                file.as_mut(),
-                &Archive::is_info
-            ),
+            Archive::check_file(file.as_mut(), &Archive::is_info),
             "An info file expected"
         );
         let mut file = File::open("./test/relative_path/relative_path.info").ok();
         assert!(
-            Archive::check_file(
-                file.as_mut(),
-                &Archive::is_info
-            ),
+            Archive::check_file(file.as_mut(), &Archive::is_info),
             "An info file expected"
         );
         let mut file = File::open("./test/not_info_file.info").ok();
         assert!(
-            !Archive::check_file(
-                file.as_mut(),
-                &Archive::is_info
-            ),
+            !Archive::check_file(file.as_mut(), &Archive::is_info),
             "Not an info file expected"
         );
     }
