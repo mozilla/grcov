@@ -30,6 +30,7 @@ USAGE:
 FLAGS:
         --branch
             Enables parsing branch coverage information
+
         --guess-directory-when-missing
 
 
