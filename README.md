@@ -12,7 +12,6 @@ Linux, OSX and Windows are supported.
 This is a project initiated by Mozilla to gather code coverage results on Firefox.
 
 ## Table of Contents
-
 * [Usage](#usage)
     * [LCOV output](#lcov-output)
     * [Coveralls/Codecov output](#coverallscodecov-output)
@@ -31,7 +30,6 @@ USAGE:
 FLAGS:
         --branch
             Enables parsing branch coverage information
-`
         --guess-directory-when-missing
 
 
@@ -178,7 +176,6 @@ You can see the report in `target/debug/coverage/index.html`.
 ### lcov's genhtml
 
 By passing `-t lcov` you could generate an lcov.info file and pass it to genhtml:
-
 ```sh
 genhtml -o ./target/debug/coverage/ --show-details --highlight --ignore-errors source --legend ./target/debug/lcov.info
 ```
