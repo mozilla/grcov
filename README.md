@@ -65,7 +65,7 @@ OPTIONS:
             Lines in covered files containing this marker will be excluded from branch coverage.
 
         --excl-br-start <regex>
-            Marks the end of a section excluded from branch coverage. The current line is part of this section.
+            Marks the beginning of a section excluded from branch coverage. The current line is part of this section.
 
         --excl-br-stop <regex>
             Marks the end of a section excluded from branch coverage. The current line is part of this section.

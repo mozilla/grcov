@@ -211,7 +211,7 @@ fn main() {
                                .takes_value(true))
 
                             .arg(Arg::with_name("excl-br-start")
-                                .help("Marks the end of a section excluded from branch coverage. The current line is part of this section.")
+                                .help("Marks the beginning of a section excluded from branch coverage. The current line is part of this section.")
                                 .long("excl-br-start")
                                 .value_name("regex")
                                 .takes_value(true))
