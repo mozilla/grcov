@@ -12,16 +12,23 @@ Linux, OSX and Windows are supported.
 This is a project initiated by Mozilla to gather code coverage results on Firefox.
 
 ## Table of Contents
+
+* [man grcov](#man-grcov)
+* [How to get grcov](#how-to-get-grcov)
 * [Usage](#usage)
+  * [Example: How to generate .gcda files for from C/C++](#example-how-to-generate-gcda-files-for-from-cc)
+  * [Example: How to generate .gcda files for a Rust project](#example-how-to-generate-gcda-files-for-a-rust-project)
+  * [Generate a coverage report from .gcda files](#generate-a-coverage-report-from-gcda-files)
     * [LCOV output](#lcov-output)
     * [Coveralls/Codecov output](#coverallscodecov-output)
     * [grcov with Travis](#grcov-with-travis)
-    * [Auto Formatting](#auto-formatting)
+  * [Alternative reports](#alternative-reports)
+* [Auto-formatting](#auto-formatting)
 * [Build & Test](#build--test)
 * [Minimum requirements](#minimum-requirements)
 * [License](#license)
 
-## man grcov:
+## man grcov
 
 ```
 USAGE:
@@ -58,7 +65,7 @@ OPTIONS:
             Lines in covered files containing this marker will be excluded from branch coverage.
 
         --excl-br-start <regex>
-            Marks the end of a section excluded from branch coverage. The current line is part of this section.
+            Marks the beginning of a section excluded from branch coverage. The current line is part of this section.
 
         --excl-br-stop <regex>
             Marks the end of a section excluded from branch coverage. The current line is part of this section.
@@ -140,11 +147,13 @@ ARGS:
 Grcov can be downloaded from [releases](https://github.com/mozilla/grcov/releases) or, if you have Rust installed,
 you can run `cargo install grcov`.
 
-## Example: How to generate .gcda files for from C/C++
+## Usage
+
+### Example: How to generate .gcda files for from C/C++
 
 Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-coverage` and `-fprofile-arcs` options (see [gcc docs](https://gcc.gnu.org/onlinedocs/gcc/Gcov-Data-Files.html)).
 
-## Example: How to generate .gcda files for a Rust project
+### Example: How to generate .gcda files for a Rust project
 
 1. Ensure that the following environment variables are set up:
 
@@ -153,6 +162,7 @@ export CARGO_INCREMENTAL=0
 export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
 export RUSTDOCFLAGS="-Cpanic=abort"
 ```
+
 These will ensure that things like dead code elimination do not skew the coverage.
 
 2. Build your code:
@@ -167,9 +177,10 @@ If you look in `target/debug/deps` dir you will see `.gcno` files have appeared.
 
 In the `target/debug/deps/` dir you will now also see `.gcda` files. These contain the hit counts on which of those locations have been reached. Both sets of files are used as inputs to `grcov`.
 
-## Generate a coverage report from .gcda files
+### Generate a coverage report from .gcda files
 
 Generate a html coverage report like this:
+
 ```sh
 grcov ./target/debug/ -s . -t html --llvm --branch --ignore-not-existing -o ./target/debug/coverage/
 ```
@@ -178,14 +189,15 @@ You can see the report in `target/debug/coverage/index.html`.
 
 (or alterntatively with `-t lcov` grcov will output a lcov compatible coverage report that you could then feed into lcov's `genhtml` command).
 
-### lcov's genhtml
+#### LCOV output
 
 By passing `-t lcov` you could generate an lcov.info file and pass it to genhtml:
+
 ```sh
 genhtml -o ./target/debug/coverage/ --show-details --highlight --ignore-errors source --legend ./target/debug/lcov.info
 ```
 
-### Coveralls/Codecov output
+#### Coveralls/Codecov output
 
 Coverage can also be generated in coveralls format:
 
@@ -193,9 +205,10 @@ Coverage can also be generated in coveralls format:
 grcov ./target/debug -t coveralls -s . --token YOUR_COVERALLS_TOKEN > coveralls.json
 ```
 
-### grcov with Travis
+#### grcov with Travis
 
 Here is an example of .travis.yml file
+
 ```YAML
 language: rust
 
@@ -219,7 +232,7 @@ script:
       bash <(curl -s https://codecov.io/bash) -f lcov.info;
 ```
 
-## Alternative reports
+### Alternative reports
 
 grcov provides the following output types:
 
@@ -233,7 +246,7 @@ grcov provides the following output types:
 | covdir         | Provides coverage in a recursive JSON format. |
 | html           | Output a HTML coverage report. |
 
-### Auto-formatting
+## Auto-formatting
 
 This project is using pre-commit. Please run `pre-commit install` to install the git pre-commit hooks on your clone. Instructions on how to install pre-commit can be found [here](https://pre-commit.com/#install).
 
@@ -242,17 +255,20 @@ Every time you will try to commit, pre-commit will run checks on your files to m
 ## Build & Test
 
 Build with:
-```
+
+```sh
 cargo build
 ```
 
 To run unit tests:
-```
+
+```sh
 cargo test --lib
 ```
 
 To run integration tests, it is suggested to use the Docker image defined in tests/Dockerfile. Simply build the image to run them:
-```
+
+```sh
 docker build -t marcocas/grcov -f tests/Dockerfile .
 ```
 
@@ -263,7 +279,7 @@ cargo test
 
 ## Minimum requirements
 
-- GCC 4.9 or higher is required (if parsing coverage artifacts generated by GCC).
+* GCC 4.9 or higher is required (if parsing coverage artifacts generated by GCC).
 
 ## License
 

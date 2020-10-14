@@ -24,8 +24,11 @@ exclude = [
 edition = "2018"
 
 [features]
-default = []
+default = ["deflate-zlib"]
 tc = ["tcmalloc"]
+deflate = ["zip/deflate"]
+deflate-miniz = ["zip/deflate-miniz"]
+deflate-zlib = ["zip/deflate-zlib"]
 
 [badges]
 appveyor = { repository = "marco-c/grcov" }
@@ -38,8 +41,8 @@ serde_json = "^1.0"
 walkdir = "^2.3"
 num_cpus = "^1.13"
 semver = "^0.10"
-md-5 = "^0.8"
-zip = { version = "^0.4", features = ["deflate-zlib"], default-features = false }
+md-5 = "^0.9"
+zip = { version = "^0.4", default-features = false }
 tempfile = "^3"
 uuid = { version = "^0.8", features = ["v4"] }
 globset = "^0.4"

@@ -219,7 +219,7 @@ fn main() {
                                .takes_value(true))
 
                             .arg(Arg::with_name("excl-br-start")
-                                .help("Marks the end of a section excluded from branch coverage. The current line is part of this section.")
+                                .help("Marks the beginning of a section excluded from branch coverage. The current line is part of this section.")
                                 .long("excl-br-start")
                                 .value_name("regex")
                                 .takes_value(true))
@@ -495,7 +495,7 @@ fn main() {
     } else if output_type == "covdir" {
         output_covdir(iterator, output_path);
     } else if output_type == "html" {
-        output_html(iterator, output_path, num_threads);
+        output_html(iterator, output_path, num_threads, branch_enabled);
     } else {
         assert!(false, "{} is not a supported output type", output_type);
     }

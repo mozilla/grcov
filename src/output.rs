@@ -280,8 +280,8 @@ fn get_digest(path: PathBuf) -> String {
         let mut buffer = Vec::new();
         f.read_to_end(&mut buffer).unwrap();
         let mut hasher = Md5::new();
-        hasher.input(buffer.as_slice());
-        format!("{:x}", hasher.result())
+        hasher.update(buffer.as_slice());
+        format!("{:x}", hasher.finalize())
     } else {
         Uuid::new_v4().to_string()
     }
@@ -475,7 +475,12 @@ pub fn output_files(results: CovResultIter, output_file: Option<&str>) {
     }
 }
 
-pub fn output_html(results: CovResultIter, output_dir: Option<&str>, num_threads: usize) {
+pub fn output_html(
+    results: CovResultIter,
+    output_dir: Option<&str>,
+    num_threads: usize,
+    branch_enabled: bool,
+) {
     let output = if let Some(output_dir) = output_dir {
         PathBuf::from(output_dir)
     } else {
@@ -505,7 +510,7 @@ pub fn output_html(results: CovResultIter, output_dir: Option<&str>, num_threads
         let t = thread::Builder::new()
             .name(format!("Consumer HTML {}", i))
             .spawn(move || {
-                html::consumer_html(receiver, stats, output, config);
+                html::consumer_html(receiver, stats, output, config, branch_enabled);
             })
             .unwrap();
 
@@ -534,7 +539,7 @@ pub fn output_html(results: CovResultIter, output_dir: Option<&str>, num_threads
 
     let global = Arc::try_unwrap(stats).unwrap().into_inner().unwrap();
 
-    html::gen_index(global, config, &output);
+    html::gen_index(global, config, &output, branch_enabled);
     html::write_static_files(output);
 }
 
