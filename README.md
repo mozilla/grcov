@@ -82,8 +82,12 @@ OPTIONS:
         --filter <filter>
             Filters out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered' to only return
             uncovered files [possible values: covered, uncovered]
+
         --ignore <PATH>...
             Ignore files/directories specified as globs
+
+        --keep-only <PATH>...
+            Keep only files/directories specified as globs
 
         --log <LOG>
             Set the file where to log (or stderr or stdout). Defaults to 'stderr' [default: stderr]
