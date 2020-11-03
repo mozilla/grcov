@@ -54,7 +54,7 @@ fomat-macros = "^0.3"
 chrono = "^0.4"
 log = "^0.4"
 simplelog = "^0.7"
-regex = "^1.3"
+regex = "^1.4"
 rayon = "^1.3"
 
 [profile.release]
