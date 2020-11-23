@@ -1,4 +1,4 @@
-use crossbeam::crossbeam_channel::unbounded;
+use crossbeam::channel::unbounded;
 use md5::{Digest, Md5};
 use rustc_hash::FxHashMap;
 use serde_json::{self, json, Value};

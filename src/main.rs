@@ -15,7 +15,7 @@ extern crate simplelog;
 extern crate tempfile;
 
 use clap::{crate_authors, crate_version, App, Arg, ArgGroup};
-use crossbeam::crossbeam_channel::bounded;
+use crossbeam::channel::bounded;
 use log::error;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
