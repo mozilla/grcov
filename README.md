@@ -153,6 +153,9 @@ you can run `cargo install grcov`.
 
 ## Usage
 
+**Nightly Rust is required** to use grcov for Rust coverage. Alternatively, you can `export
+RUSTC_BOOTSTRAP=1`, which basically turns your stable rustc into a Nightly one.
+
 ### Example: How to generate source-based coverage for a Rust project
 
 1. Install the llvm-tools or llvm-tools-preview component:
