@@ -235,8 +235,7 @@ grcov . --binary-path ./target/debug/YOUR_BINARY -t coveralls -s . --token YOUR_
 
 #### grcov with Travis
 
-Here is an example of .travis.yml file for source-based coverage.
-
+Here is an example of .travis.yml file for source-based coverage:
 ```YAML
 language: rust
 
@@ -252,13 +251,12 @@ script:
     - rustup component add llvm-tools-preview
     - export RUSTFLAGS="-Zinstrument-coverage"
     - cargo build --verbose
-    - cargo test --verbose
-    - ./grcov . --binary-path ./target/debug/YOUR_BINARY -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info;
-      bash <(curl -s https://codecov.io/bash) -f lcov.info;
+    - LLVM_PROFILE_FILE="your_name-%p-%m.profraw" cargo test --verbose
+    - ./grcov . --binary-path ./target/debug/YOUR_BINARY -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
+    - bash <(curl -s https://codecov.io/bash) -f lcov.info
 ```
 
-Here is an example of .travis.yml file
-
+Here is an example of .travis.yml file:
 ```YAML
 language: rust
 
