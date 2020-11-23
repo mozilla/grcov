@@ -43,6 +43,13 @@ fn main() {
                                .multiple(true)
                                .takes_value(true))
 
+                          .arg(Arg::with_name("binary_path")
+                               .help("Sets the path to the compiled binary to be used")
+                               .short("b")
+                               .long("binary-path")
+                               .value_name("PATH")
+                               .takes_value(true))
+
                           .arg(Arg::with_name("output_type")
                                .help("Sets a custom output type")
                                .long_help(
@@ -242,6 +249,11 @@ fn main() {
 
     let paths: Vec<_> = matches.values_of("paths").unwrap().collect();
     let paths: Vec<String> = paths.iter().map(|s| s.to_string()).collect();
+    let binary_path = if let Some(binary_path) = matches.value_of("binary_path") {
+        Some(binary_path.to_string())
+    } else {
+        None
+    };
     let output_type = matches.value_of("output_type").unwrap();
     let output_path = matches.value_of("output_path");
     let source_dir = matches.value_of("source_dir").unwrap_or("");
@@ -406,6 +418,7 @@ fn main() {
         let result_map = Arc::clone(&result_map);
         let working_dir = tmp_path.join(format!("{}", i));
         let source_root = source_root.clone();
+        let binary_path = binary_path.clone();
 
         let t = thread::Builder::new()
             .name(format!("Consumer {}", i))
@@ -418,6 +431,7 @@ fn main() {
                     receiver,
                     branch_enabled,
                     guess_directory,
+                    &binary_path,
                 );
             })
             .unwrap();

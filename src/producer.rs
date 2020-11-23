@@ -64,6 +64,7 @@ impl Archive {
         path: &PathBuf,
         gcno_stem_archives: &RefCell<FxHashMap<GCNOStem, &'a Archive>>,
         gcda_stem_archives: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        profraws: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         infos: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         xmls: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         linked_files_maps: &RefCell<FxHashMap<String, &'a Archive>>,
@@ -85,6 +86,10 @@ impl Archive {
                 "gcda" => {
                     let filename = clean_path(&path.with_extension(""));
                     self.insert_vec(filename, gcda_stem_archives);
+                }
+                "profraw" => {
+                    let filename = clean_path(path);
+                    self.insert_vec(filename, profraws);
                 }
                 "info" => {
                     if Archive::check_file(file, &Archive::is_info) {
@@ -145,6 +150,7 @@ impl Archive {
         &'a mut self,
         gcno_stem_archives: &RefCell<FxHashMap<GCNOStem, &'a Archive>>,
         gcda_stem_archives: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        profraws: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         infos: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         xmls: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         linked_files_maps: &RefCell<FxHashMap<String, &'a Archive>>,
@@ -161,6 +167,7 @@ impl Archive {
                         &path,
                         gcno_stem_archives,
                         gcda_stem_archives,
+                        profraws,
                         infos,
                         xmls,
                         linked_files_maps,
@@ -181,6 +188,7 @@ impl Archive {
                             &path.to_path_buf(),
                             gcno_stem_archives,
                             gcda_stem_archives,
+                            profraws,
                             infos,
                             xmls,
                             linked_files_maps,
@@ -198,6 +206,7 @@ impl Archive {
                         &full_path,
                         gcno_stem_archives,
                         gcda_stem_archives,
+                        profraws,
                         infos,
                         xmls,
                         linked_files_maps,
@@ -387,6 +396,43 @@ fn gcno_gcda_producer(
     }
 }
 
+fn profraw_producer(
+    tmp_dir: &Path,
+    profraws: &FxHashMap<String, Vec<&Archive>>,
+    sender: &JobSender,
+) {
+    for (name, archives) in profraws {
+        let path = PathBuf::from(name);
+        let stem = clean_path(&path.with_extension(""));
+
+        // TODO: If there is only one archive and it is not a zip, we don't need to "extract".
+
+        for (num, &archive) in archives.iter().enumerate() {
+            let profraw_path = if let ArchiveType::Plain(_) = *archive.item.borrow() {
+                Some(path.clone())
+            } else {
+                None
+            };
+
+            let profraw_path = if let Some(profraw_path) = profraw_path {
+                profraw_path
+            } else {
+                let tmp_path = tmp_dir.join(format!("{}_{}.profraw", stem, num + 1));
+                archive.extract(&name, &tmp_path);
+                tmp_path
+            };
+
+            sender
+                .send(Some(WorkItem {
+                    format: ItemFormat::PROFRAW,
+                    item: ItemType::Path((stem.clone(), profraw_path)),
+                    name: archive.get_name().to_string(),
+                }))
+                .unwrap()
+        }
+    }
+}
+
 fn file_content_producer(
     files: &FxHashMap<String, Vec<&Archive>>,
     sender: &JobSender,
@@ -454,7 +500,7 @@ pub fn producer(
                 });
             } else if let Some(ext) = full_path.clone().extension() {
                 let ext = ext.to_str().unwrap();
-                if ext == "info" || ext == "json" || ext == "xml" {
+                if ext == "info" || ext == "json" || ext == "xml" || ext == "profraw" {
                     plain_files.push(full_path);
                 } else {
                     panic!(
@@ -479,6 +525,7 @@ pub fn producer(
         RefCell::new(FxHashMap::default());
     let gcda_stems_archives: RefCell<FxHashMap<String, Vec<&Archive>>> =
         RefCell::new(FxHashMap::default());
+    let profraws: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
     let infos: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
     let xmls: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
     let linked_files_maps: RefCell<FxHashMap<String, &Archive>> =
@@ -488,6 +535,7 @@ pub fn producer(
         archive.explore(
             &gcno_stems_archives,
             &gcda_stems_archives,
+            &profraws,
             &infos,
             &xmls,
             &linked_files_maps,
@@ -497,6 +545,7 @@ pub fn producer(
 
     assert!(
         !(gcno_stems_archives.borrow().is_empty()
+            && profraws.borrow().is_empty()
             && infos.borrow().is_empty()
             && xmls.borrow().is_empty()),
         "No input files found"
@@ -504,6 +553,7 @@ pub fn producer(
 
     file_content_producer(&infos.into_inner(), sender, ItemFormat::INFO);
     file_content_producer(&xmls.into_inner(), sender, ItemFormat::JACOCO_XML);
+    profraw_producer(tmp_dir, &profraws.into_inner(), sender);
     gcno_gcda_producer(
         tmp_dir,
         &gcno_stems_archives.into_inner(),
@@ -691,6 +741,7 @@ mod tests {
                 "jacoco/full-junit4-report-multiple-top-level-classes.xml",
                 false,
             ),
+            (ItemFormat::PROFRAW, true, "default_1.profraw", false),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -987,6 +1038,32 @@ mod tests {
             ),
             (ItemFormat::GCNO, true, "nsGnomeModule_2.gcno", true),
             (ItemFormat::GCNO, true, "sub/prova2_2.gcno", true),
+        ];
+
+        check_produced(tmp_path, &receiver, expected);
+    }
+
+    // Test extracting profraw files.
+    #[test]
+    fn test_zip_producer_profraw_files() {
+        let (sender, receiver) = unbounded();
+
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        producer(
+            &tmp_path,
+            &[
+                "test/profraw1.zip".to_string(),
+                "test/profraw2.zip".to_string(),
+            ],
+            &sender,
+            false,
+            false,
+        );
+
+        let expected = vec![
+            (ItemFormat::PROFRAW, true, "default_1.profraw", false),
+            (ItemFormat::PROFRAW, true, "default_2.profraw", false),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -1470,6 +1547,25 @@ mod tests {
         }
 
         check_produced(tmp_path, &receiver, expected);
+    }
+
+    #[test]
+    fn test_plain_profraw_producer() {
+        let (sender, receiver) = unbounded();
+
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        producer(
+            &tmp_path,
+            &["test/default.profraw".to_string()],
+            &sender,
+            true,
+            false,
+        );
+
+        let expected = vec![(ItemFormat::PROFRAW, true, "default.profraw", false)];
+
+        check_produced(PathBuf::from("test"), &receiver, expected);
     }
 
     #[test]

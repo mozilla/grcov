@@ -6,8 +6,9 @@
 [![crates.io](https://img.shields.io/crates/v/grcov.svg)](https://crates.io/crates/grcov)
 
 grcov collects and aggregates code coverage information for multiple source files.
-grcov processes .gcda files which can be generated from llvm/clang or gcc.
-Linux, OSX and Windows are supported.
+grcov processes .profraw and .gcda files which can be generated from llvm/clang or gcc.
+grcov also processes lcov files (for JS coverage) and JaCoCo files (for Java coverage).
+Linux, macOS and Windows are supported.
 
 This is a project initiated by Mozilla to gather code coverage results on Firefox.
 
@@ -58,6 +59,9 @@ FLAGS:
 
 
 OPTIONS:
+    -b, --binary-path <PATH>
+            Sets the path to the compiled binary to be used
+
         --commit-sha <COMMIT HASH>
             Sets the hash of the commit used to generate the code coverage data
 
@@ -82,7 +86,6 @@ OPTIONS:
         --filter <filter>
             Filters out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered' to only return
             uncovered files [possible values: covered, uncovered]
-
         --ignore <PATH>...
             Ignore files/directories specified as globs
 
@@ -149,6 +152,28 @@ you can run `cargo install grcov`.
 
 ## Usage
 
+### Example: How to generate source-based coverage for a Rust project
+
+1. Install the llvm-tools or llvm-tools-preview component:
+```sh
+rustup component add llvm-tools-preview
+```
+
+2. Ensure that the following environment variable is set up:
+```sh
+export RUSTFLAGS="-Zinstrument-coverage"
+```
+
+3. Build your code:
+
+`cargo build`
+
+3. Run your tests:
+
+`cargo test`
+
+In the CWD, you will see a `.profraw` file has been generated. This contains the profiling information that grcov will parse, alongside with your binary.
+
 ### Example: How to generate .gcda files for from C/C++
 
 Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-coverage` and `-fprofile-arcs` options (see [gcc docs](https://gcc.gnu.org/onlinedocs/gcc/Gcov-Data-Files.html)).
@@ -177,13 +202,15 @@ If you look in `target/debug/deps` dir you will see `.gcno` files have appeared.
 
 In the `target/debug/deps/` dir you will now also see `.gcda` files. These contain the hit counts on which of those locations have been reached. Both sets of files are used as inputs to `grcov`.
 
-### Generate a coverage report from .gcda files
+### Generate a coverage report from coverage artifacts
 
 Generate a html coverage report like this:
 
 ```sh
-grcov ./target/debug/ -s . -t html --llvm --branch --ignore-not-existing -o ./target/debug/coverage/
+grcov . -s . --binary-path ./target/debug/YOUR_BINARY -t html --branch --ignore-not-existing -o ./target/debug/coverage/
 ```
+
+N.B.: The `--binary-path` argument is only necessary for source-based coverage.
 
 You can see the report in `target/debug/coverage/index.html`.
 
@@ -202,10 +229,32 @@ genhtml -o ./target/debug/coverage/ --show-details --highlight --ignore-errors s
 Coverage can also be generated in coveralls format:
 
 ```sh
-grcov ./target/debug -t coveralls -s . --token YOUR_COVERALLS_TOKEN > coveralls.json
+grcov . --binary-path ./target/debug/YOUR_BINARY -t coveralls -s . --token YOUR_COVERALLS_TOKEN > coveralls.json
 ```
 
 #### grcov with Travis
+
+Here is an example of .travis.yml file for source-based coverage.
+
+```YAML
+language: rust
+
+before_install:
+  - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
+
+matrix:
+  include:
+    - os: linux
+      rust: nightly
+
+script:
+    - rustup component add llvm-tools-preview
+    - export RUSTFLAGS="-Zinstrument-coverage"
+    - cargo build --verbose
+    - cargo test --verbose
+    - ./grcov . --binary-path ./target/debug/YOUR_BINARY -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info;
+      bash <(curl -s https://codecov.io/bash) -f lcov.info;
+```
 
 Here is an example of .travis.yml file
 

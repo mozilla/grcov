@@ -23,6 +23,7 @@ pub struct CovResult {
 #[allow(non_camel_case_types)]
 pub enum ItemFormat {
     GCNO,
+    PROFRAW,
     INFO,
     JACOCO_XML,
 }

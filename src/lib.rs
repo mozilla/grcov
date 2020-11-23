@@ -1,4 +1,5 @@
 #![recursion_limit = "1024"]
+extern crate cargo_binutils;
 extern crate chrono;
 extern crate crossbeam;
 extern crate fomat_macros;
@@ -22,6 +23,9 @@ pub use crate::producer::*;
 
 mod gcov;
 pub use crate::gcov::*;
+
+mod llvm_tools;
+pub use crate::llvm_tools::*;
 
 mod parser;
 pub use crate::parser::*;
@@ -164,6 +168,7 @@ pub fn consumer(
     receiver: JobReceiver,
     branch_enabled: bool,
     guess_directory: bool,
+    binary_path: &Option<String>,
 ) {
     let mut gcov_type = GcovType::Unknown;
 
@@ -244,6 +249,29 @@ pub fn consumer(
                         error!("Invalid content type");
                         continue;
                     }
+                }
+            }
+            ItemFormat::PROFRAW => {
+                if binary_path.is_none() {
+                    error!("The path to the compiled binary must be given as an argument when source-based coverage is used");
+                    continue;
+                }
+
+                if let ItemType::Path((_stem, profraw_path)) = work_item.item {
+                    match llvm_tools::profraw_to_lcov(
+                        &profraw_path,
+                        binary_path.as_ref().unwrap(),
+                        working_dir,
+                    ) {
+                        Ok(lcov) => try_parse!(parse_lcov(lcov, branch_enabled), work_item.name),
+                        Err(e) => {
+                            error!("Error while executing llvm tools: {}", e);
+                            continue;
+                        }
+                    }
+                } else {
+                    error!("Invalid content type");
+                    continue;
                 }
             }
             ItemFormat::INFO | ItemFormat::JACOCO_XML => {
