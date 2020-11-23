@@ -568,7 +568,7 @@ pub fn producer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossbeam::crossbeam_channel::unbounded;
+    use crossbeam::channel::unbounded;
     use serde_json::{self, Value};
 
     fn check_produced(
