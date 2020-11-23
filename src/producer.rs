@@ -401,6 +401,12 @@ fn profraw_producer(
     profraws: &FxHashMap<String, Vec<&Archive>>,
     sender: &JobSender,
 ) {
+    if profraws.len() == 0 {
+        return;
+    }
+
+    let mut profraw_paths = Vec::new();
+
     for (name, archives) in profraws {
         let path = PathBuf::from(name);
         let stem = clean_path(&path.with_extension(""));
@@ -422,15 +428,17 @@ fn profraw_producer(
                 tmp_path
             };
 
-            sender
-                .send(Some(WorkItem {
-                    format: ItemFormat::PROFRAW,
-                    item: ItemType::Path((stem.clone(), profraw_path)),
-                    name: archive.get_name().to_string(),
-                }))
-                .unwrap()
+            profraw_paths.push(profraw_path);
         }
     }
+
+    sender
+        .send(Some(WorkItem {
+            format: ItemFormat::PROFRAW,
+            item: ItemType::Paths(profraw_paths),
+            name: "profraws".to_string(),
+        }))
+        .unwrap()
 }
 
 fn file_content_producer(
@@ -598,6 +606,7 @@ mod tests {
                     match x.item {
                         ItemType::Content(_) => !elem.1,
                         ItemType::Path((_, ref p)) => elem.1 && p.ends_with(elem.2),
+                        ItemType::Paths(ref paths) => paths.iter().any(|p| p.ends_with(elem.2)),
                         ItemType::Buffers(ref b) => b.stem.replace("\\", "/").ends_with(elem.2),
                     }
                 }),
@@ -617,6 +626,7 @@ mod tests {
                     match v.item {
                         ItemType::Content(_) => !x.1,
                         ItemType::Path((_, ref p)) => x.1 && p.ends_with(x.2),
+                        ItemType::Paths(ref paths) => paths.iter().any(|p| p.ends_with(x.2)),
                         ItemType::Buffers(ref b) => b.stem.replace("\\", "/").ends_with(x.2),
                     }
                 }),
@@ -626,7 +636,7 @@ mod tests {
         }
 
         // Make sure we haven't generated duplicated entries.
-        assert_eq!(vec.len(), expected.len());
+        assert!(vec.len() <= expected.len());
 
         // Assert file exists and file with the same name but with extension .gcda exists.
         for x in expected.iter() {

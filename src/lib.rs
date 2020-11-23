@@ -249,6 +249,10 @@ pub fn consumer(
                         error!("Invalid content type");
                         continue;
                     }
+                    ItemType::Paths(_) => {
+                        error!("Invalid content type");
+                        continue;
+                    }
                 }
             }
             ItemFormat::PROFRAW => {
@@ -257,9 +261,9 @@ pub fn consumer(
                     continue;
                 }
 
-                if let ItemType::Path((_stem, profraw_path)) = work_item.item {
-                    match llvm_tools::profraw_to_lcov(
-                        &profraw_path,
+                if let ItemType::Paths(profraw_paths) = work_item.item {
+                    match llvm_tools::profraws_to_lcov(
+                        profraw_paths.as_slice(),
                         binary_path.as_ref().unwrap(),
                         working_dir,
                     ) {
