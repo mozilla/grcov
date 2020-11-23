@@ -2,28 +2,15 @@ use cargo_binutils::Tool;
 use std::path::PathBuf;
 use std::process::Command;
 
-pub fn profraw_to_lcov(
-    profraw_path: &PathBuf,
+pub fn profraws_to_lcov(
+    profraw_paths: &[PathBuf],
     binary_path: &String,
     working_dir: &PathBuf,
 ) -> Result<Vec<u8>, String> {
-    let profdata_path = working_dir.join(
-        profraw_path
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string()
-            + ".profdata",
-    );
+    let profdata_path = working_dir.join("grcov.profdata");
 
-    let args = [
-        "merge",
-        "-sparse",
-        profraw_path.to_str().unwrap(),
-        "-o",
-        profdata_path.to_str().unwrap(),
-    ];
+    let mut args = vec!["merge", "-sparse", "-o", profdata_path.to_str().unwrap()];
+    args.splice(2..2, profraw_paths.into_iter().map(|x| x.to_str().unwrap()));
     let output = match Command::new(&Tool::Profdata.path().unwrap())
         .args(&args)
         .output()
@@ -69,7 +56,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_profraw_to_lcov() {
+    fn test_profraws_to_lcov() {
         let output = Command::new("rustc").arg("--version").output().unwrap();
         if !String::from_utf8_lossy(&output.stdout).contains("nightly") {
             return;
@@ -79,8 +66,8 @@ mod tests {
         let tmp_path = tmp_dir.path().to_owned();
 
         assert_eq!(
-            profraw_to_lcov(
-                &PathBuf::from("test/default.profraw"),
+            profraws_to_lcov(
+                &[PathBuf::from("test/default.profraw")],
                 &"".to_string(),
                 &tmp_path
             ),
@@ -90,8 +77,8 @@ No filenames specified!
             .to_string())
         );
 
-        let lcov = profraw_to_lcov(
-            &PathBuf::from("test/default.profraw"),
+        let lcov = profraws_to_lcov(
+            &[PathBuf::from("test/default.profraw")],
             &"test/rust-code-coverage-sample".to_string(),
             &tmp_path,
         );
