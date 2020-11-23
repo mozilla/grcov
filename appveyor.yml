@@ -22,6 +22,7 @@ install:
   - appveyor-retry appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
   - rustup-init -yv --default-toolchain %CHANNEL% --default-host x86_64-pc-windows-msvc
   - set PATH=%USERPROFILE%\.cargo\bin;%PATH%
+  - rustup component add llvm-tools-preview
   - rustc -vV
   - cargo -vV
 
