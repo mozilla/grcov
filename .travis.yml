@@ -178,7 +178,6 @@ script:
     - LLVM_PROFILE_FILE="grcov-%p-%m.profraw" cargo test --verbose $CARGO_OPTIONS
     - |
       if [ "$TRAVIS_RUST_VERSION" = "nightly" ] && [ -z "$TRAVIS_TAG" ]; then
-        zip -0 ccov.zip `find . \( -name "grcov*.gc*" -o -name "llvmgcov.gc*" \) -print`;
         ./target/debug/grcov `find . \( -name "grcov-*.profraw" \) -print` --binary-path ./target/debug/grcov -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info;
         bash <(curl -s https://codecov.io/bash) -f lcov.info;
       fi
