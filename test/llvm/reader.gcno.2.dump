@@ -1,5 +1,6 @@
 ===== foo (0) @ reader.c:1
 Block : 0 Counter : 108
+	Source Edges : 13 (108), 
 	Destination Edges : 1 (108), 
 Block : 1 Counter : 108
 	Source Edges : 0 (108), 
@@ -50,8 +51,10 @@ Block : 12 Counter : 108
 	Lines : 17,
 Block : 13 Counter : 108
 	Source Edges : 12 (108), 
+	Destination Edges : *0 (108), 
 ===== main (1) @ reader.c:20
 Block : 0 Counter : 2
+	Source Edges : 6 (2), 
 	Destination Edges : 1 (2), 
 Block : 1 Counter : 2
 	Source Edges : 0 (2), 
@@ -75,3 +78,4 @@ Block : 5 Counter : 2
 	Lines : 29,
 Block : 6 Counter : 2
 	Source Edges : 5 (2), 
+	Destination Edges : *0 (2), 
