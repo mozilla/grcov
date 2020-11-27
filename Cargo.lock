@@ -445,6 +445,7 @@ dependencies = [
  "crossbeam",
  "fomat-macros",
  "globset",
+ "is_executable",
  "log",
  "md-5",
  "num_cpus",
@@ -470,6 +471,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5aca5565f760fb5b220e499d72710ed156fdb74e631659e99377d9ebfbd13ae8"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "is_executable"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "302d553b8abc8187beb7d663e34c065ac4570b273bc9511a50e940e99409c577"
+dependencies = [
+ "winapi",
 ]
 
 [[package]]

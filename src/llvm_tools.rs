@@ -1,6 +1,9 @@
 use cargo_binutils::Tool;
+use is_executable::IsExecutable;
 use std::path::PathBuf;
 use std::process::Command;
+
+use walkdir::WalkDir;
 
 pub fn run(cmd: PathBuf, args: &[&str]) -> Result<Vec<u8>, String> {
     let mut command = Command::new(cmd);
@@ -22,26 +25,51 @@ pub fn run(cmd: PathBuf, args: &[&str]) -> Result<Vec<u8>, String> {
 
 pub fn profraws_to_lcov(
     profraw_paths: &[PathBuf],
-    binary_path: &String,
+    binary_path: &PathBuf,
     working_dir: &PathBuf,
-) -> Result<Vec<u8>, String> {
+) -> Result<Vec<Vec<u8>>, String> {
     let profdata_path = working_dir.join("grcov.profdata");
 
     let mut args = vec!["merge", "-sparse", "-o", profdata_path.to_str().unwrap()];
     args.splice(2..2, profraw_paths.into_iter().map(|x| x.to_str().unwrap()));
     run(Tool::Profdata.path().unwrap(), &args)?;
 
-    // TODO: Use demangler.
-    let args = [
-        "export",
-        binary_path,
-        "--instr-profile",
-        profdata_path.to_str().unwrap(),
-        "--format",
-        "lcov",
-    ];
+    let binaries = if binary_path.is_file() {
+        vec![binary_path.to_owned()]
+    } else {
+        let mut paths = vec![];
 
-    run(Tool::Cov.path().unwrap(), &args)
+        for entry in WalkDir::new(&binary_path) {
+            let entry =
+                entry.unwrap_or_else(|_| panic!("Failed to open directory '{:?}'.", binary_path));
+            let full_path = entry.path().to_path_buf();
+            if full_path.is_file() && full_path.is_executable() {
+                paths.push(full_path);
+            }
+        }
+
+        paths
+    };
+
+    let mut results = vec![];
+
+    for binary in binaries {
+        // TODO: Use demangler.
+        let args = [
+            "export",
+            binary.to_str().unwrap(),
+            "--instr-profile",
+            profdata_path.to_str().unwrap(),
+            "--format",
+            "lcov",
+        ];
+
+        if let Ok(result) = run(Tool::Cov.path().unwrap(), &args) {
+            results.push(result);
+        }
+    }
+
+    Ok(results)
 }
 
 #[cfg(test)]
@@ -58,21 +86,25 @@ mod tests {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
 
-        let ret = profraws_to_lcov(
+        let lcovs = profraws_to_lcov(
             &[PathBuf::from("test/default.profraw")],
-            &"".to_string(),
+            &PathBuf::from("src"),
             &tmp_path,
         );
-        assert!(matches!(ret, Err(s) if s.ends_with("No filenames specified!\n")));
+        assert!(lcovs.is_ok());
+        let lcovs = lcovs.unwrap();
+        assert_eq!(lcovs.len(), 0);
 
-        let lcov = profraws_to_lcov(
+        let lcovs = profraws_to_lcov(
             &[PathBuf::from("test/default.profraw")],
-            &"test/rust-code-coverage-sample".to_string(),
+            &PathBuf::from("test/rust-code-coverage-sample"),
             &tmp_path,
         );
-        assert!(lcov.is_ok());
+        assert!(lcovs.is_ok());
+        let lcovs = lcovs.unwrap();
+        assert_eq!(lcovs.len(), 1);
         assert_eq!(
-            String::from_utf8_lossy(&lcov.unwrap()),
+            String::from_utf8_lossy(&lcovs[0]),
             "SF:src/main.rs
 FN:9,_RNvCs8GdnNLnutVs_25rust_code_coverage_sample4main
 FNDA:1,_RNvCs8GdnNLnutVs_25rust_code_coverage_sample4main

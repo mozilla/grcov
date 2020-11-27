@@ -61,7 +61,7 @@ FLAGS:
 
 OPTIONS:
     -b, --binary-path <PATH>
-            Sets the path to the compiled binary to be used
+            Sets the path to the directory containing the compiled binaries to be used
 
         --commit-sha <COMMIT HASH>
             Sets the hash of the commit used to generate the code coverage data
@@ -176,7 +176,7 @@ export RUSTFLAGS="-Zinstrument-coverage"
 
 `cargo test`
 
-In the CWD, you will see a `.profraw` file has been generated. This contains the profiling information that grcov will parse, alongside with your binary.
+In the CWD, you will see a `.profraw` file has been generated. This contains the profiling information that grcov will parse, alongside with your binaries.
 
 ### Example: How to generate .gcda files for from C/C++
 
@@ -211,7 +211,7 @@ In the `target/debug/deps/` dir you will now also see `.gcda` files. These conta
 Generate a html coverage report like this:
 
 ```sh
-grcov . -s . --binary-path ./target/debug/YOUR_BINARY -t html --branch --ignore-not-existing -o ./target/debug/coverage/
+grcov . -s . --binary-path ./target/debug/ -t html --branch --ignore-not-existing -o ./target/debug/coverage/
 ```
 
 N.B.: The `--binary-path` argument is only necessary for source-based coverage.
@@ -233,7 +233,7 @@ genhtml -o ./target/debug/coverage/ --show-details --highlight --ignore-errors s
 Coverage can also be generated in coveralls format:
 
 ```sh
-grcov . --binary-path ./target/debug/YOUR_BINARY -t coveralls -s . --token YOUR_COVERALLS_TOKEN > coveralls.json
+grcov . --binary-path ./target/debug/ -t coveralls -s . --token YOUR_COVERALLS_TOKEN > coveralls.json
 ```
 
 #### grcov with Travis
@@ -255,7 +255,7 @@ script:
     - export RUSTFLAGS="-Zinstrument-coverage"
     - cargo build --verbose
     - LLVM_PROFILE_FILE="your_name-%p-%m.profraw" cargo test --verbose
-    - ./grcov . --binary-path ./target/debug/YOUR_BINARY -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
+    - ./grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
     - bash <(curl -s https://codecov.io/bash) -f lcov.info
 ```
 

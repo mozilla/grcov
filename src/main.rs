@@ -250,7 +250,7 @@ fn main() {
     let paths: Vec<_> = matches.values_of("paths").unwrap().collect();
     let paths: Vec<String> = paths.iter().map(|s| s.to_string()).collect();
     let binary_path = if let Some(binary_path) = matches.value_of("binary_path") {
-        Some(binary_path.to_string())
+        Some(PathBuf::from(binary_path))
     } else {
         None
     };
