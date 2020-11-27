@@ -168,7 +168,7 @@ pub fn consumer(
     receiver: JobReceiver,
     branch_enabled: bool,
     guess_directory: bool,
-    binary_path: &Option<String>,
+    binary_path: &Option<PathBuf>,
 ) {
     let mut gcov_type = GcovType::Unknown;
 
@@ -267,7 +267,18 @@ pub fn consumer(
                         binary_path.as_ref().unwrap(),
                         working_dir,
                     ) {
-                        Ok(lcov) => try_parse!(parse_lcov(lcov, branch_enabled), work_item.name),
+                        Ok(lcovs) => {
+                            let mut new_results: Vec<(String, CovResult)> = Vec::new();
+
+                            for lcov in lcovs {
+                                new_results.append(&mut try_parse!(
+                                    parse_lcov(lcov, branch_enabled),
+                                    work_item.name
+                                ));
+                            }
+
+                            new_results
+                        }
                         Err(e) => {
                             error!("Error while executing llvm tools: {}", e);
                             continue;
