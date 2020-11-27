@@ -2,6 +2,24 @@ use cargo_binutils::Tool;
 use std::path::PathBuf;
 use std::process::Command;
 
+pub fn run(cmd: PathBuf, args: &[&str]) -> Result<Vec<u8>, String> {
+    let mut command = Command::new(cmd);
+    command.args(args);
+    let output = match command.output() {
+        Ok(output) => output,
+        Err(e) => return Err(format!("Failed to execute {:?}\n{}", command, e)),
+    };
+    if !output.status.success() {
+        return Err(format!(
+            "Failure while running {:?}\n{}",
+            command,
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    return Ok(output.stdout);
+}
+
 pub fn profraws_to_lcov(
     profraw_paths: &[PathBuf],
     binary_path: &String,
@@ -11,19 +29,7 @@ pub fn profraws_to_lcov(
 
     let mut args = vec!["merge", "-sparse", "-o", profdata_path.to_str().unwrap()];
     args.splice(2..2, profraw_paths.into_iter().map(|x| x.to_str().unwrap()));
-    let output = match Command::new(&Tool::Profdata.path().unwrap())
-        .args(&args)
-        .output()
-    {
-        Ok(output) => output,
-        Err(e) => return Err(format!("Failed to execute llvm-profdata\n{}", e)),
-    };
-    if !output.status.success() {
-        return Err(format!(
-            "Failure while running llvm-profdata\n{}",
-            String::from_utf8_lossy(&output.stderr)
-        ));
-    }
+    run(Tool::Profdata.path().unwrap(), &args)?;
 
     // TODO: Use demangler.
     let args = [
@@ -34,21 +40,8 @@ pub fn profraws_to_lcov(
         "--format",
         "lcov",
     ];
-    let output = match Command::new(&Tool::Cov.path().unwrap())
-        .args(&args)
-        .output()
-    {
-        Ok(output) => output,
-        Err(e) => return Err(format!("Failed to execute llvm-cov\n{}", e)),
-    };
-    if !output.status.success() {
-        return Err(format!(
-            "Failure while running llvm-cov\n{}",
-            String::from_utf8_lossy(&output.stderr)
-        ));
-    }
 
-    return Ok(output.stdout);
+    run(Tool::Cov.path().unwrap(), &args)
 }
 
 #[cfg(test)]
@@ -65,17 +58,12 @@ mod tests {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
 
-        assert_eq!(
-            profraws_to_lcov(
-                &[PathBuf::from("test/default.profraw")],
-                &"".to_string(),
-                &tmp_path
-            ),
-            Err("Failure while running llvm-cov
-No filenames specified!
-"
-            .to_string())
+        let ret = profraws_to_lcov(
+            &[PathBuf::from("test/default.profraw")],
+            &"".to_string(),
+            &tmp_path,
         );
+        assert!(matches!(ret, Err(s) if s.ends_with("No filenames specified!\n")));
 
         let lcov = profraws_to_lcov(
             &[PathBuf::from("test/default.profraw")],
