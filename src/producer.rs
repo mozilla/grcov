@@ -118,7 +118,8 @@ impl Archive {
     fn is_gcno_llvm(reader: &mut dyn Read) -> bool {
         let mut bytes: [u8; 8] = [0; 8];
         reader.read_exact(&mut bytes).is_ok()
-            && bytes == [b'o', b'n', b'c', b'g', b'*', b'2', b'0', b'4']
+            && &bytes[..5] == b"oncg*"
+            && (&bytes[5..] == b"204" || &bytes[5..] == b"804")
     }
 
     fn is_jacoco(reader: &mut dyn Read) -> bool {
