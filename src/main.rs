@@ -235,7 +235,11 @@ fn main() {
                                 .help("Marks the end of a section excluded from branch coverage. The current line is part of this section.")
                                 .long("excl-br-stop")
                                 .value_name("regex")
-                                .takes_value(true))
+                                 .takes_value(true))
+
+                            .arg(Arg::with_name("demangle")
+                               .help("Demangle cpp and Rust symbols name")
+                               .long("demangle"))
 
                           // This group requires that at least one of --token and --service-job-id
                           // be present. --service-job-id requires --service-name, so this
@@ -332,6 +336,7 @@ fn main() {
         excl_br_start,
         excl_br_stop,
     );
+    let demangle = matches.is_present("demangle");
 
     panic::set_hook(Box::new(|panic_info| {
         let (filename, line) = panic_info
@@ -473,9 +478,9 @@ fn main() {
     );
 
     if output_type == "ade" {
-        output_activedata_etl(iterator, output_path);
+        output_activedata_etl(iterator, output_path, demangle);
     } else if output_type == "lcov" {
-        output_lcov(iterator, output_path);
+        output_lcov(iterator, output_path, demangle);
     } else if output_type == "coveralls" {
         output_coveralls(
             iterator,
@@ -489,6 +494,7 @@ fn main() {
             output_path,
             vcs_branch,
             is_parallel,
+            demangle,
         );
     } else if output_type == "coveralls+" {
         output_coveralls(
@@ -503,6 +509,7 @@ fn main() {
             output_path,
             vcs_branch,
             is_parallel,
+            demangle,
         );
     } else if output_type == "files" {
         output_files(iterator, output_path);
