@@ -9,6 +9,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-7
+            - llvm-toolchain-trusty
           packages:
             - clang-7
             - clang-11
@@ -27,6 +28,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-7
+            - llvm-toolchain-trusty
           packages:
             - clang-7
             - clang-11
@@ -45,6 +47,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-7
+            - llvm-toolchain-trusty
           packages:
             - clang-7
             - clang-11
@@ -63,6 +66,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-7
+            - llvm-toolchain-trusty
           packages:
             - clang-7
             - clang-11
@@ -81,6 +85,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-8
+            - llvm-toolchain-trusty
           packages:
             - clang-8
             - clang-11

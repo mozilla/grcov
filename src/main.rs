@@ -237,9 +237,9 @@ fn main() {
                                 .value_name("regex")
                                  .takes_value(true))
 
-                            .arg(Arg::with_name("demangle")
-                               .help("Demangle cpp and Rust symbols name")
-                               .long("demangle"))
+                            .arg(Arg::with_name("no-demangle")
+                               .help("No symbol demangling")
+                               .long("no-demangle"))
 
                           // This group requires that at least one of --token and --service-job-id
                           // be present. --service-job-id requires --service-name, so this
@@ -336,7 +336,7 @@ fn main() {
         excl_br_start,
         excl_br_stop,
     );
-    let demangle = matches.is_present("demangle");
+    let demangle = !matches.is_present("no-demangle");
 
     panic::set_hook(Box::new(|panic_info| {
         let (filename, line) = panic_info
