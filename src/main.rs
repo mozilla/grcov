@@ -235,7 +235,7 @@ fn main() {
                                 .help("Marks the end of a section excluded from branch coverage. The current line is part of this section.")
                                 .long("excl-br-stop")
                                 .value_name("regex")
-                                 .takes_value(true))
+                                .takes_value(true))
 
                             .arg(Arg::with_name("no-demangle")
                                .help("No symbol demangling")

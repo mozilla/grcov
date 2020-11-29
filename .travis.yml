@@ -12,7 +12,7 @@ matrix:
             - llvm-toolchain-trusty
           packages:
             - clang-7
-            - clang-11
+            - clang-10
             - g++-5
             - libgoogle-perftools-dev
       env:
@@ -31,7 +31,7 @@ matrix:
             - llvm-toolchain-trusty
           packages:
             - clang-7
-            - clang-11
+            - clang-10
             - g++-5
             - libgoogle-perftools-dev
       env:
@@ -50,7 +50,7 @@ matrix:
             - llvm-toolchain-trusty
           packages:
             - clang-7
-            - clang-11
+            - clang-10
             - g++-6
             - libgoogle-perftools-dev
       env:
@@ -69,7 +69,7 @@ matrix:
             - llvm-toolchain-trusty
           packages:
             - clang-7
-            - clang-11
+            - clang-10
             - g++-7
             - libgoogle-perftools-dev
       env:
@@ -88,7 +88,7 @@ matrix:
             - llvm-toolchain-trusty
           packages:
             - clang-8
-            - clang-11
+            - clang-10
             - g++-7
             - libgoogle-perftools-dev
       env:
@@ -106,7 +106,7 @@ matrix:
             - llvm-toolchain-trusty
           packages:
             - clang-9
-            - clang-11
+            - clang-10
             - g++-7
             - libgoogle-perftools-dev
       env:
@@ -124,7 +124,6 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - clang-10
-            - clang-11
             - g++-7
             - libgoogle-perftools-dev
       env:
