@@ -14,10 +14,26 @@ use std::{
     process::{self, Command, Stdio},
     thread,
 };
+use symbolic_common::Name;
+use symbolic_demangle::{Demangle, DemangleOptions};
 use uuid::Uuid;
 
 use crate::defs::*;
 use crate::html;
+
+macro_rules! demangle {
+    ($name: expr, $demangle: expr, $options: expr) => {{
+        if $demangle {
+            if let Some(name) = Name::new($name).demangle($options) {
+                StringOrRef::S(name)
+            } else {
+                StringOrRef::R($name)
+            }
+        } else {
+            StringOrRef::R($name)
+        }
+    }};
+}
 
 fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
     let write_target: Box<dyn Write> = match output_file {
@@ -41,7 +57,8 @@ fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
     write_target
 }
 
-pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>) {
+pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>, demangle: bool) {
+    let demangle_options = DemangleOptions::default();
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
 
     for (_, rel_path, result) in results {
@@ -73,7 +90,6 @@ pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>) 
 
         for (name, function) in &result.functions {
             // println!("{} {} {}", name, function.executed, function.start);
-
             let mut func_end = end;
 
             for start in &start_indexes {
@@ -110,7 +126,7 @@ pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>) 
                         "name": rel_path,
                     },
                     "method": {
-                        "name": name,
+                        "name": demangle!(name, demangle, demangle_options),
                         "covered": lines_covered,
                         "uncovered": lines_uncovered,
                         "total_covered": lines_covered.len(),
@@ -207,7 +223,8 @@ pub fn output_covdir(results: CovResultIter, output_file: Option<&str>) {
     serde_json::to_writer(&mut writer, &global.to_json()).unwrap();
 }
 
-pub fn output_lcov(results: CovResultIter, output_file: Option<&str>) {
+pub fn output_lcov(results: CovResultIter, output_file: Option<&str>, demangle: bool) {
+    let demangle_options = DemangleOptions::default();
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     writer.write_all(b"TN:\n").unwrap();
 
@@ -217,14 +234,20 @@ pub fn output_lcov(results: CovResultIter, output_file: Option<&str>) {
         writeln!(writer, "SF:{}", rel_path.display()).unwrap();
 
         for (name, function) in &result.functions {
-            writeln!(writer, "FN:{},{}", function.start, name).unwrap();
+            writeln!(
+                writer,
+                "FN:{},{}",
+                function.start,
+                demangle!(name, demangle, demangle_options)
+            )
+            .unwrap();
         }
         for (name, function) in &result.functions {
             writeln!(
                 writer,
                 "FNDA:{},{}",
                 if function.executed { 1 } else { 0 },
-                name
+                demangle!(name, demangle, demangle_options)
             )
             .unwrap();
         }
@@ -389,7 +412,9 @@ pub fn output_coveralls(
     output_file: Option<&str>,
     vcs_branch: &str,
     parallel: bool,
+    demangle: bool,
 ) {
+    let demangle_options = DemangleOptions::default();
     let mut source_files = Vec::new();
 
     for (abs_path, rel_path, result) in results {
@@ -426,7 +451,7 @@ pub fn output_coveralls(
             let mut functions = Vec::new();
             for (name, function) in &result.functions {
                 functions.push(json!({
-                    "name": name,
+                    "name": demangle!(name, demangle, demangle_options),
                     "start": function.start,
                     "exec": function.executed,
                 }));
@@ -581,12 +606,62 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_lcov(results, Some(file_path.to_str().unwrap()));
+        output_lcov(results, Some(file_path.to_str().unwrap()), false);
 
         let results = read_file(&file_path);
 
         assert!(results.contains("BRF:10\n"));
         assert!(results.contains("BRH:3\n"));
+    }
+
+    #[test]
+    fn test_lcov_demangle() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_lcov_demangle";
+        let file_path = tmp_dir.path().join(&file_name);
+
+        let results = vec![(
+            PathBuf::from("foo/bar/a.cpp"),
+            PathBuf::from("foo/bar/a.cpp"),
+            CovResult {
+                lines: BTreeMap::new(),
+                branches: BTreeMap::new(),
+                functions: {
+                    let mut map = FxHashMap::default();
+                    map.insert(
+                        "_RINvNtC3std3mem8align_ofNtNtC3std3mem12DiscriminantE".to_string(),
+                        Function {
+                            start: 1,
+                            executed: true,
+                        },
+                    );
+                    map.insert(
+                        "_ZN9wikipedia7article6formatEv".to_string(),
+                        Function {
+                            start: 2,
+                            executed: true,
+                        },
+                    );
+                    map.insert(
+                        "hello_world".to_string(),
+                        Function {
+                            start: 3,
+                            executed: true,
+                        },
+                    );
+                    map
+                },
+            },
+        )];
+
+        let results = Box::new(results.into_iter());
+        output_lcov(results, Some(file_path.to_str().unwrap()), true);
+
+        let results = read_file(&file_path);
+
+        assert!(results.contains("FN:1,std::mem::align_of::<std::mem::Discriminant>\n"));
+        assert!(results.contains("FN:2,wikipedia::article::format\n"));
+        assert!(results.contains("FN:3,hello_world\n"));
     }
 
     #[test]
@@ -676,6 +751,7 @@ mod tests {
             Some(file_path.to_str().unwrap()),
             "unused",
             parallel,
+            false,
         );
 
         let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
@@ -715,6 +791,7 @@ mod tests {
             Some(file_path.to_str().unwrap()),
             "unused",
             parallel,
+            false,
         );
 
         let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
@@ -755,6 +832,7 @@ mod tests {
             Some(file_path.to_str().unwrap()),
             "unused",
             parallel,
+            false,
         );
 
         let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();

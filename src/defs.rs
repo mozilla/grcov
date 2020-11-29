@@ -1,7 +1,9 @@
 use crossbeam::channel::{Receiver, Sender};
 use rustc_hash::FxHashMap;
+use serde::ser::{Serialize, Serializer};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Mutex;
@@ -119,3 +121,29 @@ pub struct HtmlGlobalStats {
 
 pub type HtmlJobReceiver = Receiver<Option<HtmlItem>>;
 pub type HtmlJobSender = Sender<Option<HtmlItem>>;
+
+pub enum StringOrRef<'a> {
+    S(String),
+    R(&'a String),
+}
+
+impl<'a> Display for StringOrRef<'a> {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            StringOrRef::S(s) => write!(f, "{}", s),
+            StringOrRef::R(s) => write!(f, "{}", s),
+        }
+    }
+}
+
+impl<'a> Serialize for StringOrRef<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            StringOrRef::S(s) => serializer.serialize_str(s),
+            StringOrRef::R(s) => serializer.serialize_str(s),
+        }
+    }
+}

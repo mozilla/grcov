@@ -54,7 +54,6 @@ pub fn profraws_to_lcov(
     let mut results = vec![];
 
     for binary in binaries {
-        // TODO: Use demangler.
         let args = [
             "export",
             binary.to_str().unwrap(),

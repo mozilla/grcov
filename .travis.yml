@@ -17,6 +17,7 @@ matrix:
         - GCC_CXX=g++-5
         - GCOV=gcov-5
         - CLANG_CXX=clang++-7
+        - CXX=clang++-7
         - DEPLOY=0
 
     - os: linux
@@ -34,6 +35,7 @@ matrix:
         - GCC_CXX=g++-5
         - GCOV=gcov-5
         - CLANG_CXX=clang++-7
+        - CXX=clang++-7
         - DEPLOY=0
 
     - os: linux
@@ -51,6 +53,7 @@ matrix:
         - GCC_CXX=g++-6
         - GCOV=gcov-6
         - CLANG_CXX=clang++-7
+        - CXX=clang++-7
         - DEPLOY=0
 
     - os: linux
@@ -68,6 +71,7 @@ matrix:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-7
+        - CXX=clang++-7
         - DEPLOY=1
 
     - os: linux
@@ -85,6 +89,7 @@ matrix:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-8
+        - CXX=clang++-8
         - DEPLOY=0
 
     - os: linux
@@ -102,6 +107,7 @@ matrix:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-9
+        - CXX=clang++-9
         - DEPLOY=0
 
     - os: linux
@@ -119,6 +125,7 @@ matrix:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-10
+        - CXX=clang++-10
         - DEPLOY=0
 
     - os: linux
@@ -138,6 +145,7 @@ matrix:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-11
+        - CXX=clang++-11
         - DEPLOY=0
 
     - os: osx

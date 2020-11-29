@@ -1,9 +1,9 @@
-{"language":"c/c++","file":{"name":"main.cpp"},"method":{"covered":[36],"name":"_Z41__static_initialization_and_destruction_0ii","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
+{"language":"c/c++","file":{"name":"main.cpp"},"method":{"covered":[36],"name":"__static_initialization_and_destruction_0","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
 {"language":"c/c++","file":{"name":"main.cpp"},"method":{"covered":[24,26,28,29,31,35],"name":"main","percentage_covered":0.8571428656578064,"total_covered":6,"total_uncovered":1,"uncovered":[32]}}
-{"language":"c/c++","file":{"name":"main.cpp"},"method":{"covered":[6],"name":"_ZN4CiaoC2Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
+{"language":"c/c++","file":{"name":"main.cpp"},"method":{"covered":[6],"name":"Ciao::Ciao","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
 {"language":"c/c++","file":{"name":"main.cpp"},"method":{"covered":[36],"name":"_GLOBAL__sub_I_main","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"language":"c/c++","file":{"name":"main.cpp"},"method":{"covered":[6],"name":"_ZN4CiaoD2Ev","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
-{"language":"c/c++","file":{"name":"main.cpp"},"method":{"covered":[12,13],"name":"_ZN4Ciao7getNameB5cxx11Ev","percentage_covered":1.0,"total_covered":2,"total_uncovered":0,"uncovered":[]}}
-{"language":"c/c++","file":{"name":"main.cpp"},"method":{"covered":[8,9,10],"name":"_ZN4Ciao7setNameENSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE","percentage_covered":1.0,"total_covered":3,"total_uncovered":0,"uncovered":[]}}
-{"language":"c/c++","file":{"name":"main.cpp"},"method":{"covered":[],"name":"_ZN4Ciao8uncalledEv","percentage_covered":0.0,"total_covered":0,"total_uncovered":3,"uncovered":[16,17,18]}}
+{"language":"c/c++","file":{"name":"main.cpp"},"method":{"covered":[6],"name":"Ciao::~Ciao","percentage_covered":1.0,"total_covered":1,"total_uncovered":0,"uncovered":[]}}
+{"language":"c/c++","file":{"name":"main.cpp"},"method":{"covered":[12,13],"name":"Ciao::getName[abi:cxx11]","percentage_covered":1.0,"total_covered":2,"total_uncovered":0,"uncovered":[]}}
+{"language":"c/c++","file":{"name":"main.cpp"},"method":{"covered":[8,9,10],"name":"Ciao::setName","percentage_covered":1.0,"total_covered":3,"total_uncovered":0,"uncovered":[]}}
+{"language":"c/c++","file":{"name":"main.cpp"},"method":{"covered":[],"name":"Ciao::uncalled","percentage_covered":0.0,"total_covered":0,"total_uncovered":3,"uncovered":[16,17,18]}}
 {"language":"c/c++","file":{"covered":[6,8,9,10,12,13,24,26,28,29,31,35,36],"name":"main.cpp","percentage_covered":0.7647058963775635,"total_covered":13,"total_uncovered":4,"uncovered":[16,17,18,32]},"is_file":true,"method":{"covered":[],"percentage_covered":null,"total_covered":0,"total_uncovered":0,"uncovered":[]}}
