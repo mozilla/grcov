@@ -4,107 +4,96 @@ matrix:
   include:
     - os: linux
       rust: stable
-      dist: bionic
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-7
-            - llvm-toolchain-trusty
           packages:
             - clang-7
-            - clang-10
             - g++-5
             - libgoogle-perftools-dev
       env:
         - GCC_CXX=g++-5
         - GCOV=gcov-5
         - CLANG_CXX=clang++-7
+        - CXX=clang++-7
         - DEPLOY=0
 
     - os: linux
       rust: nightly
-      dist: bionic
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-7
-            - llvm-toolchain-trusty
           packages:
             - clang-7
-            - clang-10
             - g++-5
             - libgoogle-perftools-dev
       env:
         - GCC_CXX=g++-5
         - GCOV=gcov-5
         - CLANG_CXX=clang++-7
+        - CXX=clang++-7
         - DEPLOY=0
 
     - os: linux
       rust: nightly
-      dist: bionic
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-7
-            - llvm-toolchain-trusty
           packages:
             - clang-7
-            - clang-10
             - g++-6
             - libgoogle-perftools-dev
       env:
         - GCC_CXX=g++-6
         - GCOV=gcov-6
         - CLANG_CXX=clang++-7
+        - CXX=clang++-7
         - DEPLOY=0
 
     - os: linux
       rust: nightly
-      dist: bionic
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-7
-            - llvm-toolchain-trusty
           packages:
             - clang-7
-            - clang-10
             - g++-7
             - libgoogle-perftools-dev
       env:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-7
+        - CXX=clang++-7
         - DEPLOY=1
 
     - os: linux
       rust: nightly
-      dist: bionic
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-8
-            - llvm-toolchain-trusty
           packages:
             - clang-8
-            - clang-10
             - g++-7
             - libgoogle-perftools-dev
       env:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-8
+        - CXX=clang++-8
         - DEPLOY=0
 
     - os: linux
       rust: nightly
-      dist: bionic
       addons:
         apt:
           sources:
@@ -112,13 +101,13 @@ matrix:
             - llvm-toolchain-trusty
           packages:
             - clang-9
-            - clang-10
             - g++-7
             - libgoogle-perftools-dev
       env:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-9
+        - CXX=clang++-9
         - DEPLOY=0
 
     - os: linux
@@ -136,6 +125,7 @@ matrix:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-10
+        - CXX=clang++-10
         - DEPLOY=0
 
     - os: linux
@@ -155,6 +145,7 @@ matrix:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-11
+        - CXX=clang++-11
         - DEPLOY=0
 
     - os: osx
