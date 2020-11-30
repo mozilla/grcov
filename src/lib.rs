@@ -4,10 +4,13 @@ extern crate chrono;
 extern crate crossbeam;
 extern crate fomat_macros;
 extern crate globset;
+#[macro_use]
+extern crate lazy_static;
 extern crate log;
 extern crate quick_xml as xml;
 extern crate rustc_hash;
 extern crate semver;
+extern crate serde_derive;
 extern crate serde_json;
 extern crate smallvec;
 extern crate tempfile;
@@ -186,8 +189,9 @@ pub fn consumer(
                             error!("Error when running gcov: {}", e);
                             continue;
                         };
+                        let gcov_ext = get_gcov_output_ext();
                         let gcov_path =
-                            gcno_path.file_name().unwrap().to_str().unwrap().to_string() + ".gcov";
+                            gcno_path.file_name().unwrap().to_str().unwrap().to_string() + gcov_ext;
                         let gcov_path = working_dir.join(gcov_path);
                         if gcov_type == GcovType::Unknown {
                             gcov_type = if gcov_path.exists() {
@@ -198,7 +202,16 @@ pub fn consumer(
                         }
 
                         let mut new_results = if gcov_type == GcovType::SingleFile {
-                            let new_results = try_parse!(parse_gcov(&gcov_path), work_item.name);
+                            let new_results = try_parse!(
+                                if gcov_ext.ends_with("gz") {
+                                    parse_gcov_gz(&gcov_path)
+                                } else if gcov_ext.ends_with("gcov") {
+                                    parse_gcov(&gcov_path)
+                                } else {
+                                    panic!("Invalid gcov extension: {}", gcov_ext);
+                                },
+                                work_item.name
+                            );
                             fs::remove_file(gcov_path).unwrap();
                             new_results
                         } else {
@@ -209,7 +222,11 @@ pub fn consumer(
                                 let gcov_path = gcov_path.path();
 
                                 new_results.append(&mut try_parse!(
-                                    parse_gcov(&gcov_path),
+                                    if gcov_path.extension().unwrap() == "gz" {
+                                        parse_gcov_gz(&gcov_path)
+                                    } else {
+                                        parse_gcov(&gcov_path)
+                                    },
                                     work_item.name
                                 ));
 
