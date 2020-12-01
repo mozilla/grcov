@@ -61,11 +61,17 @@ use std::path::PathBuf;
 use walkdir::WalkDir;
 
 // Merge results, without caring about duplicate lines (they will be removed at the end).
-pub fn merge_results(result: &mut CovResult, result2: CovResult) {
+pub fn merge_results(result: &mut CovResult, result2: CovResult) -> bool {
+    let mut warn_overflow = false;
     for (&line_no, &execution_count) in &result2.lines {
         match result.lines.entry(line_no) {
             btree_map::Entry::Occupied(c) => {
-                *c.into_mut() += execution_count;
+                let v = c.get().checked_add(execution_count).unwrap_or_else(|| {
+                    warn_overflow = true;
+                    std::u64::MAX
+                });
+
+                *c.into_mut() = v;
             }
             btree_map::Entry::Vacant(v) => {
                 v.insert(execution_count);
@@ -99,6 +105,8 @@ pub fn merge_results(result: &mut CovResult, result2: CovResult) {
             }
         };
     }
+
+    return warn_overflow;
 }
 
 fn add_results(
@@ -107,6 +115,7 @@ fn add_results(
     source_dir: &Option<PathBuf>,
 ) {
     let mut map = result_map.lock().unwrap();
+    let mut warn_overflow = false;
     for result in results.drain(..) {
         let path = match source_dir {
             Some(source_dir) => {
@@ -121,12 +130,16 @@ fn add_results(
         };
         match map.entry(path) {
             hash_map::Entry::Occupied(obj) => {
-                merge_results(obj.into_mut(), result.1);
+                warn_overflow |= merge_results(obj.into_mut(), result.1);
             }
             hash_map::Entry::Vacant(v) => {
                 v.insert(result.1);
             }
         };
+    }
+
+    if warn_overflow {
+        error!("Execution count overflow detected.");
     }
 }
 
