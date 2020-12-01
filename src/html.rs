@@ -33,6 +33,8 @@ pub struct Config {
     date: DateTime<Utc>,
 }
 
+static BULMA_VERSION: &'static str = "0.9.1";
+
 pub fn get_config() -> (Tera, Config) {
     let conf = Config {
         hi_limit: 90.,
@@ -204,6 +206,7 @@ pub fn gen_index(
     let mut ctx = Context::new();
     let empty: &[&str] = &[];
     ctx.insert("date", &conf.date);
+    ctx.insert("bulma_version", BULMA_VERSION);
     ctx.insert("current", "top_level");
     ctx.insert("parents", empty);
     ctx.insert("stats", &global.stats);
@@ -244,6 +247,7 @@ pub fn gen_dir_index(
 
     let mut ctx = Context::new();
     ctx.insert("date", &conf.date);
+    ctx.insert("bulma_version", BULMA_VERSION);
     ctx.insert("current", dir_name);
     ctx.insert("parents", &[("../index.html", "top_level")]);
     ctx.insert("stats", &dir_stats.stats);
@@ -301,6 +305,7 @@ fn gen_html(
 
     let mut ctx = Context::new();
     ctx.insert("date", &conf.date);
+    ctx.insert("bulma_version", BULMA_VERSION);
     ctx.insert("current", filename);
     ctx.insert(
         "parents",
