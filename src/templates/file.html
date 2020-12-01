@@ -1,0 +1,38 @@
+{% import "macros.html" as macros %}
+{% extends "base.html" %}
+
+{% block title %}Grcov report - {{ current }} {% endblock title %}
+
+{% block content %}
+    {{ macros::summary(parents=parents, stats=stats) }}
+    {% for item in items %}
+        {% if item.1 > 0 %}
+            {% set highlight = "success" %}
+            {% set highlight_light = "success-light" %}
+            {% set count = item.1 %}
+        {% elif item.1 < 0 %}
+            {% set highlight = "white" %}
+            {% set highlight_light = "white" %}
+            {% set count = "" %}
+        {% else %}
+            {% set highlight = "danger" %}
+            {% set highlight_light = "danger-light" %}
+            {% set count = "" %}
+        {% endif %}
+        <div class="columns p-0 m-0">
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered"
+                id="{{ item.0 }}">
+                <a href="#{{ item.0 }}">{{ item.0 }}</a>
+            </div>
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered has-text-{{ highlight_light }} has-background-{{ highlight }}">
+                {{ count }}
+            </div>
+            <div class="column has-background-{{ highlight_light }} p-0">
+                <pre class="has-background-{{ highlight_light }} py-0 px-2">{{ item.2 }}</pre>
+            </div>
+        </div>
+    {% endfor %}
+{% endblock content %}
+

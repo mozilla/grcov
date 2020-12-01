@@ -526,16 +526,17 @@ pub fn output_html(
 
     let stats = Arc::new(Mutex::new(HtmlGlobalStats::default()));
     let mut threads = Vec::with_capacity(num_threads);
-    let config = html::get_config();
+    let (tera, config) = html::get_config();
     for i in 0..num_threads {
         let receiver = receiver.clone();
         let output = output.clone();
         let config = config.clone();
         let stats = stats.clone();
+        let tera = tera.clone();
         let t = thread::Builder::new()
             .name(format!("Consumer HTML {}", i))
             .spawn(move || {
-                html::consumer_html(receiver, stats, output, config, branch_enabled);
+                html::consumer_html(&tera, receiver, stats, output, config, branch_enabled);
             })
             .unwrap();
 
@@ -564,7 +565,7 @@ pub fn output_html(
 
     let global = Arc::try_unwrap(stats).unwrap().into_inner().unwrap();
 
-    html::gen_index(global, config, &output, branch_enabled);
+    html::gen_index(&tera, global, config, &output, branch_enabled);
     html::write_static_files(output);
 }
 
