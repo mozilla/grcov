@@ -328,6 +328,14 @@ fn get_coverage_env_vars(env: &Env, profile: &str) -> Vec<(OsString, OsString)> 
     let llvm_profdata_dir = OsString::from("LLVM_PROFDATA_DIR");
     let empty = OsString::new();
 
+    let default_prof_data_dir = PathBuf::from(get_target_dir(env)).join(profile);
+    let prof_data_dir = env
+        .get(&llvm_profdata_dir)
+        .map(|v| PathBuf::from(v))
+        .unwrap_or_else(|| default_prof_data_dir);
+
+    let prof_data_dir = prof_data_dir.canonicalize().unwrap();
+
     let mut flags = parse_flags(env.get(&rust_flags).unwrap_or_else(|| &empty).clone());
 
     add(&mut flags, "-Zinstrument-coverage", None);
@@ -345,12 +353,7 @@ fn get_coverage_env_vars(env: &Env, profile: &str) -> Vec<(OsString, OsString)> 
 
     let flags = OsString::from(new_flags);
 
-    let default_prof_data_dir = PathBuf::from(get_target_dir(env)).join(profile);
-    let prof_data_dir = env
-        .get(&llvm_profdata_dir)
-        .map(|v| PathBuf::from(v))
-        .unwrap_or_else(|| default_prof_data_dir);
-
+    println!("PROFRAW = {:?}", &prof_data_dir);
     vec![
         (OsString::from("RUSTFLAGS"), flags),
         (OsString::from("CARGO_INCREMENTAL"), OsString::from("0")),
@@ -362,8 +365,8 @@ fn get_coverage_env_vars(env: &Env, profile: &str) -> Vec<(OsString, OsString)> 
         // We override the default to ensure its put within the target dir
         // so that it will be cleaned up by cargo clean.
         (
-            OsString::from("LLVM_PROFDATA_DIR"),
-            OsString::from(prof_data_dir),
+            OsString::from("LLVM_PROFILE_FILE"),
+            OsString::from(prof_data_dir.join("default.profraw")),
         ),
     ]
 }
