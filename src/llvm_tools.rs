@@ -43,7 +43,10 @@ pub fn profraws_to_lcov(
             let entry =
                 entry.unwrap_or_else(|_| panic!("Failed to open directory '{:?}'.", binary_path));
             let full_path = entry.path().to_path_buf();
-            if full_path.is_file() && full_path.is_executable() {
+            if full_path.is_file()
+                && full_path.is_executable()
+                && full_path.metadata().unwrap().len() > 0
+            {
                 paths.push(full_path);
             }
         }
