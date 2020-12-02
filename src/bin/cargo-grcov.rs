@@ -66,7 +66,18 @@ fn act(action: &Action) -> Command {
 }
 
 fn report(report_data: &Report) -> Command {
-    let mut grcov = Command::new("grcov");
+    // Assume we're in the same dir as grcov (which we are for CI).
+    let exe = std::env::current_exe().unwrap();
+    let exe_dir = exe.parent().unwrap();
+    let grcov_location = if exe_dir.join("grcov").exists() {
+        exe_dir.join("grcov")
+    } else if exe_dir.join("grcov.exe").exists() {
+        exe_dir.join("grcov.exe")
+    } else {
+        PathBuf::from("grcov") // If we aren't next to it, pick it up from the path.
+    };
+
+    let mut grcov = Command::new(grcov_location);
     grcov
         .current_dir(&report_data.context.pwd)
         .stdout(Stdio::piped())
