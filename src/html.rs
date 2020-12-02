@@ -188,12 +188,9 @@ use tera::{Context, Tera};
 
 fn make_context() -> Context {
     let mut ctx = Context::new();
+    let ver = std::env::var("BULMA_VERSION").map_or(BULMA_VERSION.into(), |v| v);
+    ctx.insert("bulma_version", &ver);
 
-    if let Ok(ver) = std::env::var("BULMA_VERSION") {
-        ctx.insert("bulma_version", &ver);
-    } else {
-        ctx.insert("bulma_version", BULMA_VERSION);
-    }
     ctx
 }
 
