@@ -186,6 +186,17 @@ fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &PathBuf, stat
 
 use tera::{Context, Tera};
 
+fn make_context() -> Context {
+    let mut ctx = Context::new();
+
+    if let Ok(ver) = std::env::var("BULMA_VERSION") {
+        ctx.insert("bulma_version", &ver);
+    } else {
+        ctx.insert("bulma_version", BULMA_VERSION);
+    }
+    ctx
+}
+
 pub fn gen_index(
     tera: &Tera,
     global: HtmlGlobalStats,
@@ -203,10 +214,9 @@ pub fn gen_index(
         Ok(f) => f,
     };
 
-    let mut ctx = Context::new();
+    let mut ctx = make_context();
     let empty: &[&str] = &[];
     ctx.insert("date", &conf.date);
-    ctx.insert("bulma_version", BULMA_VERSION);
     ctx.insert("current", "top_level");
     ctx.insert("parents", empty);
     ctx.insert("stats", &global.stats);
@@ -245,7 +255,7 @@ pub fn gen_dir_index(
         Ok(f) => f,
     };
 
-    let mut ctx = Context::new();
+    let mut ctx = make_context();
     ctx.insert("date", &conf.date);
     ctx.insert("bulma_version", BULMA_VERSION);
     ctx.insert("current", dir_name);
@@ -303,7 +313,7 @@ fn gen_html(
     let mut index_url = base_url.clone();
     index_url.push_str("index.html");
 
-    let mut ctx = Context::new();
+    let mut ctx = make_context();
     ctx.insert("date", &conf.date);
     ctx.insert("bulma_version", BULMA_VERSION);
     ctx.insert("current", filename);
