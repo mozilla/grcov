@@ -1,8 +1,8 @@
 {% macro summary_line(kind, covered, total) %}
-    {% set per = percent(num=covered, den=total) %}
+    {%- set per = percent(num=covered, den=total) -%}
     <div class="level-item has-text-centered">
         <div>
-            <p class="heading">{{ kind | capitalize }}</th>
+            <p class="heading">{{ kind | capitalize }}</p>
             <p class="title has-text-{{ per | severity(kind=kind) }}">
                 <abbr title="{{ covered }} / {{ total }}">{{ per | round(precision=2) }} %</abbr></p>
         </div>
@@ -12,10 +12,10 @@
 {% macro summary(parents, stats) %}
     <nav class="breadcrumb is-right" aria-label="breadcrumbs">
         <ul>
-            {% for parent in parents %}
-            <li><a href="{{ parent.0 }}">{{ parent.1 }}</a></li>
-            {% endfor %}
-            <li class="is-active"><a href="#" aria-current="page">{{ current }}</a></li>
+            {%- for parent in parents -%}
+            <li><a href="{{ parent.0 | safe }}">{{ parent.1 }}</a></li>
+            {%- endfor -%}
+            <li class="is-active"><a href="#">{{ current }}</a></li>
         </ul>
     </nav>
     <nav class="level">
@@ -26,12 +26,12 @@
 {% endmacro %}
 
 {% macro stats_line(name, url, stats) %}
-    {% set lines_per = percent(num=stats.covered_lines, den=stats.total_lines) %}
-    {% set lines_sev = lines_per | severity(kind="lines") %}
-    {% set functions_per = percent(num=stats.covered_funs, den=stats.total_funs) %}
-    {% set functions_sev = functions_per | severity(kind="functions") %}
-    {% set branches_per = percent(num=stats.covered_branches, den=stats.total_branches) %}
-    {% set branches_sev = branches_per | severity(kind="branches") %}
+    {%- set lines_per = percent(num=stats.covered_lines, den=stats.total_lines) -%}
+    {%- set lines_sev = lines_per | severity(kind="lines") -%}
+    {%- set functions_per = percent(num=stats.covered_funs, den=stats.total_funs) -%}
+    {%- set functions_sev = functions_per | severity(kind="functions") -%}
+    {%- set branches_per = percent(num=stats.covered_branches, den=stats.total_branches) -%}
+    {%- set branches_sev = branches_per | severity(kind="branches") -%}
     <tr>
         <th><a href="{{ url }}">{{ name }}</a></th>
         <!-- -->

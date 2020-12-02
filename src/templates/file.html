@@ -5,20 +5,20 @@
 
 {% block content %}
     {{ macros::summary(parents=parents, stats=stats) }}
-    {% for item in items %}
-        {% if item.1 > 0 %}
-            {% set highlight = "success" %}
-            {% set highlight_light = "success-light" %}
-            {% set count = item.1 %}
-        {% elif item.1 < 0 %}
-            {% set highlight = "white" %}
-            {% set highlight_light = "white" %}
-            {% set count = "" %}
-        {% else %}
-            {% set highlight = "danger" %}
-            {% set highlight_light = "danger-light" %}
-            {% set count = "" %}
-        {% endif %}
+    {%- for item in items -%}
+        {%- if item.1 > 0 -%}
+            {%- set highlight = "success" -%}
+            {%- set highlight_light = "success-light" -%}
+            {%- set count = item.1 -%}
+        {%- elif item.1 < 0 -%}
+            {% set highlight = "white" -%}
+            {% set highlight_light = "white" -%}
+            {% set count = "" -%}
+        {%- else -%}
+            {%- set highlight = "danger" -%}
+            {%- set highlight_light = "danger-light" -%}
+            {%- set count = "" -%}
+        {%- endif %}
         <div class="columns p-0 m-0">
             <div
                 class="column is-1 is-narrow p-0 has-text-centered"
@@ -33,6 +33,6 @@
                 <pre class="has-background-{{ highlight_light }} py-0 px-2">{{ item.2 }}</pre>
             </div>
         </div>
-    {% endfor %}
+    {%- endfor -%}
 {% endblock content %}
 

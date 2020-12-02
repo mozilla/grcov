@@ -15,15 +15,15 @@
             </tr>
         </thead>
         <tbody>
-            {% if kind == "Directory" %}
-                {% for item, info in items %}
+            {% if kind == "Directory" -%}
+                {% for item, info in items -%}
                     {{ macros::stats_line(name=item, url=item~"/index.html", stats=info.stats) }}
-                {% endfor %}
-            {% else %}
-                {% for item, info in items %}
+                {% endfor -%}
+            {% else -%}
+                {% for item, info in items -%}
                     {{ macros::stats_line(name=item, url=item~".html", stats=info.stats) }}
-                {% endfor %}
-            {% endif %}
+                {% endfor -%}
+            {% endif -%}
         </tbody>
     </table>
 {% endblock content %}
