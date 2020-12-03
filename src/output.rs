@@ -1,9 +1,10 @@
 use crossbeam::channel::unbounded;
+use hashbrown::hash_map;
+use hashbrown::HashMap;
 use md5::{Digest, Md5};
-use ahash::AHashMap as HashMap;
 use serde_json::{self, json, Value};
 use std::cell::RefCell;
-use std::collections::{hash_map, BTreeSet};
+use std::collections::BTreeSet;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{self, BufWriter, Read, Write};

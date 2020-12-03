@@ -6,7 +6,7 @@ use grcov::{
     output_activedata_etl, output_covdir, output_lcov, CovResult, CovResultIter, Function,
     FunctionMap,
 };
-use ahash::AHashMap as HashMap;
+use hashbrown::HashMap;
 use std::path::PathBuf;
 use tempfile::tempdir;
 use test::{black_box, Bencher};

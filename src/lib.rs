@@ -52,8 +52,9 @@ pub mod html;
 mod file_filter;
 pub use crate::file_filter::*;
 
+use hashbrown::hash_map;
 use log::error;
-use std::collections::{btree_map, hash_map};
+use std::collections::btree_map;
 use std::fs;
 use std::io::{BufReader, Cursor};
 use std::path::PathBuf;
@@ -340,7 +341,7 @@ pub fn consumer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ahash::AHashMap as HashMap;
+    use hashbrown::HashMap;
     use std::fs::File;
     use std::io::Read;
     use std::sync::{Arc, Mutex};

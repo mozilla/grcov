@@ -1,6 +1,7 @@
 use flate2::read::GzDecoder;
+use hashbrown::hash_map;
 use serde::Deserialize;
-use std::collections::{btree_map, hash_map, BTreeMap};
+use std::collections::{btree_map, BTreeMap};
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read};
@@ -13,7 +14,7 @@ use log::error;
 use xml::events::{BytesStart, Event};
 use xml::Reader;
 
-use ahash::AHashMap as HashMap;
+use hashbrown::HashMap;
 
 use crate::defs::*;
 

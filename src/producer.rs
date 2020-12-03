@@ -1,6 +1,6 @@
 extern crate tempfile;
 
-use ahash::AHashMap as HashMap;
+use hashbrown::HashMap;
 use std::cell::RefCell;
 use std::env;
 use std::fs::{self, File};
@@ -397,11 +397,7 @@ fn gcno_gcda_producer(
     }
 }
 
-fn profraw_producer(
-    tmp_dir: &Path,
-    profraws: &HashMap<String, Vec<&Archive>>,
-    sender: &JobSender,
-) {
+fn profraw_producer(tmp_dir: &Path, profraws: &HashMap<String, Vec<&Archive>>, sender: &JobSender) {
     if profraws.len() == 0 {
         return;
     }
@@ -537,8 +533,7 @@ pub fn producer(
     let profraws: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::default());
     let infos: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::default());
     let xmls: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::default());
-    let linked_files_maps: RefCell<HashMap<String, &Archive>> =
-        RefCell::new(HashMap::default());
+    let linked_files_maps: RefCell<HashMap<String, &Archive>> = RefCell::new(HashMap::default());
 
     for archive in &mut archives {
         archive.explore(
@@ -571,7 +566,8 @@ pub fn producer(
         ignore_orphan_gcno,
     );
 
-    get_mapping(&linked_files_maps.into_inner())
+    let x = get_mapping(&linked_files_maps.into_inner());
+    x
 }
 
 #[cfg(test)]

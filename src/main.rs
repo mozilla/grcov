@@ -15,10 +15,10 @@ extern crate tempfile;
 
 use clap::{crate_authors, crate_version, App, Arg, ArgGroup};
 use crossbeam::channel::bounded;
+use hashbrown::HashMap;
 use log::error;
 use serde_json::Value;
 use simplelog::{Config, LevelFilter, TermLogger, TerminalMode, WriteLogger};
-use ahash::AHashMap as HashMap;
 use std::fs::{self, File};
 use std::ops::Deref;
 use std::panic;

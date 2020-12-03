@@ -1,11 +1,10 @@
-use ahash::AHashMap as HashMap;
 use globset::{Glob, GlobSet, GlobSetBuilder};
+use hashbrown::hash_map;
+use hashbrown::HashMap;
 use rayon::prelude::*;
 use serde_json::Value;
-use std::collections::hash_map;
 use std::fs;
 use std::io;
-use std::iter::FromIterator;
 use std::path::{Component, Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
@@ -277,7 +276,7 @@ pub fn rewrite_paths(
         }
     }
 
-    let results = Vec::from_iter(result_map.into_iter())
+    let results = result_map
         .into_par_iter()
         .filter_map(move |(path, mut result)| {
             let path = path.replace("\\", "/");

@@ -5,7 +5,7 @@ extern crate test;
 
 use crossbeam::channel::unbounded;
 use grcov::{CovResult, Function, FunctionMap};
-use ahash::AHashMap as HashMap;
+use hashbrown::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;

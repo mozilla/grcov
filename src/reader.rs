@@ -1,7 +1,8 @@
-use ahash::AHashMap as HashMap;
+use hashbrown::hash_map;
+use hashbrown::HashMap;
 use smallvec::SmallVec;
 use std::cmp;
-use std::collections::{btree_map, hash_map, BTreeMap};
+use std::collections::{btree_map, BTreeMap};
 use std::convert::From;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;

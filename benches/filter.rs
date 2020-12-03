@@ -3,7 +3,7 @@ extern crate grcov;
 extern crate test;
 
 use grcov::{CovResult, Function, FunctionMap};
-use ahash::AHashMap as HashMap;
+use hashbrown::HashMap;
 use test::{black_box, Bencher};
 
 #[bench]
