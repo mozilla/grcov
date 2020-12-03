@@ -1,19 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en-us">
     <head>
-        {% block head %}
+        {%- block head -%}
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{% block title %}{% endblock title %}</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@{{ bulma_version }}/css/bulma.min.css">
-        {% endblock head %}
+        {%- endblock head -%}
     </head>
     <body>
-        <section class="section">
-            <div class="container">
-                {% block content %}{% endblock content %}
-            </div>
-        </section>
+        <div class="container">
+            {%- block content -%}{%- endblock content -%}
+        </div>
         <footer class="footer">
             <div class="content has-text-centered">
                 <p class="heading">Date: {{ date | date(format="%Y-%m-%d %H:%M") }}</p>
