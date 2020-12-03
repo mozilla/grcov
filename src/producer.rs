@@ -1,6 +1,6 @@
 extern crate tempfile;
 
-use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 use std::cell::RefCell;
 use std::env;
 use std::fs::{self, File};
@@ -45,7 +45,7 @@ impl Archive {
     fn insert_vec<'a>(
         &'a self,
         filename: String,
-        map: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        map: &RefCell<HashMap<String, Vec<&'a Archive>>>,
     ) {
         let mut map = map.borrow_mut();
         if map.contains_key(&filename) {
@@ -62,12 +62,12 @@ impl Archive {
         &'a self,
         file: Option<&mut impl Read>,
         path: &PathBuf,
-        gcno_stem_archives: &RefCell<FxHashMap<GCNOStem, &'a Archive>>,
-        gcda_stem_archives: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
-        profraws: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
-        infos: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
-        xmls: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
-        linked_files_maps: &RefCell<FxHashMap<String, &'a Archive>>,
+        gcno_stem_archives: &RefCell<HashMap<GCNOStem, &'a Archive>>,
+        gcda_stem_archives: &RefCell<HashMap<String, Vec<&'a Archive>>>,
+        profraws: &RefCell<HashMap<String, Vec<&'a Archive>>>,
+        infos: &RefCell<HashMap<String, Vec<&'a Archive>>>,
+        xmls: &RefCell<HashMap<String, Vec<&'a Archive>>>,
+        linked_files_maps: &RefCell<HashMap<String, &'a Archive>>,
         is_llvm: bool,
     ) {
         if let Some(ext) = path.extension() {
@@ -149,12 +149,12 @@ impl Archive {
 
     pub fn explore<'a>(
         &'a mut self,
-        gcno_stem_archives: &RefCell<FxHashMap<GCNOStem, &'a Archive>>,
-        gcda_stem_archives: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
-        profraws: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
-        infos: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
-        xmls: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
-        linked_files_maps: &RefCell<FxHashMap<String, &'a Archive>>,
+        gcno_stem_archives: &RefCell<HashMap<GCNOStem, &'a Archive>>,
+        gcda_stem_archives: &RefCell<HashMap<String, Vec<&'a Archive>>>,
+        profraws: &RefCell<HashMap<String, Vec<&'a Archive>>>,
+        infos: &RefCell<HashMap<String, Vec<&'a Archive>>>,
+        xmls: &RefCell<HashMap<String, Vec<&'a Archive>>>,
+        linked_files_maps: &RefCell<HashMap<String, &'a Archive>>,
         is_llvm: bool,
     ) {
         match *self.item.borrow() {
@@ -308,8 +308,8 @@ impl Archive {
 
 fn gcno_gcda_producer(
     tmp_dir: &Path,
-    gcno_stem_archives: &FxHashMap<GCNOStem, &Archive>,
-    gcda_stem_archives: &FxHashMap<String, Vec<&Archive>>,
+    gcno_stem_archives: &HashMap<GCNOStem, &Archive>,
+    gcda_stem_archives: &HashMap<String, Vec<&Archive>>,
     sender: &JobSender,
     ignore_orphan_gcno: bool,
 ) {
@@ -399,7 +399,7 @@ fn gcno_gcda_producer(
 
 fn profraw_producer(
     tmp_dir: &Path,
-    profraws: &FxHashMap<String, Vec<&Archive>>,
+    profraws: &HashMap<String, Vec<&Archive>>,
     sender: &JobSender,
 ) {
     if profraws.len() == 0 {
@@ -443,7 +443,7 @@ fn profraw_producer(
 }
 
 fn file_content_producer(
-    files: &FxHashMap<String, Vec<&Archive>>,
+    files: &HashMap<String, Vec<&Archive>>,
     sender: &JobSender,
     item_format: ItemFormat,
 ) {
@@ -462,7 +462,7 @@ fn file_content_producer(
     }
 }
 
-pub fn get_mapping(linked_files_maps: &FxHashMap<String, &Archive>) -> Option<Vec<u8>> {
+pub fn get_mapping(linked_files_maps: &HashMap<String, &Archive>) -> Option<Vec<u8>> {
     if let Some((ref name, archive)) = linked_files_maps.iter().next() {
         archive.read(name)
     } else {
@@ -530,15 +530,15 @@ pub fn producer(
         });
     }
 
-    let gcno_stems_archives: RefCell<FxHashMap<GCNOStem, &Archive>> =
-        RefCell::new(FxHashMap::default());
-    let gcda_stems_archives: RefCell<FxHashMap<String, Vec<&Archive>>> =
-        RefCell::new(FxHashMap::default());
-    let profraws: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
-    let infos: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
-    let xmls: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
-    let linked_files_maps: RefCell<FxHashMap<String, &Archive>> =
-        RefCell::new(FxHashMap::default());
+    let gcno_stems_archives: RefCell<HashMap<GCNOStem, &Archive>> =
+        RefCell::new(HashMap::default());
+    let gcda_stems_archives: RefCell<HashMap<String, Vec<&Archive>>> =
+        RefCell::new(HashMap::default());
+    let profraws: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::default());
+    let infos: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::default());
+    let xmls: RefCell<HashMap<String, Vec<&Archive>>> = RefCell::new(HashMap::default());
+    let linked_files_maps: RefCell<HashMap<String, &Archive>> =
+        RefCell::new(HashMap::default());
 
     for archive in &mut archives {
         archive.explore(

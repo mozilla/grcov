@@ -1,20 +1,19 @@
 #![feature(test)]
 extern crate grcov;
-extern crate rustc_hash;
 extern crate test;
 
 use grcov::{
     output_activedata_etl, output_covdir, output_lcov, CovResult, CovResultIter, Function,
     FunctionMap,
 };
-use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use tempfile::tempdir;
 use test::{black_box, Bencher};
 
 fn generate_cov_result_iter() -> CovResultIter {
     Box::new(
-        FxHashMap::default()
+        HashMap::default()
             .into_iter()
             .map(|(_, _): (PathBuf, CovResult)| {
                 (
@@ -23,7 +22,7 @@ fn generate_cov_result_iter() -> CovResultIter {
                     CovResult {
                         branches: [].iter().cloned().collect(),
                         functions: {
-                            let mut functions: FunctionMap = FxHashMap::default();
+                            let mut functions: FunctionMap = HashMap::default();
                             functions.insert(
                                 "f1".to_string(),
                                 Function {

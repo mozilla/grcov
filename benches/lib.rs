@@ -1,12 +1,11 @@
 #![feature(test)]
 extern crate crossbeam;
 extern crate grcov;
-extern crate rustc_hash;
 extern crate test;
 
 use crossbeam::channel::unbounded;
 use grcov::{CovResult, Function, FunctionMap};
-use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -16,7 +15,7 @@ use grcov::*;
 
 #[bench]
 fn bench_lib_merge_results(b: &mut Bencher) {
-    let mut functions1: FunctionMap = FxHashMap::default();
+    let mut functions1: FunctionMap = HashMap::default();
     functions1.insert(
         "f1".to_string(),
         Function {
@@ -44,7 +43,7 @@ fn bench_lib_merge_results(b: &mut Bencher) {
         functions: functions1,
     };
 
-    let mut functions2: FunctionMap = FxHashMap::default();
+    let mut functions2: FunctionMap = HashMap::default();
     functions2.insert(
         "f1".to_string(),
         Function {
@@ -82,7 +81,7 @@ fn bench_lib_merge_results(b: &mut Bencher) {
 fn bench_lib_consumer(b: &mut Bencher) {
     let num_threads = 2;
     let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
-        FxHashMap::with_capacity_and_hasher(20_000, Default::default()),
+        HashMap::with_capacity_and_hasher(20_000, Default::default()),
     ));
     let (sender, receiver) = unbounded();
     let source_root = None;
