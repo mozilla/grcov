@@ -116,6 +116,7 @@ fn bench_lib_consumer(b: &mut Bencher) {
                         receiver,
                         false,
                         false,
+                        &None,
                     );
                 })
                 .unwrap();
