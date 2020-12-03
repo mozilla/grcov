@@ -1,6 +1,6 @@
 use crossbeam::channel::unbounded;
 use md5::{Digest, Md5};
-use std::collections::HashMap;
+use ahash::AHashMap as HashMap;
 use serde_json::{self, json, Value};
 use std::cell::RefCell;
 use std::collections::{hash_map, BTreeSet};

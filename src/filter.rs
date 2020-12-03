@@ -23,7 +23,7 @@ pub fn is_covered(result: &CovResult) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+    use ahash::AHashMap as HashMap;
 
     #[test]
     fn test_covered() {

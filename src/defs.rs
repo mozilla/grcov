@@ -1,5 +1,5 @@
 use crossbeam::channel::{Receiver, Sender};
-use std::collections::HashMap;
+use ahash::AHashMap as HashMap;
 use serde::ser::{Serialize, Serializer};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};

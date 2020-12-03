@@ -13,7 +13,7 @@ use log::error;
 use xml::events::{BytesStart, Event};
 use xml::Reader;
 
-use std::collections::HashMap;
+use ahash::AHashMap as HashMap;
 
 use crate::defs::*;
 

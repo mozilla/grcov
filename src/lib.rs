@@ -340,7 +340,7 @@ pub fn consumer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+    use ahash::AHashMap as HashMap;
     use std::fs::File;
     use std::io::Read;
     use std::sync::{Arc, Mutex};

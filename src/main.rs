@@ -18,7 +18,7 @@ use crossbeam::channel::bounded;
 use log::error;
 use serde_json::Value;
 use simplelog::{Config, LevelFilter, TermLogger, TerminalMode, WriteLogger};
-use std::collections::HashMap;
+use ahash::AHashMap as HashMap;
 use std::fs::{self, File};
 use std::ops::Deref;
 use std::panic;

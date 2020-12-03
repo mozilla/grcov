@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use ahash::AHashMap as HashMap;
 use smallvec::SmallVec;
 use std::cmp;
 use std::collections::{btree_map, hash_map, BTreeMap};
