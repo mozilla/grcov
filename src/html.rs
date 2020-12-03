@@ -373,25 +373,3 @@ pub fn consumer_html(
         );
     }
 }
-
-macro_rules! write_resource {
-    ($name: expr, $output: expr) => {{
-        let data = include_bytes!(concat!("../resources/", $name));
-        let output = $output.join($name);
-        let mut output = match File::create(&output) {
-            Err(_) => {
-                eprintln!("Cannot create file {:?}", output);
-                return;
-            }
-            Ok(f) => f,
-        };
-        if output.write_all(data).is_err() {
-            eprintln!("Cannot write the file {:?}", output);
-            return;
-        }
-    }};
-}
-
-pub fn write_static_files(output: PathBuf) {
-    write_resource!("grcov.css", output);
-}

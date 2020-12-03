@@ -566,7 +566,6 @@ pub fn output_html(
     let global = Arc::try_unwrap(stats).unwrap().into_inner().unwrap();
 
     html::gen_index(&tera, global, config, &output, branch_enabled);
-    html::write_static_files(output);
 }
 
 #[cfg(test)]
