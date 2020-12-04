@@ -1,3 +1,5 @@
+use flate2::read::GzDecoder;
+use serde::Deserialize;
 use std::collections::{btree_map, hash_map, BTreeMap};
 use std::fmt;
 use std::fs::File;
@@ -308,6 +310,107 @@ pub fn parse_lcov(
                 }
             }
         }
+    }
+
+    Ok(results)
+}
+
+#[derive(Debug, Deserialize)]
+struct GcovJson {
+    format_version: String,
+    gcc_version: String,
+    // the cwd during gcno generation
+    current_working_directory: Option<String>,
+    // the file used to generated this json
+    data_file: String,
+    files: Vec<GcovFile>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GcovFile {
+    file: String,
+    functions: Vec<GcovFunction>,
+    lines: Vec<GcovLine>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GcovLine {
+    line_number: u32,
+    function_name: Option<String>,
+    count: u64,
+    unexecuted_block: bool,
+    branches: Vec<GcovBr>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GcovBr {
+    count: u64,
+    throw: bool,
+    fallthrough: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct GcovFunction {
+    name: String,
+    demangled_name: String,
+    start_line: u32,
+    start_column: u32,
+    end_line: u32,
+    end_column: u32,
+    blocks: u32,
+    blocks_executed: u32,
+    execution_count: u64,
+}
+
+pub fn parse_gcov_gz(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserError> {
+    let f = File::open(&gcov_path)
+        .unwrap_or_else(|_| panic!("Failed to open gcov file {}", gcov_path.display()));
+
+    let file = BufReader::new(&f);
+    let gz = GzDecoder::new(file);
+    let mut gcov: GcovJson = serde_json::from_reader(gz).unwrap();
+    let mut results = Vec::new();
+
+    if gcov.format_version != "1" {
+        error!(
+            "Format version {} is not expected, please file a bug on https://github.com/mozilla/grcov",
+            gcov.format_version
+        );
+    }
+
+    for mut file in gcov.files.drain(..) {
+        let mut lines = BTreeMap::new();
+        let mut branches = BTreeMap::new();
+        for mut line in file.lines.drain(..) {
+            lines.insert(line.line_number, line.count);
+            if !line.branches.is_empty() {
+                branches.insert(
+                    line.line_number,
+                    line.branches.drain(..).map(|b| b.count > 0).collect(),
+                );
+            }
+        }
+        if lines.is_empty() {
+            continue;
+        }
+        let mut functions = FxHashMap::default();
+        for fun in file.functions.drain(..) {
+            functions.insert(
+                fun.demangled_name,
+                Function {
+                    start: fun.start_line,
+                    executed: fun.execution_count > 0,
+                },
+            );
+        }
+        results.push((
+            file.file,
+            CovResult {
+                lines,
+                branches,
+                functions,
+            },
+        ));
     }
 
     Ok(results)

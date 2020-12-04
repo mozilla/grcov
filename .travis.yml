@@ -17,6 +17,7 @@ matrix:
         - GCC_CXX=g++-5
         - GCOV=gcov-5
         - CLANG_CXX=clang++-7
+        - CXX=clang++-7
         - DEPLOY=0
 
     - os: linux
@@ -34,6 +35,7 @@ matrix:
         - GCC_CXX=g++-5
         - GCOV=gcov-5
         - CLANG_CXX=clang++-7
+        - CXX=clang++-7
         - DEPLOY=0
 
     - os: linux
@@ -51,6 +53,7 @@ matrix:
         - GCC_CXX=g++-6
         - GCOV=gcov-6
         - CLANG_CXX=clang++-7
+        - CXX=clang++-7
         - DEPLOY=0
 
     - os: linux
@@ -68,6 +71,7 @@ matrix:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-7
+        - CXX=clang++-7
         - DEPLOY=1
 
     - os: linux
@@ -85,6 +89,7 @@ matrix:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-8
+        - CXX=clang++-8
         - DEPLOY=0
 
     - os: linux
@@ -102,6 +107,7 @@ matrix:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-9
+        - CXX=clang++-9
         - DEPLOY=0
 
     - os: linux
@@ -119,6 +125,7 @@ matrix:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
         - CLANG_CXX=clang++-10
+        - CXX=clang++-10
         - DEPLOY=0
 
     - os: linux
@@ -137,6 +144,26 @@ matrix:
       env:
         - GCC_CXX=g++-7
         - GCOV=gcov-7
+        - CLANG_CXX=clang++-11
+        - CXX=clang++-11
+        - DEPLOY=0
+
+    - os: linux
+      rust: nightly
+      dist: bionic
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-11 main'
+              key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+          packages:
+            - clang-11
+            - g++-10
+            - libgoogle-perftools-dev
+      env:
+        - GCC_CXX=g++-10
+        - GCOV=gcov-10
         - CLANG_CXX=clang++-11
         - DEPLOY=0
 
@@ -178,8 +205,7 @@ script:
     - LLVM_PROFILE_FILE="grcov-%p-%m.profraw" cargo test --verbose $CARGO_OPTIONS
     - |
       if [ "$TRAVIS_RUST_VERSION" = "nightly" ] && [ -z "$TRAVIS_TAG" ]; then
-        zip -0 ccov.zip `find . \( -name "grcov*.gc*" -o -name "llvmgcov.gc*" \) -print`;
-        ./target/debug/grcov `find . \( -name "grcov-*.profraw" \) -print` --binary-path ./target/debug/grcov -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info;
+        ./target/debug/grcov `find . \( -name "grcov-*.profraw" \) -print` --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info;
         bash <(curl -s https://codecov.io/bash) -f lcov.info;
       fi
     - |

@@ -64,7 +64,52 @@ pub fn run_gcov(
     Ok(())
 }
 
-fn is_recent_version(gcov_output: &str) -> bool {
+pub fn get_gcov_version() -> &'static Version {
+    lazy_static! {
+        static ref V: Version = {
+            let output = Command::new(&get_gcov())
+                .arg("--version")
+                .output()
+                .expect("Failed to execute `gcov`. `gcov` is required (it is part of GCC).");
+            assert!(output.status.success(), "`gcov` failed to execute.");
+            let output = String::from_utf8(output.stdout).unwrap();
+            parse_version(&output)
+        };
+    }
+    &V
+}
+
+pub fn get_gcov_output_ext() -> &'static str {
+    lazy_static! {
+        static ref E: &'static str = {
+            let min_ver = Version {
+                major: 9,
+                minor: 1,
+                patch: 0,
+                pre: vec![],
+                build: vec![],
+            };
+            if get_gcov_version() >= &min_ver {
+                ".gcov.json.gz"
+            } else {
+                ".gcov"
+            }
+        };
+    }
+    &E
+}
+
+fn parse_version(gcov_output: &str) -> Version {
+    let mut versions: Vec<_> = gcov_output
+        .split(|c| c == ' ' || c == '\n')
+        .filter_map(|value| Version::parse(value).ok())
+        .collect();
+    assert!(!versions.is_empty(), "no version found for `gcov`.");
+
+    versions.pop().unwrap()
+}
+
+pub fn check_gcov_version() -> bool {
     let min_ver = Version {
         major: 4,
         minor: 9,
@@ -72,25 +117,8 @@ fn is_recent_version(gcov_output: &str) -> bool {
         pre: vec![],
         build: vec![],
     };
-
-    gcov_output.split(' ').all(|value| {
-        if let Ok(ver) = Version::parse(value) {
-            ver >= min_ver
-        } else {
-            true
-        }
-    })
-}
-
-pub fn check_gcov_version() -> bool {
-    let output = Command::new("gcov")
-        .arg("--version")
-        .output()
-        .expect("Failed to execute `gcov`. `gcov` is required (it is part of GCC).");
-
-    assert!(output.status.success(), "`gcov` failed to execute.");
-
-    is_recent_version(&String::from_utf8(output.stdout).unwrap())
+    let version = get_gcov_version();
+    version >= &min_ver
 }
 
 #[cfg(test)]
@@ -98,16 +126,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_is_recent_version() {
-        assert!(!is_recent_version(
-            "gcov (Ubuntu 4.3.0-12ubuntu2) 4.3.0 20170406"
-        ));
-        assert!(is_recent_version(
-            "gcov (Ubuntu 4.9.0-12ubuntu2) 4.9.0 20170406"
-        ));
-        assert!(is_recent_version(
-            "gcov (Ubuntu 6.3.0-12ubuntu2) 6.3.0 20170406"
-        ));
+    fn test_parse_version() {
+        assert_eq!(
+            parse_version("gcov (Ubuntu 4.3.0-12ubuntu2) 4.3.0 20170406"),
+            Version {
+                major: 4,
+                minor: 3,
+                patch: 0,
+                pre: vec![],
+                build: vec![],
+            }
+        );
+        assert_eq!(
+            parse_version("gcov (Ubuntu 4.9.0-12ubuntu2) 4.9.0 20170406"),
+            Version {
+                major: 4,
+                minor: 9,
+                patch: 0,
+                pre: vec![],
+                build: vec![],
+            }
+        );
+        assert_eq!(
+            parse_version("gcov (Ubuntu 6.3.0-12ubuntu2) 6.3.0 20170406"),
+            Version {
+                major: 6,
+                minor: 3,
+                patch: 0,
+                pre: vec![],
+                build: vec![],
+            }
+        );
     }
 
     #[cfg(unix)]

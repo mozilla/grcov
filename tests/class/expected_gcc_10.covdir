@@ -1,0 +1,53 @@
+{
+    "children": {
+        "main.cpp": {
+            "coverage": [
+                -1,
+                -1,
+                -1,
+                -1,
+                -1,
+                -1,
+                -1,
+                1,
+                1,
+                1,
+                -1,
+                2,
+                2,
+                -1,
+                -1,
+                0,
+                0,
+                0,
+                -1,
+                -1,
+                -1,
+                -1,
+                -1,
+                1,
+                -1,
+                1,
+                -1,
+                1,
+                1,
+                -1,
+                1,
+                0,
+                -1,
+                -1,
+                1
+            ],
+            "coveragePercent": 73.33,
+            "linesCovered": 11,
+            "linesMissed": 4,
+            "linesTotal": 15,
+            "name": "main.cpp"
+        }
+    },
+    "coveragePercent": 73.33,
+    "linesCovered": 11,
+    "linesMissed": 4,
+    "linesTotal": 15,
+    "name": ""
+}
