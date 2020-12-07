@@ -49,7 +49,7 @@ tempfile = "^3"
 uuid = { version = "^0.8", features = ["v4"] }
 globset = "^0.4"
 quick-xml = "^0.20"
-smallvec = "^1.4"
+smallvec = "^1.5"
 rustc-hash = "^1.1"
 clap = "^2.33"
 fomat-macros = "^0.3"
