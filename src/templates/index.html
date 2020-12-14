@@ -1,0 +1,30 @@
+{% import "macros.html" as macros %}
+{% extends "base.html" %}
+
+{% block title %}Grcov report - {{ current }} {% endblock title %}
+
+{%- block content -%}
+    {{ macros::summary(parents=parents, stats=stats) }}
+    <table class="table is-fullwidth">
+        <thead>
+            <tr>
+                <th>{{ kind }}</th>
+                <th class="has-text-centered" colspan="3">Line Coverage</th>
+                <th class="has-text-centered" colspan="2">Functions</th>
+                <th class="has-text-centered" colspan="2">Branches</th>
+            </tr>
+        </thead>
+        <tbody>
+            {%- if kind == "Directory" -%}
+                {%- for item, info in items -%}
+                    {{ macros::stats_line(name=item, url=item~"/index.html", stats=info.stats) }}
+                {%- endfor -%}
+            {%- else -%}
+                {%- for item, info in items -%}
+                    {{ macros::stats_line(name=item, url=item~".html", stats=info.stats) }}
+                {%- endfor -%}
+            {%- endif -%}
+        </tbody>
+    </table>
+{%- endblock content -%}
+
