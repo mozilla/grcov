@@ -91,14 +91,20 @@ fn apply_mapping(mapping: &Option<Value>, path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
-// Remove common part between the prefix's end and the path's start
+// If the join of the source and the relative path is a file, return it.
+// Otherwise, remove common part between the source's end and the relative
+// path's start.
 fn guess_abs_path(prefix_dir: &PathBuf, path: &PathBuf) -> PathBuf {
+    let full_path = prefix_dir.join(path);
+    if full_path.is_file() {
+        return full_path;
+    }
     for ancestor in path.ancestors() {
         if prefix_dir.ends_with(ancestor) && !ancestor.as_os_str().is_empty() {
             return prefix_dir.join(path.strip_prefix(ancestor).unwrap().to_path_buf());
         }
     }
-    prefix_dir.join(path)
+    full_path
 }
 
 // Remove prefix from the source file's path.
@@ -998,6 +1004,60 @@ mod tests {
             assert_eq!(result, empty_result!());
         }
         assert_eq!(count, 2);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_rewrite_paths_subfolder_same_as_root() {
+        let mut result_map: CovResultMap = FxHashMap::default();
+        result_map.insert("test/main.rs".to_string(), empty_result!());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            Some(canonicalize_path("test").unwrap()),
+            None,
+            false,
+            &mut Vec::new(),
+            &Vec::new(),
+            None,
+            Default::default(),
+        );
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("test/test/main.rs"));
+            assert_eq!(rel_path, PathBuf::from("test/main.rs"));
+            assert_eq!(result, empty_result!());
+        }
+        assert_eq!(count, 1);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_rewrite_paths_subfolder_same_as_root() {
+        let mut result_map: CovResultMap = FxHashMap::default();
+        result_map.insert("test\\main.rs".to_string(), empty_result!());
+        let results = rewrite_paths(
+            result_map,
+            None,
+            Some(canonicalize_path("test").unwrap()),
+            None,
+            false,
+            &mut Vec::new(),
+            &Vec::new(),
+            None,
+            Default::default(),
+        );
+        let mut count = 0;
+        for (abs_path, rel_path, result) in results {
+            count += 1;
+            assert!(abs_path.is_absolute());
+            assert!(abs_path.ends_with("test\\test\\main.rs"));
+            assert_eq!(rel_path, PathBuf::from("test\\main.rs"));
+            assert_eq!(result, empty_result!());
+        }
+        assert_eq!(count, 1);
     }
 
     #[cfg(unix)]
