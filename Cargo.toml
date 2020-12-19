@@ -49,11 +49,11 @@ tempfile = "^3"
 uuid = { version = "^0.8", features = ["v4"] }
 globset = "^0.4"
 quick-xml = "^0.20"
-smallvec = "^1.4"
+smallvec = "^1.5"
 rustc-hash = "^1.1"
 clap = "^2.33"
 fomat-macros = "^0.3"
-chrono = "^0.4"
+chrono = { version = "^0.4", features = ["serde"] }
 log = "^0.4"
 simplelog = "^0.8"
 regex = "^1.4"
@@ -64,9 +64,10 @@ symbolic-common = "^7.5"
 symbolic-demangle = "^7.5"
 flate2 = "^1.0"
 lazy_static = "^1.3"
+tera = "1"
 
 [profile.release]
-lto = true
+lto = "thin"
 
 [target.'cfg(unix)'.dependencies]
 #tcmalloc = { version = "^0.3", features = ["bundled"] }

@@ -2,7 +2,7 @@ use crossbeam::channel::{Receiver, Sender};
 use rustc_hash::FxHashMap;
 use serde::ser::{Serialize, Serializer};
 use std::cell::RefCell;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -91,7 +91,7 @@ pub struct HtmlItem {
     pub result: CovResult,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize)]
 pub struct HtmlStats {
     pub total_lines: usize,
     pub covered_lines: usize,
@@ -101,19 +101,18 @@ pub struct HtmlStats {
     pub covered_branches: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct HtmlFileStats {
-    pub file_name: String,
     pub stats: HtmlStats,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct HtmlDirStats {
-    pub files: BTreeSet<HtmlFileStats>,
+    pub files: BTreeMap<String, HtmlFileStats>,
     pub stats: HtmlStats,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, serde::Serialize)]
 pub struct HtmlGlobalStats {
     pub dirs: BTreeMap<String, HtmlDirStats>,
     pub stats: HtmlStats,
