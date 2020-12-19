@@ -113,6 +113,7 @@ fn setup_env(setup_env: &SetupEnv) -> Command {
     let mut build_cmd = Command::new(&setup_env.command[0]);
     build_cmd.current_dir(&setup_env.context.pwd);
     build_cmd
+        .arg("+nightly") // Coverage is not stable.
         .args(build_args)
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
