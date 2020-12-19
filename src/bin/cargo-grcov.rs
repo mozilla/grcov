@@ -1,3 +1,8 @@
+//! Design decisions:
+//!
+//!   * Use context.pwd - Don't change the actual current working dir as tests run in parallel.
+//!   * To prevent thrashing with standard builds, target_dir is overridden.
+//!   * Keep coverage-report dir clean so that it can be zipped up by CI.
 extern crate clap;
 
 use std::collections::HashMap;
@@ -20,7 +25,7 @@ struct Context {
 impl Default for Context {
     fn default() -> Self {
         Self {
-            pwd: std::env::current_dir().unwrap(),
+            pwd: std::env::current_dir().expect("no pwd"),
             args: std::env::args_os().collect(),
             env: std::env::vars_os().collect(),
         }
@@ -50,25 +55,23 @@ fn acts(actions: &Vec<Action>) -> Result<(), Box<dyn std::error::Error>> {
         //println!("running: {:?}", cmd);
         let output = cmd.status()?;
         if !output.success() {
-            panic!("unexpected exit code.");
+            panic!("unexpected exit code: {:?} running {:?}", output, cmd);
         }
-        // println!("{}", String::from_utf8_lossy(&output.stdout));
-        // println!("Error: {}", String::from_utf8_lossy(&output.stderr));
     }
     Ok(())
 }
 
 fn act(action: &Action) -> Command {
     match action {
-        Action::Report(report_data) => report(&report_data),
         Action::SetupEnv(setup_env_data) => setup_env(setup_env_data),
+        Action::Report(report_data) => report(&report_data),
     }
 }
 
 fn report(report_data: &Report) -> Command {
     // Assume we're in the same dir as grcov (which we are for CI).
-    let exe = std::env::current_exe().unwrap();
-    let exe_dir = exe.parent().unwrap();
+    let exe = std::env::current_exe().expect("no current exe");
+    let exe_dir = exe.parent().expect("executable wasn't in a dir");
     let grcov_location = if exe_dir.join("grcov").exists() {
         exe_dir.join("grcov")
     } else if exe_dir.join("grcov.exe").exists() {
@@ -78,23 +81,29 @@ fn report(report_data: &Report) -> Command {
     };
 
     let mut grcov = Command::new(grcov_location);
+    let output_path = &report_data
+        .path
+        .join("..")
+        .join("..")
+        .join("coverage-report");
+    fs::create_dir(output_path).expect("dir created");
     grcov
         .current_dir(&report_data.context.pwd)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .arg(&report_data.path)
         .arg("--llvm")
         .arg("--output-type")
         .arg(&report_data.output_type)
         .arg("--output-path")
-        .arg(&report_data.path.join("coverage"));
+        .arg(output_path);
     grcov
 }
 
 fn setup_env(setup_env: &SetupEnv) -> Command {
     //println!("running setup env {:?}", setup_env.command);
     let empty: Vec<_>;
-    let build_args = if setup_env.command.len() <= 1 {
+    let build_args = if setup_env.command.is_empty() {
         empty = vec![];
         &empty
     } else {
@@ -105,8 +114,8 @@ fn setup_env(setup_env: &SetupEnv) -> Command {
     build_cmd.current_dir(&setup_env.context.pwd);
     build_cmd
         .args(build_args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
 
     let profile = if setup_env
         .context
@@ -240,7 +249,10 @@ fn parse_args(mut context: Context) -> Result<Vec<Action>, Box<dyn std::error::E
         let command = env_cmd.args.get("test_cmd").map(|arg| arg.vals.clone());
         let is_release = env_cmd.is_present("--release");
 
-        let target_dir = PathBuf::from(get_target_dir(&context.env));
+        let target_dir = context
+            .pwd
+            .join(PathBuf::from(get_target_dir(&context.env)));
+
         let profile = if is_release { "release" } else { "debug" };
         let profile_dir = target_dir.join(profile);
 
@@ -279,6 +291,7 @@ fn ensure_tests_have_run(
 ) -> Option<Action> {
     // If a default.profraw file exists then the build/tests have been run.
     if let Ok(_) = fs::metadata(profile_dir.join("default.profraw")) {
+        println!("Found coverage data - skipping triggering tests");
         return None;
     }
 
@@ -329,9 +342,13 @@ fn add(flags: &mut Vec<String>, key: &str, value: Option<&str>) {
 fn get_target_dir(env: &Env) -> OsString {
     let default_target_dir = "target".into();
     let cargo_target_dir = OsString::from("CARGO_TARGET_DIR");
-    env.get(&cargo_target_dir)
-        .unwrap_or_else(|| &default_target_dir)
-        .to_owned()
+    PathBuf::from(
+        env.get(&cargo_target_dir)
+            .unwrap_or_else(|| &default_target_dir)
+            .to_owned(),
+    )
+    .join("coverage")
+    .into()
 }
 
 fn get_coverage_env_vars(env: &Env, profile: &str) -> Vec<(OsString, OsString)> {
@@ -339,17 +356,22 @@ fn get_coverage_env_vars(env: &Env, profile: &str) -> Vec<(OsString, OsString)> 
     let llvm_profdata_dir = OsString::from("LLVM_PROFDATA_DIR");
     let empty = OsString::new();
 
-    let default_prof_data_dir = PathBuf::from(get_target_dir(env)).join(profile);
+    let target_dir = get_target_dir(env);
+    let default_prof_data_dir = PathBuf::from(&target_dir).join(profile);
     let prof_data_dir = env
         .get(&llvm_profdata_dir)
         .map(|v| PathBuf::from(v))
         .unwrap_or_else(|| default_prof_data_dir);
 
-    let prof_data_dir = prof_data_dir.canonicalize().unwrap();
+    // Need to ensure dir exists before can be canonicalized:
+    std::fs::create_dir_all(&prof_data_dir).expect("dir not created");
+    // An absolute dir is needed as current dirs may change.
+    let prof_data_dir = prof_data_dir.canonicalize().expect("canonicalize dir");
 
     let mut flags = parse_flags(env.get(&rust_flags).unwrap_or_else(|| &empty).clone());
 
-    add(&mut flags, "-Zinstrument-coverage", None);
+    //TODO: The path to the compiled binary must be given as an argument when source-based coverage is used
+    //add(&mut flags, "-Zinstrument-coverage", None);
     add(&mut flags, "-Zprofile", None);
     add(&mut flags, "-Ccodegen-units", Some("1"));
     add(&mut flags, "-Copt-level", Some("0"));
@@ -368,6 +390,10 @@ fn get_coverage_env_vars(env: &Env, profile: &str) -> Vec<(OsString, OsString)> 
     vec![
         (OsString::from("RUSTFLAGS"), flags),
         (OsString::from("CARGO_INCREMENTAL"), OsString::from("0")),
+        (
+            OsString::from("CARGO_TARGET_DIR"),
+            OsString::from(target_dir),
+        ),
         (
             OsString::from("RUSTDOCFLAGS"),
             OsString::from("-Cpanic=abort"),
@@ -398,7 +424,7 @@ mod tests {
 
         grcov(&vec!["report"], &temp_dir);
 
-        assert_html_coverage(temp_dir.path(), "debug");
+        assert_html_coverage(temp_dir.path());
     }
 
     // #[test]
@@ -427,7 +453,7 @@ mod tests {
             &temp_dir,
         );
 
-        assert_html_coverage(temp_dir.path(), "debug");
+        assert_html_coverage(temp_dir.path());
     }
 
     #[test]
@@ -437,7 +463,7 @@ mod tests {
         grcov(&vec!["env", "--", "cargo", "test"], &temp_dir);
         grcov(&vec!["report"], &temp_dir);
 
-        assert_html_coverage(temp_dir.path(), "debug");
+        assert_html_coverage(temp_dir.path());
     }
 
     #[test]
@@ -447,7 +473,7 @@ mod tests {
         grcov(&vec!["env", "--", "cargo", "build"], &temp_dir);
         grcov(&vec!["report"], &temp_dir);
 
-        assert_html_coverage(temp_dir.path(), "debug");
+        assert_html_coverage(temp_dir.path());
     }
 
     #[test]
@@ -457,7 +483,7 @@ mod tests {
         grcov(&vec!["build"], &temp_dir);
         grcov(&vec!["report"], &temp_dir);
 
-        assert_html_coverage(temp_dir.path(), "debug");
+        assert_html_coverage(temp_dir.path());
     }
 
     #[test]
@@ -469,7 +495,7 @@ mod tests {
         //TODO: fail if tests run multiple times!
         grcov(&vec!["report"], &temp_dir);
 
-        assert_html_coverage(temp_dir.path(), "debug");
+        assert_html_coverage(temp_dir.path());
     }
 
     fn grcov(args: &Vec<&str>, temp_dir: &TempDir) {
@@ -481,14 +507,14 @@ mod tests {
             args,
             env: Env::new(),
         };
-        acts(&parse_args(context).unwrap()).unwrap();
+        let args = &parse_args(context).unwrap();
+        acts(args).unwrap();
     }
 
-    fn assert_html_coverage(path: &Path, profile: &str) {
+    fn assert_html_coverage(path: &Path) {
         assert!(std::fs::metadata(
             path.join("target")
-                .join(profile)
-                .join("coverage")
+                .join("coverage-report")
                 .join("index.html")
         )
         .unwrap()
@@ -496,7 +522,7 @@ mod tests {
     }
 
     fn crate_project() -> TempDir {
-        let temp_dir = tempdir().unwrap();
+        let temp_dir = tempdir().expect("couldn't create temp dir");
         let dir = temp_dir.path();
         fs::write(
             dir.join("Cargo.toml"),
@@ -505,9 +531,9 @@ mod tests {
         version="0.0.1"
         "#,
         )
-        .unwrap();
+        .expect("write Cargo.toml");
         let src_dir = dir.join("src");
-        fs::create_dir(&src_dir).unwrap();
+        fs::create_dir(&src_dir).expect("mkdir src");
         fs::write(
             src_dir.join("main.rs"),
             r#"
@@ -521,7 +547,7 @@ mod tests {
         }
         "#,
         )
-        .unwrap();
+        .expect("write src/main.rs");
         temp_dir
     }
 }
