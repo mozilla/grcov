@@ -559,9 +559,9 @@ dependencies = [
 
 [[package]]
 name = "is_executable"
-version = "0.1.2"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "302d553b8abc8187beb7d663e34c065ac4570b273bc9511a50e940e99409c577"
+checksum = "1426a051d4e6edd01995e55e2cb58eef936d773093b7e6ed1a2109fca474906d"
 dependencies = [
  "winapi",
 ]
