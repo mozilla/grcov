@@ -1,0 +1,77 @@
+===== main (108032747) @ reader.c:20
+Block : 0 Counter : 1
+	Source Edges : 1 (1), 
+	Destination Edges : 2 (1), 
+Block : 1 Counter : 1
+	Source Edges : 2 (0), 4 (0), 8 (1), 
+	Destination Edges : *0 (1), 
+Block : 2 Counter : 1
+	Source Edges : 0 (1), 
+	Destination Edges : *1 (0), *3 (1), 
+	Lines : 20,22,
+Block : 3 Counter : 1
+	Source Edges : 2 (1), 
+	Destination Edges : *6 (1), 
+	Lines : 23,25,
+Block : 4 Counter : 53
+	Source Edges : 6 (53), 
+	Destination Edges : *1 (0), *5 (53), 
+	Lines : 27,
+Block : 5 Counter : 53
+	Source Edges : 4 (53), 
+	Destination Edges : 6 (53), 
+	Lines : 25,
+Block : 6 Counter : 54
+	Source Edges : 3 (1), 5 (53), 
+	Destination Edges : 4 (53), *7 (1), 
+Block : 7 Counter : 1
+	Source Edges : 6 (1), 
+	Destination Edges : 8 (1), 
+	Lines : 29,
+Block : 8 Counter : 1
+	Source Edges : 7 (1), 
+	Destination Edges : *1 (1), 
+===== foo (1636255671) @ reader.c:1
+Block : 0 Counter : 54
+	Source Edges : 1 (54), 
+	Destination Edges : *2 (54), 
+Block : 1 Counter : 54
+	Source Edges : 11 (54), 
+	Destination Edges : *0 (54), 
+Block : 2 Counter : 54
+	Source Edges : 0 (54), 
+	Destination Edges : *9 (54), 
+	Lines : 1,4,
+Block : 3 Counter : 540
+	Source Edges : 9 (540), 
+	Destination Edges : *4 (537), *5 (3), 
+	Lines : 5,
+Block : 4 Counter : 537
+	Source Edges : 3 (537), 
+	Destination Edges : *8 (537), 
+	Lines : 7,
+Block : 5 Counter : 3
+	Source Edges : 3 (3), 
+	Destination Edges : 7 (3), 
+	Lines : 12,
+Block : 6 Counter : 3
+	Source Edges : 7 (3), 
+	Destination Edges : *7 (3), 
+	Lines : 13,12,
+Block : 7 Counter : 6
+	Source Edges : 5 (3), 6 (3), 
+	Destination Edges : 6 (3), *8 (3), 
+Block : 8 Counter : 540
+	Source Edges : 4 (537), 7 (3), 
+	Destination Edges : *9 (540), 
+	Lines : 4,
+Block : 9 Counter : 594
+	Source Edges : 2 (54), 8 (540), 
+	Destination Edges : 3 (540), *10 (54), 
+Block : 10 Counter : 54
+	Source Edges : 9 (54), 
+	Destination Edges : 11 (54), 
+	Lines : 17,
+Block : 11 Counter : 54
+	Source Edges : 10 (54), 
+	Destination Edges : *1 (54), 
