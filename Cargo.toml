@@ -55,7 +55,7 @@ clap = "^2.33"
 fomat-macros = "^0.3"
 chrono = { version = "^0.4", features = ["serde"] }
 log = "^0.4"
-simplelog = "^0.8"
+simplelog = "^0.9"
 regex = "^1.4"
 rayon = "^1.3"
 cargo-binutils = "^0.3"
