@@ -24,7 +24,7 @@ use crate::html;
 macro_rules! demangle {
     ($name: expr, $demangle: expr, $options: expr) => {{
         if $demangle {
-            if let Some(name) = Name::new($name).demangle($options) {
+            if let Some(name) = Name::from($name).demangle($options) {
                 StringOrRef::S(name)
             } else {
                 StringOrRef::R($name)
@@ -58,7 +58,7 @@ fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
 }
 
 pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>, demangle: bool) {
-    let demangle_options = DemangleOptions::default();
+    let demangle_options = DemangleOptions::name_only();
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
 
     for (_, rel_path, result) in results {
@@ -224,7 +224,7 @@ pub fn output_covdir(results: CovResultIter, output_file: Option<&str>) {
 }
 
 pub fn output_lcov(results: CovResultIter, output_file: Option<&str>, demangle: bool) {
-    let demangle_options = DemangleOptions::default();
+    let demangle_options = DemangleOptions::name_only();
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     writer.write_all(b"TN:\n").unwrap();
 
@@ -414,7 +414,7 @@ pub fn output_coveralls(
     parallel: bool,
     demangle: bool,
 ) {
-    let demangle_options = DemangleOptions::default();
+    let demangle_options = DemangleOptions::name_only();
     let mut source_files = Vec::new();
 
     for (abs_path, rel_path, result) in results {
