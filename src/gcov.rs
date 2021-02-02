@@ -109,18 +109,6 @@ fn parse_version(gcov_output: &str) -> Version {
     versions.pop().unwrap()
 }
 
-pub fn check_gcov_version() -> bool {
-    let min_ver = Version {
-        major: 4,
-        minor: 9,
-        patch: 0,
-        pre: vec![],
-        build: vec![],
-    };
-    let version = get_gcov_version();
-    version >= &min_ver
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -157,18 +145,5 @@ mod tests {
                 build: vec![],
             }
         );
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn test_check_gcov_version() {
-        check_gcov_version();
-    }
-
-    #[cfg(windows)]
-    #[test]
-    #[should_panic]
-    fn test_check_gcov_version() {
-        check_gcov_version();
     }
 }
