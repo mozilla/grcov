@@ -18,7 +18,7 @@ This is a project initiated by Mozilla to gather code coverage results on Firefo
 * [How to get grcov](#how-to-get-grcov)
 * [Usage](#usage)
   * [Example: How to generate source-based coverage for a Rust project](#example-how-to-generate-source-based-coverage-for-a-rust-project)
-  * [Example: How to generate .gcda files for from C/C++](#example-how-to-generate-gcda-files-for-from-cc)
+  * [Example: How to generate .gcda files for C/C++](#example-how-to-generate-gcda-files-for-cc)
   * [Example: How to generate .gcda files for a Rust project](#example-how-to-generate-gcda-files-for-a-rust-project)
   * [Generate a coverage report from coverage artifacts](#generate-a-coverage-report-from-coverage-artifacts)
     * [LCOV output](#lcov-output)
@@ -178,7 +178,7 @@ export RUSTFLAGS="-Zinstrument-coverage"
 
 In the CWD, you will see a `.profraw` file has been generated. This contains the profiling information that grcov will parse, alongside with your binaries.
 
-### Example: How to generate .gcda files for from C/C++
+### Example: How to generate .gcda files for C/C++
 
 Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-coverage` and `-fprofile-arcs` options (see [gcc docs](https://gcc.gnu.org/onlinedocs/gcc/Gcov-Data-Files.html)).
 
