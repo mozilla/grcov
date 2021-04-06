@@ -66,7 +66,7 @@ fn main() {
                                .long("output-type")
                                .value_name("OUTPUT TYPE")
                                .default_value("lcov")
-                               .possible_values(&["ade", "lcov", "coveralls", "coveralls+", "files", "covdir", "html"])
+                               .possible_values(&["ade", "lcov", "coveralls", "coveralls+", "files", "covdir", "html", "cobertura"])
                                .takes_value(true)
                                .requires_ifs(&[
                                    ("coveralls", "coveralls_auth"),
@@ -517,6 +517,8 @@ fn main() {
         output_covdir(iterator, output_path);
     } else if output_type == "html" {
         output_html(iterator, output_path, num_threads, branch_enabled);
+    } else if output_type == "cobertura" {
+        output_cobertura(iterator, output_path, demangle);
     } else {
         assert!(false, "{} is not a supported output type", output_type);
     }
