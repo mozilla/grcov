@@ -2,6 +2,7 @@ use quick_xml::{
     events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event},
     Writer,
 };
+use rustc_hash::FxHashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{
     collections::BTreeSet,
@@ -32,49 +33,75 @@ struct Coverage {
     packages: Vec<Package>,
 }
 
-trait LineRate {
+struct CoverageStats {
+    lines_covered: f64,
+    lines_valid: f64,
+    branches_covered: f64,
+    branches_valid: f64,
+    complexity: f64,
+}
+
+impl CoverageStats {
+    fn from_lines(lines: FxHashMap<u32, Line>) -> Self {
+        let lines_covered = lines
+            .iter()
+            .fold(0.0, |c, (_, l)| if l.covered() { c + 1.0 } else { c });
+        let lines_valid = lines.len() as f64;
+
+        let branches: Vec<Vec<Condition>> = lines
+            .into_iter()
+            .filter_map(|(_, l)| match l {
+                Line::Branch { conditions, .. } => Some(conditions),
+                Line::Plain { .. } => None,
+            })
+            .collect();
+        let (branches_covered, branches_valid) =
+            branches
+                .iter()
+                .fold((0.0, 0.0), |(covered, valid), conditions| {
+                    (
+                        covered + conditions.iter().fold(0.0, |hits, c| c.coverage + hits),
+                        valid + conditions.len() as f64,
+                    )
+                });
+
+        Self {
+            lines_valid,
+            lines_covered,
+            branches_valid,
+            branches_covered,
+            // for now always 0
+            complexity: 0.0,
+        }
+    }
+
     fn line_rate(&self) -> f64 {
-        let valid = self.lines_valid();
-        if valid > 0.0 {
-            self.lines_covered() / valid
+        if self.lines_valid > 0.0 {
+            self.lines_covered / self.lines_valid
         } else {
             0.0
         }
     }
     fn branch_rate(&self) -> f64 {
-        let valid = self.branches_valid();
-        if valid > 0.0 {
-            self.branches_covered() / valid
+        if self.branches_valid > 0.0 {
+            self.branches_covered / self.branches_valid
         } else {
             0.0
         }
     }
-    fn lines_covered(&self) -> f64;
-    fn lines_valid(&self) -> f64;
-    fn branches_covered(&self) -> f64;
-    fn branches_valid(&self) -> f64;
+}
 
-    fn complexity(&self) -> f64 {
-        // for now always 0
-        0.0
+trait Stats {
+    fn get_lines(&self) -> FxHashMap<u32, Line>;
+
+    fn get_stats(&self) -> CoverageStats {
+        CoverageStats::from_lines(self.get_lines())
     }
 }
 
-impl LineRate for Coverage {
-    fn lines_covered(&self) -> f64 {
-        self.packages.lines_covered()
-    }
-
-    fn lines_valid(&self) -> f64 {
-        self.packages.lines_valid()
-    }
-
-    fn branches_covered(&self) -> f64 {
-        self.packages.branches_covered()
-    }
-
-    fn branches_valid(&self) -> f64 {
-        self.packages.branches_valid()
+impl Stats for Coverage {
+    fn get_lines(&self) -> FxHashMap<u32, Line> {
+        self.packages.get_lines()
     }
 }
 
@@ -83,21 +110,9 @@ struct Package {
     classes: Vec<Class>,
 }
 
-impl LineRate for Package {
-    fn lines_covered(&self) -> f64 {
-        self.classes.lines_covered()
-    }
-
-    fn lines_valid(&self) -> f64 {
-        self.classes.lines_valid()
-    }
-
-    fn branches_covered(&self) -> f64 {
-        self.classes.branches_covered()
-    }
-
-    fn branches_valid(&self) -> f64 {
-        self.classes.branches_valid()
+impl Stats for Package {
+    fn get_lines(&self) -> FxHashMap<u32, Line> {
+        self.classes.get_lines()
     }
 }
 
@@ -108,29 +123,11 @@ struct Class {
     methods: Vec<Method>,
 }
 
-impl LineRate for Class {
-    fn lines_covered(&self) -> f64 {
-        self.lines.lines_covered() + self.methods.lines_covered()
-    }
-
-    fn lines_valid(&self) -> f64 {
-        self.lines.lines_valid() + self.methods.lines_valid()
-    }
-
-    fn line_rate(&self) -> f64 {
-        self.lines.line_rate() + self.methods.line_rate()
-    }
-
-    fn branches_covered(&self) -> f64 {
-        self.lines.branches_covered() + self.methods.branches_covered()
-    }
-
-    fn branches_valid(&self) -> f64 {
-        self.lines.branches_valid() + self.methods.branches_valid()
-    }
-
-    fn branch_rate(&self) -> f64 {
-        self.lines.branch_rate() + self.methods.branch_rate()
+impl Stats for Class {
+    fn get_lines(&self) -> FxHashMap<u32, Line> {
+        let mut lines = self.lines.get_lines();
+        lines.extend(self.methods.get_lines());
+        lines
     }
 }
 
@@ -140,57 +137,23 @@ struct Method {
     lines: Vec<Line>,
 }
 
-impl LineRate for Method {
-    fn lines_covered(&self) -> f64 {
-        self.lines.lines_covered()
-    }
-
-    fn lines_valid(&self) -> f64 {
-        self.lines.lines_valid()
-    }
-
-    fn branches_covered(&self) -> f64 {
-        self.lines.branches_covered()
-    }
-
-    fn branches_valid(&self) -> f64 {
-        self.lines.branches_valid()
+impl Stats for Method {
+    fn get_lines(&self) -> FxHashMap<u32, Line> {
+        self.lines.get_lines()
     }
 }
 
-impl<T: LineRate> LineRate for Vec<T> {
-    fn line_rate(&self) -> f64 {
-        if self.is_empty() {
-            return 0.0;
+impl<T: Stats> Stats for Vec<T> {
+    fn get_lines(&self) -> FxHashMap<u32, Line> {
+        let mut lines = FxHashMap::default();
+        for item in self {
+            lines.extend(item.get_lines());
         }
-        self.iter().map(|i| i.line_rate()).sum::<f64>() / self.len() as f64
-    }
-
-    fn lines_covered(&self) -> f64 {
-        self.iter().map(|i| i.lines_covered()).sum::<f64>()
-    }
-
-    fn lines_valid(&self) -> f64 {
-        self.iter().map(|i| i.lines_valid()).sum::<f64>()
-    }
-
-    fn branch_rate(&self) -> f64 {
-        if self.is_empty() {
-            return 0.0;
-        }
-        self.iter().map(|i| i.branch_rate()).sum::<f64>() / self.len() as f64
-    }
-
-    fn branches_covered(&self) -> f64 {
-        self.iter().map(|i| i.branches_covered()).sum::<f64>()
-    }
-
-    fn branches_valid(&self) -> f64 {
-        self.iter().map(|i| i.branches_valid()).sum::<f64>()
+        lines
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Line {
     Plain {
         number: u32,
@@ -204,45 +167,30 @@ enum Line {
     },
 }
 
-impl LineRate for Line {
-    fn lines_covered(&self) -> f64 {
+impl Line {
+    fn number(&self) -> u32 {
         match self {
-            Line::Plain { hits, .. } => {
-                if *hits > 0 {
-                    1.0
-                } else {
-                    0.0
-                }
-            }
-            _ => 0.0,
+            Line::Plain { number, .. } | Line::Branch { number, .. } => *number,
         }
     }
 
-    fn lines_valid(&self) -> f64 {
+    fn covered(&self) -> bool {
         match self {
-            Line::Plain { .. } => 1.0,
-            _ => 0.0,
-        }
-    }
-
-    fn branches_covered(&self) -> f64 {
-        match self {
-            Line::Branch { conditions, .. } => {
-                conditions.iter().fold(0.0, |hits, c| c.coverage + hits)
-            }
-            _ => 0.0,
-        }
-    }
-
-    fn branches_valid(&self) -> f64 {
-        match self {
-            Line::Branch { conditions, .. } => conditions.len() as f64,
-            _ => 0.0,
+            Line::Plain { hits, .. } | Line::Branch { hits, .. } if *hits > 0 => true,
+            _ => false,
         }
     }
 }
 
-#[derive(Debug)]
+impl Stats for Line {
+    fn get_lines(&self) -> FxHashMap<u32, Line> {
+        let mut lines = FxHashMap::default();
+        lines.insert(self.number(), self.clone());
+        lines
+    }
+}
+
+#[derive(Debug, Clone)]
 struct Condition {
     number: usize,
     cond_type: ConditionType,
@@ -250,7 +198,7 @@ struct Condition {
 }
 
 // Condition types
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum ConditionType {
     Jump,
 }
@@ -382,21 +330,16 @@ pub fn output_cobertura(results: CovResultIter, output_file: Option<&str>, deman
 
     let cov_tag = b"coverage";
     let mut cov = BytesStart::borrowed(cov_tag, cov_tag.len());
-    cov.push_attribute((
-        "lines-covered",
-        coverage.lines_covered().to_string().as_ref(),
-    ));
-    cov.push_attribute(("lines-valid", coverage.lines_valid().to_string().as_ref()));
-    cov.push_attribute(("line-rate", coverage.line_rate().to_string().as_ref()));
+    let stats = coverage.get_stats();
+    cov.push_attribute(("lines-covered", stats.lines_covered.to_string().as_ref()));
+    cov.push_attribute(("lines-valid", stats.lines_valid.to_string().as_ref()));
+    cov.push_attribute(("line-rate", stats.line_rate().to_string().as_ref()));
     cov.push_attribute((
         "branches-covered",
-        coverage.branches_covered().to_string().as_ref(),
+        stats.branches_covered.to_string().as_ref(),
     ));
-    cov.push_attribute((
-        "branches-valid",
-        coverage.branches_valid().to_string().as_ref(),
-    ));
-    cov.push_attribute(("branch-rate", coverage.branch_rate().to_string().as_ref()));
+    cov.push_attribute(("branches-valid", stats.branches_valid.to_string().as_ref()));
+    cov.push_attribute(("branch-rate", stats.branch_rate().to_string().as_ref()));
     cov.push_attribute(("complexity", "0"));
     cov.push_attribute(("version", "1.9"));
 
@@ -447,9 +390,10 @@ pub fn output_cobertura(results: CovResultIter, output_file: Option<&str>, deman
     for package in &coverage.packages {
         let mut pack = BytesStart::borrowed(pack_tag, pack_tag.len());
         pack.push_attribute(("name", package.name.as_ref()));
-        pack.push_attribute(("line-rate", package.line_rate().to_string().as_ref()));
-        pack.push_attribute(("branch-rate", package.branch_rate().to_string().as_ref()));
-        pack.push_attribute(("complexity", package.complexity().to_string().as_ref()));
+        let stats = package.get_stats();
+        pack.push_attribute(("line-rate", stats.line_rate().to_string().as_ref()));
+        pack.push_attribute(("branch-rate", stats.branch_rate().to_string().as_ref()));
+        pack.push_attribute(("complexity", stats.complexity.to_string().as_ref()));
 
         writer.write_event(Event::Start(pack)).unwrap();
 
@@ -470,9 +414,10 @@ pub fn output_cobertura(results: CovResultIter, output_file: Option<&str>, deman
             let mut c = BytesStart::borrowed(class_tag, class_tag.len());
             c.push_attribute(("name", class.name.as_ref()));
             c.push_attribute(("filename", class.file_name.as_ref()));
-            c.push_attribute(("line-rate", class.line_rate().to_string().as_ref()));
-            c.push_attribute(("branch-rate", class.branch_rate().to_string().as_ref()));
-            c.push_attribute(("complexity", class.complexity().to_string().as_ref()));
+            let stats = class.get_stats();
+            c.push_attribute(("line-rate", stats.line_rate().to_string().as_ref()));
+            c.push_attribute(("branch-rate", stats.branch_rate().to_string().as_ref()));
+            c.push_attribute(("complexity", stats.complexity.to_string().as_ref()));
 
             writer.write_event(Event::Start(c)).unwrap();
             writer
@@ -486,9 +431,10 @@ pub fn output_cobertura(results: CovResultIter, output_file: Option<&str>, deman
                 let mut m = BytesStart::borrowed(method_tag, method_tag.len());
                 m.push_attribute(("name", method.name.as_ref()));
                 m.push_attribute(("signature", method.signature.as_ref()));
-                m.push_attribute(("line-rate", method.line_rate().to_string().as_ref()));
-                m.push_attribute(("branch-rate", method.branch_rate().to_string().as_ref()));
-                m.push_attribute(("complexity", method.complexity().to_string().as_ref()));
+                let stats = method.get_stats();
+                m.push_attribute(("line-rate", stats.line_rate().to_string().as_ref()));
+                m.push_attribute(("branch-rate", stats.branch_rate().to_string().as_ref()));
+                m.push_attribute(("complexity", stats.complexity.to_string().as_ref()));
                 writer.write_event(Event::Start(m)).unwrap();
 
                 write_lines(&mut writer, &method.lines);
@@ -584,4 +530,206 @@ fn write_lines(writer: &mut Writer<Cursor<Vec<u8>>>, lines: &[Line]) {
     writer
         .write_event(Event::End(BytesEnd::borrowed(lines_tag)))
         .unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate tempfile;
+    use super::*;
+    use crate::{CovResult, Function};
+    use std::fs::File;
+    use std::io::Read;
+    use std::{collections::BTreeMap, path::PathBuf};
+
+    fn read_file(path: &PathBuf) -> String {
+        let mut f =
+            File::open(path).expect(format!("{:?} file not found", path.file_name()).as_str());
+        let mut s = String::new();
+        f.read_to_string(&mut s).unwrap();
+        s
+    }
+
+    #[test]
+    fn test_cobertura() {
+        /* main.rs
+        fn main() {
+            let inp = "a";
+            if "a" == inp {
+                println!("a");
+            } else if "b" == inp {
+                println!("b");
+            }
+            println!("what?");
+        }
+        */
+
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_cobertura.xml";
+        let file_path = tmp_dir.path().join(&file_name);
+
+        let results = vec![(
+            PathBuf::from("src/main.rs"),
+            PathBuf::from("src/main.rs"),
+            CovResult {
+                lines: [
+                    (1, 1),
+                    (2, 1),
+                    (3, 2),
+                    (4, 1),
+                    (5, 0),
+                    (6, 0),
+                    (8, 1),
+                    (9, 1),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+                branches: {
+                    let mut map = BTreeMap::new();
+                    map.insert(3, vec![true, false]);
+                    map.insert(5, vec![false, false]);
+                    map
+                },
+                functions: {
+                    let mut map = FxHashMap::default();
+                    map.insert(
+                        "_ZN8cov_test4main17h7eb435a3fb3e6f20E".to_string(),
+                        Function {
+                            start: 1,
+                            executed: true,
+                        },
+                    );
+                    map
+                },
+            },
+        )];
+
+        let results = Box::new(results.into_iter());
+        output_cobertura(results, Some(file_path.to_str().unwrap()), true);
+
+        let results = read_file(&file_path);
+
+        assert!(results.contains(r#"package name="src/main.rs""#));
+        assert!(results.contains(r#"class name="main" filename="src/main.rs""#));
+        assert!(results.contains(r#"method name="cov_test::main""#));
+        assert!(results.contains(r#"line number="1" hits="1">"#));
+        assert!(results.contains(r#"line number="3" hits="2" branch="true""#));
+        assert!(results.contains(r#"<condition number="0" type="jump" coverage="1"/>"#));
+
+        assert!(results.contains(r#"lines-covered="6""#));
+        assert!(results.contains(r#"lines-valid="8""#));
+        assert!(results.contains(r#"line-rate="0.75""#));
+
+        assert!(results.contains(r#"branches-covered="1""#));
+        assert!(results.contains(r#"branches-valid="4""#));
+        assert!(results.contains(r#"branch-rate="0.25""#));
+    }
+
+    #[test]
+    fn test_cobertura_double_lines() {
+        /* main.rs
+        fn main() {
+        }
+
+        #[test]
+        fn test_fn() {
+            let s = "s";
+            if s == "s" {
+                println!("test");
+            }
+            println!("test");
+        }
+        */
+
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_cobertura.xml";
+        let file_path = tmp_dir.path().join(&file_name);
+
+        let results = vec![(
+            PathBuf::from("src/main.rs"),
+            PathBuf::from("src/main.rs"),
+            CovResult {
+                lines: [
+                    (1, 2),
+                    (3, 0),
+                    (6, 2),
+                    (7, 1),
+                    (8, 2),
+                    (9, 1),
+                    (11, 1),
+                    (12, 2),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+                branches: {
+                    let mut map = BTreeMap::new();
+                    map.insert(8, vec![true, false]);
+                    map
+                },
+                functions: {
+                    let mut map = FxHashMap::default();
+                    map.insert(
+                        "_ZN8cov_test7test_fn17hbf19ec7bfabe8524E".to_string(),
+                        Function {
+                            start: 6,
+                            executed: true,
+                        },
+                    );
+
+                    map.insert(
+                        "_ZN8cov_test4main17h7eb435a3fb3e6f20E".to_string(),
+                        Function {
+                            start: 1,
+                            executed: false,
+                        },
+                    );
+
+                    map.insert(
+                        "_ZN8cov_test4main17h29b45b3d7d8851d2E".to_string(),
+                        Function {
+                            start: 1,
+                            executed: true,
+                        },
+                    );
+
+                    map.insert(
+                        "_ZN8cov_test7test_fn28_$u7b$$u7b$closure$u7d$$u7d$17hab7a162ac9b573fcE"
+                            .to_string(),
+                        Function {
+                            start: 6,
+                            executed: true,
+                        },
+                    );
+
+                    map.insert(
+                        "_ZN8cov_test4main17h679717cd8503f8adE".to_string(),
+                        Function {
+                            start: 1,
+                            executed: false,
+                        },
+                    );
+                    map
+                },
+            },
+        )];
+
+        let results = Box::new(results.into_iter());
+        output_cobertura(results, Some(file_path.to_str().unwrap()), true);
+
+        let results = read_file(&file_path);
+
+        assert!(results.contains(r#"package name="src/main.rs""#));
+        assert!(results.contains(r#"class name="main" filename="src/main.rs""#));
+        assert!(results.contains(r#"method name="cov_test::main""#));
+        assert!(results.contains(r#"method name="cov_test::test_fn""#));
+
+        assert!(results.contains(r#"lines-covered="7""#));
+        assert!(results.contains(r#"lines-valid="8""#));
+        assert!(results.contains(r#"line-rate="0.875""#));
+
+        assert!(results.contains(r#"branches-covered="1""#));
+        assert!(results.contains(r#"branches-valid="2""#));
+        assert!(results.contains(r#"branch-rate="0.5""#));
+    }
 }
