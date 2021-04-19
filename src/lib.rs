@@ -42,6 +42,9 @@ pub use crate::path_rewriting::*;
 mod output;
 pub use crate::output::*;
 
+mod cobertura;
+pub use crate::cobertura::*;
+
 mod reader;
 pub use crate::reader::*;
 

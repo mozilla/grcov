@@ -35,7 +35,7 @@ macro_rules! demangle {
     }};
 }
 
-fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
+pub fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
     let write_target: Box<dyn Write> = match output_file {
         Some(filename) => {
             let output = PathBuf::from(filename);

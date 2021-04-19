@@ -107,8 +107,9 @@ OPTIONS:
             - *covdir* for the covdir recursive JSON format;
             - *coveralls+* for the Coveralls specific format with function information;
             - *ade* for the ActiveData-ETL specific format;
+            - *cobertura* for a cobertura coverage report;
             - *files* to only return a list of files.
-             [default: lcov]  [possible values: ade, lcov, coveralls, coveralls+, files, covdir, html]
+             [default: lcov]  [possible values: ade, lcov, coveralls, coveralls+, files, covdir, html, cobertura]
         --path-mapping <PATH>...
 
 
