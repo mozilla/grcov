@@ -115,6 +115,8 @@ FNH:1
 DA:9,1
 DA:11,1
 DA:12,1
+BRF:0
+BFH:0
 LF:3
 LH:3
 end_of_record
