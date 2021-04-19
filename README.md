@@ -173,7 +173,12 @@ export RUSTFLAGS="-Zinstrument-coverage"
 
 `cargo build`
 
-3. Run your tests:
+4. Ensure each test runs gets its own profile information by defining the LLVM_PROFILE_FILE environment variable (%p will be replaced by the process ID, and %m by the binary signature):
+```sh
+export LLVM_PROFILE_FILE="your_name-%p-%m.profraw"
+```
+
+5. Run your tests:
 
 `cargo test`
 
