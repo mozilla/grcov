@@ -19,7 +19,7 @@ use crossbeam::channel::bounded;
 use log::error;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
-use simplelog::{Config, LevelFilter, TermLogger, TerminalMode, WriteLogger};
+use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode, WriteLogger};
 use std::fs::{self, File};
 use std::ops::Deref;
 use std::panic;
@@ -294,17 +294,31 @@ fn main() {
     let log = matches.value_of("log").unwrap_or("");
     match log {
         "stdout" => {
-            let _ = TermLogger::init(LevelFilter::Error, Config::default(), TerminalMode::Stdout);
+            let _ = TermLogger::init(
+                LevelFilter::Error,
+                Config::default(),
+                TerminalMode::Stdout,
+                ColorChoice::Auto,
+            );
         }
         "stderr" => {
-            let _ = TermLogger::init(LevelFilter::Error, Config::default(), TerminalMode::Stderr);
+            let _ = TermLogger::init(
+                LevelFilter::Error,
+                Config::default(),
+                TerminalMode::Stderr,
+                ColorChoice::Auto,
+            );
         }
         log => {
             if let Ok(file) = File::create(log) {
                 let _ = WriteLogger::init(LevelFilter::Error, Config::default(), file);
             } else {
-                let _ =
-                    TermLogger::init(LevelFilter::Error, Config::default(), TerminalMode::Stderr);
+                let _ = TermLogger::init(
+                    LevelFilter::Error,
+                    Config::default(),
+                    TerminalMode::Stderr,
+                    ColorChoice::Auto,
+                );
                 error!("Enable to create log file: {}. Switch to stderr", log);
             }
         }
