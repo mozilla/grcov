@@ -45,8 +45,17 @@ pub fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
                     filename
                 )
             }
-            Box::new(File::create(output).unwrap_or_else(|_| {
-                panic!("Cannot create the file {} to dump coverage data. Check if parent directory exists.", filename)
+            Box::new(File::create(&output).unwrap_or_else(|_| {
+                let parent = output.parent();
+                if let Some(filepath) = parent {
+                    if !filepath.exists() {
+                        panic!(
+                            "Cannot create {} to dump coverage data, as {} doesn't exist",
+                            filename, filepath.display()
+                        )
+                    }
+                }
+                panic!("Cannot create the file {} to dump coverage data.", filename)
             }))
         }
         None => {
