@@ -56,7 +56,7 @@ pub mod html;
 mod file_filter;
 pub use crate::file_filter::*;
 
-use log::error;
+use log::{error, warn};
 use std::collections::{btree_map, hash_map};
 use std::fs;
 use std::io::{BufReader, Cursor};
@@ -142,7 +142,7 @@ fn add_results(
     }
 
     if warn_overflow {
-        error!("Execution count overflow detected.");
+        warn!("Execution count overflow detected.");
     }
 }
 
