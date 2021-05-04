@@ -224,7 +224,7 @@ N.B.: The `--binary-path` argument is only necessary for source-based coverage.
 
 You can see the report in `target/debug/coverage/index.html`.
 
-(or alterntatively with `-t lcov` grcov will output a lcov compatible coverage report that you could then feed into lcov's `genhtml` command).
+(or alternatively with `-t lcov` grcov will output a lcov compatible coverage report that you could then feed into lcov's `genhtml` command).
 
 #### LCOV output
 
