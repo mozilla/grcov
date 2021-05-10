@@ -1118,9 +1118,9 @@ dependencies = [
 
 [[package]]
 name = "symbolic-demangle"
-version = "8.0.5"
+version = "8.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "698d0cacb616eab775ce0acf244fe6dbce800beb185dae3657cd391b919fe22c"
+checksum = "0b4ba42bd1221803e965054767b1899f2db9a12c89969965c6cb3a02af7014eb"
 dependencies = [
  "cc",
  "cpp_demangle",
