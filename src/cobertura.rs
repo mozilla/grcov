@@ -318,7 +318,7 @@ pub fn output_cobertura(results: CovResultIter, output_file: Option<&str>, deman
 
     let coverage = get_coverage(results, demangle, demangle_options);
 
-    let mut writer = Writer::new(Cursor::new(vec![]));
+    let mut writer = Writer::new_with_indent(Cursor::new(vec![]), b' ', 4);
     writer
         .write_event(Event::Decl(BytesDecl::new(b"1.0", None, None)))
         .unwrap();
