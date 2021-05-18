@@ -1,11 +1,12 @@
 use cargo_binutils::Tool;
 use is_executable::IsExecutable;
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use walkdir::WalkDir;
 
-pub fn run(cmd: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
+pub fn run(cmd: &Path, args: &[&OsStr]) -> Result<Vec<u8>, String> {
     let mut command = Command::new(cmd);
     command.args(args);
     let output = match command.output() {
@@ -30,9 +31,14 @@ pub fn profraws_to_lcov(
 ) -> Result<Vec<Vec<u8>>, String> {
     let profdata_path = working_dir.join("grcov.profdata");
 
-    let mut args = vec!["merge", "-sparse", "-o", profdata_path.to_str().unwrap()];
-    args.splice(2..2, profraw_paths.into_iter().map(|x| x.to_str().unwrap()));
-    run(Tool::Profdata.path().unwrap(), &args)?;
+    let mut args = vec![
+        "merge".as_ref(),
+        "-sparse".as_ref(),
+        "-o".as_ref(),
+        profdata_path.as_ref(),
+    ];
+    args.splice(2..2, profraw_paths.iter().map(PathBuf::as_ref));
+    run(&Tool::Profdata.path().unwrap(), &args)?;
 
     let binaries = if binary_path.is_file() {
         vec![binary_path.to_owned()]
@@ -59,12 +65,12 @@ pub fn profraws_to_lcov(
 
     for binary in binaries {
         let args = [
-            "export",
-            binary.to_str().unwrap(),
-            "--instr-profile",
-            profdata_path.to_str().unwrap(),
-            "--format",
-            "lcov",
+            "export".as_ref(),
+            binary.as_ref(),
+            "--instr-profile".as_ref(),
+            profdata_path.as_ref(),
+            "--format".as_ref(),
+            "lcov".as_ref(),
         ];
 
         if let Ok(result) = run(&cov_tool_path, &args) {
