@@ -51,7 +51,8 @@ pub fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
                     if !parent_path.exists() {
                         panic!(
                             "Cannot create {} to dump coverage data, as {} doesn't exist",
-                            filename, parent_path.display()
+                            filename,
+                            parent_path.display()
                         )
                     }
                 }
