@@ -21,13 +21,13 @@ pub fn run(cmd: &Path, args: &[&OsStr]) -> Result<Vec<u8>, String> {
         ));
     }
 
-    return Ok(output.stdout);
+    Ok(output.stdout)
 }
 
 pub fn profraws_to_lcov(
     profraw_paths: &[PathBuf],
-    binary_path: &PathBuf,
-    working_dir: &PathBuf,
+    binary_path: &Path,
+    working_dir: &Path,
 ) -> Result<Vec<Vec<u8>>, String> {
     let profdata_path = working_dir.join("grcov.profdata");
 
