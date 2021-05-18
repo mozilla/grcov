@@ -1,11 +1,11 @@
 use cargo_binutils::Tool;
 use is_executable::IsExecutable;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use walkdir::WalkDir;
 
-pub fn run(cmd: PathBuf, args: &[&str]) -> Result<Vec<u8>, String> {
+pub fn run(cmd: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
     let mut command = Command::new(cmd);
     command.args(args);
     let output = match command.output() {
@@ -55,6 +55,7 @@ pub fn profraws_to_lcov(
     };
 
     let mut results = vec![];
+    let cov_tool_path = Tool::Cov.path().unwrap();
 
     for binary in binaries {
         let args = [
@@ -66,7 +67,7 @@ pub fn profraws_to_lcov(
             "lcov",
         ];
 
-        if let Ok(result) = run(Tool::Cov.path().unwrap(), &args) {
+        if let Ok(result) = run(&cov_tool_path, &args) {
             results.push(result);
         }
     }
