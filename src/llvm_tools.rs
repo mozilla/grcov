@@ -48,12 +48,9 @@ pub fn profraws_to_lcov(
         for entry in WalkDir::new(&binary_path) {
             let entry =
                 entry.unwrap_or_else(|_| panic!("Failed to open directory '{:?}'.", binary_path));
-            let full_path = entry.path().to_path_buf();
-            if full_path.is_file()
-                && full_path.is_executable()
-                && full_path.metadata().unwrap().len() > 0
-            {
-                paths.push(full_path);
+
+            if entry.path().is_executable() && entry.metadata().unwrap().len() > 0 {
+                paths.push(entry.into_path());
             }
         }
 
