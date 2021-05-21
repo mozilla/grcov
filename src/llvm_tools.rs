@@ -1,11 +1,12 @@
 use cargo_binutils::Tool;
 use is_executable::IsExecutable;
-use std::path::PathBuf;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use walkdir::WalkDir;
 
-pub fn run(cmd: PathBuf, args: &[&str]) -> Result<Vec<u8>, String> {
+pub fn run(cmd: &Path, args: &[&OsStr]) -> Result<Vec<u8>, String> {
     let mut command = Command::new(cmd);
     command.args(args);
     let output = match command.output() {
@@ -20,19 +21,24 @@ pub fn run(cmd: PathBuf, args: &[&str]) -> Result<Vec<u8>, String> {
         ));
     }
 
-    return Ok(output.stdout);
+    Ok(output.stdout)
 }
 
 pub fn profraws_to_lcov(
     profraw_paths: &[PathBuf],
-    binary_path: &PathBuf,
-    working_dir: &PathBuf,
+    binary_path: &Path,
+    working_dir: &Path,
 ) -> Result<Vec<Vec<u8>>, String> {
     let profdata_path = working_dir.join("grcov.profdata");
 
-    let mut args = vec!["merge", "-sparse", "-o", profdata_path.to_str().unwrap()];
-    args.splice(2..2, profraw_paths.into_iter().map(|x| x.to_str().unwrap()));
-    run(Tool::Profdata.path().unwrap(), &args)?;
+    let mut args = vec![
+        "merge".as_ref(),
+        "-sparse".as_ref(),
+        "-o".as_ref(),
+        profdata_path.as_ref(),
+    ];
+    args.splice(2..2, profraw_paths.iter().map(PathBuf::as_ref));
+    run(&Tool::Profdata.path().unwrap(), &args)?;
 
     let binaries = if binary_path.is_file() {
         vec![binary_path.to_owned()]
@@ -42,12 +48,9 @@ pub fn profraws_to_lcov(
         for entry in WalkDir::new(&binary_path) {
             let entry =
                 entry.unwrap_or_else(|_| panic!("Failed to open directory '{:?}'.", binary_path));
-            let full_path = entry.path().to_path_buf();
-            if full_path.is_file()
-                && full_path.is_executable()
-                && full_path.metadata().unwrap().len() > 0
-            {
-                paths.push(full_path);
+
+            if entry.path().is_executable() && entry.metadata().unwrap().len() > 0 {
+                paths.push(entry.into_path());
             }
         }
 
@@ -55,18 +58,19 @@ pub fn profraws_to_lcov(
     };
 
     let mut results = vec![];
+    let cov_tool_path = Tool::Cov.path().unwrap();
 
     for binary in binaries {
         let args = [
-            "export",
-            binary.to_str().unwrap(),
-            "--instr-profile",
-            profdata_path.to_str().unwrap(),
-            "--format",
-            "lcov",
+            "export".as_ref(),
+            binary.as_ref(),
+            "--instr-profile".as_ref(),
+            profdata_path.as_ref(),
+            "--format".as_ref(),
+            "lcov".as_ref(),
         ];
 
-        if let Ok(result) = run(Tool::Cov.path().unwrap(), &args) {
+        if let Ok(result) = run(&cov_tool_path, &args) {
             results.push(result);
         }
     }
