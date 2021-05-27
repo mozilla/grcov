@@ -12,27 +12,30 @@ Linux, macOS and Windows are supported.
 
 This is a project initiated by Mozilla to gather code coverage results on Firefox.
 
+<!-- omit in toc -->
 ## Table of Contents
 
-* [man grcov](#man-grcov)
-* [How to get grcov](#how-to-get-grcov)
-* [Usage](#usage)
-  * [Example: How to generate source-based coverage for a Rust project](#example-how-to-generate-source-based-coverage-for-a-rust-project)
-  * [Example: How to generate .gcda files for C/C++](#example-how-to-generate-gcda-files-for-cc)
-  * [Example: How to generate .gcda files for a Rust project](#example-how-to-generate-gcda-files-for-a-rust-project)
-  * [Generate a coverage report from coverage artifacts](#generate-a-coverage-report-from-coverage-artifacts)
-    * [LCOV output](#lcov-output)
-    * [Coveralls/Codecov output](#coverallscodecov-output)
-    * [grcov with Travis](#grcov-with-travis)
-  * [Alternative reports](#alternative-reports)
-* [Auto-formatting](#auto-formatting)
-* [Build & Test](#build--test)
-* [Minimum requirements](#minimum-requirements)
-* [License](#license)
+- [man grcov](#man-grcov)
+- [How to get grcov](#how-to-get-grcov)
+- [Usage](#usage)
+  - [Example: How to generate source-based coverage for a Rust project](#example-how-to-generate-source-based-coverage-for-a-rust-project)
+  - [Example: How to generate .gcda files for C/C++](#example-how-to-generate-gcda-files-for-cc)
+  - [Example: How to generate .gcda files for a Rust project](#example-how-to-generate-gcda-files-for-a-rust-project)
+  - [Generate a coverage report from coverage artifacts](#generate-a-coverage-report-from-coverage-artifacts)
+    - [LCOV output](#lcov-output)
+    - [Coveralls/Codecov output](#coverallscodecov-output)
+    - [grcov with Travis](#grcov-with-travis)
+  - [Alternative reports](#alternative-reports)
+  - [Hosting HTML reports and using coverage badges](#hosting-html-reports-and-using-coverage-badges)
+    - [Example](#example)
+- [Auto-formatting](#auto-formatting)
+- [Build & Test](#build--test)
+- [Minimum requirements](#minimum-requirements)
+- [License](#license)
 
 ## man grcov
 
-```
+```text
 USAGE:
     grcov [FLAGS] [OPTIONS] <paths>...
 
@@ -146,7 +149,6 @@ ARGS:
             Sets the input paths to use
 ```
 
-
 ## How to get grcov
 
 Grcov can be downloaded from [releases](https://github.com/mozilla/grcov/releases) or, if you have Rust installed,
@@ -160,27 +162,30 @@ RUSTC_BOOTSTRAP=1`, which basically turns your stable rustc into a Nightly one.
 ### Example: How to generate source-based coverage for a Rust project
 
 1. Install the llvm-tools or llvm-tools-preview component:
-```sh
-rustup component add llvm-tools-preview
-```
+
+   ```sh
+   rustup component add llvm-tools-preview
+   ```
 
 2. Ensure that the following environment variable is set up:
-```sh
-export RUSTFLAGS="-Zinstrument-coverage"
-```
+
+   ```sh
+   export RUSTFLAGS="-Zinstrument-coverage"
+   ```
 
 3. Build your code:
 
-`cargo build`
+   `cargo build`
 
 4. Ensure each test runs gets its own profile information by defining the LLVM_PROFILE_FILE environment variable (%p will be replaced by the process ID, and %m by the binary signature):
-```sh
-export LLVM_PROFILE_FILE="your_name-%p-%m.profraw"
-```
+
+   ```sh
+   export LLVM_PROFILE_FILE="your_name-%p-%m.profraw"
+   ```
 
 5. Run your tests:
 
-`cargo test`
+   `cargo test`
 
 In the CWD, you will see a `.profraw` file has been generated. This contains the profiling information that grcov will parse, alongside with your binaries.
 
@@ -192,25 +197,25 @@ Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-co
 
 1. Ensure that the following environment variables are set up:
 
-```sh
-export CARGO_INCREMENTAL=0
-export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
-export RUSTDOCFLAGS="-Cpanic=abort"
-```
+   ```sh
+   export CARGO_INCREMENTAL=0
+   export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
+   export RUSTDOCFLAGS="-Cpanic=abort"
+   ```
 
-These will ensure that things like dead code elimination do not skew the coverage.
+   These will ensure that things like dead code elimination do not skew the coverage.
 
 2. Build your code:
 
-`cargo build`
+   `cargo build`
 
-If you look in `target/debug/deps` dir you will see `.gcno` files have appeared. These are the locations that could be covered.
+   If you look in `target/debug/deps` dir you will see `.gcno` files have appeared. These are the locations that could be covered.
 
 3. Run your tests:
 
-`cargo test`
+   `cargo test`
 
-In the `target/debug/deps/` dir you will now also see `.gcda` files. These contain the hit counts on which of those locations have been reached. Both sets of files are used as inputs to `grcov`.
+   In the `target/debug/deps/` dir you will now also see `.gcda` files. These contain the hit counts on which of those locations have been reached. Both sets of files are used as inputs to `grcov`.
 
 ### Generate a coverage report from coverage artifacts
 
@@ -245,7 +250,8 @@ grcov . --binary-path ./target/debug/ -t coveralls -s . --token YOUR_COVERALLS_T
 #### grcov with Travis
 
 Here is an example of .travis.yml file for source-based coverage:
-```YAML
+
+```yaml
 language: rust
 
 before_install:
@@ -266,7 +272,8 @@ script:
 ```
 
 Here is an example of .travis.yml file:
-```YAML
+
+```yaml
 language: rust
 
 before_install:
@@ -293,15 +300,15 @@ script:
 
 grcov provides the following output types:
 
-| Output Type `-t` | Description |
-| ---            | ---         |
-| lcov (default) | lcov's INFO format that is compatible with the linux coverage project. |
-| ade            | ActiveData\-ETL format. Only useful for Mozilla projects. |
-| coveralls      | Generates coverage in Coveralls format. |
-| coveralls+     | Like coveralls but with function level information. |
-| files          | Output a file list of covered or uncovered source files. |
-| covdir         | Provides coverage in a recursive JSON format. |
-| html           | Output a HTML coverage report, including coverage badges for your README. |
+| Output Type `-t` | Description                                                               |
+| ---------------- | ------------------------------------------------------------------------- |
+| lcov (default)   | lcov's INFO format that is compatible with the linux coverage project.    |
+| ade              | ActiveData\-ETL format. Only useful for Mozilla projects.                 |
+| coveralls        | Generates coverage in Coveralls format.                                   |
+| coveralls+       | Like coveralls but with function level information.                       |
+| files            | Output a file list of covered or uncovered source files.                  |
+| covdir           | Provides coverage in a recursive JSON format.                             |
+| html             | Output a HTML coverage report, including coverage badges for your README. |
 
 ### Hosting HTML reports and using coverage badges
 
@@ -365,13 +372,14 @@ docker build -t marcocas/grcov -f tests/Dockerfile .
 ```
 
 Otherwise, if you don't want to use Docker, the only prerequisite is to install GCC 7, setting the `GCC_CXX` environment variable to `g++-7` and the `GCOV` environment variable to `gcov-7`. Then run the tests with:
-```
+
+```sh
 cargo test
 ```
 
 ## Minimum requirements
 
-* GCC 4.9 or higher is required (if parsing coverage artifacts generated by GCC).
+- GCC 4.9 or higher is required (if parsing coverage artifacts generated by GCC).
 
 ## License
 
