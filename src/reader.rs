@@ -78,6 +78,7 @@ enum FileType {
 pub struct Gcno {
     version: u32,
     checksum: u32,
+    cwd: Option<String>,
     programcounts: u32,
     runcounts: u32,
     functions: Vec<GcovFunction>,
@@ -366,6 +367,7 @@ impl Gcno {
         Gcno {
             version: 0,
             checksum: 0,
+            cwd: None,
             programcounts: 0,
             runcounts: 0,
             functions: Vec::new(),
@@ -450,8 +452,7 @@ impl Gcno {
         self.version = reader.read_version()?;
         self.checksum = reader.read_u32()?;
         if self.version >= 90 {
-            // read the cwd.
-            reader.read_string()?;
+            self.cwd = Some(reader.read_string()?);
         }
         if self.version >= 80 {
             // hasUnexecutedBlocks
