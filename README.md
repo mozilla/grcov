@@ -12,6 +12,27 @@ Linux, macOS and Windows are supported.
 
 This is a project initiated by Mozilla to gather code coverage results on Firefox.
 
+<!-- omit in toc -->
+## Table of Contents
+
+- [man grcov](#man-grcov)
+- [How to get grcov](#how-to-get-grcov)
+- [Usage](#usage)
+  - [Example: How to generate source-based coverage for a Rust project](#example-how-to-generate-source-based-coverage-for-a-rust-project)
+  - [Example: How to generate .gcda files for C/C++](#example-how-to-generate-gcda-files-for-cc)
+  - [Example: How to generate .gcda files for a Rust project](#example-how-to-generate-gcda-files-for-a-rust-project)
+  - [Generate a coverage report from coverage artifacts](#generate-a-coverage-report-from-coverage-artifacts)
+    - [LCOV output](#lcov-output)
+    - [Coveralls/Codecov output](#coverallscodecov-output)
+    - [grcov with Travis](#grcov-with-travis)
+  - [Alternative reports](#alternative-reports)
+  - [Hosting HTML reports and using coverage badges](#hosting-html-reports-and-using-coverage-badges)
+    - [Example](#example)
+- [Auto-formatting](#auto-formatting)
+- [Build & Test](#build--test)
+- [Minimum requirements](#minimum-requirements)
+- [License](#license)
+
 ## man grcov
 
 ```text
