@@ -474,7 +474,7 @@ pub fn gen_badge(tera: &Tera, stats: &HtmlStats, conf: &Config, output: &Path, s
 /// using the following URL to generate a covergage badge:
 ///
 /// ```text
-/// https://shields.io/endpoint?url=https://<username>.github.io/<project?>/coveragejson
+/// https://shields.io/endpoint?url=https://<username>.github.io/<project>/coverage.json
 /// ```
 ///
 /// `<username>` and `<project>` should be replaced with a real username and project name
