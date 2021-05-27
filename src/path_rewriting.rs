@@ -94,7 +94,7 @@ fn apply_mapping(mapping: &Option<Value>, path: &str) -> PathBuf {
 // If the join of the source and the relative path is a file, return it.
 // Otherwise, remove common part between the source's end and the relative
 // path's start.
-fn guess_abs_path(prefix_dir: &PathBuf, path: &PathBuf) -> PathBuf {
+fn guess_abs_path(prefix_dir: &Path, path: &Path) -> PathBuf {
     let full_path = prefix_dir.join(path);
     if full_path.is_file() {
         return full_path;
@@ -108,7 +108,7 @@ fn guess_abs_path(prefix_dir: &PathBuf, path: &PathBuf) -> PathBuf {
 }
 
 // Remove prefix from the source file's path.
-fn remove_prefix(prefix_dir: &Option<PathBuf>, path: PathBuf) -> PathBuf {
+fn remove_prefix(prefix_dir: Option<&Path>, path: PathBuf) -> PathBuf {
     if let Some(prefix_dir) = prefix_dir {
         if path.starts_with(&prefix_dir) {
             return path.strip_prefix(&prefix_dir).unwrap().to_path_buf();
@@ -118,12 +118,12 @@ fn remove_prefix(prefix_dir: &Option<PathBuf>, path: PathBuf) -> PathBuf {
     path
 }
 
-fn fixup_rel_path(source_dir: &Option<PathBuf>, abs_path: &PathBuf, rel_path: PathBuf) -> PathBuf {
+fn fixup_rel_path(source_dir: Option<&Path>, abs_path: &Path, rel_path: PathBuf) -> PathBuf {
     if let Some(ref source_dir) = source_dir {
         if abs_path.starts_with(&source_dir) {
             return abs_path.strip_prefix(&source_dir).unwrap().to_path_buf();
         } else if !rel_path.is_relative() {
-            return abs_path.clone();
+            return abs_path.to_owned();
         }
     }
 
@@ -131,9 +131,9 @@ fn fixup_rel_path(source_dir: &Option<PathBuf>, abs_path: &PathBuf, rel_path: Pa
 }
 
 // Get the absolute path for the source file's path, resolving symlinks.
-fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf) -> Option<(PathBuf, PathBuf)> {
+fn get_abs_path(source_dir: Option<&Path>, rel_path: PathBuf) -> Option<(PathBuf, PathBuf)> {
     let mut abs_path = if !rel_path.is_relative() {
-        rel_path.clone()
+        rel_path.to_owned()
     } else if let Some(ref source_dir) = source_dir {
         if !cfg!(windows) {
             guess_abs_path(&source_dir, &rel_path)
@@ -144,7 +144,7 @@ fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf) -> Option<(Path
             )
         }
     } else {
-        rel_path.clone()
+        rel_path.to_owned()
     };
 
     // Canonicalize, if possible.
@@ -153,20 +153,16 @@ fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf) -> Option<(Path
     }
 
     // Fixup the relative path, in case the absolute path was a symlink.
-    let rel_path = fixup_rel_path(&source_dir, &abs_path, rel_path);
+    let rel_path = fixup_rel_path(source_dir.as_deref(), &abs_path, rel_path);
 
     // Normalize the path in removing './' or '//' or '..'
     let rel_path = normalize_path(rel_path);
     let abs_path = normalize_path(abs_path);
 
-    if rel_path.is_none() || abs_path.is_none() {
-        None
-    } else {
-        Some((abs_path.unwrap(), rel_path.unwrap()))
-    }
+    abs_path.zip(rel_path)
 }
 
-fn check_extension(path: &PathBuf, e: &str) -> bool {
+fn check_extension(path: &Path, e: &str) -> bool {
     if let Some(ext) = &path.extension() {
         if let Some(ext) = ext.to_str() {
             ext == e
@@ -237,8 +233,8 @@ fn to_globset(dirs: &[&str]) -> GlobSet {
 pub fn rewrite_paths(
     result_map: CovResultMap,
     path_mapping: Option<Value>,
-    source_dir: Option<PathBuf>,
-    prefix_dir: Option<PathBuf>,
+    source_dir: Option<&Path>,
+    prefix_dir: Option<&Path>,
     ignore_not_existing: bool,
     to_ignore_dirs: &mut [&str],
     to_keep_dirs: &[&str],
@@ -291,7 +287,7 @@ pub fn rewrite_paths(
             let rel_path = apply_mapping(&path_mapping, &path);
 
             // Remove prefix from the path.
-            let rel_path = remove_prefix(&prefix_dir, rel_path);
+            let rel_path = remove_prefix(prefix_dir, rel_path);
 
             // Try mapping a partial path to a full path.
             let rel_path = if check_extension(&rel_path, "java") {
@@ -301,12 +297,7 @@ pub fn rewrite_paths(
             };
 
             // Get absolute path to the source file.
-            let paths = get_abs_path(&source_dir, rel_path);
-            if paths.is_none() {
-                return None;
-            }
-
-            let (abs_path, rel_path) = paths.unwrap();
+            let (abs_path, rel_path) = get_abs_path(source_dir, rel_path)?;
 
             if to_ignore_globset.is_match(&rel_path) {
                 return None;
@@ -470,7 +461,7 @@ mod tests {
             result_map,
             None,
             None,
-            Some(PathBuf::from("/home/worker/src/workspace/")),
+            Some(Path::new("/home/worker/src/workspace/")),
             false,
             &mut Vec::new(),
             &Vec::new(),
@@ -646,7 +637,7 @@ mod tests {
             None,
             None,
             false,
-            &mut vec!["mydir/*"],
+            &mut ["mydir/*"],
             &Vec::new(),
             None,
             Default::default(),
@@ -766,8 +757,8 @@ mod tests {
             None,
             None,
             false,
-            &mut Vec::new(),
-            &vec!["mydir/*"],
+            &mut [],
+            &["mydir/*"],
             None,
             Default::default(),
         );
@@ -888,8 +879,8 @@ mod tests {
             None,
             None,
             false,
-            &mut vec!["foo/bar_*.rs"],
-            &vec!["foo/*.rs"],
+            &mut ["foo/bar_*.rs"],
+            &["foo/*.rs"],
             None,
             Default::default(),
         );
@@ -939,7 +930,7 @@ mod tests {
         rewrite_paths(
             result_map,
             None,
-            Some(PathBuf::from("tests")),
+            Some(Path::new("tests")),
             None,
             true,
             &mut Vec::new(),
@@ -959,7 +950,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path("test").unwrap()),
+            Some(&canonicalize_path("test").unwrap()),
             None,
             true,
             &mut Vec::new(),
@@ -1014,7 +1005,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path("test").unwrap()),
+            Some(&canonicalize_path("test").unwrap()),
             None,
             false,
             &mut Vec::new(),
@@ -1069,7 +1060,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path(".").unwrap()),
+            Some(&canonicalize_path(".").unwrap()),
             None,
             true,
             &mut Vec::new(),
@@ -1122,7 +1113,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path(".").unwrap()),
+            Some(&canonicalize_path(".").unwrap()),
             None,
             true,
             &mut Vec::new(),
@@ -1179,8 +1170,8 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path("tests").unwrap()),
-            Some(PathBuf::from("/home/worker/src/workspace")),
+            Some(&canonicalize_path("tests").unwrap()),
+            Some(Path::new("/home/worker/src/workspace")),
             true,
             &mut Vec::new(),
             &Vec::new(),
@@ -1353,7 +1344,7 @@ mod tests {
             result_map,
             Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"})),
             None,
-            Some(PathBuf::from("/home/worker/src/workspace")),
+            Some(Path::new("/home/worker/src/workspace")),
             true,
             &mut Vec::new(),
             &Vec::new(),
@@ -1502,8 +1493,8 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             Some(json!({"/home/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})),
-            Some(canonicalize_path("tests").unwrap()),
-            Some(PathBuf::from("/home/worker/src/workspace")),
+            Some(&canonicalize_path("tests").unwrap()),
+            Some(Path::new("/home/worker/src/workspace")),
             true,
             &mut Vec::new(),
             &Vec::new(),
@@ -1646,7 +1637,7 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path("test").unwrap()),
+            Some(&canonicalize_path("test").unwrap()),
             None,
             true,
             &mut Vec::new(),

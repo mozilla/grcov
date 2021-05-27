@@ -95,14 +95,14 @@ impl CDDirStats {
         self.stats.set_percent();
     }
 
-    pub fn to_json(&mut self) -> serde_json::Value {
+    pub fn into_json(self) -> serde_json::Value {
         let mut children = Map::new();
-        for file in self.files.drain(..) {
+        for file in self.files {
             children.insert(file.name.clone(), file.to_json());
         }
-        for dir in self.dirs.drain(..) {
-            let mut dir = dir.borrow_mut();
-            children.insert(dir.name.clone(), dir.to_json());
+        for dir in self.dirs {
+            let dir = dir.take();
+            children.insert(dir.name.clone(), dir.into_json());
         }
         json!({
             "name": self.name,

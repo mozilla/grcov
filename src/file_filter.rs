@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::path::PathBuf;
+use std::path::Path;
 
 pub enum FilterType {
     Line(u32),
@@ -36,7 +36,7 @@ impl FileFilter {
         }
     }
 
-    pub fn create(&self, file: &PathBuf) -> Vec<FilterType> {
+    pub fn create(&self, file: &Path) -> Vec<FilterType> {
         if self.excl_line.is_none()
             && self.excl_start.is_none()
             && self.excl_br_line.is_none()
@@ -63,11 +63,7 @@ impl FileFilter {
 
                 // The file is split on \n, which may result in a trailing \r
                 // on Windows. Remove it.
-                let line = if line.ends_with('\r') {
-                    &line[..(line.len() - 1)]
-                } else {
-                    line
-                };
+                let line = line.strip_suffix('\r').unwrap_or(line);
 
                 // End a branch ignore region. Region endings are exclusive.
                 if ignore_br

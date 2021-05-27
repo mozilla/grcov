@@ -32,12 +32,12 @@ pub struct GCNOStem {
 }
 
 #[cfg(not(windows))]
-fn clean_path(path: &PathBuf) -> String {
+fn clean_path(path: &Path) -> String {
     path.to_str().unwrap().to_string()
 }
 
 #[cfg(windows)]
-fn clean_path(path: &PathBuf) -> String {
+fn clean_path(path: &Path) -> String {
     path.to_str().unwrap().to_string().replace("\\", "/")
 }
 
@@ -52,16 +52,14 @@ impl Archive {
             let vec = map.get_mut(&filename).unwrap();
             vec.push(self);
         } else {
-            let mut vec = Vec::new();
-            vec.push(self);
-            map.insert(filename, vec);
+            map.insert(filename, vec![self]);
         }
     }
 
     fn handle_file<'a>(
         &'a self,
         file: Option<&mut impl Read>,
-        path: &PathBuf,
+        path: &Path,
         gcno_stem_archives: &RefCell<FxHashMap<GCNOStem, &'a Archive>>,
         gcda_stem_archives: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         profraws: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
@@ -253,7 +251,7 @@ impl Archive {
                         Ok(mut f) => {
                             let mut buf = Vec::with_capacity(metadata.len() as usize + 1);
                             f.read_to_end(&mut buf)
-                                .expect(&format!("Failed to read file: {}.", name));
+                                .unwrap_or_else(|_| panic!("Failed to read file: {}.", name));
                             Some(buf)
                         }
                         Err(_) => None,
@@ -265,7 +263,7 @@ impl Archive {
         }
     }
 
-    pub fn extract(&self, name: &str, path: &PathBuf) -> bool {
+    pub fn extract(&self, name: &str, path: &Path) -> bool {
         let dest_parent = path.parent().unwrap();
         if !dest_parent.exists() {
             fs::create_dir_all(dest_parent).expect("Cannot create parent directory");
@@ -316,7 +314,7 @@ fn gcno_gcda_producer(
     let send_job = |item, name| {
         sender
             .send(Some(WorkItem {
-                format: ItemFormat::GCNO,
+                format: ItemFormat::Gcno,
                 item,
                 name,
             }))
@@ -402,7 +400,7 @@ fn profraw_producer(
     profraws: &FxHashMap<String, Vec<&Archive>>,
     sender: &JobSender,
 ) {
-    if profraws.len() == 0 {
+    if profraws.is_empty() {
         return;
     }
 
@@ -435,7 +433,7 @@ fn profraw_producer(
 
     sender
         .send(Some(WorkItem {
-            format: ItemFormat::PROFRAW,
+            format: ItemFormat::Profraw,
             item: ItemType::Paths(profraw_paths),
             name: "profraws".to_string(),
         }))
@@ -560,8 +558,8 @@ pub fn producer(
         "No input files found"
     );
 
-    file_content_producer(&infos.into_inner(), sender, ItemFormat::INFO);
-    file_content_producer(&xmls.into_inner(), sender, ItemFormat::JACOCO_XML);
+    file_content_producer(&infos.into_inner(), sender, ItemFormat::Info);
+    file_content_producer(&xmls.into_inner(), sender, ItemFormat::JacocoXml);
     profraw_producer(tmp_dir, &profraws.into_inner(), sender);
     gcno_gcda_producer(
         tmp_dir,
@@ -647,7 +645,7 @@ mod tests {
 
             let p = directory.join(x.2);
             assert!(p.exists(), "{} doesn't exist", p.display());
-            if x.0 == ItemFormat::GCNO {
+            if x.0 == ItemFormat::Gcno {
                 let gcda =
                     p.with_file_name(format!("{}.gcda", p.file_stem().unwrap().to_str().unwrap()));
                 if x.3 {
@@ -668,96 +666,96 @@ mod tests {
         let mapping = producer(&tmp_path, &["test".to_string()], &sender, false, false);
 
         let expected = vec![
-            (ItemFormat::GCNO, true, "Platform_1.gcno", true),
+            (ItemFormat::Gcno, true, "Platform_1.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "sub2/RootAccessibleWrap_1.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
-            (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsMaiInterfaceValue_1.gcno", true),
+            (ItemFormat::Gcno, true, "sub/prova2_1.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "nsMaiInterfaceDocument_1.gcno",
                 true,
             ),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "Unified_cpp_netwerk_base0_1.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "prova_1.gcno", true),
-            (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
-            (ItemFormat::GCNO, true, "negative_counts_1.gcno", true),
-            (ItemFormat::GCNO, true, "64bit_count_1.gcno", true),
-            (ItemFormat::GCNO, true, "no_gcda/main_1.gcno", false),
-            (ItemFormat::GCNO, true, "only_one_gcda/main_1.gcno", true),
-            (ItemFormat::GCNO, true, "only_one_gcda/orphan_1.gcno", false),
+            (ItemFormat::Gcno, true, "prova_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsGnomeModule_1.gcno", true),
+            (ItemFormat::Gcno, true, "negative_counts_1.gcno", true),
+            (ItemFormat::Gcno, true, "64bit_count_1.gcno", true),
+            (ItemFormat::Gcno, true, "no_gcda/main_1.gcno", false),
+            (ItemFormat::Gcno, true, "only_one_gcda/main_1.gcno", true),
+            (ItemFormat::Gcno, true, "only_one_gcda/orphan_1.gcno", false),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "gcno_symlink/gcda/main_1.gcno",
                 true,
             ),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "gcno_symlink/gcno/main_1.gcno",
                 false,
             ),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 false,
                 "rust/generics_with_two_parameters",
                 true,
             ),
-            (ItemFormat::GCNO, true, "reader_gcc-6_1.gcno", true),
-            (ItemFormat::GCNO, true, "reader_gcc-7_1.gcno", true),
-            (ItemFormat::GCNO, true, "reader_gcc-8_1.gcno", true),
-            (ItemFormat::GCNO, true, "reader_gcc-9_1.gcno", true),
-            (ItemFormat::GCNO, true, "reader_gcc-10_1.gcno", true),
-            (ItemFormat::INFO, false, "1494603973-2977-7.info", false),
-            (ItemFormat::INFO, false, "prova.info", false),
-            (ItemFormat::INFO, false, "prova_fn_with_commas.info", false),
-            (ItemFormat::INFO, false, "empty_line.info", false),
-            (ItemFormat::INFO, false, "invalid_DA_record.info", false),
+            (ItemFormat::Gcno, true, "reader_gcc-6_1.gcno", true),
+            (ItemFormat::Gcno, true, "reader_gcc-7_1.gcno", true),
+            (ItemFormat::Gcno, true, "reader_gcc-8_1.gcno", true),
+            (ItemFormat::Gcno, true, "reader_gcc-9_1.gcno", true),
+            (ItemFormat::Gcno, true, "reader_gcc-10_1.gcno", true),
+            (ItemFormat::Info, false, "1494603973-2977-7.info", false),
+            (ItemFormat::Info, false, "prova.info", false),
+            (ItemFormat::Info, false, "prova_fn_with_commas.info", false),
+            (ItemFormat::Info, false, "empty_line.info", false),
+            (ItemFormat::Info, false, "invalid_DA_record.info", false),
             (
-                ItemFormat::INFO,
+                ItemFormat::Info,
                 false,
                 "relative_path/relative_path.info",
                 false,
             ),
-            (ItemFormat::GCNO, false, "llvm/file", true),
-            (ItemFormat::GCNO, false, "llvm/file_branch", true),
-            (ItemFormat::GCNO, false, "llvm/reader", true),
+            (ItemFormat::Gcno, false, "llvm/file", true),
+            (ItemFormat::Gcno, false, "llvm/file_branch", true),
+            (ItemFormat::Gcno, false, "llvm/reader", true),
             (
-                ItemFormat::JACOCO_XML,
+                ItemFormat::JacocoXml,
                 false,
                 "jacoco/basic-jacoco.xml",
                 false,
             ),
             (
-                ItemFormat::JACOCO_XML,
+                ItemFormat::JacocoXml,
                 false,
                 "jacoco/inner-classes.xml",
                 false,
             ),
             (
-                ItemFormat::JACOCO_XML,
+                ItemFormat::JacocoXml,
                 false,
                 "jacoco/multiple-top-level-classes.xml",
                 false,
             ),
             (
-                ItemFormat::JACOCO_XML,
+                ItemFormat::JacocoXml,
                 false,
                 "jacoco/full-junit4-report-multiple-top-level-classes.xml",
                 false,
             ),
-            (ItemFormat::PROFRAW, true, "default_1.profraw", false),
+            (ItemFormat::Profraw, true, "default_1.profraw", false),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -788,8 +786,8 @@ mod tests {
         );
 
         let expected = vec![
-            (ItemFormat::GCNO, true, "RootAccessibleWrap_1.gcno", true),
-            (ItemFormat::GCNO, true, "prova2_1.gcno", true),
+            (ItemFormat::Gcno, true, "RootAccessibleWrap_1.gcno", true),
+            (ItemFormat::Gcno, true, "prova2_1.gcno", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -810,7 +808,7 @@ mod tests {
             false,
         );
 
-        let expected = vec![(ItemFormat::GCNO, true, "main_1.gcno", true)];
+        let expected = vec![(ItemFormat::Gcno, true, "main_1.gcno", true)];
 
         check_produced(tmp_path, &receiver, expected);
         assert!(mapping.is_none());
@@ -831,8 +829,8 @@ mod tests {
         );
 
         let expected = vec![
-            (ItemFormat::GCNO, true, "main_1.gcno", true),
-            (ItemFormat::GCNO, true, "orphan_1.gcno", false),
+            (ItemFormat::Gcno, true, "main_1.gcno", true),
+            (ItemFormat::Gcno, true, "orphan_1.gcno", false),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -853,7 +851,7 @@ mod tests {
             false,
         );
 
-        let expected = vec![(ItemFormat::GCNO, true, "main_1.gcno", true)];
+        let expected = vec![(ItemFormat::Gcno, true, "main_1.gcno", true)];
 
         check_produced(tmp_path, &receiver, expected);
         assert!(mapping.is_none());
@@ -877,22 +875,22 @@ mod tests {
         );
 
         let expected = vec![
-            (ItemFormat::GCNO, true, "Platform_1.gcno", true),
+            (ItemFormat::Gcno, true, "Platform_1.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "sub2/RootAccessibleWrap_1.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
-            (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsMaiInterfaceValue_1.gcno", true),
+            (ItemFormat::Gcno, true, "sub/prova2_1.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "nsMaiInterfaceDocument_1.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsGnomeModule_1.gcno", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -928,31 +926,31 @@ mod tests {
         );
 
         let expected = vec![
-            (ItemFormat::GCNO, true, "Platform_1.gcno", true),
+            (ItemFormat::Gcno, true, "Platform_1.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "sub2/RootAccessibleWrap_1.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
-            (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsMaiInterfaceValue_1.gcno", true),
+            (ItemFormat::Gcno, true, "sub/prova2_1.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "nsMaiInterfaceDocument_1.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
-            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_2.gcno", true),
+            (ItemFormat::Gcno, true, "nsGnomeModule_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsMaiInterfaceValue_2.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "nsMaiInterfaceDocument_2.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsGnomeModule_2.gcno", true),
-            (ItemFormat::GCNO, true, "sub/prova2_2.gcno", true),
+            (ItemFormat::Gcno, true, "nsGnomeModule_2.gcno", true),
+            (ItemFormat::Gcno, true, "sub/prova2_2.gcno", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -987,22 +985,22 @@ mod tests {
         );
 
         let expected = vec![
-            (ItemFormat::GCNO, true, "Platform_1.gcno", true),
+            (ItemFormat::Gcno, true, "Platform_1.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "sub2/RootAccessibleWrap_1.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
-            (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsMaiInterfaceValue_1.gcno", true),
+            (ItemFormat::Gcno, true, "sub/prova2_1.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "nsMaiInterfaceDocument_1.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsGnomeModule_1.gcno", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -1029,31 +1027,31 @@ mod tests {
         );
 
         let expected = vec![
-            (ItemFormat::GCNO, true, "Platform_1.gcno", true),
+            (ItemFormat::Gcno, true, "Platform_1.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "sub2/RootAccessibleWrap_1.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
-            (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsMaiInterfaceValue_1.gcno", true),
+            (ItemFormat::Gcno, true, "sub/prova2_1.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "nsMaiInterfaceDocument_1.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
-            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_2.gcno", true),
+            (ItemFormat::Gcno, true, "nsGnomeModule_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsMaiInterfaceValue_2.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "nsMaiInterfaceDocument_2.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsGnomeModule_2.gcno", true),
-            (ItemFormat::GCNO, true, "sub/prova2_2.gcno", true),
+            (ItemFormat::Gcno, true, "nsGnomeModule_2.gcno", true),
+            (ItemFormat::Gcno, true, "sub/prova2_2.gcno", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -1078,8 +1076,8 @@ mod tests {
         );
 
         let expected = vec![
-            (ItemFormat::PROFRAW, true, "default_1.profraw", false),
-            (ItemFormat::PROFRAW, true, "default_2.profraw", false),
+            (ItemFormat::Profraw, true, "default_1.profraw", false),
+            (ItemFormat::Profraw, true, "default_2.profraw", false),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -1101,18 +1099,18 @@ mod tests {
         );
 
         let expected = vec![
-            (ItemFormat::INFO, false, "1494603967-2977-2_0.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-3_0.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-4_0.info", true),
-            (ItemFormat::INFO, false, "1494603968-2977-5_0.info", true),
-            (ItemFormat::INFO, false, "1494603972-2977-6_0.info", true),
-            (ItemFormat::INFO, false, "1494603973-2977-7_0.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-2_1.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-3_1.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-4_1.info", true),
-            (ItemFormat::INFO, false, "1494603968-2977-5_1.info", true),
-            (ItemFormat::INFO, false, "1494603972-2977-6_1.info", true),
-            (ItemFormat::INFO, false, "1494603973-2977-7_1.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-2_0.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-3_0.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-4_0.info", true),
+            (ItemFormat::Info, false, "1494603968-2977-5_0.info", true),
+            (ItemFormat::Info, false, "1494603972-2977-6_0.info", true),
+            (ItemFormat::Info, false, "1494603973-2977-7_0.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-2_1.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-3_1.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-4_1.info", true),
+            (ItemFormat::Info, false, "1494603968-2977-5_1.info", true),
+            (ItemFormat::Info, false, "1494603972-2977-6_1.info", true),
+            (ItemFormat::Info, false, "1494603973-2977-7_1.info", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -1138,12 +1136,12 @@ mod tests {
 
         let expected = vec![
             (
-                ItemFormat::JACOCO_XML,
+                ItemFormat::JacocoXml,
                 false,
                 "jacoco/basic-jacoco.xml",
                 true,
             ),
-            (ItemFormat::JACOCO_XML, false, "inner-classes.xml", true),
+            (ItemFormat::JacocoXml, false, "inner-classes.xml", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -1171,24 +1169,24 @@ mod tests {
 
         let expected = vec![
             (
-                ItemFormat::JACOCO_XML,
+                ItemFormat::JacocoXml,
                 false,
                 "jacoco/basic-jacoco.xml",
                 true,
             ),
-            (ItemFormat::JACOCO_XML, false, "inner-classes.xml", true),
-            (ItemFormat::INFO, false, "1494603967-2977-2_0.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-3_0.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-4_0.info", true),
-            (ItemFormat::INFO, false, "1494603968-2977-5_0.info", true),
-            (ItemFormat::INFO, false, "1494603972-2977-6_0.info", true),
-            (ItemFormat::INFO, false, "1494603973-2977-7_0.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-2_1.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-3_1.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-4_1.info", true),
-            (ItemFormat::INFO, false, "1494603968-2977-5_1.info", true),
-            (ItemFormat::INFO, false, "1494603972-2977-6_1.info", true),
-            (ItemFormat::INFO, false, "1494603973-2977-7_1.info", true),
+            (ItemFormat::JacocoXml, false, "inner-classes.xml", true),
+            (ItemFormat::Info, false, "1494603967-2977-2_0.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-3_0.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-4_0.info", true),
+            (ItemFormat::Info, false, "1494603968-2977-5_0.info", true),
+            (ItemFormat::Info, false, "1494603972-2977-6_0.info", true),
+            (ItemFormat::Info, false, "1494603973-2977-7_0.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-2_1.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-3_1.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-4_1.info", true),
+            (ItemFormat::Info, false, "1494603968-2977-5_1.info", true),
+            (ItemFormat::Info, false, "1494603972-2977-6_1.info", true),
+            (ItemFormat::Info, false, "1494603973-2977-7_1.info", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -1215,34 +1213,34 @@ mod tests {
         );
 
         let expected = vec![
-            (ItemFormat::GCNO, true, "Platform_1.gcno", true),
+            (ItemFormat::Gcno, true, "Platform_1.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "sub2/RootAccessibleWrap_1.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
-            (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsMaiInterfaceValue_1.gcno", true),
+            (ItemFormat::Gcno, true, "sub/prova2_1.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "nsMaiInterfaceDocument_1.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
-            (ItemFormat::INFO, false, "1494603967-2977-2_0.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-3_0.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-4_0.info", true),
-            (ItemFormat::INFO, false, "1494603968-2977-5_0.info", true),
-            (ItemFormat::INFO, false, "1494603972-2977-6_0.info", true),
-            (ItemFormat::INFO, false, "1494603973-2977-7_0.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-2_1.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-3_1.info", true),
-            (ItemFormat::INFO, false, "1494603967-2977-4_1.info", true),
-            (ItemFormat::INFO, false, "1494603968-2977-5_1.info", true),
-            (ItemFormat::INFO, false, "1494603972-2977-6_1.info", true),
-            (ItemFormat::INFO, false, "1494603973-2977-7_1.info", true),
+            (ItemFormat::Gcno, true, "nsGnomeModule_1.gcno", true),
+            (ItemFormat::Info, false, "1494603967-2977-2_0.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-3_0.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-4_0.info", true),
+            (ItemFormat::Info, false, "1494603968-2977-5_0.info", true),
+            (ItemFormat::Info, false, "1494603972-2977-6_0.info", true),
+            (ItemFormat::Info, false, "1494603973-2977-7_0.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-2_1.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-3_1.info", true),
+            (ItemFormat::Info, false, "1494603967-2977-4_1.info", true),
+            (ItemFormat::Info, false, "1494603968-2977-5_1.info", true),
+            (ItemFormat::Info, false, "1494603972-2977-6_1.info", true),
+            (ItemFormat::Info, false, "1494603973-2977-7_1.info", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -1266,7 +1264,7 @@ mod tests {
             false,
         );
 
-        let expected = vec![(ItemFormat::GCNO, true, "main_1.gcno", false)];
+        let expected = vec![(ItemFormat::Gcno, true, "main_1.gcno", false)];
 
         check_produced(tmp_path, &receiver, expected);
         assert!(mapping.is_none());
@@ -1291,7 +1289,7 @@ mod tests {
             false,
         );
 
-        let expected = vec![(ItemFormat::GCNO, true, "main_1.gcno", true)];
+        let expected = vec![(ItemFormat::Gcno, true, "main_1.gcno", true)];
 
         check_produced(tmp_path, &receiver, expected);
         assert!(mapping.is_none());
@@ -1330,22 +1328,22 @@ mod tests {
         );
 
         let expected = vec![
-            (ItemFormat::GCNO, true, "Platform_1.gcno", false),
+            (ItemFormat::Gcno, true, "Platform_1.gcno", false),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "sub2/RootAccessibleWrap_1.gcno",
                 false,
             ),
-            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
-            (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsMaiInterfaceValue_1.gcno", true),
+            (ItemFormat::Gcno, true, "sub/prova2_1.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "nsMaiInterfaceDocument_1.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsGnomeModule_1.gcno", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -1372,31 +1370,31 @@ mod tests {
         );
 
         let expected = vec![
-            (ItemFormat::GCNO, true, "Platform_1.gcno", false),
+            (ItemFormat::Gcno, true, "Platform_1.gcno", false),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "sub2/RootAccessibleWrap_1.gcno",
                 false,
             ),
-            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
-            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_2.gcno", true),
-            (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
-            (ItemFormat::GCNO, true, "sub/prova2_2.gcno", true),
+            (ItemFormat::Gcno, true, "nsMaiInterfaceValue_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsMaiInterfaceValue_2.gcno", true),
+            (ItemFormat::Gcno, true, "sub/prova2_1.gcno", true),
+            (ItemFormat::Gcno, true, "sub/prova2_2.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "nsMaiInterfaceDocument_1.gcno",
                 true,
             ),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "nsMaiInterfaceDocument_2.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
-            (ItemFormat::GCNO, true, "nsGnomeModule_2.gcno", true),
+            (ItemFormat::Gcno, true, "nsGnomeModule_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsGnomeModule_2.gcno", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -1418,15 +1416,15 @@ mod tests {
         );
 
         let expected = vec![
-            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
-            (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsMaiInterfaceValue_1.gcno", true),
+            (ItemFormat::Gcno, true, "sub/prova2_1.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "nsMaiInterfaceDocument_1.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsGnomeModule_1.gcno", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -1452,24 +1450,24 @@ mod tests {
         );
 
         let expected = vec![
-            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_1.gcno", true),
-            (ItemFormat::GCNO, true, "nsMaiInterfaceValue_2.gcno", true),
-            (ItemFormat::GCNO, true, "sub/prova2_1.gcno", true),
-            (ItemFormat::GCNO, true, "sub/prova2_2.gcno", true),
+            (ItemFormat::Gcno, true, "nsMaiInterfaceValue_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsMaiInterfaceValue_2.gcno", true),
+            (ItemFormat::Gcno, true, "sub/prova2_1.gcno", true),
+            (ItemFormat::Gcno, true, "sub/prova2_2.gcno", true),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "nsMaiInterfaceDocument_1.gcno",
                 true,
             ),
             (
-                ItemFormat::GCNO,
+                ItemFormat::Gcno,
                 true,
                 "nsMaiInterfaceDocument_2.gcno",
                 true,
             ),
-            (ItemFormat::GCNO, true, "nsGnomeModule_1.gcno", true),
-            (ItemFormat::GCNO, true, "nsGnomeModule_2.gcno", true),
+            (ItemFormat::Gcno, true, "nsGnomeModule_1.gcno", true),
+            (ItemFormat::Gcno, true, "nsGnomeModule_2.gcno", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -1522,14 +1520,12 @@ mod tests {
             if let ItemType::Buffers(buffers) = elem.item {
                 let stem = PathBuf::from(buffers.stem);
                 let stem = stem.file_stem().expect("Unable to get file_stem");
-                if stem == "file" {
-                    assert_eq!(buffers.gcno_buf, gcno_buf);
-                    assert_eq!(buffers.gcda_buf, vec![gcda1_buf.clone(), gcda2_buf.clone()]);
-                } else {
-                    assert!(false, "Unexpected file: {:?}", stem);
-                }
+
+                assert!(stem == "file", "Unexpected file: {:?}", stem);
+                assert_eq!(buffers.gcno_buf, gcno_buf);
+                assert_eq!(buffers.gcda_buf, vec![gcda1_buf.clone(), gcda2_buf.clone()]);
             } else {
-                assert!(false, "Buffers expected");
+                panic!("Buffers expected");
             }
         }
     }
@@ -1552,14 +1548,14 @@ mod tests {
         assert!(mapping.is_some());
         let mapping = mapping.unwrap();
 
-        let expected = vec![(ItemFormat::INFO, false, "prova_1.info", true)];
+        let expected = vec![(ItemFormat::Info, false, "prova_1.info", true)];
 
         if let Ok(mut reader) = File::open(json_path) {
             let mut json = Vec::new();
             reader.read_to_end(&mut json).unwrap();
             assert_eq!(json, mapping);
         } else {
-            assert!(false, "Failed to read the file: {}", json_path);
+            panic!("Failed to read the file: {}", json_path);
         }
 
         check_produced(tmp_path, &receiver, expected);
@@ -1579,7 +1575,7 @@ mod tests {
             false,
         );
 
-        let expected = vec![(ItemFormat::PROFRAW, true, "default.profraw", false)];
+        let expected = vec![(ItemFormat::Profraw, true, "default.profraw", false)];
 
         check_produced(PathBuf::from("test"), &receiver, expected);
     }
