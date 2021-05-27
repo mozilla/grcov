@@ -575,7 +575,13 @@ pub fn output_html(
 
     let global = Arc::try_unwrap(stats).unwrap().into_inner().unwrap();
 
-    html::gen_index(&tera, global, config, &output, branch_enabled);
+    html::gen_index(&tera, &global, &config, &output, branch_enabled);
+
+    for style in html::BadgeStyle::iter() {
+        html::gen_badge(&tera, &global.stats, &config, &output, style);
+    }
+
+    html::gen_coverage_json(&global.stats, &config, &output);
 }
 
 #[cfg(test)]
