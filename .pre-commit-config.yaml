@@ -12,6 +12,10 @@ repos:
         exclude: ^test/
     -   id: mixed-line-ending
         exclude: ^test/
+-   repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.27.1
+    hooks:
+    -   id: markdownlint
 -   repo: meta
     hooks:
     -   id: check-useless-excludes
