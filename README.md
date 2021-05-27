@@ -130,8 +130,7 @@ ARGS:
 
 ## How to get grcov
 
-Grcov can be downloaded from [releases](https://github.com/mozilla/grcov/releases) or, if you have
-Rust installed,
+Grcov can be downloaded from [releases](https://github.com/mozilla/grcov/releases) or, if you have Rust installed,
 you can run `cargo install grcov`.
 
 ## Usage
@@ -157,8 +156,7 @@ RUSTC_BOOTSTRAP=1`, which basically turns your stable rustc into a Nightly one.
 
    `cargo build`
 
-4. Ensure each test runs gets its own profile information by defining the LLVM_PROFILE_FILE
-   environment variable (%p will be replaced by the process ID, and %m by the binary signature):
+4. Ensure each test runs gets its own profile information by defining the LLVM_PROFILE_FILE environment variable (%p will be replaced by the process ID, and %m by the binary signature):
 
    ```sh
    export LLVM_PROFILE_FILE="your_name-%p-%m.profraw"
@@ -168,13 +166,11 @@ RUSTC_BOOTSTRAP=1`, which basically turns your stable rustc into a Nightly one.
 
    `cargo test`
 
-In the CWD, you will see a `.profraw` file has been generated. This contains the profiling
-information that grcov will parse, alongside with your binaries.
+In the CWD, you will see a `.profraw` file has been generated. This contains the profiling information that grcov will parse, alongside with your binaries.
 
 ### Example: How to generate .gcda files for C/C++
 
-Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-coverage` and
-`-fprofile-arcs` options (see [gcc docs](https://gcc.gnu.org/onlinedocs/gcc/Gcov-Data-Files.html)).
+Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-coverage` and `-fprofile-arcs` options (see [gcc docs](https://gcc.gnu.org/onlinedocs/gcc/Gcov-Data-Files.html)).
 
 ### Example: How to generate .gcda files for a Rust project
 
@@ -182,7 +178,7 @@ Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-co
 
    ```sh
    export CARGO_INCREMENTAL=0
-   export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off    -Zpanic_abort_tests -Cpanic=abort"
+   export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
    export RUSTDOCFLAGS="-Cpanic=abort"
    ```
 
@@ -192,16 +188,13 @@ Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-co
 
    `cargo build`
 
-   If you look in `target/debug/deps` dir you will see `.gcno` files have appeared. These are the
-   locations that could be covered.
+   If you look in `target/debug/deps` dir you will see `.gcno` files have appeared. These are the locations that could be covered.
 
 3. Run your tests:
 
    `cargo test`
 
-   In the `target/debug/deps/` dir you will now also see `.gcda` files. These contain the hit
-   counts on which of those locations have been reached. Both sets of files are used as inputs to
-   `grcov`.
+   In the `target/debug/deps/` dir you will now also see `.gcda` files. These contain the hit counts on which of those locations have been reached. Both sets of files are used as inputs to `grcov`.
 
 ### Generate a coverage report from coverage artifacts
 
@@ -215,8 +208,7 @@ N.B.: The `--binary-path` argument is only necessary for source-based coverage.
 
 You can see the report in `target/debug/coverage/index.html`.
 
-(or alternatively with `-t lcov` grcov will output a lcov compatible coverage report that you could
-then feed into lcov's `genhtml` command).
+(or alternatively with `-t lcov` grcov will output a lcov compatible coverage report that you could then feed into lcov's `genhtml` command).
 
 #### LCOV output
 
@@ -334,13 +326,9 @@ the different URL for the image):
 
 ## Auto-formatting
 
-This project is using pre-commit. Please run `pre-commit install` to install the git pre-commit
-hooks on your clone. Instructions on how to install pre-commit can be found
-[here](https://pre-commit.com/#install).
+This project is using pre-commit. Please run `pre-commit install` to install the git pre-commit hooks on your clone. Instructions on how to install pre-commit can be found [here](https://pre-commit.com/#install).
 
-Every time you will try to commit, pre-commit will run checks on your files to make sure they
-follow our style standards and they aren't affected by some simple issues. If the checks fail,
-pre-commit won't let you commit.
+Every time you will try to commit, pre-commit will run checks on your files to make sure they follow our style standards and they aren't affected by some simple issues. If the checks fail, pre-commit won't let you commit.
 
 ## Build & Test
 
@@ -356,16 +344,13 @@ To run unit tests:
 cargo test --lib
 ```
 
-To run integration tests, it is suggested to use the Docker image defined in tests/Dockerfile.
-Simply build the image to run them:
+To run integration tests, it is suggested to use the Docker image defined in tests/Dockerfile. Simply build the image to run them:
 
 ```sh
 docker build -t marcocas/grcov -f tests/Dockerfile .
 ```
 
-Otherwise, if you don't want to use Docker, the only prerequisite is to install GCC 7, setting the
-`GCC_CXX` environment variable to `g++-7` and the `GCOV` environment variable to `gcov-7`. Then run
-the tests with:
+Otherwise, if you don't want to use Docker, the only prerequisite is to install GCC 7, setting the `GCC_CXX` environment variable to `g++-7` and the `GCOV` environment variable to `gcov-7`. Then run the tests with:
 
 ```sh
 cargo test
