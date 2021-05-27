@@ -21,21 +21,21 @@ repos:
     -   id: check-useless-excludes
 -   repo: local
     hooks:
-    -   id: fmt
+      - id: fmt
         name: fmt
         language: system
         types: [file, rust]
         entry: cargo fmt -- --check
         pass_filenames: false
 
-    -   id: clippy
+      - id: clippy
         name: clippy
         language: system
         types: [file, rust]
         entry: cargo clippy --bins --tests --examples --all # -- -D warnings # Use -D warnings option to ensure the job fails when encountering warnings
         pass_filenames: false
 
-    -   id: test
+      - id: test
         name: test
         language: system
         types: [file, rust]
