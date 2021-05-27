@@ -1,21 +1,25 @@
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.5.0
     hooks:
-    -   id: check-executables-have-shebangs
-    -   id: check-merge-conflict
-    -   id: check-symlinks
-    -   id: check-yaml
-    -   id: check-json
-    -   id: check-vcs-permalinks
-    -   id: trailing-whitespace
+      - id: check-executables-have-shebangs
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-yaml
+      - id: check-json
+      - id: check-vcs-permalinks
+      - id: trailing-whitespace
         exclude: ^test/
-    -   id: mixed-line-ending
+      - id: mixed-line-ending
         exclude: ^test/
--   repo: meta
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.27.1
     hooks:
-    -   id: check-useless-excludes
--   repo: local
+      - id: markdownlint
+  - repo: meta
+    hooks:
+      - id: check-useless-excludes
+  - repo: local
     hooks:
       - id: fmt
         name: fmt
@@ -39,4 +43,4 @@ repos:
         pass_filenames: false
 
 default_language_version:
-    python: python3
+  python: python3
