@@ -301,7 +301,42 @@ grcov provides the following output types:
 | coveralls+     | Like coveralls but with function level information. |
 | files          | Output a file list of covered or uncovered source files. |
 | covdir         | Provides coverage in a recursive JSON format. |
-| html           | Output a HTML coverage report. |
+| html           | Output a HTML coverage report, including coverage badges for your README. |
+
+### Hosting HTML reports and using coverage badges
+
+The HTML report can be hosted on static website providers like GitHub Pages, Netlify and others. It
+is common to provide a coverage badge in a project's readme to show the current percentage of
+covered code.
+
+To still allow adding the badge when using a static site host, grcov generates coverage badges and
+a JSON file with coverage information that can be used with <https://shields.io> to dynamically
+generate badges.
+
+The coverage data for <htttps://shields.io> can be found at `/coverage.json` and the generated
+bagdes are available as SVGs at `/badges/*svg`.
+
+The design of generated badges is taken from `shields.io` but may not be updated immediately if there
+is any change. Using their endpoint method is recommended if other badges from their service are
+used already.
+
+#### Example
+
+Let's consider we have a project at with username `sample` and project `awesome` that is hosted with
+GitHub Pages at `https://sample.github.io/awesome`.
+
+By using the the `shields.io` endpoint we can create a Markdown badge like so:
+
+```md
+[![coverage](https://shields.io/endpoint?url=https://sample.github.io/awesome/coverage.json)](https://sample.github.io/awesome/index.html)
+```
+
+If we want to avoid using `shields.io` as well, we can use the generated badges as follows (note
+the different URL for the image):
+
+```md
+[![coverage](https://sample.github.io/awesome/badges/flat.svg)](https://sample.github.io/awesome/index.html)
+```
 
 ## Auto-formatting
 

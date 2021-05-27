@@ -1,10 +1,12 @@
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 use serde_json::value::{from_value, to_value, Value};
+use std::array;
 use std::collections::HashMap;
 use std::collections::{btree_map, BTreeMap};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tera::try_get_value;
 
@@ -56,6 +58,26 @@ pub fn get_config() -> (Tera, Config) {
         ("base.html", include_str!("templates/base.html")),
         ("index.html", include_str!("templates/index.html")),
         ("file.html", include_str!("templates/file.html")),
+        (
+            BadgeStyle::Flat.template_name(),
+            include_str!("templates/badges/flat.svg"),
+        ),
+        (
+            BadgeStyle::FlatSquare.template_name(),
+            include_str!("templates/badges/flat_square.svg"),
+        ),
+        (
+            BadgeStyle::ForTheBadge.template_name(),
+            include_str!("templates/badges/for_the_badge.svg"),
+        ),
+        (
+            BadgeStyle::Plastic.template_name(),
+            include_str!("templates/badges/plastic.svg"),
+        ),
+        (
+            BadgeStyle::Social.template_name(),
+            include_str!("templates/badges/social.svg"),
+        ),
     ])
     .unwrap();
 
@@ -196,8 +218,8 @@ fn make_context() -> Context {
 
 pub fn gen_index(
     tera: &Tera,
-    global: HtmlGlobalStats,
-    conf: Config,
+    global: &HtmlGlobalStats,
+    conf: &Config,
     output: &PathBuf,
     branch_enabled: bool,
 ) {
@@ -371,5 +393,131 @@ pub fn consumer_html(
             global.clone(),
             branch_enabled,
         );
+    }
+}
+
+/// Different available styles to render badges with [`gen_badge`].
+#[derive(Clone, Copy)]
+pub enum BadgeStyle {
+    Flat,
+    FlatSquare,
+    ForTheBadge,
+    Plastic,
+    Social,
+}
+
+impl BadgeStyle {
+    /// Name of the template as registered with Tera.
+    fn template_name(self) -> &'static str {
+        match self {
+            Self::Flat => "badge_flat.svg",
+            Self::FlatSquare => "badge_flat_square.svg",
+            Self::ForTheBadge => "badge_for_the_badge.svg",
+            Self::Plastic => "badge_plastic.svg",
+            Self::Social => "badge_social.svg",
+        }
+    }
+
+    /// Output path where the generator writes the file to.
+    fn path(self) -> &'static Path {
+        Path::new(match self {
+            Self::Flat => "badges/flat.svg",
+            Self::FlatSquare => "badges/flat_square.svg",
+            Self::ForTheBadge => "badges/for_the_badge.svg",
+            Self::Plastic => "badges/plastic.svg",
+            Self::Social => "badges/social.svg",
+        })
+    }
+
+    /// Create an iterator over all possible values of this enum.
+    pub fn iter() -> impl Iterator<Item = Self> {
+        array::IntoIter::new([
+            Self::Flat,
+            Self::FlatSquare,
+            Self::ForTheBadge,
+            Self::Plastic,
+            Self::Social,
+        ])
+    }
+}
+
+/// Generate coverage badges, typically for use in a README.md if the HTML output is hosted on a
+/// website like GitHub Pages.
+pub fn gen_badge(tera: &Tera, stats: &HtmlStats, conf: &Config, output: &Path, style: BadgeStyle) {
+    let output_file = output.join(style.path());
+    create_parent(&output_file);
+    let mut output_stream = match File::create(&output_file) {
+        Err(_) => {
+            eprintln!("Cannot create file {:?}", output_file);
+            return;
+        }
+        Ok(f) => f,
+    };
+
+    let mut ctx = make_context();
+    ctx.insert("current", &(stats.covered_lines * 100 / stats.total_lines));
+    ctx.insert("hi_limit", &conf.hi_limit);
+    ctx.insert("med_limit", &conf.med_limit);
+
+    let out = tera.render(style.template_name(), &ctx).unwrap();
+
+    if output_stream.write_all(out.as_bytes()).is_err() {
+        eprintln!("Cannot write the file {:?}", output_file);
+    }
+}
+
+/// Generate a coverage.json file that can be used with shields.io/endpoint to dynamically create
+/// badges from the contained information.
+///
+/// For example, when hosting the coverage output on GitHub Pages, the file would be available at
+/// `https://<username>.github.io/<project>/coverage.json` and could be used with shields.io by
+/// using the following URL to generate a covergage badge:
+///
+/// ```text
+/// https://shields.io/endpoint?url=https://<username>.github.io/<project>/coverage.json
+/// ```
+///
+/// `<username>` and `<project>` should be replaced with a real username and project name
+/// respectively, for the URL to work.
+pub fn gen_coverage_json(stats: &HtmlStats, conf: &Config, output: &Path) {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct CoverageData {
+        schema_version: u32,
+        label: &'static str,
+        message: String,
+        color: &'static str,
+    }
+
+    let output_file = output.join("coverage.json");
+    create_parent(&output_file);
+    let mut output_stream = match File::create(&output_file) {
+        Err(_) => {
+            eprintln!("Cannot create file {:?}", output_file);
+            return;
+        }
+        Ok(f) => f,
+    };
+
+    let coverage = stats.covered_lines * 100 / stats.total_lines;
+
+    let res = serde_json::to_writer(
+        &mut output_stream,
+        &CoverageData {
+            schema_version: 1,
+            label: "coverage",
+            message: format!("{}%", coverage),
+            color: if coverage as f64 >= conf.hi_limit {
+                "green"
+            } else if coverage as f64 >= conf.med_limit {
+                "yellow"
+            } else {
+                "red"
+            },
+        },
+    );
+
+    if res.is_err() {
+        eprintln!("cannot write the file {:?}", output_file);
     }
 }

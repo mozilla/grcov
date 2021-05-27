@@ -1,0 +1,34 @@
+{# Original badge design by https://github.com/badges/shields under the CC0-1.0 license. #}
+{%- if current >= 100 -%}
+    {%- set width = 152 -%}
+    {%- set position = 1215 -%}
+    {%- set text_length = 370 -%}
+{%- elif current >= 10 -%}
+    {%- set width = 142.5 -%}
+    {%- set position = 1167.5 -%}
+    {%- set text_length = 275 -%}
+{%- else -%}
+    {%- set width = 133 -%}
+    {%- set position = 1120 -%}
+    {%- set text_length = 180 -%}
+{%- endif -%}
+{%- if current >= hi_limit -%}
+    {%- set color = "#97ca00" -%}
+{%- elif current >= med_limit -%}
+    {%- set color = "#dfb317" -%}
+{%- else -%}
+    {%- set color = "#e05d44" -%}
+{%- endif -%}
+<svg xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink" width="{{width}}" height="28" role="img" aria-label="COVERAGE: {{current}}%">
+    <title>COVERAGE: {{current}}%</title>
+    <g shape-rendering="crispEdges">
+        <rect width="91" height="28" fill="#555"/>
+        <rect x="91" width="{{width - 91}}" height="28" fill="{{color}}"/>
+    </g>
+    <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="100">
+        <text fill="#fff" x="455" y="175" transform="scale(.1)" textLength="670">COVERAGE</text>
+        <text fill="#fff" x="{{position}}" y="175" font-weight="bold" transform="scale(.1)" textLength="{{text_length}}">{{current}}%</text>
+    </g>
+    <script xmlns=""/>
+</svg>
