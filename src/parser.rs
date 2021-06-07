@@ -531,11 +531,6 @@ fn get_xml_attribute<R: BufRead>(
     )))
 }
 
-struct JacocoReport {
-    lines: BTreeMap<u32, u64>,
-    branches: BTreeMap<u32, Vec<bool>>,
-}
-
 fn parse_jacoco_report_sourcefile<T: BufRead>(
     parser: &mut Reader<T>,
     buf: &mut Vec<u8>,

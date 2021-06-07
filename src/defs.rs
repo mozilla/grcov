@@ -145,3 +145,8 @@ impl<'a> Serialize for StringOrRef<'a> {
         }
     }
 }
+
+pub struct JacocoReport {
+    pub lines: BTreeMap<u32, u64>,
+    pub branches: BTreeMap<u32, Vec<bool>>,
+}
