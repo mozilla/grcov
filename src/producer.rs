@@ -1559,7 +1559,7 @@ mod tests {
             reader.read_to_end(&mut json).unwrap();
             assert_eq!(json, mapping);
         } else {
-            assert!(false, format!("Failed to read the file: {}", json_path));
+            assert!(false, "Failed to read the file: {}", json_path);
         }
 
         check_produced(tmp_path, &receiver, expected);
