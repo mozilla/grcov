@@ -259,7 +259,7 @@ fn main() {
     let source_dir = matches.value_of("source_dir").unwrap_or("");
     let prefix_dir = matches.value_of("prefix_dir").unwrap_or("");
     let ignore_not_existing = matches.is_present("ignore_not_existing");
-    let mut to_ignore_dirs: Vec<_> = if let Some(to_ignore_dirs) = matches.values_of("ignore_dir") {
+    let to_ignore_dirs = if let Some(to_ignore_dirs) = matches.values_of("ignore_dir") {
         to_ignore_dirs.collect()
     } else {
         Vec::new()
@@ -481,7 +481,7 @@ fn main() {
         source_root.as_deref(),
         prefix_dir.as_deref(),
         ignore_not_existing,
-        &mut to_ignore_dirs,
+        &to_ignore_dirs,
         &to_keep_dirs,
         filter_option,
         file_filter,

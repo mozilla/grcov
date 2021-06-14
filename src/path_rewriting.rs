@@ -25,17 +25,12 @@ pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     let path = fs::canonicalize(path)?;
 
     #[cfg(windows)]
-    let path = match {
-        let spath = path.to_str().unwrap();
-        if spath.starts_with(r"\\?\") {
-            Some(PathBuf::from(spath[r"\\?\".len()..].to_string()))
-        } else {
-            None
-        }
-    } {
-        Some(p) => p,
-        None => path,
-    };
+    let path = path
+        .to_str()
+        .unwrap()
+        .strip_prefix(r"\\?\")
+        .map(PathBuf::from)
+        .unwrap_or(path);
 
     Ok(path)
 }
@@ -236,7 +231,7 @@ pub fn rewrite_paths(
     source_dir: Option<&Path>,
     prefix_dir: Option<&Path>,
     ignore_not_existing: bool,
-    to_ignore_dirs: &mut [&str],
+    to_ignore_dirs: &[&str],
     to_keep_dirs: &[&str],
     filter_option: Option<bool>,
     file_filter: crate::FileFilter,
@@ -434,8 +429,8 @@ mod tests {
             None,
             None,
             false,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -463,8 +458,8 @@ mod tests {
             None,
             Some(Path::new("/home/worker/src/workspace/")),
             false,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -490,10 +485,10 @@ mod tests {
             result_map,
             None,
             None,
-            Some(PathBuf::from("C:\\Users\\worker\\src\\workspace\\")),
+            Some(Path::new("C:\\Users\\worker\\src\\workspace\\")),
             false,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -519,10 +514,10 @@ mod tests {
             result_map,
             None,
             None,
-            Some(PathBuf::from("C:/Users/worker/src/workspace/")),
+            Some(Path::new("C:/Users/worker/src/workspace/")),
             false,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -548,10 +543,10 @@ mod tests {
             result_map,
             None,
             None,
-            Some(PathBuf::from("C:/Users/worker/src/")),
+            Some(Path::new("C:/Users/worker/src/")),
             false,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -577,8 +572,8 @@ mod tests {
             None,
             None,
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -609,8 +604,8 @@ mod tests {
             None,
             None,
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -637,8 +632,8 @@ mod tests {
             None,
             None,
             false,
-            &mut ["mydir/*"],
-            &Vec::new(),
+            &["mydir/*"],
+            &[],
             None,
             Default::default(),
         );
@@ -664,8 +659,8 @@ mod tests {
             None,
             None,
             false,
-            &mut vec!["mydir/*"],
-            &Vec::new(),
+            &["mydir/*"],
+            &[],
             None,
             Default::default(),
         );
@@ -695,8 +690,8 @@ mod tests {
                 None,
                 None,
                 false,
-                &mut ignore_dirs.clone(),
-                &Vec::new(),
+                &ignore_dirs,
+                &[],
                 None,
                 Default::default(),
             );
@@ -728,8 +723,8 @@ mod tests {
                 None,
                 None,
                 false,
-                &mut ignore_dirs.clone(),
-                &Vec::new(),
+                &ignore_dirs,
+                &[],
                 None,
                 Default::default(),
             );
@@ -757,7 +752,7 @@ mod tests {
             None,
             None,
             false,
-            &mut [],
+            &[],
             &["mydir/*"],
             None,
             Default::default(),
@@ -784,8 +779,8 @@ mod tests {
             None,
             None,
             false,
-            &mut Vec::new(),
-            &vec!["mydir/*"],
+            &[""; 0],
+            &["mydir/*"],
             None,
             Default::default(),
         );
@@ -815,8 +810,8 @@ mod tests {
                 None,
                 None,
                 false,
-                &mut Vec::new(),
-                &keep_only_dirs.clone(),
+                &[],
+                &keep_only_dirs,
                 None,
                 Default::default(),
             );
@@ -848,8 +843,8 @@ mod tests {
                 None,
                 None,
                 false,
-                &mut Vec::new(),
-                &keep_only_dirs.clone(),
+                &[],
+                &keep_only_dirs,
                 None,
                 Default::default(),
             );
@@ -879,7 +874,7 @@ mod tests {
             None,
             None,
             false,
-            &mut ["foo/bar_*.rs"],
+            &["foo/bar_*.rs"],
             &["foo/*.rs"],
             None,
             Default::default(),
@@ -908,8 +903,8 @@ mod tests {
             None,
             None,
             false,
-            &mut vec!["foo/bar_*.rs"],
-            &vec!["foo/*.rs"],
+            &["foo/bar_*.rs"],
+            &["foo/*.rs"],
             None,
             Default::default(),
         );
@@ -933,8 +928,8 @@ mod tests {
             Some(Path::new("tests")),
             None,
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         )
@@ -953,8 +948,8 @@ mod tests {
             Some(&canonicalize_path("test").unwrap()),
             None,
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -978,11 +973,11 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path("test").unwrap()),
+            Some(&canonicalize_path("test").unwrap()),
             None,
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1008,8 +1003,8 @@ mod tests {
             Some(&canonicalize_path("test").unwrap()),
             None,
             false,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1032,11 +1027,11 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path("test").unwrap()),
+            Some(&canonicalize_path("test").unwrap()),
             None,
             false,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1063,8 +1058,8 @@ mod tests {
             Some(&canonicalize_path(".").unwrap()),
             None,
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1087,11 +1082,11 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path(".").unwrap()),
+            Some(&canonicalize_path(".").unwrap()),
             None,
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1116,8 +1111,8 @@ mod tests {
             Some(&canonicalize_path(".").unwrap()),
             None,
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1140,11 +1135,11 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path(".").unwrap()),
+            Some(&canonicalize_path(".").unwrap()),
             None,
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1173,8 +1168,8 @@ mod tests {
             Some(&canonicalize_path("tests").unwrap()),
             Some(Path::new("/home/worker/src/workspace")),
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1201,11 +1196,11 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path("tests").unwrap()),
-            Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
+            Some(&canonicalize_path("tests").unwrap()),
+            Some(Path::new("C:\\Users\\worker\\src\\workspace")),
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1231,8 +1226,8 @@ mod tests {
             None,
             None,
             false,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1257,8 +1252,8 @@ mod tests {
             None,
             None,
             false,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1286,8 +1281,8 @@ mod tests {
             None,
             None,
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1316,8 +1311,8 @@ mod tests {
             None,
             None,
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1346,8 +1341,8 @@ mod tests {
             None,
             Some(Path::new("/home/worker/src/workspace")),
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1377,10 +1372,10 @@ mod tests {
                 json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"}),
             ),
             None,
-            Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
+            Some(Path::new("C:\\Users\\worker\\src\\workspace")),
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1406,10 +1401,10 @@ mod tests {
                 json!({"c:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"}),
             ),
             None,
-            Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
+            Some(Path::new("C:\\Users\\worker\\src\\workspace")),
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1435,10 +1430,10 @@ mod tests {
                 json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"}),
             ),
             None,
-            Some(PathBuf::from("c:\\Users\\worker\\src\\workspace")),
+            Some(Path::new("c:\\Users\\worker\\src\\workspace")),
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1464,10 +1459,10 @@ mod tests {
                 json!({"c:/Users/worker/src/workspace/rewritten/main.cpp": "tests/class/main.cpp"}),
             ),
             None,
-            Some(PathBuf::from("c:\\Users\\worker\\src\\workspace")),
+            Some(Path::new("c:\\Users\\worker\\src\\workspace")),
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1496,8 +1491,8 @@ mod tests {
             Some(&canonicalize_path("tests").unwrap()),
             Some(Path::new("/home/worker/src/workspace")),
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1523,11 +1518,11 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             Some(json!({"C:/Users/worker/src/workspace/rewritten/main.cpp": "class/main.cpp"})),
-            Some(canonicalize_path("tests").unwrap()),
-            Some(PathBuf::from("C:\\Users\\worker\\src\\workspace")),
+            Some(&canonicalize_path("tests").unwrap()),
+            Some(Path::new("C:\\Users\\worker\\src\\workspace")),
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             Default::default(),
         );
@@ -1553,8 +1548,8 @@ mod tests {
             None,
             None,
             false,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             Some(true),
             Default::default(),
         );
@@ -1579,8 +1574,8 @@ mod tests {
             None,
             None,
             false,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             Some(false),
             Default::default(),
         );
@@ -1640,8 +1635,8 @@ mod tests {
             Some(&canonicalize_path("test").unwrap()),
             None,
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             crate::FileFilter::new(
                 Some(regex::Regex::new("excluded line").unwrap()),
@@ -1680,11 +1675,11 @@ mod tests {
         let results = rewrite_paths(
             result_map,
             None,
-            Some(canonicalize_path("test").unwrap()),
+            Some(&canonicalize_path("test").unwrap()),
             None,
             true,
-            &mut Vec::new(),
-            &Vec::new(),
+            &[],
+            &[],
             None,
             crate::FileFilter::new(
                 Some(regex::Regex::new("excluded line").unwrap()),
