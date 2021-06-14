@@ -33,12 +33,27 @@ struct Coverage {
     packages: Vec<Package>,
 }
 
+#[derive(Default)]
 struct CoverageStats {
     lines_covered: f64,
     lines_valid: f64,
     branches_covered: f64,
     branches_valid: f64,
     complexity: f64,
+}
+
+impl std::ops::Add for CoverageStats {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            lines_covered: self.lines_covered + rhs.lines_covered,
+            lines_valid: self.lines_valid + rhs.lines_valid,
+            branches_covered: self.branches_covered + rhs.branches_covered,
+            branches_valid: self.branches_valid + rhs.branches_valid,
+            complexity: self.complexity + rhs.complexity,
+        }
+    }
 }
 
 impl CoverageStats {
@@ -101,7 +116,14 @@ trait Stats {
 
 impl Stats for Coverage {
     fn get_lines(&self) -> FxHashMap<u32, Line> {
-        self.packages.get_lines()
+        unimplemented!("does not make sense to ask Coverage for lines")
+    }
+
+    fn get_stats(&self) -> CoverageStats {
+        self.packages
+            .iter()
+            .map(|p| p.get_stats())
+            .fold(CoverageStats::default(), |acc, stats| acc + stats)
     }
 }
 
@@ -749,15 +771,18 @@ mod tests {
         let file_name = "test_cobertura.xml";
         let file_path = tmp_dir.path().join(&file_name);
 
-        let results = vec![(
-            PathBuf::from("src/main.rs"),
-            PathBuf::from("src/main.rs"),
-            coverage_result(Result::Main),
-        ),(
-            PathBuf::from("src/test.rs"),
-            PathBuf::from("src/test.rs"),
-            coverage_result(Result::Test),
-        )];
+        let results = vec![
+            (
+                PathBuf::from("src/main.rs"),
+                PathBuf::from("src/main.rs"),
+                coverage_result(Result::Main),
+            ),
+            (
+                PathBuf::from("src/test.rs"),
+                PathBuf::from("src/test.rs"),
+                coverage_result(Result::Test),
+            ),
+        ];
 
         let results = Box::new(results.into_iter());
         output_cobertura(results, Some(file_path.to_str().unwrap()), true);
@@ -772,11 +797,11 @@ mod tests {
         assert!(results.contains(r#"class name="test" filename="src/test.rs""#));
 
         assert!(results.contains(r#"lines-covered="13""#));
-        assert!(results.contains(r#"lines-valid="15""#));
-        assert!(results.contains(r#"line-rate="0.866666667""#));
+        assert!(results.contains(r#"lines-valid="16""#));
+        assert!(results.contains(r#"line-rate="0.8125""#));
 
         assert!(results.contains(r#"branches-covered="2""#));
         assert!(results.contains(r#"branches-valid="6""#));
-        assert!(results.contains(r#"branch-rate="0.333333333""#));
+        assert!(results.contains(r#"branch-rate="0.3333333333333333""#));
     }
 }
