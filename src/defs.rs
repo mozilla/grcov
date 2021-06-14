@@ -126,7 +126,7 @@ pub enum StringOrRef<'a> {
 }
 
 impl<'a> Display for StringOrRef<'a> {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             StringOrRef::S(s) => write!(f, "{}", s),
             StringOrRef::R(s) => write!(f, "{}", s),

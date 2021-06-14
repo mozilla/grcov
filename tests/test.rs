@@ -1,8 +1,4 @@
-extern crate globset;
-extern crate regex;
-extern crate serde_json;
-extern crate walkdir;
-extern crate zip;
+#![deny(rust_2018_idioms, clippy::all)]
 
 use globset::{Glob, GlobSetBuilder};
 use regex::Regex;

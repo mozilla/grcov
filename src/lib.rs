@@ -1,24 +1,6 @@
 #![recursion_limit = "1024"]
+#![deny(rust_2018_idioms, clippy::all)]
 #![allow(clippy::too_many_arguments)]
-
-extern crate cargo_binutils;
-extern crate chrono;
-extern crate crossbeam;
-extern crate fomat_macros;
-extern crate globset;
-#[macro_use]
-extern crate lazy_static;
-extern crate log;
-extern crate quick_xml as xml;
-extern crate rustc_hash;
-extern crate semver;
-extern crate serde_derive;
-extern crate serde_json;
-extern crate smallvec;
-extern crate tempfile;
-extern crate uuid;
-extern crate walkdir;
-extern crate zip;
 
 mod defs;
 pub use crate::defs::*;

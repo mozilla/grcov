@@ -1,3 +1,4 @@
+use lazy_static::lazy_static;
 use semver::Version;
 use std::env;
 use std::fmt;
@@ -11,7 +12,7 @@ pub enum GcovError {
 }
 
 impl fmt::Display for GcovError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             GcovError::ProcessFailure => write!(f, "Failed to execute gcov process"),
             GcovError::Failure((ref path, ref stdout, ref stderr)) => {

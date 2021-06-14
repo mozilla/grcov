@@ -303,7 +303,7 @@ impl<E: Endian> GcovReader<E> for GcovReaderBuf<E> {
 }
 
 impl Display for GcovError {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             GcovError::Io(e) => write!(f, "{}", e),
             GcovError::Str(e) => write!(f, "{}", e),
@@ -312,7 +312,7 @@ impl Display for GcovError {
 }
 
 impl Debug for Gcno {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for fun in &self.functions {
             writeln!(
                 f,

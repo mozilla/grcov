@@ -1,5 +1,3 @@
-extern crate tempfile;
-
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::env;

@@ -555,7 +555,6 @@ fn write_lines(writer: &mut Writer<Cursor<Vec<u8>>>, lines: &[Line]) {
 
 #[cfg(test)]
 mod tests {
-    extern crate tempfile;
     use super::*;
     use crate::{CovResult, Function};
     use std::io::Read;
