@@ -541,36 +541,25 @@ mod tests {
     use std::io::Read;
     use std::{collections::BTreeMap, path::PathBuf};
 
-    fn read_file(path: &PathBuf) -> String {
-        let mut f =
-            File::open(path).expect(format!("{:?} file not found", path.file_name()).as_str());
-        let mut s = String::new();
-        f.read_to_string(&mut s).unwrap();
-        s
+    enum Result {
+        Main,
+        Test,
     }
 
-    #[test]
-    fn test_cobertura() {
-        /* main.rs
-        fn main() {
-            let inp = "a";
-            if "a" == inp {
-                println!("a");
-            } else if "b" == inp {
-                println!("b");
-            }
-            println!("what?");
-        }
-        */
-
-        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
-        let file_name = "test_cobertura.xml";
-        let file_path = tmp_dir.path().join(&file_name);
-
-        let results = vec![(
-            PathBuf::from("src/main.rs"),
-            PathBuf::from("src/main.rs"),
-            CovResult {
+    fn coverage_result(which: Result) -> CovResult {
+        match which {
+            Result::Main => CovResult {
+                /* main.rs
+                  fn main() {
+                      let inp = "a";
+                      if "a" == inp {
+                          println!("a");
+                      } else if "b" == inp {
+                          println!("b");
+                      }
+                      println!("what?");
+                  }
+                */
                 lines: [
                     (1, 1),
                     (2, 1),
@@ -602,53 +591,20 @@ mod tests {
                     map
                 },
             },
-        )];
+            Result::Test => CovResult {
+                /* main.rs
+                   fn main() {
+                   }
 
-        let results = Box::new(results.into_iter());
-        output_cobertura(results, Some(file_path.to_str().unwrap()), true);
-
-        let results = read_file(&file_path);
-
-        assert!(results.contains(r#"package name="src/main.rs""#));
-        assert!(results.contains(r#"class name="main" filename="src/main.rs""#));
-        assert!(results.contains(r#"method name="cov_test::main""#));
-        assert!(results.contains(r#"line number="1" hits="1">"#));
-        assert!(results.contains(r#"line number="3" hits="2" branch="true""#));
-        assert!(results.contains(r#"<condition number="0" type="jump" coverage="1"/>"#));
-
-        assert!(results.contains(r#"lines-covered="6""#));
-        assert!(results.contains(r#"lines-valid="8""#));
-        assert!(results.contains(r#"line-rate="0.75""#));
-
-        assert!(results.contains(r#"branches-covered="1""#));
-        assert!(results.contains(r#"branches-valid="4""#));
-        assert!(results.contains(r#"branch-rate="0.25""#));
-    }
-
-    #[test]
-    fn test_cobertura_double_lines() {
-        /* main.rs
-        fn main() {
-        }
-
-        #[test]
-        fn test_fn() {
-            let s = "s";
-            if s == "s" {
-                println!("test");
-            }
-            println!("test");
-        }
-        */
-
-        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
-        let file_name = "test_cobertura.xml";
-        let file_path = tmp_dir.path().join(&file_name);
-
-        let results = vec![(
-            PathBuf::from("src/main.rs"),
-            PathBuf::from("src/main.rs"),
-            CovResult {
+                   #[test]
+                   fn test_fn() {
+                       let s = "s";
+                       if s == "s" {
+                           println!("test");
+                       }
+                       println!("test");
+                   }
+                */
                 lines: [
                     (1, 2),
                     (3, 0),
@@ -712,6 +668,60 @@ mod tests {
                     map
                 },
             },
+        }
+    }
+
+    fn read_file(path: &PathBuf) -> String {
+        let mut f =
+            File::open(path).expect(format!("{:?} file not found", path.file_name()).as_str());
+        let mut s = String::new();
+        f.read_to_string(&mut s).unwrap();
+        s
+    }
+
+    #[test]
+    fn test_cobertura() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_cobertura.xml";
+        let file_path = tmp_dir.path().join(&file_name);
+
+        let results = vec![(
+            PathBuf::from("src/main.rs"),
+            PathBuf::from("src/main.rs"),
+            coverage_result(Result::Main),
+        )];
+
+        let results = Box::new(results.into_iter());
+        output_cobertura(results, Some(file_path.to_str().unwrap()), true);
+
+        let results = read_file(&file_path);
+
+        assert!(results.contains(r#"package name="src/main.rs""#));
+        assert!(results.contains(r#"class name="main" filename="src/main.rs""#));
+        assert!(results.contains(r#"method name="cov_test::main""#));
+        assert!(results.contains(r#"line number="1" hits="1">"#));
+        assert!(results.contains(r#"line number="3" hits="2" branch="true""#));
+        assert!(results.contains(r#"<condition number="0" type="jump" coverage="1"/>"#));
+
+        assert!(results.contains(r#"lines-covered="6""#));
+        assert!(results.contains(r#"lines-valid="8""#));
+        assert!(results.contains(r#"line-rate="0.75""#));
+
+        assert!(results.contains(r#"branches-covered="1""#));
+        assert!(results.contains(r#"branches-valid="4""#));
+        assert!(results.contains(r#"branch-rate="0.25""#));
+    }
+
+    #[test]
+    fn test_cobertura_double_lines() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_cobertura.xml";
+        let file_path = tmp_dir.path().join(&file_name);
+
+        let results = vec![(
+            PathBuf::from("src/main.rs"),
+            PathBuf::from("src/main.rs"),
+            coverage_result(Result::Test),
         )];
 
         let results = Box::new(results.into_iter());
@@ -731,5 +741,42 @@ mod tests {
         assert!(results.contains(r#"branches-covered="1""#));
         assert!(results.contains(r#"branches-valid="2""#));
         assert!(results.contains(r#"branch-rate="0.5""#));
+    }
+
+    #[test]
+    fn test_cobertura_multiple_files() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_cobertura.xml";
+        let file_path = tmp_dir.path().join(&file_name);
+
+        let results = vec![(
+            PathBuf::from("src/main.rs"),
+            PathBuf::from("src/main.rs"),
+            coverage_result(Result::Main),
+        ),(
+            PathBuf::from("src/test.rs"),
+            PathBuf::from("src/test.rs"),
+            coverage_result(Result::Test),
+        )];
+
+        let results = Box::new(results.into_iter());
+        output_cobertura(results, Some(file_path.to_str().unwrap()), true);
+
+        let results = read_file(&file_path);
+
+        println!("{}\n", results);
+
+        assert!(results.contains(r#"package name="src/main.rs""#));
+        assert!(results.contains(r#"class name="main" filename="src/main.rs""#));
+        assert!(results.contains(r#"package name="src/test.rs""#));
+        assert!(results.contains(r#"class name="test" filename="src/test.rs""#));
+
+        assert!(results.contains(r#"lines-covered="13""#));
+        assert!(results.contains(r#"lines-valid="15""#));
+        assert!(results.contains(r#"line-rate="0.866666667""#));
+
+        assert!(results.contains(r#"branches-covered="2""#));
+        assert!(results.contains(r#"branches-valid="6""#));
+        assert!(results.contains(r#"branch-rate="0.333333333""#));
     }
 }
