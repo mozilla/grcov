@@ -274,7 +274,7 @@ pub fn output_lcov(results: CovResultIter, output_file: Option<&str>, demangle: 
         // branch coverage information
         let mut branch_count = 0;
         let mut branch_hit = 0;
-        for (line, ref taken) in &result.branches {
+        for (line, taken) in &result.branches {
             branch_count += taken.len();
             for (n, b_t) in taken.iter().enumerate() {
                 writeln!(
@@ -440,7 +440,7 @@ pub fn output_coveralls(
         }
 
         let mut branches = Vec::new();
-        for (line, ref taken) in &result.branches {
+        for (line, taken) in &result.branches {
             for (n, b_t) in taken.iter().enumerate() {
                 branches.push(*line);
                 branches.push(0);

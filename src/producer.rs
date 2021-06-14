@@ -48,12 +48,9 @@ impl Archive {
         map: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
     ) {
         let mut map = map.borrow_mut();
-        if map.contains_key(&filename) {
-            let vec = map.get_mut(&filename).unwrap();
-            vec.push(self);
-        } else {
-            map.insert(filename, vec![self]);
-        }
+        map.entry(filename)
+            .or_insert_with(|| Vec::with_capacity(1))
+            .push(self);
     }
 
     fn handle_file<'a>(
@@ -202,7 +199,7 @@ impl Archive {
                     let mut file = File::open(full_path).ok();
                     self.handle_file(
                         file.as_mut(),
-                        &full_path,
+                        full_path,
                         gcno_stem_archives,
                         gcda_stem_archives,
                         profraws,
@@ -220,7 +217,7 @@ impl Archive {
         match *self.item.borrow_mut() {
             ArchiveType::Zip(ref mut zip) => {
                 let mut zip = zip.borrow_mut();
-                let zipfile = zip.by_name(&name);
+                let zipfile = zip.by_name(name);
                 match zipfile {
                     Ok(mut f) => {
                         let mut buf = Vec::with_capacity(f.size() as usize + 1);
@@ -272,7 +269,7 @@ impl Archive {
         match *self.item.borrow_mut() {
             ArchiveType::Zip(ref mut zip) => {
                 let mut zip = zip.borrow_mut();
-                let zipfile = zip.by_name(&name);
+                let zipfile = zip.by_name(name);
                 if let Ok(mut f) = zipfile {
                     let mut file = File::create(&path).expect("Failed to create file");
                     io::copy(&mut f, &mut file).expect("Failed to copy file from ZIP");
@@ -423,7 +420,7 @@ fn profraw_producer(
                 profraw_path
             } else {
                 let tmp_path = tmp_dir.join(format!("{}_{}.profraw", stem, num + 1));
-                archive.extract(&name, &tmp_path);
+                archive.extract(name, &tmp_path);
                 tmp_path
             };
 
@@ -461,7 +458,7 @@ fn file_content_producer(
 }
 
 pub fn get_mapping(linked_files_maps: &FxHashMap<String, &Archive>) -> Option<Vec<u8>> {
-    if let Some((ref name, archive)) = linked_files_maps.iter().next() {
+    if let Some((name, archive)) = linked_files_maps.iter().next() {
         archive.read(name)
     } else {
         None

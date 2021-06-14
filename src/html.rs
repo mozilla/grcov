@@ -251,7 +251,7 @@ pub fn gen_index(
     }
 
     for (dir_name, dir_stats) in global.dirs.iter() {
-        gen_dir_index(&tera, dir_name, dir_stats, &conf, output, branch_enabled);
+        gen_dir_index(tera, dir_name, dir_stats, conf, output, branch_enabled);
     }
 }
 
@@ -314,10 +314,10 @@ fn gen_html(
     };
     let f = BufReader::new(f);
 
-    let stats = get_stats(&result);
-    get_dirs_result(global, &rel_path, &stats);
+    let stats = get_stats(result);
+    get_dirs_result(global, rel_path, &stats);
 
-    let output_file = output.join(add_html_ext(&rel_path));
+    let output_file = output.join(add_html_ext(rel_path));
     create_parent(&output_file);
     let mut output = match File::create(&output_file) {
         Err(_) => {
@@ -326,7 +326,7 @@ fn gen_html(
         }
         Ok(f) => f,
     };
-    let base_url = get_base(&rel_path);
+    let base_url = get_base(rel_path);
     let filename = rel_path.file_name().unwrap().to_str().unwrap();
     let parent = rel_path.parent().unwrap().to_str().unwrap().to_string();
     let mut index_url = base_url;

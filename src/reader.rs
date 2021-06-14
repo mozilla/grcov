@@ -78,6 +78,7 @@ enum FileType {
 pub struct Gcno {
     version: u32,
     checksum: u32,
+    #[allow(dead_code)]
     cwd: Option<String>,
     programcounts: u32,
     runcounts: u32,
@@ -283,7 +284,7 @@ impl<E: Endian> GcovReader<E> for GcovReaderBuf<E> {
                 let bytes = &self.buffer[i..i + 4];
                 Err(GcovError::Str(format!(
                     "Unexpected version: {} in {}",
-                    String::from_utf8_lossy(&bytes),
+                    String::from_utf8_lossy(bytes),
                     self.get_stem()
                 )))
             }
@@ -389,7 +390,7 @@ impl Gcno {
                 } else {
                     Err(GcovError::Str(format!(
                         "Unexpected file type: {} in {}.",
-                        std::str::from_utf8(&bytes).unwrap(),
+                        std::str::from_utf8(bytes).unwrap(),
                         stem
                     )))
                 }

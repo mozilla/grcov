@@ -129,12 +129,12 @@ fn fixup_rel_path(source_dir: Option<&Path>, abs_path: &Path, rel_path: PathBuf)
 fn get_abs_path(source_dir: Option<&Path>, rel_path: PathBuf) -> Option<(PathBuf, PathBuf)> {
     let mut abs_path = if !rel_path.is_relative() {
         rel_path.to_owned()
-    } else if let Some(ref source_dir) = source_dir {
+    } else if let Some(source_dir) = source_dir {
         if !cfg!(windows) {
-            guess_abs_path(&source_dir, &rel_path)
+            guess_abs_path(source_dir, &rel_path)
         } else {
             guess_abs_path(
-                &source_dir,
+                source_dir,
                 &PathBuf::from(&rel_path.to_str().unwrap().replace("/", "\\")),
             )
         }
@@ -219,7 +219,7 @@ fn to_globset(dirs: &[&str]) -> GlobSet {
     let mut glob_builder = GlobSetBuilder::new();
 
     for dir in dirs {
-        glob_builder.add(Glob::new(&dir).unwrap());
+        glob_builder.add(Glob::new(dir).unwrap());
     }
 
     glob_builder.build().unwrap()
@@ -1651,17 +1651,17 @@ mod tests {
         for (_, _, result) in results {
             count += 1;
             for inc in [1, 2, 3, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16].iter() {
-                assert!(result.lines.contains_key(&inc));
+                assert!(result.lines.contains_key(inc));
             }
             for inc in [4, 6, 7, 17, 18, 19, 20].iter() {
-                assert!(!result.lines.contains_key(&inc));
+                assert!(!result.lines.contains_key(inc));
             }
 
             for inc in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 16, 17].iter() {
-                assert!(result.branches.contains_key(&inc));
+                assert!(result.branches.contains_key(inc));
             }
             for inc in [11, 13, 14, 18, 19, 20].iter() {
-                assert!(!result.branches.contains_key(&inc));
+                assert!(!result.branches.contains_key(inc));
             }
         }
         assert_eq!(count, 1);
@@ -1694,17 +1694,17 @@ mod tests {
         for (_, _, result) in results {
             count += 1;
             for inc in [1, 2, 3, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16].iter() {
-                assert!(result.lines.contains_key(&inc));
+                assert!(result.lines.contains_key(inc));
             }
             for inc in [4, 6, 7, 17, 18, 19, 20].iter() {
-                assert!(!result.lines.contains_key(&inc));
+                assert!(!result.lines.contains_key(inc));
             }
 
             for inc in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 16, 17].iter() {
-                assert!(result.branches.contains_key(&inc));
+                assert!(result.branches.contains_key(inc));
             }
             for inc in [11, 13, 14, 18, 19, 20].iter() {
-                assert!(!result.branches.contains_key(&inc));
+                assert!(!result.branches.contains_key(inc));
             }
         }
         assert_eq!(count, 1);

@@ -243,9 +243,9 @@ pub fn consumer(
 
                                 new_results.append(&mut try_parse!(
                                     if gcov_path.extension().unwrap() == "gz" {
-                                        parse_gcov_gz(&gcov_path)
+                                        parse_gcov_gz(gcov_path)
                                     } else {
-                                        parse_gcov(&gcov_path)
+                                        parse_gcov(gcov_path)
                                     },
                                     work_item.name
                                 ));

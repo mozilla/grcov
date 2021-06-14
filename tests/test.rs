@@ -573,32 +573,26 @@ fn test_integration_zip_zip() {
         // no gcda
         println!("No gcda");
         check_equal_coveralls(
-            &read_expected(
-                path,
-                &name,
-                &compiler_version,
-                "coveralls",
-                Some("_no_gcda"),
-            ),
+            &read_expected(path, name, &compiler_version, "coveralls", Some("_no_gcda")),
             &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], path, "coveralls"),
             false,
         );
 
         check_equal_covdir(
-            &read_expected(path, &name, &compiler_version, "covdir", Some("_no_gcda")),
+            &read_expected(path, name, &compiler_version, "covdir", Some("_no_gcda")),
             &run_grcov(vec![&gcno_zip_path, &gcda0_zip_path], path, "covdir"),
         );
 
         // one gcda
         println!("One gcda");
         check_equal_coveralls(
-            &read_expected(path, &name, &compiler_version, "coveralls", None),
+            &read_expected(path, name, &compiler_version, "coveralls", None),
             &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], path, "coveralls"),
             false,
         );
 
         check_equal_covdir(
-            &read_expected(path, &name, &compiler_version, "covdir", None),
+            &read_expected(path, name, &compiler_version, "covdir", None),
             &run_grcov(vec![&gcno_zip_path, &gcda_zip_path], path, "covdir"),
         );
 
@@ -610,7 +604,7 @@ fn test_integration_zip_zip() {
         check_equal_coveralls(
             &read_expected(
                 path,
-                &name,
+                name,
                 &compiler_version,
                 "coveralls",
                 Some("_two_gcda"),
@@ -624,7 +618,7 @@ fn test_integration_zip_zip() {
         );
 
         check_equal_covdir(
-            &read_expected(path, &name, &compiler_version, "covdir", Some("_two_gcda")),
+            &read_expected(path, name, &compiler_version, "covdir", Some("_two_gcda")),
             &run_grcov(
                 vec![&gcno_zip_path, &gcda_zip_path, &gcda1_zip_path],
                 path,
@@ -668,14 +662,14 @@ fn test_integration_zip_dir() {
         let gcno_zip_path = path.join(gcno_zip_path);
 
         check_equal_coveralls(
-            &read_expected(base_path, &name, &compiler_version, "coveralls", None),
-            &run_grcov(vec![&gcno_zip_path, &base_path], path, "coveralls"),
+            &read_expected(base_path, name, &compiler_version, "coveralls", None),
+            &run_grcov(vec![&gcno_zip_path, base_path], path, "coveralls"),
             false,
         );
 
         check_equal_covdir(
-            &read_expected(base_path, &name, &compiler_version, "covdir", None),
-            &run_grcov(vec![&gcno_zip_path, &base_path], path, "covdir"),
+            &read_expected(base_path, name, &compiler_version, "covdir", None),
+            &run_grcov(vec![&gcno_zip_path, base_path], path, "covdir"),
         );
 
         do_clean(path);
