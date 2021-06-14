@@ -1391,9 +1391,9 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "zip"
-version = "0.5.12"
+version = "0.5.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c83dc9b784d252127720168abd71ea82bf8c3d96b17dc565b5e2a02854f2b27"
+checksum = "93ab48844d61251bb3835145c521d88aa4031d7139e8485990f60ca911fa0815"
 dependencies = [
  "byteorder",
  "crc32fast",
