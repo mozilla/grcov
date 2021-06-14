@@ -232,10 +232,10 @@ impl ToString for ConditionType {
 
 fn get_coverage(
     results: CovResultIter,
+    sources: Vec<String>,
     demangle: bool,
     demangle_options: DemangleOptions,
 ) -> Coverage {
-    let sources = vec![".".to_owned()];
     let packages: Vec<Package> = results
         .map(|(_, rel_path, result)| {
             let all_lines: Vec<u32> = result.lines.iter().map(|(k, _)| k).cloned().collect();
@@ -332,10 +332,19 @@ fn get_coverage(
     Coverage { sources, packages }
 }
 
-pub fn output_cobertura(results: CovResultIter, output_file: Option<&str>, demangle: bool) {
+pub fn output_cobertura(
+    source_dir: &str,
+    results: CovResultIter,
+    output_file: Option<&str>,
+    demangle: bool,
+) {
     let demangle_options = DemangleOptions::name_only();
-
-    let coverage = get_coverage(results, demangle, demangle_options);
+    let sources = vec![match source_dir {
+        "" => ".",
+        _ => source_dir,
+    }
+    .to_string()];
+    let coverage = get_coverage(results, sources, demangle, demangle_options);
 
     let mut writer = Writer::new_with_indent(Cursor::new(vec![]), b' ', 4);
     writer
@@ -713,7 +722,7 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_cobertura(results, Some(file_path.to_str().unwrap()), true);
+        output_cobertura("", results, Some(file_path.to_str().unwrap()), true);
 
         let results = read_file(&file_path);
 
@@ -748,7 +757,7 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_cobertura(results, Some(file_path.to_str().unwrap()), true);
+        output_cobertura("", results, Some(file_path.to_str().unwrap()), true);
 
         let results = read_file(&file_path);
 
@@ -788,7 +797,7 @@ mod tests {
         ];
 
         let results = Box::new(results.into_iter());
-        output_cobertura(results, Some(file_path.to_str().unwrap()), true);
+        output_cobertura("", results, Some(file_path.to_str().unwrap()), true);
 
         let results = read_file(&file_path);
 
@@ -806,5 +815,47 @@ mod tests {
         assert!(results.contains(r#"branches-covered="2""#));
         assert!(results.contains(r#"branches-valid="6""#));
         assert!(results.contains(r#"branch-rate="0.3333333333333333""#));
+    }
+
+    #[test]
+    fn test_cobertura_source_root_none() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_cobertura.xml";
+        let file_path = tmp_dir.path().join(file_name);
+
+        let results = vec![(
+            PathBuf::from("src/main.rs"),
+            PathBuf::from("src/main.rs"),
+            CovResult::default(),
+        )];
+
+        let results = Box::new(results.into_iter());
+        output_cobertura("", results, Some(file_path.to_str().unwrap()), true);
+
+        let results = read_file(&file_path);
+
+        assert!(results.contains(r#"<source>.</source>"#));
+        assert!(results.contains(r#"package name="src/main.rs""#));
+    }
+
+    #[test]
+    fn test_cobertura_source_root_some() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_cobertura.xml";
+        let file_path = tmp_dir.path().join(file_name);
+
+        let results = vec![(
+            PathBuf::from("main.rs"),
+            PathBuf::from("main.rs"),
+            CovResult::default(),
+        )];
+
+        let results = Box::new(results.into_iter());
+        output_cobertura("src", results, Some(file_path.to_str().unwrap()), true);
+
+        let results = read_file(&file_path);
+
+        assert!(results.contains(r#"<source>src</source>"#));
+        assert!(results.contains(r#"package name="main.rs""#));
     }
 }

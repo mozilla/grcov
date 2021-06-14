@@ -521,7 +521,7 @@ fn main() {
         "files" => output_files(iterator, output_path),
         "covdir" => output_covdir(iterator, output_path),
         "html" => output_html(iterator, output_path, num_threads, branch_enabled),
-        "cobertura" => output_cobertura(iterator, output_path, demangle),
+        "cobertura" => output_cobertura(source_dir, iterator, output_path, demangle),
         _ => panic!("{} is not a supported output type", output_type),
     };
 }
