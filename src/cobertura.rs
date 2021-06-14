@@ -386,7 +386,9 @@ pub fn output_cobertura(results: CovResultIter, output_file: Option<&str>, deman
                 source_tag.len(),
             )))
             .unwrap();
-        writer.write(path.as_bytes()).unwrap();
+        writer
+            .write_event(Event::Text(BytesText::from_plain_str(path)))
+            .unwrap();
         writer
             .write_event(Event::End(BytesEnd::borrowed(source_tag)))
             .unwrap();
@@ -715,6 +717,8 @@ mod tests {
 
         let results = read_file(&file_path);
 
+        assert!(results.contains(r#"<source>.</source>"#));
+
         assert!(results.contains(r#"package name="src/main.rs""#));
         assert!(results.contains(r#"class name="main" filename="src/main.rs""#));
         assert!(results.contains(r#"method name="cov_test::main""#));
@@ -747,6 +751,8 @@ mod tests {
         output_cobertura(results, Some(file_path.to_str().unwrap()), true);
 
         let results = read_file(&file_path);
+
+        assert!(results.contains(r#"<source>.</source>"#));
 
         assert!(results.contains(r#"package name="src/main.rs""#));
         assert!(results.contains(r#"class name="main" filename="src/main.rs""#));
@@ -786,7 +792,7 @@ mod tests {
 
         let results = read_file(&file_path);
 
-        println!("{}\n", results);
+        assert!(results.contains(r#"<source>.</source>"#));
 
         assert!(results.contains(r#"package name="src/main.rs""#));
         assert!(results.contains(r#"class name="main" filename="src/main.rs""#));
