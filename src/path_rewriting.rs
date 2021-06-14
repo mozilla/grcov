@@ -215,11 +215,11 @@ fn is_symbolic_link(entry: &DirEntry) -> bool {
     entry.path_is_symlink()
 }
 
-fn to_globset(dirs: &[&str]) -> GlobSet {
+fn to_globset(dirs: &[impl AsRef<str>]) -> GlobSet {
     let mut glob_builder = GlobSetBuilder::new();
 
     for dir in dirs {
-        glob_builder.add(Glob::new(dir).unwrap());
+        glob_builder.add(Glob::new(dir.as_ref()).unwrap());
     }
 
     glob_builder.build().unwrap()
@@ -231,8 +231,8 @@ pub fn rewrite_paths(
     source_dir: Option<&Path>,
     prefix_dir: Option<&Path>,
     ignore_not_existing: bool,
-    to_ignore_dirs: &[&str],
-    to_keep_dirs: &[&str],
+    to_ignore_dirs: &[impl AsRef<str>],
+    to_keep_dirs: &[impl AsRef<str>],
     filter_option: Option<bool>,
     file_filter: crate::FileFilter,
 ) -> CovResultIter {
@@ -429,8 +429,8 @@ mod tests {
             None,
             None,
             false,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -458,8 +458,8 @@ mod tests {
             None,
             Some(Path::new("/home/worker/src/workspace/")),
             false,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -487,8 +487,8 @@ mod tests {
             None,
             Some(Path::new("C:\\Users\\worker\\src\\workspace\\")),
             false,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -516,8 +516,8 @@ mod tests {
             None,
             Some(Path::new("C:/Users/worker/src/workspace/")),
             false,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -545,8 +545,8 @@ mod tests {
             None,
             Some(Path::new("C:/Users/worker/src/")),
             false,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -572,8 +572,8 @@ mod tests {
             None,
             None,
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -604,8 +604,8 @@ mod tests {
             None,
             None,
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -633,7 +633,7 @@ mod tests {
             None,
             false,
             &["mydir/*"],
-            &[],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -660,7 +660,7 @@ mod tests {
             None,
             false,
             &["mydir/*"],
-            &[],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -691,7 +691,7 @@ mod tests {
                 None,
                 false,
                 &ignore_dirs,
-                &[],
+                &[""; 0],
                 None,
                 Default::default(),
             );
@@ -724,7 +724,7 @@ mod tests {
                 None,
                 false,
                 &ignore_dirs,
-                &[],
+                &[""; 0],
                 None,
                 Default::default(),
             );
@@ -752,7 +752,7 @@ mod tests {
             None,
             None,
             false,
-            &[],
+            &[""; 0],
             &["mydir/*"],
             None,
             Default::default(),
@@ -810,7 +810,7 @@ mod tests {
                 None,
                 None,
                 false,
-                &[],
+                &[""; 0],
                 &keep_only_dirs,
                 None,
                 Default::default(),
@@ -843,7 +843,7 @@ mod tests {
                 None,
                 None,
                 false,
-                &[],
+                &[""; 0],
                 &keep_only_dirs,
                 None,
                 Default::default(),
@@ -928,8 +928,8 @@ mod tests {
             Some(Path::new("tests")),
             None,
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         )
@@ -948,8 +948,8 @@ mod tests {
             Some(&canonicalize_path("test").unwrap()),
             None,
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -976,8 +976,8 @@ mod tests {
             Some(&canonicalize_path("test").unwrap()),
             None,
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1003,8 +1003,8 @@ mod tests {
             Some(&canonicalize_path("test").unwrap()),
             None,
             false,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1030,8 +1030,8 @@ mod tests {
             Some(&canonicalize_path("test").unwrap()),
             None,
             false,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1058,8 +1058,8 @@ mod tests {
             Some(&canonicalize_path(".").unwrap()),
             None,
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1085,8 +1085,8 @@ mod tests {
             Some(&canonicalize_path(".").unwrap()),
             None,
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1111,8 +1111,8 @@ mod tests {
             Some(&canonicalize_path(".").unwrap()),
             None,
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1138,8 +1138,8 @@ mod tests {
             Some(&canonicalize_path(".").unwrap()),
             None,
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1168,8 +1168,8 @@ mod tests {
             Some(&canonicalize_path("tests").unwrap()),
             Some(Path::new("/home/worker/src/workspace")),
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1199,8 +1199,8 @@ mod tests {
             Some(&canonicalize_path("tests").unwrap()),
             Some(Path::new("C:\\Users\\worker\\src\\workspace")),
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1226,8 +1226,8 @@ mod tests {
             None,
             None,
             false,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1252,8 +1252,8 @@ mod tests {
             None,
             None,
             false,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1281,8 +1281,8 @@ mod tests {
             None,
             None,
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1311,8 +1311,8 @@ mod tests {
             None,
             None,
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1341,8 +1341,8 @@ mod tests {
             None,
             Some(Path::new("/home/worker/src/workspace")),
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1374,8 +1374,8 @@ mod tests {
             None,
             Some(Path::new("C:\\Users\\worker\\src\\workspace")),
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1403,8 +1403,8 @@ mod tests {
             None,
             Some(Path::new("C:\\Users\\worker\\src\\workspace")),
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1432,8 +1432,8 @@ mod tests {
             None,
             Some(Path::new("c:\\Users\\worker\\src\\workspace")),
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1461,8 +1461,8 @@ mod tests {
             None,
             Some(Path::new("c:\\Users\\worker\\src\\workspace")),
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1491,8 +1491,8 @@ mod tests {
             Some(&canonicalize_path("tests").unwrap()),
             Some(Path::new("/home/worker/src/workspace")),
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1521,8 +1521,8 @@ mod tests {
             Some(&canonicalize_path("tests").unwrap()),
             Some(Path::new("C:\\Users\\worker\\src\\workspace")),
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             Default::default(),
         );
@@ -1548,8 +1548,8 @@ mod tests {
             None,
             None,
             false,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             Some(true),
             Default::default(),
         );
@@ -1574,8 +1574,8 @@ mod tests {
             None,
             None,
             false,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             Some(false),
             Default::default(),
         );
@@ -1635,8 +1635,8 @@ mod tests {
             Some(&canonicalize_path("test").unwrap()),
             None,
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             crate::FileFilter::new(
                 Some(regex::Regex::new("excluded line").unwrap()),
@@ -1678,8 +1678,8 @@ mod tests {
             Some(&canonicalize_path("test").unwrap()),
             None,
             true,
-            &[],
-            &[],
+            &[""; 0],
+            &[""; 0],
             None,
             crate::FileFilter::new(
                 Some(regex::Regex::new("excluded line").unwrap()),
