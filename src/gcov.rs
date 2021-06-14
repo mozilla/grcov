@@ -82,13 +82,7 @@ pub fn get_gcov_version() -> &'static Version {
 pub fn get_gcov_output_ext() -> &'static str {
     lazy_static! {
         static ref E: &'static str = {
-            let min_ver = Version {
-                major: 9,
-                minor: 1,
-                patch: 0,
-                pre: vec![],
-                build: vec![],
-            };
+            let min_ver = Version::new(9, 1, 0);
             if get_gcov_version() >= &min_ver {
                 ".gcov.json.gz"
             } else {
@@ -117,33 +111,15 @@ mod tests {
     fn test_parse_version() {
         assert_eq!(
             parse_version("gcov (Ubuntu 4.3.0-12ubuntu2) 4.3.0 20170406"),
-            Version {
-                major: 4,
-                minor: 3,
-                patch: 0,
-                pre: vec![],
-                build: vec![],
-            }
+            Version::new(4, 3, 0)
         );
         assert_eq!(
             parse_version("gcov (Ubuntu 4.9.0-12ubuntu2) 4.9.0 20170406"),
-            Version {
-                major: 4,
-                minor: 9,
-                patch: 0,
-                pre: vec![],
-                build: vec![],
-            }
+            Version::new(4, 9, 0)
         );
         assert_eq!(
             parse_version("gcov (Ubuntu 6.3.0-12ubuntu2) 6.3.0 20170406"),
-            Version {
-                major: 6,
-                minor: 3,
-                patch: 0,
-                pre: vec![],
-                build: vec![],
-            }
+            Version::new(6, 3, 0)
         );
     }
 }
