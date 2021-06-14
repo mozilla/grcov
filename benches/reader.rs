@@ -1,37 +1,47 @@
 #![feature(test)]
-extern crate grcov;
+#![allow(clippy::unit_arg)]
 extern crate test;
 
-use grcov::{GcovReaderBuf, GCNO};
+use grcov::{Gcno, GcovReaderBuf, LittleEndian};
 use std::path::PathBuf;
 use test::{black_box, Bencher};
 
+const LLVM_READER_GCNO: &[u8] = include_bytes!("../test/llvm/reader.gcno");
+const LLVM_READER_GCDA: &[u8] = include_bytes!("../test/llvm/reader.gcda");
+
 #[bench]
 fn bench_reader_gcno(b: &mut Bencher) {
-    let mut gcno = GCNO::new();
+    let mut gcno = Gcno::new();
     b.iter(|| {
-        let file = GcovReaderBuf::from("test/llvm/reader.gcno");
-        black_box(gcno.read(file).unwrap());
+        let file = GcovReaderBuf::<LittleEndian>::new("reader", LLVM_READER_GCNO.to_vec());
+        black_box(gcno.read_gcno(file).unwrap());
     });
 }
 
 #[bench]
 fn bench_reader_gcda(b: &mut Bencher) {
-    let mut gcno = GCNO::new();
-    gcno.read(GcovReaderBuf::from("test/llvm/reader.gcno"))
-        .unwrap();
+    let mut gcno = Gcno::new();
+    gcno.read_gcno(GcovReaderBuf::<LittleEndian>::new(
+        "reader",
+        LLVM_READER_GCNO.to_vec(),
+    ))
+    .unwrap();
 
     b.iter(|| {
-        let file = GcovReaderBuf::from("test/llvm/reader.gcda");
+        let file = GcovReaderBuf::<LittleEndian>::new("reader", LLVM_READER_GCDA.to_vec());
         black_box(gcno.read_gcda(file).unwrap());
     });
 }
 
 #[bench]
 fn bench_reader_gcno_dump(b: &mut Bencher) {
-    let mut gcno = GCNO::new();
-    gcno.read(GcovReaderBuf::from("test/llvm/reader.gcno"))
-        .unwrap();
+    let mut gcno = Gcno::new();
+    gcno.read_gcno(GcovReaderBuf::<LittleEndian>::new(
+        "reader",
+        LLVM_READER_GCNO.to_vec(),
+    ))
+    .unwrap();
+
     b.iter(|| {
         let mut output = Vec::new();
         black_box(
@@ -47,11 +57,18 @@ fn bench_reader_gcno_dump(b: &mut Bencher) {
 
 #[bench]
 fn bench_reader_gcno_gcda_dump(b: &mut Bencher) {
-    let mut gcno = GCNO::new();
-    gcno.read(GcovReaderBuf::from("test/llvm/reader.gcno"))
-        .unwrap();
-    gcno.read_gcda(GcovReaderBuf::from("test/llvm/reader.gcda"))
-        .unwrap();
+    let mut gcno = Gcno::new();
+    gcno.read_gcno(GcovReaderBuf::<LittleEndian>::new(
+        "reader",
+        LLVM_READER_GCNO.to_vec(),
+    ))
+    .unwrap();
+    gcno.read_gcda(GcovReaderBuf::<LittleEndian>::new(
+        "reader",
+        LLVM_READER_GCDA.to_vec(),
+    ))
+    .unwrap();
+
     b.iter(|| {
         let mut output = Vec::new();
         black_box(
@@ -67,20 +84,34 @@ fn bench_reader_gcno_gcda_dump(b: &mut Bencher) {
 
 #[bench]
 fn bench_reader_finalize_file(b: &mut Bencher) {
-    let mut gcno = GCNO::new();
-    gcno.read(GcovReaderBuf::from("test/llvm/file.gcno"))
-        .unwrap();
-    gcno.read_gcda(GcovReaderBuf::from("test/llvm/file.gcda"))
-        .unwrap();
+    let mut gcno = Gcno::new();
+    gcno.read_gcno(GcovReaderBuf::<LittleEndian>::new(
+        "reader",
+        LLVM_READER_GCNO.to_vec(),
+    ))
+    .unwrap();
+    gcno.read_gcda(GcovReaderBuf::<LittleEndian>::new(
+        "reader",
+        LLVM_READER_GCDA.to_vec(),
+    ))
+    .unwrap();
+
     b.iter(|| black_box(gcno.finalize(true)));
 }
 
 #[bench]
 fn bench_reader_finalize_file_branch(b: &mut Bencher) {
-    let mut gcno = GCNO::new();
-    gcno.read(GcovReaderBuf::from("test/llvm/file_branch.gcno"))
-        .unwrap();
-    gcno.read_gcda(GcovReaderBuf::from("test/llvm/file_branch.gcda"))
-        .unwrap();
+    let mut gcno = Gcno::new();
+    gcno.read_gcno(GcovReaderBuf::<LittleEndian>::new(
+        "reader",
+        LLVM_READER_GCNO.to_vec(),
+    ))
+    .unwrap();
+    gcno.read_gcda(GcovReaderBuf::<LittleEndian>::new(
+        "reader",
+        LLVM_READER_GCDA.to_vec(),
+    ))
+    .unwrap();
+
     b.iter(|| black_box(gcno.finalize(true)));
 }
