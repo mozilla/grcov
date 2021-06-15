@@ -91,22 +91,6 @@ fn apply_mapping(mapping: &Option<Value>, path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
-// If the join of the source and the relative path is a file, return it.
-// Otherwise, remove common part between the source's end and the relative
-// path's start.
-fn guess_abs_path(prefix_dir: &PathBuf, path: &PathBuf) -> PathBuf {
-    let full_path = prefix_dir.join(path);
-    if full_path.is_file() {
-        return full_path;
-    }
-    for ancestor in path.ancestors() {
-        if prefix_dir.ends_with(ancestor) && !ancestor.as_os_str().is_empty() {
-            return prefix_dir.join(path.strip_prefix(ancestor).unwrap().to_path_buf());
-        }
-    }
-    full_path
-}
-
 // Remove prefix from the source file's path.
 fn remove_prefix(prefix_dir: &Option<PathBuf>, path: PathBuf) -> PathBuf {
     if let Some(prefix_dir) = prefix_dir {
@@ -136,12 +120,9 @@ fn get_abs_path(source_dir: &Option<PathBuf>, rel_path: PathBuf) -> Option<(Path
         rel_path.clone()
     } else if let Some(ref source_dir) = source_dir {
         if !cfg!(windows) {
-            guess_abs_path(&source_dir, &rel_path)
+            source_dir.join(&rel_path)
         } else {
-            guess_abs_path(
-                &source_dir,
-                &PathBuf::from(&rel_path.to_str().unwrap().replace("/", "\\")),
-            )
+            source_dir.join(&rel_path.to_str().unwrap().replace("/", "\\"))
         }
     } else {
         rel_path.clone()
