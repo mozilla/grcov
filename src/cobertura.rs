@@ -197,10 +197,7 @@ impl Line {
     }
 
     fn covered(&self) -> bool {
-        match self {
-            Line::Plain { hits, .. } | Line::Branch { hits, .. } if *hits > 0 => true,
-            _ => false,
-        }
+        matches!(self, Line::Plain { hits, .. } | Line::Branch { hits, .. } if *hits > 0)
     }
 }
 
@@ -559,9 +556,9 @@ mod tests {
     extern crate tempfile;
     use super::*;
     use crate::{CovResult, Function};
-    use std::fs::File;
     use std::io::Read;
     use std::{collections::BTreeMap, path::PathBuf};
+    use std::{fs::File, path::Path};
 
     enum Result {
         Main,
@@ -693,9 +690,9 @@ mod tests {
         }
     }
 
-    fn read_file(path: &PathBuf) -> String {
+    fn read_file(path: &Path) -> String {
         let mut f =
-            File::open(path).expect(format!("{:?} file not found", path.file_name()).as_str());
+            File::open(path).unwrap_or_else(|_| panic!("{:?} file not found", path.file_name()));
         let mut s = String::new();
         f.read_to_string(&mut s).unwrap();
         s

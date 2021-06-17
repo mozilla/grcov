@@ -6,7 +6,7 @@ use std::process::Command;
 
 use walkdir::WalkDir;
 
-pub fn run(cmd: &Path, args: &[&OsStr]) -> Result<Vec<u8>, String> {
+pub fn run(cmd: impl AsRef<OsStr>, args: &[&OsStr]) -> Result<Vec<u8>, String> {
     let mut command = Command::new(cmd);
     command.args(args);
     let output = match command.output() {

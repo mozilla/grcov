@@ -16,7 +16,7 @@ pub fn is_covered(result: &CovResult) -> bool {
     let any_function_covered = result
         .functions
         .iter()
-        .any(|(name, ref function)| function.executed && name != "top-level");
+        .any(|(name, function)| function.executed && name != "top-level");
     result.functions.len() <= 1 || any_function_covered
 }
 

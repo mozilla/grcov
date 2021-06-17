@@ -7,6 +7,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
 use std::io::{BufReader, Error, Read, Write};
 use std::marker::PhantomData;
+use std::path::Path;
 use std::path::PathBuf;
 use std::result::Result;
 
@@ -69,14 +70,15 @@ impl Endian for BigEndian {
 }
 
 enum FileType {
-    GCNO,
-    GCDA,
+    Gcno,
+    Gcda,
 }
 
 #[derive(Default)]
-pub struct GCNO {
+pub struct Gcno {
     version: u32,
     checksum: u32,
+    #[allow(dead_code)]
     cwd: Option<String>,
     programcounts: u32,
     runcounts: u32,
@@ -282,7 +284,7 @@ impl<E: Endian> GcovReader<E> for GcovReaderBuf<E> {
                 let bytes = &self.buffer[i..i + 4];
                 Err(GcovError::Str(format!(
                     "Unexpected version: {} in {}",
-                    String::from_utf8_lossy(&bytes),
+                    String::from_utf8_lossy(bytes),
                     self.get_stem()
                 )))
             }
@@ -309,7 +311,7 @@ impl Display for GcovError {
     }
 }
 
-impl Debug for GCNO {
+impl Debug for Gcno {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         for fun in &self.functions {
             writeln!(
@@ -361,9 +363,9 @@ impl Debug for GCNO {
     }
 }
 
-impl GCNO {
+impl Gcno {
     pub fn new() -> Self {
-        GCNO {
+        Gcno {
             version: 0,
             checksum: 0,
             cwd: None,
@@ -388,7 +390,7 @@ impl GCNO {
                 } else {
                     Err(GcovError::Str(format!(
                         "Unexpected file type: {} in {}.",
-                        std::str::from_utf8(&bytes).unwrap(),
+                        std::str::from_utf8(bytes).unwrap(),
                         stem
                     )))
                 }
@@ -404,7 +406,7 @@ impl GCNO {
     fn read(&mut self, typ: FileType, buf: Vec<u8>, stem: &str) -> Result<(), GcovError> {
         let little_endian = Self::guess_endianness(
             match typ {
-                FileType::GCNO => *b"oncg",
+                FileType::Gcno => *b"oncg",
                 _ => *b"adcg",
             },
             &buf,
@@ -412,12 +414,12 @@ impl GCNO {
         )?;
         if little_endian {
             match typ {
-                FileType::GCNO => self.read_gcno(GcovReaderBuf::<LittleEndian>::new(stem, buf)),
+                FileType::Gcno => self.read_gcno(GcovReaderBuf::<LittleEndian>::new(stem, buf)),
                 _ => self.read_gcda(GcovReaderBuf::<LittleEndian>::new(stem, buf)),
             }
         } else {
             match typ {
-                FileType::GCNO => self.read_gcno(GcovReaderBuf::<BigEndian>::new(stem, buf)),
+                FileType::Gcno => self.read_gcno(GcovReaderBuf::<BigEndian>::new(stem, buf)),
                 _ => self.read_gcda(GcovReaderBuf::<BigEndian>::new(stem, buf)),
             }
         }
@@ -430,9 +432,9 @@ impl GCNO {
         branch_enabled: bool,
     ) -> Result<Vec<(String, CovResult)>, GcovError> {
         let mut gcno = Self::new();
-        gcno.read(FileType::GCNO, gcno_buf, stem)?;
+        gcno.read(FileType::Gcno, gcno_buf, stem)?;
         for gcda_buf in gcda_bufs.drain(..) {
-            gcno.read(FileType::GCDA, gcda_buf, stem)?;
+            gcno.read(FileType::Gcda, gcda_buf, stem)?;
         }
         gcno.stop();
         Ok(gcno.finalize(branch_enabled))
@@ -633,21 +635,21 @@ impl GCNO {
                 } else {
                     continue;
                 };
-                GCNO::read_blocks(fun, length, self.version, reader)?;
+                Gcno::read_blocks(fun, length, self.version, reader)?;
             } else if tag == GCOV_TAG_ARCS {
                 let fun = if let Some(fun) = self.functions.last_mut() {
                     fun
                 } else {
                     continue;
                 };
-                GCNO::read_edges(fun, length, reader)?;
+                Gcno::read_edges(fun, length, reader)?;
             } else if tag == GCOV_TAG_LINES {
                 let fun = if let Some(fun) = self.functions.last_mut() {
                     fun
                 } else {
                     continue;
                 };
-                GCNO::read_lines(fun, self.version, reader)?;
+                Gcno::read_lines(fun, self.version, reader)?;
             }
         }
         Ok(())
@@ -790,7 +792,7 @@ impl GCNO {
 
     pub fn dump(
         &mut self,
-        path: &PathBuf,
+        path: &Path,
         file_name: &str,
         writer: &mut dyn Write,
     ) -> Result<(), GcovError> {
@@ -1213,7 +1215,7 @@ mod tests {
     use super::*;
     use crate::defs::FunctionMap;
 
-    fn from_path(gcno: &mut GCNO, typ: FileType, path: &str) {
+    fn from_path(gcno: &mut Gcno, typ: FileType, path: &str) {
         let path = PathBuf::from(path);
         let mut f = File::open(&path).unwrap();
         let mut buf = Vec::new();
@@ -1239,8 +1241,8 @@ mod tests {
 
     #[test]
     fn test_reader_gcno() {
-        let mut gcno = GCNO::new();
-        from_path(&mut gcno, FileType::GCNO, "test/llvm/reader.gcno");
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/llvm/reader.gcno");
         let output = format!("{:?}", gcno);
         let input = get_input_string("test/llvm/reader.gcno.0.dump");
 
@@ -1249,9 +1251,9 @@ mod tests {
 
     #[test]
     fn test_reader_gcno_gcda() {
-        let mut gcno = GCNO::new();
-        from_path(&mut gcno, FileType::GCNO, "test/llvm/reader.gcno");
-        from_path(&mut gcno, FileType::GCDA, "test/llvm/reader.gcda");
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/llvm/reader.gcno");
+        from_path(&mut gcno, FileType::Gcda, "test/llvm/reader.gcda");
         gcno.stop();
         let output = format!("{:?}", gcno);
         let input = get_input_string("test/llvm/reader.gcno.1.dump");
@@ -1261,9 +1263,9 @@ mod tests {
 
     #[test]
     fn test_reader_gcno_gcda_gcc6() {
-        let mut gcno = GCNO::new();
-        from_path(&mut gcno, FileType::GCNO, "test/reader_gcc-6.gcno");
-        from_path(&mut gcno, FileType::GCDA, "test/reader_gcc-6.gcda");
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/reader_gcc-6.gcno");
+        from_path(&mut gcno, FileType::Gcda, "test/reader_gcc-6.gcda");
         gcno.stop();
         let output = format!("{:?}", gcno);
         let input = get_input_string("test/reader_gcc-6.gcno.1.dump");
@@ -1273,9 +1275,9 @@ mod tests {
 
     #[test]
     fn test_reader_gcno_gcda_gcc7() {
-        let mut gcno = GCNO::new();
-        from_path(&mut gcno, FileType::GCNO, "test/reader_gcc-7.gcno");
-        from_path(&mut gcno, FileType::GCDA, "test/reader_gcc-7.gcda");
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/reader_gcc-7.gcno");
+        from_path(&mut gcno, FileType::Gcda, "test/reader_gcc-7.gcda");
         gcno.stop();
         let output = format!("{:?}", gcno);
         let input = get_input_string("test/reader_gcc-7.gcno.1.dump");
@@ -1285,9 +1287,9 @@ mod tests {
 
     #[test]
     fn test_reader_gcno_gcda_gcc8() {
-        let mut gcno = GCNO::new();
-        from_path(&mut gcno, FileType::GCNO, "test/reader_gcc-8.gcno");
-        from_path(&mut gcno, FileType::GCDA, "test/reader_gcc-8.gcda");
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/reader_gcc-8.gcno");
+        from_path(&mut gcno, FileType::Gcda, "test/reader_gcc-8.gcda");
         gcno.stop();
         let output = format!("{:?}", gcno);
         let input = get_input_string("test/reader_gcc-8.gcno.1.dump");
@@ -1297,9 +1299,9 @@ mod tests {
 
     #[test]
     fn test_reader_gcno_gcda_gcc9() {
-        let mut gcno = GCNO::new();
-        from_path(&mut gcno, FileType::GCNO, "test/reader_gcc-9.gcno");
-        from_path(&mut gcno, FileType::GCDA, "test/reader_gcc-9.gcda");
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/reader_gcc-9.gcno");
+        from_path(&mut gcno, FileType::Gcda, "test/reader_gcc-9.gcda");
         gcno.stop();
         let output = format!("{:?}", gcno);
         let input = get_input_string("test/reader_gcc-9.gcno.1.dump");
@@ -1309,9 +1311,9 @@ mod tests {
 
     #[test]
     fn test_reader_gcno_gcda_gcc10() {
-        let mut gcno = GCNO::new();
-        from_path(&mut gcno, FileType::GCNO, "test/reader_gcc-10.gcno");
-        from_path(&mut gcno, FileType::GCDA, "test/reader_gcc-10.gcda");
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/reader_gcc-10.gcno");
+        from_path(&mut gcno, FileType::Gcda, "test/reader_gcc-10.gcda");
         gcno.stop();
         let output = format!("{:?}", gcno);
         let input = get_input_string("test/reader_gcc-10.gcno.1.dump");
@@ -1321,10 +1323,10 @@ mod tests {
 
     #[test]
     fn test_reader_gcno_gcda_gcda() {
-        let mut gcno = GCNO::new();
-        from_path(&mut gcno, FileType::GCNO, "test/llvm/reader.gcno");
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/llvm/reader.gcno");
         for _ in 0..2 {
-            from_path(&mut gcno, FileType::GCDA, "test/llvm/reader.gcda");
+            from_path(&mut gcno, FileType::Gcda, "test/llvm/reader.gcda");
         }
         gcno.stop();
         let output = format!("{:?}", gcno);
@@ -1335,8 +1337,8 @@ mod tests {
 
     #[test]
     fn test_reader_gcno_counter() {
-        let mut gcno = GCNO::new();
-        from_path(&mut gcno, FileType::GCNO, "test/llvm/reader.gcno");
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/llvm/reader.gcno");
         gcno.stop();
         let mut output = Vec::new();
         gcno.dump(
@@ -1352,9 +1354,9 @@ mod tests {
 
     #[test]
     fn test_reader_gcno_gcda_counter() {
-        let mut gcno = GCNO::new();
-        from_path(&mut gcno, FileType::GCNO, "test/llvm/reader.gcno");
-        from_path(&mut gcno, FileType::GCDA, "test/llvm/reader.gcda");
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/llvm/reader.gcno");
+        from_path(&mut gcno, FileType::Gcda, "test/llvm/reader.gcda");
         gcno.stop();
         let mut output = Vec::new();
         gcno.dump(
@@ -1370,10 +1372,10 @@ mod tests {
 
     #[test]
     fn test_reader_gcno_gcda_gcda_counter() {
-        let mut gcno = GCNO::new();
-        from_path(&mut gcno, FileType::GCNO, "test/llvm/reader.gcno");
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/llvm/reader.gcno");
         for _ in 0..2 {
-            from_path(&mut gcno, FileType::GCDA, "test/llvm/reader.gcda");
+            from_path(&mut gcno, FileType::Gcda, "test/llvm/reader.gcda");
         }
         gcno.stop();
         let mut output = Vec::new();
@@ -1390,9 +1392,9 @@ mod tests {
 
     #[test]
     fn test_reader_finalize_file() {
-        let mut gcno = GCNO::new();
-        from_path(&mut gcno, FileType::GCNO, "test/llvm/file.gcno");
-        from_path(&mut gcno, FileType::GCDA, "test/llvm/file.gcda");
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/llvm/file.gcno");
+        from_path(&mut gcno, FileType::Gcda, "test/llvm/file.gcda");
         gcno.stop();
         let result = gcno.finalize(true);
 
@@ -1410,9 +1412,9 @@ mod tests {
         let expected = vec![(
             String::from("file.c"),
             CovResult {
-                lines: lines,
-                branches: branches,
-                functions: functions,
+                lines,
+                branches,
+                functions,
             },
         )];
 
@@ -1421,9 +1423,9 @@ mod tests {
 
     #[test]
     fn test_reader_finalize_file_branch() {
-        let mut gcno = GCNO::new();
-        from_path(&mut gcno, FileType::GCNO, "test/llvm/file_branch.gcno");
-        from_path(&mut gcno, FileType::GCDA, "test/llvm/file_branch.gcda");
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/llvm/file_branch.gcno");
+        from_path(&mut gcno, FileType::Gcda, "test/llvm/file_branch.gcda");
         gcno.stop();
         let result = gcno.finalize(true);
 
@@ -1497,9 +1499,9 @@ mod tests {
         let expected = vec![(
             String::from("file_branch.c"),
             CovResult {
-                lines: lines,
-                branches: branches,
-                functions: functions,
+                lines,
+                branches,
+                functions,
             },
         )];
 

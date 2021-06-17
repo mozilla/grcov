@@ -96,7 +96,7 @@ pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>, 
         for function in result.functions.values() {
             start_indexes.push(function.start);
         }
-        start_indexes.sort();
+        start_indexes.sort_unstable();
 
         for (name, function) in &result.functions {
             // println!("{} {} {}", name, function.executed, function.start);
@@ -227,10 +227,10 @@ pub fn output_covdir(results: CovResultIter, output_file: Option<&str>) {
         ));
     }
 
-    let mut global = global.borrow_mut();
+    let mut global = global.take();
     global.set_stats();
 
-    serde_json::to_writer(&mut writer, &global.to_json()).unwrap();
+    serde_json::to_writer(&mut writer, &global.into_json()).unwrap();
 }
 
 pub fn output_lcov(results: CovResultIter, output_file: Option<&str>, demangle: bool) {
@@ -274,7 +274,7 @@ pub fn output_lcov(results: CovResultIter, output_file: Option<&str>, demangle: 
         // branch coverage information
         let mut branch_count = 0;
         let mut branch_hit = 0;
-        for (line, ref taken) in &result.branches {
+        for (line, taken) in &result.branches {
             branch_count += taken.len();
             for (n, b_t) in taken.iter().enumerate() {
                 writeln!(
@@ -336,7 +336,7 @@ where
         .and_then(|child| child.wait_with_output())
         .ok() // Discard the error type -- we won't handle it anyway
         .and_then(|output| String::from_utf8(output.stdout).ok())
-        .unwrap_or_else(|| String::new())
+        .unwrap_or_default()
 }
 
 /// Returns a JSON object describing the given commit. Coveralls uses that to display commit info.
@@ -387,9 +387,8 @@ fn get_coveralls_git_info(commit_sha: &str, vcs_branch: &str) -> Value {
         for line in output.lines() {
             if line.ends_with(" (fetch)") {
                 let mut fields = line.split_whitespace();
-                match (fields.next(), fields.next()) {
-                    (Some(name), Some(url)) => remotes.push(json!({"name": name, "url": url})),
-                    _ => (),
+                if let (Some(name), Some(url)) = (fields.next(), fields.next()) {
+                    remotes.push(json!({"name": name, "url": url}))
                 };
             }
         }
@@ -441,7 +440,7 @@ pub fn output_coveralls(
         }
 
         let mut branches = Vec::new();
-        for (line, ref taken) in &result.branches {
+        for (line, taken) in &result.branches {
             for (n, b_t) in taken.iter().enumerate() {
                 branches.push(*line);
                 branches.push(0);
@@ -546,7 +545,7 @@ pub fn output_html(
         let t = thread::Builder::new()
             .name(format!("Consumer HTML {}", i))
             .spawn(move || {
-                html::consumer_html(&tera, receiver, stats, output, config, branch_enabled);
+                html::consumer_html(&tera, receiver, stats, &output, config, branch_enabled);
             })
             .unwrap();
 
@@ -586,14 +585,13 @@ pub fn output_html(
 
 #[cfg(test)]
 mod tests {
-
     extern crate tempfile;
     use super::*;
-    use std::collections::BTreeMap;
+    use std::{collections::BTreeMap, path::Path};
 
-    fn read_file(path: &PathBuf) -> String {
+    fn read_file(path: &Path) -> String {
         let mut f =
-            File::open(path).expect(format!("{:?} file not found", path.file_name()).as_str());
+            File::open(path).unwrap_or_else(|_| panic!("{:?} file not found", path.file_name()));
         let mut s = String::new();
         f.read_to_string(&mut s).unwrap();
         s

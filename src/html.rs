@@ -35,7 +35,7 @@ pub struct Config {
     date: DateTime<Utc>,
 }
 
-static BULMA_VERSION: &'static str = "0.9.1";
+static BULMA_VERSION: &str = "0.9.1";
 
 pub fn get_config() -> (Tera, Config) {
     let conf = Config {
@@ -113,14 +113,14 @@ impl tera::Filter for Config {
     }
 }
 
-fn create_parent(path: &PathBuf) {
+fn create_parent(path: &Path) {
     let dest_parent = path.parent().unwrap();
     if !dest_parent.exists() && fs::create_dir_all(dest_parent).is_err() {
         panic!("Cannot create parent directory: {:?}", dest_parent);
     }
 }
 
-fn add_html_ext(path: &PathBuf) -> PathBuf {
+fn add_html_ext(path: &Path) -> PathBuf {
     if let Some(ext) = path.extension() {
         let mut ext = ext.to_str().unwrap().to_owned();
         ext.push_str(".html");
@@ -176,12 +176,12 @@ fn percent(args: &HashMap<String, Value>) -> tera::Result<Value> {
     }
 }
 
-fn get_base(rel_path: &PathBuf) -> String {
+fn get_base(rel_path: &Path) -> String {
     let count = rel_path.components().count() - 1 /* -1 for the file itself */;
-    "../".repeat(count).to_string()
+    "../".repeat(count)
 }
 
-fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &PathBuf, stats: &HtmlStats) {
+fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &Path, stats: &HtmlStats) {
     let parent = rel_path.parent().unwrap().to_str().unwrap().to_string();
     let file_name = rel_path.file_name().unwrap().to_str().unwrap().to_string();
     let fs = HtmlFileStats {
@@ -220,7 +220,7 @@ pub fn gen_index(
     tera: &Tera,
     global: &HtmlGlobalStats,
     conf: &Config,
-    output: &PathBuf,
+    output: &Path,
     branch_enabled: bool,
 ) {
     let output_file = output.join("index.html");
@@ -251,7 +251,7 @@ pub fn gen_index(
     }
 
     for (dir_name, dir_stats) in global.dirs.iter() {
-        gen_dir_index(&tera, dir_name, dir_stats, &conf, output, branch_enabled);
+        gen_dir_index(tera, dir_name, dir_stats, conf, output, branch_enabled);
     }
 }
 
@@ -260,10 +260,10 @@ pub fn gen_dir_index(
     dir_name: &str,
     dir_stats: &HtmlDirStats,
     conf: &Config,
-    output: &PathBuf,
+    output: &Path,
     branch_enabled: bool,
 ) {
-    let index = PathBuf::from(dir_name).join("index.html");
+    let index = Path::new(dir_name).join("index.html");
     let output_file = output.join(&index);
     create_parent(&output_file);
     let mut output = match File::create(&output_file) {
@@ -293,11 +293,11 @@ pub fn gen_dir_index(
 
 fn gen_html(
     tera: &Tera,
-    path: PathBuf,
+    path: &Path,
     result: &CovResult,
     conf: &Config,
-    output: &PathBuf,
-    rel_path: &PathBuf,
+    output: &Path,
+    rel_path: &Path,
     global: Arc<Mutex<HtmlGlobalStats>>,
     branch_enabled: bool,
 ) {
@@ -314,10 +314,10 @@ fn gen_html(
     };
     let f = BufReader::new(f);
 
-    let stats = get_stats(&result);
-    get_dirs_result(global, &rel_path, &stats);
+    let stats = get_stats(result);
+    get_dirs_result(global, rel_path, &stats);
 
-    let output_file = output.join(add_html_ext(&rel_path));
+    let output_file = output.join(add_html_ext(rel_path));
     create_parent(&output_file);
     let mut output = match File::create(&output_file) {
         Err(_) => {
@@ -326,10 +326,10 @@ fn gen_html(
         }
         Ok(f) => f,
     };
-    let base_url = get_base(&rel_path);
+    let base_url = get_base(rel_path);
     let filename = rel_path.file_name().unwrap().to_str().unwrap();
     let parent = rel_path.parent().unwrap().to_str().unwrap().to_string();
-    let mut index_url = base_url.clone();
+    let mut index_url = base_url;
     index_url.push_str("index.html");
 
     let mut ctx = make_context();
@@ -374,7 +374,7 @@ pub fn consumer_html(
     tera: &Tera,
     receiver: HtmlJobReceiver,
     global: Arc<Mutex<HtmlGlobalStats>>,
-    output: PathBuf,
+    output: &Path,
     conf: Config,
     branch_enabled: bool,
 ) {
@@ -385,10 +385,10 @@ pub fn consumer_html(
         let job = job.unwrap();
         gen_html(
             tera,
-            job.abs_path,
+            &job.abs_path,
             &job.result,
             &conf,
-            &output,
+            output,
             &job.rel_path,
             global.clone(),
             branch_enabled,

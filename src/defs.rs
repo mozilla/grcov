@@ -22,12 +22,11 @@ pub struct CovResult {
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-#[allow(non_camel_case_types)]
 pub enum ItemFormat {
-    GCNO,
-    PROFRAW,
-    INFO,
-    JACOCO_XML,
+    Gcno,
+    Profraw,
+    Info,
+    JacocoXml,
 }
 
 #[derive(Debug)]
@@ -76,7 +75,7 @@ pub struct CDFileStats {
     pub coverage: Vec<i64>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CDDirStats {
     pub name: String,
     pub files: Vec<CDFileStats>,
@@ -145,4 +144,9 @@ impl<'a> Serialize for StringOrRef<'a> {
             StringOrRef::R(s) => serializer.serialize_str(s),
         }
     }
+}
+
+pub struct JacocoReport {
+    pub lines: BTreeMap<u32, u64>,
+    pub branches: BTreeMap<u32, Vec<bool>>,
 }

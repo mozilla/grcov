@@ -253,24 +253,20 @@ fn main() {
 
     let paths: Vec<_> = matches.values_of("paths").unwrap().collect();
     let paths: Vec<String> = paths.iter().map(|s| s.to_string()).collect();
-    let binary_path = if let Some(binary_path) = matches.value_of("binary_path") {
-        Some(PathBuf::from(binary_path))
-    } else {
-        None
-    };
+    let binary_path = matches.value_of("binary_path").map(PathBuf::from);
     let output_type = matches.value_of("output_type").unwrap();
     let output_path = matches.value_of("output_path");
     let source_dir = matches.value_of("source_dir").unwrap_or("");
     let prefix_dir = matches.value_of("prefix_dir").unwrap_or("");
     let ignore_not_existing = matches.is_present("ignore_not_existing");
-    let mut to_ignore_dirs: Vec<_> = if let Some(to_ignore_dirs) = matches.values_of("ignore_dir") {
+    let to_ignore_dirs = if let Some(to_ignore_dirs) = matches.values_of("ignore_dir") {
         to_ignore_dirs.collect()
     } else {
         Vec::new()
     };
     let to_keep_dirs: Vec<_> = matches
         .values_of("keep_dir")
-        .map_or_else(|| Vec::new(), |dirs| dirs.collect());
+        .map_or_else(Vec::new, |dirs| dirs.collect());
     let path_mapping_file = matches.value_of("path_mapping").unwrap_or("");
     let branch_enabled = matches.is_present("branch");
     let filter_option = if let Some(filter) = matches.value_of("filter") {
@@ -326,22 +322,22 @@ fn main() {
 
     let excl_line = matches
         .value_of("excl-line")
-        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-line.")));
+        .map(|f| regex::Regex::new(f).expect("invalid regex for excl-line."));
     let excl_start = matches
         .value_of("excl-start")
-        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-start.")));
+        .map(|f| regex::Regex::new(f).expect("invalid regex for excl-start."));
     let excl_stop = matches
         .value_of("excl-stop")
-        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-stop.")));
+        .map(|f| regex::Regex::new(f).expect("invalid regex for excl-stop."));
     let excl_br_line = matches
         .value_of("excl-br-line")
-        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-br-line.")));
+        .map(|f| regex::Regex::new(f).expect("invalid regex for excl-br-line."));
     let excl_br_start = matches
         .value_of("excl-br-start")
-        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-br-start.")));
+        .map(|f| regex::Regex::new(f).expect("invalid regex for excl-br-start."));
     let excl_br_stop = matches
         .value_of("excl-br-stop")
-        .and_then(|f| Some(regex::Regex::new(f).expect("invalid regex for excl-br-stop.")));
+        .map(|f| regex::Regex::new(f).expect("invalid regex for excl-br-stop."));
     let file_filter = FileFilter::new(
         excl_line,
         excl_start,
@@ -365,7 +361,7 @@ fn main() {
             panic_info
                 .payload()
                 .downcast_ref::<&str>()
-                .map(|s| *s)
+                .copied()
                 .unwrap_or("<cause unknown>")
         });
         error!("A panic occurred at {}:{}: {}", filename, line, cause);
@@ -378,13 +374,13 @@ fn main() {
         .expect("Number of threads should be a number");
     let guess_directory = matches.is_present("guess_directory");
 
-    let source_root = if source_dir != "" {
+    let source_root = if !source_dir.is_empty() {
         Some(canonicalize_path(&source_dir).expect("Source directory does not exist."))
     } else {
         None
     };
 
-    let prefix_dir = if prefix_dir == "" {
+    let prefix_dir = if prefix_dir.is_empty() {
         source_root.clone()
     } else {
         Some(PathBuf::from(prefix_dir))
@@ -418,13 +414,13 @@ fn main() {
                 );
 
                 let mut path_mapping = path_mapping.lock().unwrap();
-                *path_mapping = if path_mapping_file != "" {
+                *path_mapping = if !path_mapping_file.is_empty() {
                     let file = File::open(path_mapping_file).unwrap();
                     Some(serde_json::from_reader(file).unwrap())
-                } else if let Some(producer_path_mapping_buf) = producer_path_mapping_buf {
-                    Some(serde_json::from_slice(&producer_path_mapping_buf).unwrap())
                 } else {
-                    None
+                    producer_path_mapping_buf.map(|producer_path_mapping_buf| {
+                        serde_json::from_slice(&producer_path_mapping_buf).unwrap()
+                    })
                 };
             })
             .unwrap()
@@ -445,12 +441,12 @@ fn main() {
                 fs::create_dir(&working_dir).expect("Failed to create working directory");
                 consumer(
                     &working_dir,
-                    &source_root,
+                    source_root.as_deref(),
                     &result_map,
                     receiver,
                     branch_enabled,
                     guess_directory,
-                    &binary_path,
+                    binary_path.as_deref(),
                 );
             })
             .unwrap();
@@ -458,7 +454,7 @@ fn main() {
         parsers.push(t);
     }
 
-    if let Err(_) = producer.join() {
+    if producer.join().is_err() {
         process::exit(1);
     }
 
@@ -468,7 +464,7 @@ fn main() {
     }
 
     for parser in parsers {
-        if let Err(_) = parser.join() {
+        if parser.join().is_err() {
             process::exit(1);
         }
     }
@@ -482,21 +478,19 @@ fn main() {
     let iterator = rewrite_paths(
         result_map,
         path_mapping,
-        source_root,
-        prefix_dir,
+        source_root.as_deref(),
+        prefix_dir.as_deref(),
         ignore_not_existing,
-        &mut to_ignore_dirs,
+        &to_ignore_dirs,
         &to_keep_dirs,
         filter_option,
         file_filter,
     );
 
-    if output_type == "ade" {
-        output_activedata_etl(iterator, output_path, demangle);
-    } else if output_type == "lcov" {
-        output_lcov(iterator, output_path, demangle);
-    } else if output_type == "coveralls" {
-        output_coveralls(
+    match output_type {
+        "ade" => output_activedata_etl(iterator, output_path, demangle),
+        "lcov" => output_lcov(iterator, output_path, demangle),
+        "coveralls" => output_coveralls(
             iterator,
             repo_token,
             service_name,
@@ -509,9 +503,8 @@ fn main() {
             vcs_branch,
             is_parallel,
             demangle,
-        );
-    } else if output_type == "coveralls+" {
-        output_coveralls(
+        ),
+        "coveralls+" => output_coveralls(
             iterator,
             repo_token,
             service_name,
@@ -524,16 +517,11 @@ fn main() {
             vcs_branch,
             is_parallel,
             demangle,
-        );
-    } else if output_type == "files" {
-        output_files(iterator, output_path);
-    } else if output_type == "covdir" {
-        output_covdir(iterator, output_path);
-    } else if output_type == "html" {
-        output_html(iterator, output_path, num_threads, branch_enabled);
-    } else if output_type == "cobertura" {
-        output_cobertura(iterator, output_path, demangle);
-    } else {
-        assert!(false, "{} is not a supported output type", output_type);
-    }
+        ),
+        "files" => output_files(iterator, output_path),
+        "covdir" => output_covdir(iterator, output_path),
+        "html" => output_html(iterator, output_path, num_threads, branch_enabled),
+        "cobertura" => output_cobertura(iterator, output_path, demangle),
+        _ => panic!("{} is not a supported output type", output_type),
+    };
 }
