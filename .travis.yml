@@ -213,6 +213,10 @@ script:
         export CARGO_OPTIONS="--release --features tc --target-dir tcmalloc_build";
         cargo build --verbose $CARGO_OPTIONS;
       fi
+    - |
+      if [ "$TRAVIS_RUST_VERSION" = "nightly" ]; then
+        cargo build --verbose --benches
+      fi
 before_deploy:
     - tar -cvjSf grcov-${TRAVIS_OS_NAME}-x86_64.tar.bz2 -C target/release/ grcov
     - tar -cvjSf grcov-tcmalloc-${TRAVIS_OS_NAME}-x86_64.tar.bz2 -C tcmalloc_build/release/ grcov
