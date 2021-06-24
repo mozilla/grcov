@@ -1,5 +1,3 @@
-#![deny(rust_2018_idioms, clippy::all)]
-
 use globset::{Glob, GlobSetBuilder};
 use regex::Regex;
 use serde_json::Value;

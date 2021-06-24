@@ -1,5 +1,3 @@
-#![deny(rust_2018_idioms, clippy::all)]
-
 #[cfg(all(unix, feature = "tc"))]
 #[global_allocator]
 static GLOBAL: tcmalloc::TCMalloc = tcmalloc::TCMalloc;
