@@ -8,9 +8,10 @@ environment:
       PLATFORM_TARGET: x86_64
       PLATFORM_VS: x64
 
-    - CHANNEL: nightly
-      PLATFORM_TARGET: x86_64
-      PLATFORM_VS: x64
+    # TODO: Currently always fails with an error about the regex crate.
+    # - CHANNEL: nightly
+    #   PLATFORM_TARGET: x86_64
+    #   PLATFORM_VS: x64
 
     # TODO: The i686 build currently doesn't work.
     # - CHANNEL: nightly
