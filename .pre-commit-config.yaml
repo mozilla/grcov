@@ -16,6 +16,10 @@ repos:
     rev: v0.27.1
     hooks:
     -   id: markdownlint
+-   repo: https://github.com/DevinR528/cargo-sort
+    rev: 41eae5f1fe8dcc548efc4ac3b3dd5268503dd2fb
+    hooks:
+    -   id: cargo-sort
 -   repo: meta
     hooks:
     -   id: check-useless-excludes
