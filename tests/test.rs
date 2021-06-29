@@ -1,9 +1,3 @@
-extern crate globset;
-extern crate regex;
-extern crate serde_json;
-extern crate walkdir;
-extern crate zip;
-
 use globset::{Glob, GlobSetBuilder};
 use regex::Regex;
 use serde_json::Value;

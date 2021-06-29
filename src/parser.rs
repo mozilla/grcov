@@ -11,8 +11,8 @@ use std::str;
 
 use log::error;
 
-use xml::events::{BytesStart, Event};
-use xml::Reader;
+use quick_xml::events::{BytesStart, Event};
+use quick_xml::Reader;
 
 use rustc_hash::FxHashMap;
 
@@ -32,10 +32,10 @@ impl From<io::Error> for ParserError {
     }
 }
 
-impl From<xml::Error> for ParserError {
-    fn from(err: xml::Error) -> ParserError {
+impl From<quick_xml::Error> for ParserError {
+    fn from(err: quick_xml::Error) -> ParserError {
         match err {
-            xml::Error::Io(e) => ParserError::Io(e),
+            quick_xml::Error::Io(e) => ParserError::Io(e),
             _ => ParserError::Parse(format!("{:?}", err)),
         }
     }
@@ -48,7 +48,7 @@ impl From<ParseIntError> for ParserError {
 }
 
 impl fmt::Display for ParserError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             ParserError::Io(ref err) => write!(f, "IO error: {}", err),
             ParserError::Parse(ref s) => write!(f, "Record containing invalid integer: '{}'", s),
@@ -516,7 +516,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
 
 fn get_xml_attribute<R: BufRead>(
     reader: &Reader<R>,
-    event: &BytesStart,
+    event: &BytesStart<'_>,
     name: &str,
 ) -> Result<String, ParserError> {
     for a in event.attributes() {

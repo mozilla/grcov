@@ -1,18 +1,6 @@
-#[cfg(feature = "tc")]
-use tcmalloc::TCMalloc;
-
-#[cfg(feature = "tc")]
+#[cfg(all(unix, feature = "tc"))]
 #[global_allocator]
-static GLOBAL: TCMalloc = TCMalloc;
-
-extern crate clap;
-extern crate crossbeam;
-extern crate grcov;
-extern crate num_cpus;
-extern crate rustc_hash;
-extern crate serde_json;
-extern crate simplelog;
-extern crate tempfile;
+static GLOBAL: tcmalloc::TCMalloc = tcmalloc::TCMalloc;
 
 use clap::{crate_authors, crate_version, App, Arg, ArgGroup};
 use crossbeam::channel::bounded;

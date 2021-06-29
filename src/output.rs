@@ -585,7 +585,6 @@ pub fn output_html(
 
 #[cfg(test)]
 mod tests {
-    extern crate tempfile;
     use super::*;
     use std::{collections::BTreeMap, path::Path};
 
