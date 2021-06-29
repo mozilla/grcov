@@ -167,11 +167,12 @@ matrix:
         - CLANG_CXX=clang++-11
         - DEPLOY=0
 
-    - os: osx
-      rust: nightly
-      env:
-        - CLANG_CXX=clang++
-        - DEPLOY=1
+    # TODO: Currently always fails with a timeout while installing some additional software.
+    # - os: osx
+    #   rust: nightly
+    #   env:
+    #     - CLANG_CXX=clang++
+    #     - DEPLOY=1
 
     - os: linux
       rust: stable
