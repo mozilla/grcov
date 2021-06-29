@@ -55,14 +55,14 @@ pub trait GcovReader<E: Endian> {
     }
 }
 
-struct LittleEndian;
+pub struct LittleEndian;
 impl Endian for LittleEndian {
     fn is_little_endian() -> bool {
         true
     }
 }
 
-struct BigEndian;
+pub struct BigEndian;
 impl Endian for BigEndian {
     fn is_little_endian() -> bool {
         false

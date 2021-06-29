@@ -50,6 +50,10 @@ build_script:
   - cargo build %CARGO_RELEASE_ARG% --locked --target %TARGET%
   - 7z a grcov-win-%PLATFORM_TARGET%.tar .\target\%TARGET%\%BUILD_TYPE%\grcov.exe
   - 7z a grcov-win-%PLATFORM_TARGET%.tar.bz2 grcov-win-%PLATFORM_TARGET%.tar
+  - ps: |
+      If ($env:CHANNEL -eq "nightly") {
+         cargo build --locked --target %TARGET% --benches
+      }
 
 test_script:
   - set LLVM_PROFILE_FILE="grcov-%p-%m.profraw"

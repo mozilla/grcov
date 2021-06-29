@@ -1,5 +1,5 @@
 #![feature(test)]
-extern crate grcov;
+#![allow(clippy::unit_arg)]
 extern crate test;
 
 use std::fs::File;
