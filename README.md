@@ -239,7 +239,9 @@ By passing `-t lcov` you could generate an lcov.info file and pass it to genhtml
 genhtml -o ./target/debug/coverage/ --show-details --highlight --ignore-errors source --legend ./target/debug/lcov.info
 ```
 
-#### Coveralls/Codecov output
+LCOV output should be used when uploading to Codecov, with the `--branch` argument for partial coverage support.
+
+#### Coveralls output
 
 Coverage can also be generated in coveralls format:
 
