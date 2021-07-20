@@ -298,7 +298,28 @@ script:
       bash <(curl -s https://codecov.io/bash) -f lcov.info;
 ```
 
-### Alternative reports
+### grcov with GitLab CI and codecov.io
+
+```yaml
+codecov:
+  stage:                           coverage
+  variables:
+    CARGO_INCREMENTAL:             0
+    RUSTFLAGS:                     "-Zprofile -Zmir-opt-level=0 -Ccodegen-units=1
+                                      -Copt-level=0 -Clink-dead-code -Coverflow-checks=off"
+  script:
+    # RUSTFLAGS are the cause target cache can't be used here
+    - unset "CARGO_TARGET_DIR" # only needed if it's not default
+    - cargo clean
+    - cargo build --verbose --all-features --workspace
+    - cargo test --verbose --all-features --no-fail-fast --workspace
+    # coverage with branches
+    - grcov ./target -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" --ignore "tests/*" -o lcov-w-branch.info
+    - rust-covfix -o lcov-w-branch_correct.info lcov-w-branch.info
+    - bash <(curl -s https://codecov.io/bash) -t "$CODECOV_P_TOKEN" -f lcov-w-branch_correct.info
+```
+
+## Alternative reports
 
 grcov provides the following output types:
 
