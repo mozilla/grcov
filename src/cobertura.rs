@@ -3,6 +3,7 @@ use quick_xml::{
     Writer,
 };
 use rustc_hash::FxHashMap;
+use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{
     collections::BTreeSet,
@@ -333,17 +334,16 @@ fn get_coverage(
 }
 
 pub fn output_cobertura(
-    source_dir: &str,
+    source_dir: Option<&Path>,
     results: CovResultIter,
-    output_file: Option<&str>,
+    output_file: Option<&Path>,
     demangle: bool,
 ) {
     let demangle_options = DemangleOptions::name_only();
-    let sources = vec![match source_dir {
-        "" => ".",
-        _ => source_dir,
-    }
-    .to_string()];
+    let sources = vec![source_dir
+        .unwrap_or_else(|| Path::new("."))
+        .display()
+        .to_string()];
     let coverage = get_coverage(results, sources, demangle, demangle_options);
 
     let mut writer = Writer::new_with_indent(Cursor::new(vec![]), b' ', 4);
@@ -721,7 +721,7 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_cobertura("", results, Some(file_path.to_str().unwrap()), true);
+        output_cobertura(None, results, Some(&file_path), true);
 
         let results = read_file(&file_path);
 
@@ -756,7 +756,7 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_cobertura("", results, Some(file_path.to_str().unwrap()), true);
+        output_cobertura(None, results, Some(file_path.as_ref()), true);
 
         let results = read_file(&file_path);
 
@@ -796,7 +796,7 @@ mod tests {
         ];
 
         let results = Box::new(results.into_iter());
-        output_cobertura("", results, Some(file_path.to_str().unwrap()), true);
+        output_cobertura(None, results, Some(file_path.as_ref()), true);
 
         let results = read_file(&file_path);
 
@@ -829,7 +829,7 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_cobertura("", results, Some(file_path.to_str().unwrap()), true);
+        output_cobertura(None, results, Some(&file_path), true);
 
         let results = read_file(&file_path);
 
@@ -850,7 +850,7 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_cobertura("src", results, Some(file_path.to_str().unwrap()), true);
+        output_cobertura(Some(Path::new("src")), results, Some(&file_path), true);
 
         let results = read_file(&file_path);
 
