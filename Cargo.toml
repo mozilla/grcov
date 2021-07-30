@@ -45,7 +45,6 @@ codecov = { repository = "mozilla/grcov" }
 [dependencies]
 cargo-binutils = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
-clap = "2.33"
 crossbeam = "0.8"
 flate2 = "1.0"
 fomat-macros = "0.3"
@@ -64,6 +63,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 simplelog = "0.10"
 smallvec = "1.6"
+structopt = "0.3.22"
 symbolic-common = "8.2"
 symbolic-demangle = { version = "8.3", default-features = false }
 tempfile = "3.2"

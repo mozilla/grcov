@@ -7,7 +7,7 @@ use std::collections::{hash_map, BTreeSet};
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{self, BufWriter, Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::{
@@ -35,14 +35,13 @@ macro_rules! demangle {
     }};
 }
 
-pub fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
+pub fn get_target_output_writable(output_file: Option<&Path>) -> Box<dyn Write> {
     let write_target: Box<dyn Write> = match output_file {
-        Some(filename) => {
-            let output = PathBuf::from(filename);
+        Some(output) => {
             if output.is_dir() {
                 panic!(
                     "The output file {} is a directory, but must be a regular file.",
-                    filename
+                    output.display()
                 )
             }
             Box::new(File::create(&output).unwrap_or_else(|_| {
@@ -51,12 +50,15 @@ pub fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
                     if !parent_path.exists() {
                         panic!(
                             "Cannot create {} to dump coverage data, as {} doesn't exist",
-                            filename,
+                            output.display(),
                             parent_path.display()
                         )
                     }
                 }
-                panic!("Cannot create the file {} to dump coverage data.", filename)
+                panic!(
+                    "Cannot create the file {} to dump coverage data.",
+                    output.display()
+                )
             }))
         }
         None => {
@@ -67,7 +69,7 @@ pub fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
     write_target
 }
 
-pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>, demangle: bool) {
+pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&Path>, demangle: bool) {
     let demangle_options = DemangleOptions::name_only();
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
 
@@ -177,7 +179,7 @@ pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>, 
     }
 }
 
-pub fn output_covdir(results: CovResultIter, output_file: Option<&str>) {
+pub fn output_covdir(results: CovResultIter, output_file: Option<&Path>) {
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     let mut relative: FxHashMap<PathBuf, Rc<RefCell<CDDirStats>>> = FxHashMap::default();
     let global = Rc::new(RefCell::new(CDDirStats::new("".to_string())));
@@ -233,7 +235,7 @@ pub fn output_covdir(results: CovResultIter, output_file: Option<&str>) {
     serde_json::to_writer(&mut writer, &global.into_json()).unwrap();
 }
 
-pub fn output_lcov(results: CovResultIter, output_file: Option<&str>, demangle: bool) {
+pub fn output_lcov(results: CovResultIter, output_file: Option<&Path>, demangle: bool) {
     let demangle_options = DemangleOptions::name_only();
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     writer.write_all(b"TN:\n").unwrap();
@@ -418,7 +420,7 @@ pub fn output_coveralls(
     service_pull_request: &str,
     commit_sha: &str,
     with_function_info: bool,
-    output_file: Option<&str>,
+    output_file: Option<&Path>,
     vcs_branch: &str,
     parallel: bool,
     demangle: bool,
@@ -502,7 +504,7 @@ pub fn output_coveralls(
     serde_json::to_writer(&mut writer, &result).unwrap();
 }
 
-pub fn output_files(results: CovResultIter, output_file: Option<&str>) {
+pub fn output_files(results: CovResultIter, output_file: Option<&Path>) {
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     for (_, rel_path, _) in results {
         writeln!(writer, "{}", rel_path.display()).unwrap();
@@ -511,7 +513,7 @@ pub fn output_files(results: CovResultIter, output_file: Option<&str>) {
 
 pub fn output_html(
     results: CovResultIter,
-    output_dir: Option<&str>,
+    output_dir: Option<&Path>,
     num_threads: usize,
     branch_enabled: bool,
 ) {
@@ -619,7 +621,7 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_lcov(results, Some(file_path.to_str().unwrap()), false);
+        output_lcov(results, Some(&file_path), false);
 
         let results = read_file(&file_path);
 
@@ -668,7 +670,7 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_lcov(results, Some(file_path.to_str().unwrap()), true);
+        output_lcov(results, Some(&file_path), true);
 
         let results = read_file(&file_path);
 
@@ -723,7 +725,7 @@ mod tests {
         ];
 
         let results = Box::new(results.into_iter());
-        output_covdir(results, Some(file_path.to_str().unwrap()));
+        output_covdir(results, Some(&file_path));
 
         let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
         let expected_path = PathBuf::from("./test/").join(&file_name);
@@ -761,7 +763,7 @@ mod tests {
             "unused",
             "unused",
             with_function_info,
-            Some(file_path.to_str().unwrap()),
+            Some(&file_path),
             "unused",
             parallel,
             false,
@@ -801,7 +803,7 @@ mod tests {
             "unused",
             "unused",
             with_function_info,
-            Some(file_path.to_str().unwrap()),
+            Some(&file_path),
             "unused",
             parallel,
             false,
@@ -842,7 +844,7 @@ mod tests {
             "unused",
             "unused",
             with_function_info,
-            Some(file_path.to_str().unwrap()),
+            Some(&file_path),
             "unused",
             parallel,
             false,
