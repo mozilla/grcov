@@ -97,7 +97,6 @@ mod tests {
             &PathBuf::from("src"),
             &tmp_path,
         );
-        assert!(lcovs.is_ok());
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 0);
 
@@ -106,7 +105,6 @@ mod tests {
             &PathBuf::from("test/rust-code-coverage-sample"),
             &tmp_path,
         );
-        assert!(lcovs.is_ok());
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 1);
         assert_eq!(

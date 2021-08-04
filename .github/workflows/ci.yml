@@ -12,11 +12,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        run: |
+          rustup toolchain add ${{ matrix.toolchain }} --component llvm-tools-preview
+          rustup override set ${{ matrix.toolchain }}
       - name: Configure cache
         uses: actions/cache@v2
         with:
@@ -28,10 +26,7 @@ jobs:
             target/
           key: test-${{ runner.os }}-cargo-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
       - name: Test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --lib
+        run: cargo test --lib
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -39,10 +34,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+        run: |
+          rustup update stable
+          rustup override set stable
       - name: Configure cache
         uses: actions/cache@v2
         with:
@@ -54,15 +48,9 @@ jobs:
             target/
           key: lint-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Run rustfmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: -- --check
+        run: cargo fmt -- --check
       - name: Run clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
+        run: cargo clippy -- -D warnings
   pre-commit:
     name: Pre Commit
     runs-on: ubuntu-latest
@@ -72,11 +60,12 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v2
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-      - name: Configure cache
+        run: |
+          rustup update stable
+          rustup override set stable
+      - name: Install pre-commit
+        run: pip install pre-commit
+      - name: Configure Rust cache
         uses: actions/cache@v2
         with:
           path: |
@@ -86,5 +75,10 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: pre-commit-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Configure pre-commit cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-pre-commit-${{ hashFiles('**/.pre-commit-config.yaml') }}
       - name: Run pre-commit
-        uses: pre-commit/action@v2.0.3
+        run: pre-commit run --all-files
