@@ -59,6 +59,9 @@ fn run(path: &Path) {
         .status()
         .expect("Failed to run");
     assert!(status.success());
+
+    // Clean profraw files after running the binary, or grcov will think source-based coverage was used.
+    rm_files(path, vec!["*.profraw"]);
 }
 
 fn read_file(path: &Path) -> String {
@@ -193,14 +196,7 @@ fn rm_files(directory: &Path, file_globs: Vec<&str>) {
 fn do_clean(directory: &Path) {
     rm_files(
         directory,
-        vec![
-            "a.out",
-            "a.exe",
-            "*.gcno",
-            "*.gcda",
-            "*.zip",
-            "default.profraw",
-        ],
+        vec!["a.out", "a.exe", "*.gcno", "*.gcda", "*.zip", "*.profraw"],
     );
 }
 
