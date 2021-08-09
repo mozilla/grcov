@@ -40,7 +40,7 @@ jobs:
           rustup update stable
           rustup override set stable
       - name: Install pre-commit
-        run: pip install pre-commit
+        run: pip install --no-cache-dir pre-commit
       - name: Configure Rust cache
         uses: actions/cache@v2
         with:
