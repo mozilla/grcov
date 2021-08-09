@@ -33,30 +33,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      - name: Setup Rust
-        run: |
-          rustup update stable
-          rustup override set stable
-      - name: Configure cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: lint-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Run rustfmt
-        run: cargo fmt -- --check
-      - name: Run clippy
-        run: cargo clippy -- -D warnings
-  pre-commit:
-    name: Pre Commit
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
       - name: Setup Python
         uses: actions/setup-python@v2
       - name: Setup Rust
