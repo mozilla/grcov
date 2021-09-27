@@ -1,4 +1,4 @@
-name: CI
+name: CICD
 on: [pull_request, push]
 jobs:
   test:
