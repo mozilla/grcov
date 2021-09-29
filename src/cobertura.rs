@@ -449,9 +449,9 @@ pub fn output_cobertura(
             c.push_attribute(("line-rate", stats.line_rate().to_string().as_ref()));
             c.push_attribute(("branch-rate", stats.branch_rate().to_string().as_ref()));
             c.push_attribute(("complexity", stats.complexity.to_string().as_ref()));
+            writer.write_event(Event::Start(c)).unwrap();
             let mut lines: Box<dyn Iterator<Item = &Line>> = Box::new(std::iter::empty());
             if with_method {
-                writer.write_event(Event::Start(c)).unwrap();
                 writer
                     .write_event(Event::Start(BytesStart::borrowed(
                         methods_tag,
