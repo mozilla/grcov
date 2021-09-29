@@ -201,6 +201,9 @@ struct Opt {
     /// No symbol demangling.
     #[structopt(long)]
     no_demangle: bool,
+
+    #[structopt(long)]
+    no_method: bool,
 }
 
 fn main() {
@@ -265,6 +268,7 @@ fn main() {
         opt.excl_br_stop,
     );
     let demangle = !opt.no_demangle;
+    let method = !opt.no_method;
 
     panic::set_hook(Box::new(|panic_info| {
         let (filename, line) = panic_info
@@ -444,6 +448,7 @@ fn main() {
             iterator,
             opt.output_path.as_deref(),
             demangle,
+            method,
         ),
     };
 }

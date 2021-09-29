@@ -338,6 +338,7 @@ pub fn output_cobertura(
     results: CovResultIter,
     output_file: Option<&Path>,
     demangle: bool,
+    with_method: bool,
 ) {
     let demangle_options = DemangleOptions::name_only();
     let sources = vec![source_dir
@@ -449,32 +450,40 @@ pub fn output_cobertura(
             c.push_attribute(("branch-rate", stats.branch_rate().to_string().as_ref()));
             c.push_attribute(("complexity", stats.complexity.to_string().as_ref()));
 
-            writer.write_event(Event::Start(c)).unwrap();
-            writer
-                .write_event(Event::Start(BytesStart::borrowed(
-                    methods_tag,
-                    methods_tag.len(),
-                )))
-                .unwrap();
-
-            for method in &class.methods {
-                let mut m = BytesStart::borrowed(method_tag, method_tag.len());
-                m.push_attribute(("name", method.name.as_ref()));
-                m.push_attribute(("signature", method.signature.as_ref()));
-                let stats = method.get_stats();
-                m.push_attribute(("line-rate", stats.line_rate().to_string().as_ref()));
-                m.push_attribute(("branch-rate", stats.branch_rate().to_string().as_ref()));
-                m.push_attribute(("complexity", stats.complexity.to_string().as_ref()));
-                writer.write_event(Event::Start(m)).unwrap();
-
-                write_lines(&mut writer, &method.lines);
+            if with_method {
+                writer.write_event(Event::Start(c)).unwrap();
                 writer
-                    .write_event(Event::End(BytesEnd::borrowed(method_tag)))
+                    .write_event(Event::Start(BytesStart::borrowed(
+                        methods_tag,
+                        methods_tag.len(),
+                    )))
                     .unwrap();
             }
-            writer
-                .write_event(Event::End(BytesEnd::borrowed(methods_tag)))
-                .unwrap();
+
+            for method in &class.methods {
+                if with_method {
+                    let mut m = BytesStart::borrowed(method_tag, method_tag.len());
+                    m.push_attribute(("name", method.name.as_ref()));
+                    m.push_attribute(("signature", method.signature.as_ref()));
+                    let stats = method.get_stats();
+                    m.push_attribute(("line-rate", stats.line_rate().to_string().as_ref()));
+                    m.push_attribute(("branch-rate", stats.branch_rate().to_string().as_ref()));
+                    m.push_attribute(("complexity", stats.complexity.to_string().as_ref()));
+                    writer.write_event(Event::Start(m)).unwrap();
+                }
+
+                write_lines(&mut writer, &method.lines);
+                if with_method {
+                    writer
+                        .write_event(Event::End(BytesEnd::borrowed(method_tag)))
+                        .unwrap();
+                }
+            }
+            if with_method {
+                writer
+                    .write_event(Event::End(BytesEnd::borrowed(methods_tag)))
+                    .unwrap();
+            }
             write_lines(&mut writer, &class.lines);
         }
         writer
@@ -721,7 +730,7 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_cobertura(None, results, Some(&file_path), true);
+        output_cobertura(None, results, Some(&file_path), true, true);
 
         let results = read_file(&file_path);
 
@@ -756,7 +765,7 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_cobertura(None, results, Some(file_path.as_ref()), true);
+        output_cobertura(None, results, Some(file_path.as_ref()), true, true);
 
         let results = read_file(&file_path);
 
@@ -796,7 +805,7 @@ mod tests {
         ];
 
         let results = Box::new(results.into_iter());
-        output_cobertura(None, results, Some(file_path.as_ref()), true);
+        output_cobertura(None, results, Some(file_path.as_ref()), true, true);
 
         let results = read_file(&file_path);
 
@@ -829,7 +838,7 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_cobertura(None, results, Some(&file_path), true);
+        output_cobertura(None, results, Some(&file_path), true, true);
 
         let results = read_file(&file_path);
 
@@ -850,7 +859,13 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_cobertura(Some(Path::new("src")), results, Some(&file_path), true);
+        output_cobertura(
+            Some(Path::new("src")),
+            results,
+            Some(&file_path),
+            true,
+            true,
+        );
 
         let results = read_file(&file_path);
 
