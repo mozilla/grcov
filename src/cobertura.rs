@@ -449,7 +449,7 @@ pub fn output_cobertura(
             c.push_attribute(("line-rate", stats.line_rate().to_string().as_ref()));
             c.push_attribute(("branch-rate", stats.branch_rate().to_string().as_ref()));
             c.push_attribute(("complexity", stats.complexity.to_string().as_ref()));
-
+            let mut lines: Box<dyn Iterator<Item = &Line>> = Box::new(std::iter::empty());
             if with_method {
                 writer.write_event(Event::Start(c)).unwrap();
                 writer
@@ -458,10 +458,8 @@ pub fn output_cobertura(
                         methods_tag.len(),
                     )))
                     .unwrap();
-            }
 
-            for method in &class.methods {
-                if with_method {
+                for method in &class.methods {
                     let mut m = BytesStart::borrowed(method_tag, method_tag.len());
                     m.push_attribute(("name", method.name.as_ref()));
                     m.push_attribute(("signature", method.signature.as_ref()));
@@ -470,21 +468,24 @@ pub fn output_cobertura(
                     m.push_attribute(("branch-rate", stats.branch_rate().to_string().as_ref()));
                     m.push_attribute(("complexity", stats.complexity.to_string().as_ref()));
                     writer.write_event(Event::Start(m)).unwrap();
-                }
 
-                write_lines(&mut writer, &method.lines);
-                if with_method {
+                    write_lines(&mut writer, method.lines.iter());
+
                     writer
                         .write_event(Event::End(BytesEnd::borrowed(method_tag)))
                         .unwrap();
                 }
-            }
-            if with_method {
+
                 writer
                     .write_event(Event::End(BytesEnd::borrowed(methods_tag)))
                     .unwrap();
+            } else {
+                for method in &class.methods {
+                    lines = Box::new(lines.chain(method.lines.iter()));
+                }
             }
-            write_lines(&mut writer, &class.lines);
+            lines = Box::new(lines.chain(class.lines.iter()));
+            write_lines(&mut writer, lines);
         }
         writer
             .write_event(Event::End(BytesEnd::borrowed(class_tag)))
@@ -510,7 +511,7 @@ pub fn output_cobertura(
     file.write_all(&result).unwrap();
 }
 
-fn write_lines(writer: &mut Writer<Cursor<Vec<u8>>>, lines: &[Line]) {
+fn write_lines<'a, I: Iterator<Item = &'a Line>>(writer: &mut Writer<Cursor<Vec<u8>>>, lines: I) {
     let lines_tag = b"lines";
     let line_tag = b"line";
 
