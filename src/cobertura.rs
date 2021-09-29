@@ -486,10 +486,10 @@ pub fn output_cobertura(
             }
             lines = Box::new(lines.chain(class.lines.iter()));
             write_lines(&mut writer, lines);
+            writer
+                .write_event(Event::End(BytesEnd::borrowed(class_tag)))
+                .unwrap();
         }
-        writer
-            .write_event(Event::End(BytesEnd::borrowed(class_tag)))
-            .unwrap();
         writer
             .write_event(Event::End(BytesEnd::borrowed(classes_tag)))
             .unwrap();
