@@ -7,7 +7,7 @@ use std::collections::{hash_map, BTreeSet};
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{self, BufWriter, Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::{
@@ -24,7 +24,7 @@ use crate::html;
 macro_rules! demangle {
     ($name: expr, $demangle: expr, $options: expr) => {{
         if $demangle {
-            if let Some(name) = Name::new($name).demangle($options) {
+            if let Some(name) = Name::from($name).demangle($options) {
                 StringOrRef::S(name)
             } else {
                 StringOrRef::R($name)
@@ -35,18 +35,30 @@ macro_rules! demangle {
     }};
 }
 
-fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
+pub fn get_target_output_writable(output_file: Option<&Path>) -> Box<dyn Write> {
     let write_target: Box<dyn Write> = match output_file {
-        Some(filename) => {
-            let output = PathBuf::from(filename);
+        Some(output) => {
             if output.is_dir() {
                 panic!(
                     "The output file {} is a directory, but must be a regular file.",
-                    filename
+                    output.display()
                 )
             }
-            Box::new(File::create(output).unwrap_or_else(|_| {
-                panic!("Cannot create the file {} to dump coverage data", filename)
+            Box::new(File::create(&output).unwrap_or_else(|_| {
+                let parent = output.parent();
+                if let Some(parent_path) = parent {
+                    if !parent_path.exists() {
+                        panic!(
+                            "Cannot create {} to dump coverage data, as {} doesn't exist",
+                            output.display(),
+                            parent_path.display()
+                        )
+                    }
+                }
+                panic!(
+                    "Cannot create the file {} to dump coverage data.",
+                    output.display()
+                )
             }))
         }
         None => {
@@ -57,8 +69,8 @@ fn get_target_output_writable(output_file: Option<&str>) -> Box<dyn Write> {
     write_target
 }
 
-pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>, demangle: bool) {
-    let demangle_options = DemangleOptions::default();
+pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&Path>, demangle: bool) {
+    let demangle_options = DemangleOptions::name_only();
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
 
     for (_, rel_path, result) in results {
@@ -86,7 +98,7 @@ pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>, 
         for function in result.functions.values() {
             start_indexes.push(function.start);
         }
-        start_indexes.sort();
+        start_indexes.sort_unstable();
 
         for (name, function) in &result.functions {
             // println!("{} {} {}", name, function.executed, function.start);
@@ -167,7 +179,7 @@ pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&str>, 
     }
 }
 
-pub fn output_covdir(results: CovResultIter, output_file: Option<&str>) {
+pub fn output_covdir(results: CovResultIter, output_file: Option<&Path>) {
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     let mut relative: FxHashMap<PathBuf, Rc<RefCell<CDDirStats>>> = FxHashMap::default();
     let global = Rc::new(RefCell::new(CDDirStats::new("".to_string())));
@@ -217,14 +229,14 @@ pub fn output_covdir(results: CovResultIter, output_file: Option<&str>) {
         ));
     }
 
-    let mut global = global.borrow_mut();
+    let mut global = global.take();
     global.set_stats();
 
-    serde_json::to_writer(&mut writer, &global.to_json()).unwrap();
+    serde_json::to_writer(&mut writer, &global.into_json()).unwrap();
 }
 
-pub fn output_lcov(results: CovResultIter, output_file: Option<&str>, demangle: bool) {
-    let demangle_options = DemangleOptions::default();
+pub fn output_lcov(results: CovResultIter, output_file: Option<&Path>, demangle: bool) {
+    let demangle_options = DemangleOptions::name_only();
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     writer.write_all(b"TN:\n").unwrap();
 
@@ -264,7 +276,7 @@ pub fn output_lcov(results: CovResultIter, output_file: Option<&str>, demangle: 
         // branch coverage information
         let mut branch_count = 0;
         let mut branch_hit = 0;
-        for (line, ref taken) in &result.branches {
+        for (line, taken) in &result.branches {
             branch_count += taken.len();
             for (n, b_t) in taken.iter().enumerate() {
                 writeln!(
@@ -326,7 +338,7 @@ where
         .and_then(|child| child.wait_with_output())
         .ok() // Discard the error type -- we won't handle it anyway
         .and_then(|output| String::from_utf8(output.stdout).ok())
-        .unwrap_or_else(|| String::new())
+        .unwrap_or_default()
 }
 
 /// Returns a JSON object describing the given commit. Coveralls uses that to display commit info.
@@ -377,9 +389,8 @@ fn get_coveralls_git_info(commit_sha: &str, vcs_branch: &str) -> Value {
         for line in output.lines() {
             if line.ends_with(" (fetch)") {
                 let mut fields = line.split_whitespace();
-                match (fields.next(), fields.next()) {
-                    (Some(name), Some(url)) => remotes.push(json!({"name": name, "url": url})),
-                    _ => (),
+                if let (Some(name), Some(url)) = (fields.next(), fields.next()) {
+                    remotes.push(json!({"name": name, "url": url}))
                 };
             }
         }
@@ -409,12 +420,12 @@ pub fn output_coveralls(
     service_pull_request: &str,
     commit_sha: &str,
     with_function_info: bool,
-    output_file: Option<&str>,
+    output_file: Option<&Path>,
     vcs_branch: &str,
     parallel: bool,
     demangle: bool,
 ) {
-    let demangle_options = DemangleOptions::default();
+    let demangle_options = DemangleOptions::name_only();
     let mut source_files = Vec::new();
 
     for (abs_path, rel_path, result) in results {
@@ -431,7 +442,7 @@ pub fn output_coveralls(
         }
 
         let mut branches = Vec::new();
-        for (line, ref taken) in &result.branches {
+        for (line, taken) in &result.branches {
             for (n, b_t) in taken.iter().enumerate() {
                 branches.push(*line);
                 branches.push(0);
@@ -493,7 +504,7 @@ pub fn output_coveralls(
     serde_json::to_writer(&mut writer, &result).unwrap();
 }
 
-pub fn output_files(results: CovResultIter, output_file: Option<&str>) {
+pub fn output_files(results: CovResultIter, output_file: Option<&Path>) {
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     for (_, rel_path, _) in results {
         writeln!(writer, "{}", rel_path.display()).unwrap();
@@ -502,7 +513,7 @@ pub fn output_files(results: CovResultIter, output_file: Option<&str>) {
 
 pub fn output_html(
     results: CovResultIter,
-    output_dir: Option<&str>,
+    output_dir: Option<&Path>,
     num_threads: usize,
     branch_enabled: bool,
 ) {
@@ -536,7 +547,7 @@ pub fn output_html(
         let t = thread::Builder::new()
             .name(format!("Consumer HTML {}", i))
             .spawn(move || {
-                html::consumer_html(&tera, receiver, stats, output, config, branch_enabled);
+                html::consumer_html(&tera, receiver, stats, &output, config, branch_enabled);
             })
             .unwrap();
 
@@ -565,19 +576,23 @@ pub fn output_html(
 
     let global = Arc::try_unwrap(stats).unwrap().into_inner().unwrap();
 
-    html::gen_index(&tera, global, config, &output, branch_enabled);
+    html::gen_index(&tera, &global, &config, &output, branch_enabled);
+
+    for style in html::BadgeStyle::iter() {
+        html::gen_badge(&tera, &global.stats, &config, &output, style);
+    }
+
+    html::gen_coverage_json(&global.stats, &config, &output);
 }
 
 #[cfg(test)]
 mod tests {
-
-    extern crate tempfile;
     use super::*;
-    use std::collections::BTreeMap;
+    use std::{collections::BTreeMap, path::Path};
 
-    fn read_file(path: &PathBuf) -> String {
+    fn read_file(path: &Path) -> String {
         let mut f =
-            File::open(path).expect(format!("{:?} file not found", path.file_name()).as_str());
+            File::open(path).unwrap_or_else(|_| panic!("{:?} file not found", path.file_name()));
         let mut s = String::new();
         f.read_to_string(&mut s).unwrap();
         s
@@ -606,7 +621,7 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_lcov(results, Some(file_path.to_str().unwrap()), false);
+        output_lcov(results, Some(&file_path), false);
 
         let results = read_file(&file_path);
 
@@ -655,7 +670,7 @@ mod tests {
         )];
 
         let results = Box::new(results.into_iter());
-        output_lcov(results, Some(file_path.to_str().unwrap()), true);
+        output_lcov(results, Some(&file_path), true);
 
         let results = read_file(&file_path);
 
@@ -710,7 +725,7 @@ mod tests {
         ];
 
         let results = Box::new(results.into_iter());
-        output_covdir(results, Some(file_path.to_str().unwrap()));
+        output_covdir(results, Some(&file_path));
 
         let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
         let expected_path = PathBuf::from("./test/").join(&file_name);
@@ -748,7 +763,7 @@ mod tests {
             "unused",
             "unused",
             with_function_info,
-            Some(file_path.to_str().unwrap()),
+            Some(&file_path),
             "unused",
             parallel,
             false,
@@ -788,7 +803,7 @@ mod tests {
             "unused",
             "unused",
             with_function_info,
-            Some(file_path.to_str().unwrap()),
+            Some(&file_path),
             "unused",
             parallel,
             false,
@@ -829,7 +844,7 @@ mod tests {
             "unused",
             "unused",
             with_function_info,
-            Some(file_path.to_str().unwrap()),
+            Some(&file_path),
             "unused",
             parallel,
             false,

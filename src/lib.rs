@@ -1,22 +1,5 @@
 #![recursion_limit = "1024"]
-extern crate cargo_binutils;
-extern crate chrono;
-extern crate crossbeam;
-extern crate fomat_macros;
-extern crate globset;
-#[macro_use]
-extern crate lazy_static;
-extern crate log;
-extern crate quick_xml as xml;
-extern crate rustc_hash;
-extern crate semver;
-extern crate serde_derive;
-extern crate serde_json;
-extern crate smallvec;
-extern crate tempfile;
-extern crate uuid;
-extern crate walkdir;
-extern crate zip;
+#![allow(clippy::too_many_arguments)]
 
 mod defs;
 pub use crate::defs::*;
@@ -42,6 +25,9 @@ pub use crate::path_rewriting::*;
 mod output;
 pub use crate::output::*;
 
+mod cobertura;
+pub use crate::cobertura::*;
+
 mod reader;
 pub use crate::reader::*;
 
@@ -53,11 +39,13 @@ pub mod html;
 mod file_filter;
 pub use crate::file_filter::*;
 
-use log::error;
-use std::collections::{btree_map, hash_map};
+use log::{error, warn};
 use std::fs;
 use std::io::{BufReader, Cursor};
-use std::path::PathBuf;
+use std::{
+    collections::{btree_map, hash_map},
+    path::Path,
+};
 use walkdir::WalkDir;
 
 // Merge results, without caring about duplicate lines (they will be removed at the end).
@@ -106,13 +94,13 @@ pub fn merge_results(result: &mut CovResult, result2: CovResult) -> bool {
         };
     }
 
-    return warn_overflow;
+    warn_overflow
 }
 
 fn add_results(
     mut results: Vec<(String, CovResult)>,
     result_map: &SyncCovResultMap,
-    source_dir: &Option<PathBuf>,
+    source_dir: Option<&Path>,
 ) {
     let mut map = result_map.lock().unwrap();
     let mut warn_overflow = false;
@@ -139,7 +127,7 @@ fn add_results(
     }
 
     if warn_overflow {
-        error!("Execution count overflow detected.");
+        warn!("Execution count overflow detected.");
     }
 }
 
@@ -147,7 +135,7 @@ fn rename_single_files(results: &mut Vec<(String, CovResult)>, stem: &str) {
     // sometimes the gcno just contains foo.c
     // so in such case (with option --guess-directory-when-missing)
     // we guess the filename in using the buffer stem
-    if let Some(parent) = PathBuf::from(stem).parent() {
+    if let Some(parent) = Path::new(stem).parent() {
         for (file, _) in results.iter_mut() {
             if has_no_parent(file) {
                 *file = parent.join(&file).to_str().unwrap().to_string();
@@ -178,13 +166,13 @@ macro_rules! try_parse {
 }
 
 pub fn consumer(
-    working_dir: &PathBuf,
-    source_dir: &Option<PathBuf>,
+    working_dir: &Path,
+    source_dir: Option<&Path>,
     result_map: &SyncCovResultMap,
     receiver: JobReceiver,
     branch_enabled: bool,
     guess_directory: bool,
-    binary_path: &Option<PathBuf>,
+    binary_path: Option<&Path>,
 ) {
     let mut gcov_type = GcovType::Unknown;
 
@@ -194,7 +182,7 @@ pub fn consumer(
         }
         let work_item = work_item.unwrap();
         let new_results = match work_item.format {
-            ItemFormat::GCNO => {
+            ItemFormat::Gcno => {
                 match work_item.item {
                     ItemType::Path((stem, gcno_path)) => {
                         // GCC
@@ -236,9 +224,9 @@ pub fn consumer(
 
                                 new_results.append(&mut try_parse!(
                                     if gcov_path.extension().unwrap() == "gz" {
-                                        parse_gcov_gz(&gcov_path)
+                                        parse_gcov_gz(gcov_path)
                                     } else {
-                                        parse_gcov(&gcov_path)
+                                        parse_gcov(gcov_path)
                                     },
                                     work_item.name
                                 ));
@@ -256,7 +244,7 @@ pub fn consumer(
                     }
                     ItemType::Buffers(buffers) => {
                         // LLVM
-                        match GCNO::compute(
+                        match Gcno::compute(
                             &buffers.stem,
                             buffers.gcno_buf,
                             buffers.gcda_buf,
@@ -285,7 +273,7 @@ pub fn consumer(
                     }
                 }
             }
-            ItemFormat::PROFRAW => {
+            ItemFormat::Profraw => {
                 if binary_path.is_none() {
                     error!("The path to the compiled binary must be given as an argument when source-based coverage is used");
                     continue;
@@ -319,9 +307,9 @@ pub fn consumer(
                     continue;
                 }
             }
-            ItemFormat::INFO | ItemFormat::JACOCO_XML => {
+            ItemFormat::Info | ItemFormat::JacocoXml => {
                 if let ItemType::Content(content) = work_item.item {
-                    if work_item.format == ItemFormat::INFO {
+                    if work_item.format == ItemFormat::Info {
                         try_parse!(parse_lcov(content, branch_enabled), work_item.name)
                     } else {
                         let buffer = BufReader::new(Cursor::new(content));
@@ -430,10 +418,10 @@ mod tests {
         assert!(result.functions.contains_key("f2"));
         let mut func = result.functions.get("f1").unwrap();
         assert_eq!(func.start, 1);
-        assert_eq!(func.executed, false);
+        assert!(!func.executed);
         func = result.functions.get("f2").unwrap();
         assert_eq!(func.start, 2);
-        assert_eq!(func.executed, true);
+        assert!(func.executed);
     }
 
     #[test]
@@ -449,14 +437,14 @@ mod tests {
         add_results(
             results,
             &result_map,
-            &Some(PathBuf::from("./test/relative_path")),
+            Some(Path::new("./test/relative_path")),
         );
         let result_map = Arc::try_unwrap(result_map).unwrap().into_inner().unwrap();
 
         assert!(result_map.len() == 1);
 
         let cpp_file =
-            canonicalize_path(PathBuf::from("./test/relative_path/foo/bar/oof.cpp")).unwrap();
+            canonicalize_path(Path::new("./test/relative_path/foo/bar/oof.cpp")).unwrap();
         let cpp_file = cpp_file.to_str().unwrap();
         let cov_result = result_map.get(cpp_file).unwrap();
 
@@ -480,7 +468,7 @@ mod tests {
         let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
             FxHashMap::with_capacity_and_hasher(3, Default::default()),
         ));
-        add_results(results, &result_map, &None);
+        add_results(results, &result_map, None);
         let result_map = Arc::try_unwrap(result_map).unwrap().into_inner().unwrap();
 
         assert!(result_map.len() == 3);

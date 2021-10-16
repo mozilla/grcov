@@ -1,5 +1,6 @@
 use flate2::read::GzDecoder;
 use serde::Deserialize;
+use std::cmp::Ordering;
 use std::collections::{btree_map, hash_map, BTreeMap};
 use std::fmt;
 use std::fs::File;
@@ -10,8 +11,8 @@ use std::str;
 
 use log::error;
 
-use xml::events::{BytesStart, Event};
-use xml::Reader;
+use quick_xml::events::{BytesStart, Event};
+use quick_xml::Reader;
 
 use rustc_hash::FxHashMap;
 
@@ -31,10 +32,10 @@ impl From<io::Error> for ParserError {
     }
 }
 
-impl From<xml::Error> for ParserError {
-    fn from(err: xml::Error) -> ParserError {
+impl From<quick_xml::Error> for ParserError {
+    fn from(err: quick_xml::Error) -> ParserError {
         match err {
-            xml::Error::Io(e) => ParserError::Io(e),
+            quick_xml::Error::Io(e) => ParserError::Io(e),
             _ => ParserError::Parse(format!("{:?}", err)),
         }
     }
@@ -47,7 +48,7 @@ impl From<ParseIntError> for ParserError {
 }
 
 impl fmt::Display for ParserError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             ParserError::Io(ref err) => write!(f, "IO error: {}", err),
             ParserError::Parse(ref s) => write!(f, "Record containing invalid integer: '{}'", s),
@@ -106,13 +107,14 @@ pub fn add_branch(branches: &mut BTreeMap<u32, Vec<bool>>, line_no: u32, no: u32
             let v = c.into_mut();
             let l = v.len();
             let no = no as usize;
-            if no == l {
-                v.push(taken);
-            } else if no > l {
-                v.extend(vec![false; no - l]);
-                v.push(taken)
-            } else {
-                v[no] |= taken;
+
+            match no.cmp(&l) {
+                Ordering::Equal => v.push(taken),
+                Ordering::Greater => {
+                    v.extend(vec![false; no - l]);
+                    v.push(taken);
+                }
+                Ordering::Less => v[no] |= taken,
             }
         }
         btree_map::Entry::Vacant(v) => {
@@ -298,7 +300,7 @@ pub fn parse_lcov(
                             }
                             let taken = iter
                                 .take_while(|&&c| c != b'\n' && c != b'\r')
-                                .fold(false, |r, &x| r || x != b'-');
+                                .any(|&x| x != b'-');
                             add_branch(&mut cur_branches, line_no, branch_number, taken);
                         } else {
                             iter.take_while(|&&c| c != b'\n').last();
@@ -446,10 +448,10 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
 
         match key {
             "file" => {
-                if cur_file.is_some() && !cur_lines.is_empty() {
+                if let Some(cur_file) = cur_file.filter(|_: &String| !cur_lines.is_empty()) {
                     // println!("{} {} {:?}", gcov_path.display(), cur_file, cur_lines);
                     results.push((
-                        cur_file.unwrap(),
+                        cur_file,
                         CovResult {
                             lines: cur_lines,
                             branches: cur_branches,
@@ -514,7 +516,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
 
 fn get_xml_attribute<R: BufRead>(
     reader: &Reader<R>,
-    event: &BytesStart,
+    event: &BytesStart<'_>,
     name: &str,
 ) -> Result<String, ParserError> {
     for a in event.attributes() {
@@ -532,7 +534,7 @@ fn get_xml_attribute<R: BufRead>(
 fn parse_jacoco_report_sourcefile<T: BufRead>(
     parser: &mut Reader<T>,
     buf: &mut Vec<u8>,
-) -> Result<(BTreeMap<u32, u64>, BTreeMap<u32, Vec<bool>>), ParserError> {
+) -> Result<JacocoReport, ParserError> {
     let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
     let mut branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();
 
@@ -584,7 +586,7 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
         buf.clear();
     }
 
-    Ok((lines, branches))
+    Ok(JacocoReport { lines, branches })
 }
 
 fn parse_jacoco_report_method<T: BufRead>(
@@ -660,7 +662,7 @@ fn parse_jacoco_report_package<T: BufRead>(
                         // Class name "Person"
                         let top_class = class
                             .split('$')
-                            .nth(0)
+                            .next()
                             .expect("Failed to parse top class name");
 
                         // Process all <method /> and <counter /> for this class
@@ -682,7 +684,8 @@ fn parse_jacoco_report_package<T: BufRead>(
                     b"sourcefile" => {
                         let sourcefile = get_xml_attribute(parser, e, "name")?;
                         let class = sourcefile.trim_end_matches(".java");
-                        let (lines, branches) = parse_jacoco_report_sourcefile(parser, buf)?;
+                        let JacocoReport { lines, branches } =
+                            parse_jacoco_report_sourcefile(parser, buf)?;
 
                         match results_map.entry(class.to_string()) {
                             hash_map::Entry::Occupied(obj) => {
@@ -865,11 +868,11 @@ mod tests {
         assert!(result.functions.contains_key("MainProcessSingleton"));
         let func = result.functions.get("MainProcessSingleton").unwrap();
         assert_eq!(func.start, 15);
-        assert_eq!(func.executed, true);
+        assert!(func.executed);
         assert!(result.functions.contains_key("logConsoleMessage"));
         let func = result.functions.get("logConsoleMessage").unwrap();
         assert_eq!(func.start, 21);
-        assert_eq!(func.executed, false);
+        assert!(!func.executed);
     }
 
     #[test]
@@ -964,11 +967,11 @@ mod tests {
         assert!(result.functions.contains_key("MainProcessSingleton"));
         let func = result.functions.get("MainProcessSingleton").unwrap();
         assert_eq!(func.start, 15);
-        assert_eq!(func.executed, true);
+        assert!(func.executed);
         assert!(result.functions.contains_key("logConsoleMessage"));
         let func = result.functions.get("logConsoleMessage").unwrap();
         assert_eq!(func.start, 21);
-        assert_eq!(func.executed, false);
+        assert!(!func.executed);
     }
 
     #[test]
@@ -1051,7 +1054,7 @@ mod tests {
         assert!(result.functions.contains_key("MainProcessSingleton"));
         let func = result.functions.get("MainProcessSingleton").unwrap();
         assert_eq!(func.start, 15);
-        assert_eq!(func.executed, true);
+        assert!(func.executed);
         assert!(result
             .functions
             .contains_key("cubic-bezier(0.0, 0.0, 1.0, 1.0)"));
@@ -1060,7 +1063,7 @@ mod tests {
             .get("cubic-bezier(0.0, 0.0, 1.0, 1.0)")
             .unwrap();
         assert_eq!(func.start, 95);
-        assert_eq!(func.executed, true);
+        assert!(func.executed);
     }
 
     #[test]
@@ -1142,7 +1145,7 @@ mod tests {
         assert!(result.functions.contains_key("MainProcessSingleton"));
         let func = result.functions.get("MainProcessSingleton").unwrap();
         assert_eq!(func.start, 15);
-        assert_eq!(func.executed, true);
+        assert!(func.executed);
         assert!(result
             .functions
             .contains_key("cubic-bezier(0.0, 0.0, 1.0, 1.0)"));
@@ -1151,7 +1154,7 @@ mod tests {
             .get("cubic-bezier(0.0, 0.0, 1.0, 1.0)")
             .unwrap();
         assert_eq!(func.start, 95);
-        assert_eq!(func.executed, true);
+        assert!(func.executed);
     }
 
     #[allow(non_snake_case)]
@@ -1190,7 +1193,7 @@ mod tests {
         assert!(result.functions.contains_key("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv"));
         let mut func = result.functions.get("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv").unwrap();
         assert_eq!(func.start, 393);
-        assert_eq!(func.executed, false);
+        assert!(!func.executed);
 
         let (ref source_name, ref result) = results[5];
         assert_eq!(
@@ -1345,7 +1348,7 @@ mod tests {
             .get("_ZL13LoadGtkModuleR24GnomeAccessibilityModule")
             .unwrap();
         assert_eq!(func.start, 81);
-        assert_eq!(func.executed, false);
+        assert!(!func.executed);
         assert!(result
             .functions
             .contains_key("_ZN7mozilla4a11y12PlatformInitEv"));
@@ -1354,7 +1357,7 @@ mod tests {
             .get("_ZN7mozilla4a11y12PlatformInitEv")
             .unwrap();
         assert_eq!(func.start, 136);
-        assert_eq!(func.executed, true);
+        assert!(func.executed);
         assert!(result
             .functions
             .contains_key("_ZN7mozilla4a11y16PlatformShutdownEv"));
@@ -1363,11 +1366,11 @@ mod tests {
             .get("_ZN7mozilla4a11y16PlatformShutdownEv")
             .unwrap();
         assert_eq!(func.start, 216);
-        assert_eq!(func.executed, true);
+        assert!(func.executed);
         assert!(result.functions.contains_key("_ZN7mozilla4a11y7PreInitEv"));
         func = result.functions.get("_ZN7mozilla4a11y7PreInitEv").unwrap();
         assert_eq!(func.start, 261);
-        assert_eq!(func.executed, true);
+        assert!(func.executed);
         assert!(result
             .functions
             .contains_key("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv"));
@@ -1376,7 +1379,7 @@ mod tests {
             .get("_ZN7mozilla4a11y19ShouldA11yBeEnabledEv")
             .unwrap();
         assert_eq!(func.start, 303);
-        assert_eq!(func.executed, true);
+        assert!(func.executed);
     }
 
     #[test]
@@ -1665,7 +1668,7 @@ mod tests {
         assert!(result.functions.contains_key("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv"));
         let func = result.functions.get("_ZN19nsExpirationTrackerIN11nsIDocument16SelectorCacheKeyELj4EE25ExpirationTrackerObserver7ReleaseEv").unwrap();
         assert_eq!(func.start, 393);
-        assert_eq!(func.executed, false);
+        assert!(!func.executed);
     }
 
     #[test]
@@ -1697,7 +1700,7 @@ mod tests {
             .get("_ZN27rust_code_coverage_sample_24mainE")
             .unwrap();
         assert_eq!(func.start, 8);
-        assert_eq!(func.executed, true);
+        assert!(func.executed);
 
         assert!(result.functions.contains_key(
             "_ZN27rust_code_coverage_sample_244compare_types<[i32; 3],alloc::vec::Vec<i32>>E"
@@ -1707,7 +1710,7 @@ mod tests {
             .get("_ZN27rust_code_coverage_sample_244compare_types<[i32; 3],alloc::vec::Vec<i32>>E")
             .unwrap();
         assert_eq!(func.start, 3);
-        assert_eq!(func.executed, true);
+        assert!(func.executed);
     }
 
     #[test]
@@ -1736,9 +1739,9 @@ mod tests {
         let expected = vec![(
             String::from("hello.java"),
             CovResult {
-                lines: lines,
-                branches: branches,
-                functions: functions,
+                lines,
+                branches,
+                functions,
             },
         )];
 
@@ -1752,8 +1755,8 @@ mod tests {
     #[test]
     fn test_parser_jacoco_xml_inner_classes() {
         let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
-        for i in vec![5, 10, 14, 15, 18, 22, 23, 25, 27, 31, 34, 37, 44, 49] {
-            lines.insert(i, 0);
+        for i in &[5, 10, 14, 15, 18, 22, 23, 25, 27, 31, 34, 37, 44, 49] {
+            lines.insert(*i, 0);
         }
         let mut functions: FunctionMap = FxHashMap::default();
 
@@ -1777,15 +1780,15 @@ mod tests {
             ),
             ("Person#setAge", 22, false),
         ] {
-            functions.insert(String::from(name), Function { executed, start });
+            functions.insert(String::from(name), Function { start, executed });
         }
         let branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();
         let expected = vec![(
             String::from("org/gradle/Person.java"),
             CovResult {
-                lines: lines,
-                branches: branches,
-                functions: functions,
+                lines,
+                branches,
+                functions,
             },
         )];
 

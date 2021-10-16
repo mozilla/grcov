@@ -8,9 +8,10 @@ environment:
       PLATFORM_TARGET: x86_64
       PLATFORM_VS: x64
 
-    - CHANNEL: nightly
-      PLATFORM_TARGET: x86_64
-      PLATFORM_VS: x64
+    # TODO: Currently always fails with an error about the regex crate.
+    # - CHANNEL: nightly
+    #   PLATFORM_TARGET: x86_64
+    #   PLATFORM_VS: x64
 
     # TODO: The i686 build currently doesn't work.
     # - CHANNEL: nightly
@@ -49,6 +50,10 @@ build_script:
   - cargo build %CARGO_RELEASE_ARG% --locked --target %TARGET%
   - 7z a grcov-win-%PLATFORM_TARGET%.tar .\target\%TARGET%\%BUILD_TYPE%\grcov.exe
   - 7z a grcov-win-%PLATFORM_TARGET%.tar.bz2 grcov-win-%PLATFORM_TARGET%.tar
+  - ps: |
+      If ($env:CHANNEL -eq "nightly") {
+         cargo build --locked --target %TARGET% --benches
+      }
 
 test_script:
   - set LLVM_PROFILE_FILE="grcov-%p-%m.profraw"

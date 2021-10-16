@@ -1,6 +1,5 @@
 #![feature(test)]
-extern crate grcov;
-extern crate rustc_hash;
+#![allow(clippy::unit_arg)]
 extern crate test;
 
 use grcov::{CovResult, Function, FunctionMap};
