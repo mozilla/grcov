@@ -3,15 +3,14 @@
 //!   * Use context.pwd - Don't change the actual current working dir as tests run in parallel.
 //!   * To prevent thrashing with standard builds, target_dir is overridden.
 //!   * Keep coverage-report dir clean so that it can be zipped up by CI.
-extern crate clap;
+extern crate structopt;
 
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-
-use clap::{crate_authors, crate_version, App, AppSettings, Arg, SubCommand};
+use structopt::{StructOpt};
 
 type Env = HashMap<OsString, OsString>;
 
@@ -153,136 +152,96 @@ struct Report {
     output_type: String,
 }
 
+#[derive(Debug, StructOpt)]
+#[structopt(name = "grcov", about = "Parse, collect and aggregate code coverage data for multiple source files")]
+enum App {
+    Env {
+        #[structopt(short)]
+        build_cmd: Option<Vec<OsString>>,
+    },
+    Build {
+        #[structopt(short)]
+        build_cmd: Option<Vec<OsString>>,
+    },
+    Test {
+        #[structopt(short)]
+        build_cmd: Option<Vec<OsString>>,
+    },
+    Report {
+        #[structopt(short)]
+        test_cmd: Option<Vec<OsString>>,
+
+        #[structopt(short)]
+        output_type: Option<OsString>,
+
+        #[structopt(long, parse(try_from_str))]
+        release: Option<bool>
+    }
+}
+
 fn parse_args(mut context: Context) -> Result<Vec<Action>, Box<dyn std::error::Error>> {
     context.args.remove(1); // remove the first arg that cargo adds so this is like normal args.
-    let app = App::new("grcov")
-        .version(crate_version!())
-        .author(crate_authors!("\n"))
-        .about("Parse, collect and aggregate code coverage data for multiple source files")
-        .subcommands(vec![
-            //SubCommand::with_name("build"),
-            //SubCommand::with_name("test"),
-            SubCommand::with_name("env")
-                .about("Sets up env vars for coverage")
-                .setting(AppSettings::TrailingVarArg)
-                .setting(AppSettings::AllowLeadingHyphen)
-                .arg(
-                    Arg::with_name("build_cmd")
-                        .multiple(true)
-                        .last(true)
-                        .help("command to build"),
-                ),
-            SubCommand::with_name("build")
-                .about("Runs cargo build (with envs set for coverage)")
-                .setting(AppSettings::TrailingVarArg)
-                .setting(AppSettings::AllowLeadingHyphen)
-                .arg(
-                    Arg::with_name("build_cmd")
-                        .multiple(true)
-                        .last(true)
-                        .help("command to build"),
-                ),
-            SubCommand::with_name("test")
-                .about("Runs cargo test (with envs set for coverage)")
-                .setting(AppSettings::TrailingVarArg)
-                .setting(AppSettings::AllowLeadingHyphen)
-                .arg(
-                    Arg::with_name("test_cmd")
-                        .multiple(true)
-                        .last(true)
-                        .help("command to build"),
-                ),
-            SubCommand::with_name("report")
-                .about("Generates a coverage report")
-                .setting(AppSettings::TrailingVarArg)
-                .setting(AppSettings::AllowLeadingHyphen)
-                .arg(
-                    Arg::with_name("--output-type")
-                        .help("Type of report to create: html (default), lcov etc."),
-                )
-                .arg(Arg::with_name("--release").help("whether to use the release mode artifacts."))
-                .arg(
-                    Arg::with_name("test_cmd")
-                        .multiple(true)
-                        .last(true)
-                        .help("command to run tests"),
-                ),
-        ]);
-
-    //println!("parsing args: {:?}", &context.args);
-    let matches = app.get_matches_from(&context.args);
-
-    if let Some(env_cmd) = matches.subcommand_matches("env") {
-        let command = env_cmd
-            .args
-            .get("build_cmd")
-            .map(|arg| arg.vals.clone())
-            .unwrap_or(vec![OsString::from("cargo"), OsString::from("test")]);
-        return Ok(vec![Action::SetupEnv(SetupEnv {
-            command,
-            context: context.clone(),
-        })]);
-    } else if let Some(env_cmd) = matches.subcommand_matches("build") {
-        let mut command = env_cmd
-            .args
-            .get("build_cmd")
-            .map(|arg| arg.vals.clone())
-            .unwrap_or(vec![]);
-        command.insert(0, OsString::from("cargo"));
-        command.insert(1, OsString::from("build"));
-        return Ok(vec![Action::SetupEnv(SetupEnv {
-            command,
-            context: context.clone(),
-        })]);
-    } else if let Some(env_cmd) = matches.subcommand_matches("test") {
-        let mut command = env_cmd
-            .args
-            .get("build_cmd")
-            .map(|arg| arg.vals.clone())
-            .unwrap_or(vec![]);
-        command.insert(0, OsString::from("cargo"));
-        command.insert(1, OsString::from("test"));
-        return Ok(vec![Action::SetupEnv(SetupEnv {
-            command,
-            context: context.clone(),
-        })]);
-    } else if let Some(env_cmd) = matches.subcommand_matches("report") {
-        let command = env_cmd.args.get("test_cmd").map(|arg| arg.vals.clone());
-        let is_release = env_cmd.is_present("--release");
-
-        let target_dir = context
-            .pwd
-            .join(PathBuf::from(get_target_dir(&context.env)));
-
-        let profile = if is_release { "release" } else { "debug" };
-        let profile_dir = target_dir.join(profile);
-
-        let maybe_action = if let Some(command) = command {
-            Some(Action::SetupEnv(SetupEnv {
+    let app : App = StructOpt::from_iter(std::env::args_os().skip(1));
+    match app {
+        App::Env{ build_cmd} => {
+            let command = build_cmd.unwrap_or(vec![OsString::from("cargo"), OsString::from("test")]);
+            return Ok(vec![Action::SetupEnv(SetupEnv {
                 command,
                 context: context.clone(),
-            }))
-        } else {
-            ensure_tests_have_run(&context, is_release, &profile_dir)
-        };
-
-        let mut actions = vec![Action::Report(Report {
-            path: profile_dir,
-            context,
-            output_type: env_cmd.value_of("output_type").unwrap_or("html").to_owned(),
-        })];
-        if let Some(action) = maybe_action {
-            actions.insert(0, action);
+            })]);
+        },
+        App::Build{build_cmd} => {
+            let mut command = build_cmd.unwrap_or(vec![]);
+            command.insert(0, OsString::from("cargo"));
+            command.insert(1, OsString::from("build"));
+            return Ok(vec![Action::SetupEnv(SetupEnv {
+                command,
+                context: context.clone(),
+            })]);
+        },
+        App::Test{build_cmd} => {
+            let mut command = build_cmd
+                .unwrap_or(vec![]);
+            command.insert(0, OsString::from("cargo"));
+            command.insert(1, OsString::from("test"));
+            return Ok(vec![Action::SetupEnv(SetupEnv {
+                command,
+                context: context.clone(),
+            })]);
+        },
+        App::Report{test_cmd, release, output_type} => {
+            let command = test_cmd;
+                let is_release = release.unwrap_or(false);
+        
+                let target_dir = context
+                    .pwd
+                    .join(PathBuf::from(get_target_dir(&context.env)));
+        
+                let profile = if is_release { "release" } else { "debug" };
+                let profile_dir = target_dir.join(profile);
+        
+                let maybe_action = if let Some(command) = command {
+                    Some(Action::SetupEnv(SetupEnv {
+                        command,
+                        context: context.clone(),
+                    }))
+                } else {
+                    ensure_tests_have_run(&context, is_release, &profile_dir)
+                };
+        
+                let mut actions = vec![Action::Report(Report {
+                    path: profile_dir,
+                    context,
+                    output_type: output_type.unwrap_or(OsString::from("html")).to_owned().to_string_lossy().to_string(),
+                })];
+                if let Some(action) = maybe_action {
+                    actions.insert(0, action);
+                }
+        
+                //println!("Actions: {:#?}", actions);
+                return Ok(actions);
         }
-
-        //println!("Actions: {:#?}", actions);
-        return Ok(actions);
     }
-
-    Err(Box::new(clap::Error::with_description(
-        "Unknown subcommand",
-        clap::ErrorKind::MissingSubcommand,
-    )))
 }
 
 fn ensure_tests_have_run(
