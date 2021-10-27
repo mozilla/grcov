@@ -37,7 +37,7 @@ pub fn profraws_to_lcov(
         "-o".as_ref(),
         profdata_path.as_ref(),
     ];
-    args.splice(2..2, profraw_paths.iter().map(PathBuf::as_ref));
+    args.splice(2..2, profraw_paths.iter().take(1000).map(PathBuf::as_ref));
     run(&Tool::Profdata.path().unwrap(), &args)?;
 
     let binaries = if binary_path.is_file() {
