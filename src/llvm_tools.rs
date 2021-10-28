@@ -37,28 +37,24 @@ pub fn profraws_to_lcov(
         "-o".as_ref(),
         profdata_path.as_ref(),
     ];
-    if profraw_paths.as_ref().len() < 100 {
-        args.splice(2..2, profraw_paths.iter().map(PathBuf::as_ref));
-        run(&Tool::Profdata.path().unwrap(), &args)?;
-    }else{
-        let mut iter = profraw_paths.chunks(100);
-        let mut first = true;
-        loop {
-            match iter.next() {
-                Some(slice) => {
-                    if first {
-                        first = false;
-                        let with_prev = slice.iter().map(PathBuf::as_ref);
-                        args.splice(2..2, with_prev);
-                    }else{
-                        let with_prev =
-                            slice.iter().chain(once(&profdata_path)).map(PathBuf::as_ref);
-                        args.splice(2..2, with_prev);
-                    };
-                    run(&Tool::Profdata.path().unwrap(), &args)?;
-                }
-                None => break
+
+    let mut iter = profraw_paths.chunks(100);
+    let mut first = true;
+    loop {
+        match iter.next() {
+            Some(slice) => {
+                if first {
+                    first = false;
+                    let with_prev = slice.iter().map(PathBuf::as_ref);
+                    args.splice(2..2, with_prev);
+                }else{
+                    let with_prev =
+                        slice.iter().chain(once(&profdata_path)).map(PathBuf::as_ref);
+                    args.splice(2..2, with_prev);
+                };
+                run(&Tool::Profdata.path().unwrap(), &args)?;
             }
+            None => break
         }
     }
 
