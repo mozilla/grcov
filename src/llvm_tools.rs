@@ -31,16 +31,16 @@ pub fn profraws_to_lcov(
 ) -> Result<Vec<Vec<u8>>, String> {
     let profdata_path = working_dir.join("grcov.profdata");
 
-    let mut args = vec![
-        "merge".as_ref(),
-        "-sparse".as_ref(),
-        "-o".as_ref(),
-        profdata_path.as_ref(),
-    ];
 
-    let mut iter = profraw_paths.chunks(1000);
+    let mut iter = profraw_paths.chunks(2000);
     let mut first = true;
     loop {
+        let mut args = vec![
+            "merge".as_ref(),
+            "-sparse".as_ref(),
+            "-o".as_ref(),
+            profdata_path.as_ref(),
+        ];
         match iter.next() {
             Some(slice) => {
                 if first {
