@@ -1,9 +1,9 @@
 use cargo_binutils::Tool;
 use is_executable::IsExecutable;
 use std::ffi::OsStr;
+use std::iter::once;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::iter::once;
 
 use walkdir::WalkDir;
 
@@ -47,14 +47,16 @@ pub fn profraws_to_lcov(
                     first = false;
                     let with_prev = slice.iter().map(PathBuf::as_ref);
                     args.splice(2..2, with_prev);
-                }else{
-                    let with_prev =
-                        slice.iter().chain(once(&profdata_path)).map(PathBuf::as_ref);
+                } else {
+                    let with_prev = slice
+                        .iter()
+                        .chain(once(&profdata_path))
+                        .map(PathBuf::as_ref);
                     args.splice(2..2, with_prev);
                 };
                 run(&Tool::Profdata.path().unwrap(), &args)?;
             }
-            None => break
+            None => break,
         }
     }
 
