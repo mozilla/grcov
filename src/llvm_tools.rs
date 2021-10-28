@@ -38,7 +38,7 @@ pub fn profraws_to_lcov(
         profdata_path.as_ref(),
     ];
 
-    let mut iter = profraw_paths.chunks(100);
+    let mut iter = profraw_paths.chunks(10000);
     let mut first = true;
     loop {
         match iter.next() {
