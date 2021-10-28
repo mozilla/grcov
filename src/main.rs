@@ -297,8 +297,6 @@ fn main() {
 
     let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
     let tmp_path = tmp_dir.path().to_owned();
-    let tmp_path = PathBuf::from(r"/tmp/a");
-    println!("Temp {}", tmp_path.to_str().unwrap());
     assert!(tmp_path.exists());
 
     let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(

@@ -3,6 +3,7 @@ use is_executable::IsExecutable;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::iter::once;
 
 use walkdir::WalkDir;
 
@@ -23,7 +24,6 @@ pub fn run(cmd: impl AsRef<OsStr>, args: &[&OsStr]) -> Result<Vec<u8>, String> {
 
     Ok(output.stdout)
 }
-
 pub fn profraws_to_lcov(
     profraw_paths: &[PathBuf],
     binary_path: &Path,
@@ -37,8 +37,30 @@ pub fn profraws_to_lcov(
         "-o".as_ref(),
         profdata_path.as_ref(),
     ];
-    args.splice(2..2, profraw_paths.iter().take(1000).map(PathBuf::as_ref));
-    run(&Tool::Profdata.path().unwrap(), &args)?;
+    if profraw_paths.as_ref().len() < 100 {
+        args.splice(2..2, profraw_paths.iter().map(PathBuf::as_ref));
+        run(&Tool::Profdata.path().unwrap(), &args)?;
+    }else{
+        let mut iter = profraw_paths.chunks(100);
+        let mut first = true;
+        loop {
+            match iter.next() {
+                Some(slice) => {
+                    if first {
+                        first = false;
+                        let with_prev = slice.iter().map(PathBuf::as_ref);
+                        args.splice(2..2, with_prev);
+                    }else{
+                        let with_prev =
+                            slice.iter().chain(once(&profdata_path)).map(PathBuf::as_ref);
+                        args.splice(2..2, with_prev);
+                    };
+                    run(&Tool::Profdata.path().unwrap(), &args)?;
+                }
+                None => break
+            }
+        }
+    }
 
     let binaries = if binary_path.is_file() {
         vec![binary_path.to_owned()]
