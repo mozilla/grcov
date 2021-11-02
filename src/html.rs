@@ -206,9 +206,9 @@ fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &Path, stats: 
     };
 }
 
-use tera::{Context, CtxThreadSafe, Tera};
+use tera::{Context, Tera};
 
-fn make_context() -> Context<CtxThreadSafe> {
+fn make_context() -> Context {
     let mut ctx = Context::new();
     let ver = std::env::var("BULMA_VERSION").map_or(BULMA_VERSION.into(), |v| v);
     ctx.insert("bulma_version", &ver);
