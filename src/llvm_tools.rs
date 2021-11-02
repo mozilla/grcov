@@ -39,7 +39,7 @@ pub fn profraws_to_lcov(
     ];
     args.splice(2..2, profraw_paths.iter().map(PathBuf::as_ref));
 
-    let path = get_profdata_path().and_then(|p| run(&p, &args))?;
+    get_profdata_path().and_then(|p| run(&p, &args))?;
 
     let binaries = if binary_path.is_file() {
         vec![binary_path.to_owned()]
