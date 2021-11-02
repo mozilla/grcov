@@ -38,7 +38,8 @@ pub fn profraws_to_lcov(
         profdata_path.as_ref(),
     ];
     args.splice(2..2, profraw_paths.iter().map(PathBuf::as_ref));
-    run(&Tool::Profdata.path().unwrap(), &args)?;
+
+    let path = get_profdata_path().and_then(|p| run(&p, &args))?;
 
     let binaries = if binary_path.is_file() {
         vec![binary_path.to_owned()]
@@ -76,6 +77,18 @@ pub fn profraws_to_lcov(
     }
 
     Ok(results)
+}
+
+fn get_profdata_path() -> Result<PathBuf, String> {
+    let path = Tool::Profdata.path().map_err(|x| x.to_string())?;
+    if !path.exists() {
+        Err(String::from(
+            "We couldn't find llvm-profdata. \
+             Do you have the llvm-tools component installed?"
+        ))
+    } else {
+        Ok(path)
+    }
 }
 
 #[cfg(test)]
