@@ -79,7 +79,7 @@ macro_rules! try_next {
 
 macro_rules! try_parse_next {
     ($v:expr, $l:expr) => {
-        try_parse!(try_next!($v, $l), $l);
+        try_parse!(try_next!($v, $l), $l)
     };
 }
 
