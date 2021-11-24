@@ -3,7 +3,6 @@ use std::cell::RefCell;
 use std::env;
 use std::fs::{self, File};
 use std::io::{self, BufReader, Read};
-use std::os;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 use zip::ZipArchive;
@@ -280,16 +279,9 @@ impl Archive {
                 // don't use a hard link here because it can fail when src and dst are not on the same device
                 let src_path = dir.join(name);
 
-                #[cfg(unix)]
-                os::unix::fs::symlink(&src_path, path).unwrap_or_else(|_| {
+                crate::symlink::symlink_file(&src_path, path).unwrap_or_else(|_| {
                     panic!("Failed to create a symlink {:?} -> {:?}", src_path, path)
                 });
-
-                #[cfg(windows)]
-                os::windows::fs::symlink_file(&src_path, path).unwrap_or_else(|_| {
-                    panic!("Failed to create a symlink {:?} -> {:?}", src_path, path)
-                });
-
                 true
             }
             ArchiveType::Plain(_) => {

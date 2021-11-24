@@ -28,6 +28,7 @@ This is a project initiated by Mozilla to gather code coverage results on Firefo
   - [Alternative reports](#alternative-reports)
   - [Hosting HTML reports and using coverage badges](#hosting-html-reports-and-using-coverage-badges)
     - [Example](#example)
+  - [Enabling symlinks on Windows](#enabling-symlinks-on-windows)
 - [Auto-formatting](#auto-formatting)
 - [Build & Test](#build--test)
 - [Minimum requirements](#minimum-requirements)
@@ -328,6 +329,31 @@ bagdes are available as SVGs at `/badges/*svg`.
 The design of generated badges is taken from `shields.io` but may not be updated immediately if there
 is any change. Using their endpoint method is recommended if other badges from their service are
 used already.
+
+### Enabling symlinks on Windows
+
+`grcov` uses symbolic links to avoid copying files, when processing directories
+of coverage data. On Windows, by default, creating symbolic links to files
+requires Administrator privileges. (The reason is to avoid security attacks in
+applications that were designed before Windows added support for symbolic
+links.)
+
+When running on Windows `grcov` will attempt to create a symbolic link. If that
+fails then `grcov` will fall back to copying the file. Copying is less efficient
+but at least allows users to run `grcov`. `grcov` will also print a warning
+when it falls back to copying a file, advising the user either to enable the
+privilege for their account or to run as Administrator.
+
+You can enable the "Create Symbolic Links" privilege for your account so that
+you do not need to run as Administrator to use `grcov`.
+
+1. Click Start, then select "Local Group Policy Editor". Or just run
+   `gpedit.msc` to open it directly.
+1. In the navigation tree, select "Computer Configuration", "Windows Settings",
+   "Security Settings", "Local Policies".
+1. In the pane on the right, select "Create symbolic links" and double-click it.
+1. Click "Add User or Group", and add your account.
+1. Log out and then log back in.
 
 #### Example
 

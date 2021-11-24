@@ -19,6 +19,8 @@ pub use crate::parser::*;
 mod filter;
 pub use crate::filter::*;
 
+mod symlink;
+
 mod path_rewriting;
 pub use crate::path_rewriting::*;
 
