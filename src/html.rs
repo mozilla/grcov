@@ -455,7 +455,14 @@ pub fn gen_badge(tera: &Tera, stats: &HtmlStats, conf: &Config, output: &Path, s
     };
 
     let mut ctx = make_context();
-    ctx.insert("current", &(stats.covered_lines * 100 / stats.total_lines));
+    ctx.insert(
+        "current",
+        &(if stats.total_lines != 0 {
+            stats.covered_lines * 100 / stats.total_lines
+        } else {
+            0
+        }),
+    );
     ctx.insert("hi_limit", &conf.hi_limit);
     ctx.insert("med_limit", &conf.med_limit);
 
@@ -499,7 +506,11 @@ pub fn gen_coverage_json(stats: &HtmlStats, conf: &Config, output: &Path) {
         Ok(f) => f,
     };
 
-    let coverage = stats.covered_lines * 100 / stats.total_lines;
+    let coverage = if stats.total_lines != 0 {
+        stats.covered_lines * 100 / stats.total_lines
+    } else {
+        0
+    };
 
     let res = serde_json::to_writer(
         &mut output_stream,
