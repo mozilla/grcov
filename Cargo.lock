@@ -141,9 +141,9 @@ checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "cargo-binutils"
-version = "0.3.3"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d01e974203d70b1a41552171d48e4572628d430c89c1f43239bca40d1b59a86"
+checksum = "d8fc89a22191dcc66dba63a4cbd01edb231216a36efc81d23434a818fd82c17f"
 dependencies = [
  "anyhow",
  "cargo_metadata",
