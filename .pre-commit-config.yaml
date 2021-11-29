@@ -1,6 +1,6 @@
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.5.0
+    rev: v4.0.1
     hooks:
     -   id: check-executables-have-shebangs
     -   id: check-merge-conflict
@@ -13,11 +13,11 @@ repos:
     -   id: mixed-line-ending
         exclude: ^test/
 -   repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.27.1
+    rev: v0.30.0
     hooks:
     -   id: markdownlint
 -   repo: https://github.com/DevinR528/cargo-sort
-    rev: 41eae5f1fe8dcc548efc4ac3b3dd5268503dd2fb
+    rev: v1.0.6
     hooks:
     -   id: cargo-sort
 -   repo: meta
