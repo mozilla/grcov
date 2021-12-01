@@ -84,7 +84,7 @@ fn get_profdata_path() -> Result<PathBuf, String> {
     if !path.exists() {
         Err(String::from(
             "We couldn't find llvm-profdata. Try installing the llvm-tools \
-            component with `rustup component add llvm-tools-preview`."
+            component with `rustup component add llvm-tools-preview`.",
         ))
     } else {
         Ok(path)
@@ -123,17 +123,22 @@ mod tests {
         assert_eq!(
             String::from_utf8_lossy(&lcovs[0]),
             "SF:src/main.rs
-FN:9,_RNvCs8GdnNLnutVs_25rust_code_coverage_sample4main
-FNDA:1,_RNvCs8GdnNLnutVs_25rust_code_coverage_sample4main
-FNF:1
+FN:3,_RNvXCsbfwyntYdFII_25rust_code_coverage_sampleNtB2_4CiaoNtNtCshypYLURccL2_4core3fmt5Debug3fmt
+FN:8,_RNvCsbfwyntYdFII_25rust_code_coverage_sample4main
+FNDA:0,_RNvXCsbfwyntYdFII_25rust_code_coverage_sampleNtB2_4CiaoNtNtCshypYLURccL2_4core3fmt5Debug3fmt
+FNDA:1,_RNvCsbfwyntYdFII_25rust_code_coverage_sample4main
+FNF:2
 FNH:1
+DA:3,0
+DA:8,1
 DA:9,1
+DA:10,1
 DA:11,1
 DA:12,1
 BRF:0
-BFH:0
-LF:3
-LH:3
+BRH:0
+LF:6
+LH:5
 end_of_record
 "
         );
