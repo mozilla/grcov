@@ -8,7 +8,7 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
         toolchain: [stable, nightly]
-    continue-on-error: ${{ matrix.os == 'windows-latest' && matrix.toolchain == 'nightly' }}
+    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
