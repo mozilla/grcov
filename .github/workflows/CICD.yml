@@ -1,8 +1,8 @@
 name: CICD
 on: [pull_request, push]
 jobs:
-  test:
-    name: Test
+  test-lib:
+    name: Test library
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -28,6 +28,93 @@ jobs:
           key: test-${{ runner.os }}-cargo-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
       - name: Test
         run: cargo test --lib
+  test-coverage:
+    name: Test coverage (gcc-${{ matrix.gcc }}, clang-${{ matrix.clang }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - gcc: 5
+            clang: 7
+          - gcc: 6
+            clang: 7
+          - gcc: 7
+            clang: 7
+          - gcc: 7
+            clang: 8
+          - gcc: 7
+            clang: 9
+          - gcc: 7
+            clang: 11
+          - gcc: 10
+            clang: 11
+    env:
+      CXX: clang++-${{ matrix.clang }}
+      CLANG_CXX: clang++-${{ matrix.clang }}
+      GCC_CXX: g++-${{ matrix.gcc }}
+      GCOV: gcov-${{ matrix.gcc }}
+    continue-on-error: true
+    steps:
+      - name: Prepare C toolchains
+        run: |
+          # Add LLVM keys
+          curl -o- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+
+          # Add extra APT repos
+          cat > /tmp/extra.list <<-EOF
+            deb http://archive.ubuntu.com/ubuntu/ bionic main restricted
+            deb http://archive.ubuntu.com/ubuntu/ bionic universe
+
+            deb http://archive.ubuntu.com/ubuntu/ xenial main restricted
+            deb http://archive.ubuntu.com/ubuntu/ xenial universe
+            deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-7 main
+            deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-8 main
+            deb http://apt.llvm.org/focal/ llvm-toolchain-focal-9 main
+            deb http://apt.llvm.org/focal/ llvm-toolchain-focal-10 main
+            deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main
+            deb http://apt.llvm.org/focal/ llvm-toolchain-focal-12 main
+            deb http://apt.llvm.org/focal/ llvm-toolchain-focal-13 main
+          EOF
+          sudo mv /tmp/extra.list /etc/apt/sources.list.d/
+
+          # Install toolchains
+          sudo apt-get update
+          sudo apt-get install -y clang-${{ matrix.clang }} g++-${{ matrix.gcc }}
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Setup Rust
+        run: |
+          rustup toolchain add nightly --component llvm-tools-preview
+          rustup override set nightly
+      - name: Configure cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: test-${{ runner.os }}-cargo-gcc-${{ matrix.gcc }}-clang-${{ matrix.clang }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build
+        env:
+          RUSTFLAGS: -Zinstrument-coverage
+        run: cargo build
+      - name: Test
+        env:
+          LLVM_PROFILE_FILE: grcov-%p-%m.profraw
+          RUSTFLAGS: -Zinstrument-coverage
+        run: cargo test
+      - name: Generate coverage
+        run: |
+          ./target/debug/grcov $(find . -name "grcov-*.profraw" -print) \
+            --branch \
+            --ignore-not-existing \
+            --binary-path ./target/debug/ \
+            -s . \
+            -t lcov \
+            --ignore "/*" \
+            -o lcov.info
   lint:
     name: Lint
     runs-on: ubuntu-latest
