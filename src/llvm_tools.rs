@@ -82,10 +82,7 @@ pub fn profraws_to_lcov(
 fn get_profdata_path() -> Result<PathBuf, String> {
     let path = Tool::Profdata.path().map_err(|x| x.to_string())?;
     if !path.exists() {
-        Err(String::from(
-            "We couldn't find llvm-profdata. Try installing the llvm-tools \
-            component with `rustup component add llvm-tools-preview`.",
-        ))
+        Err(String::from("We couldn't find llvm-profdata. Try installing the llvm-tools component with `rustup component add llvm-tools-preview`."))
     } else {
         Ok(path)
     }
