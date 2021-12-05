@@ -33,21 +33,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - gcc: 5
-            clang: 7
-          - gcc: 6
-            clang: 7
-          - gcc: 7
-            clang: 7
-          - gcc: 7
-            clang: 8
-          - gcc: 7
-            clang: 9
-          - gcc: 7
-            clang: 11
-          - gcc: 10
-            clang: 11
+        gcc: [10, 11]
+        clang: [11, 12, 13]
     env:
       CXX: clang++-${{ matrix.clang }}
       CLANG_CXX: clang++-${{ matrix.clang }}
@@ -61,21 +48,10 @@ jobs:
           curl -o- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
 
           # Add extra APT repos
-          cat > /tmp/extra.list <<-EOF
-            deb http://archive.ubuntu.com/ubuntu/ bionic main restricted
-            deb http://archive.ubuntu.com/ubuntu/ bionic universe
-
-            deb http://archive.ubuntu.com/ubuntu/ xenial main restricted
-            deb http://archive.ubuntu.com/ubuntu/ xenial universe
-            deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-7 main
-            deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-8 main
-            deb http://apt.llvm.org/focal/ llvm-toolchain-focal-9 main
-            deb http://apt.llvm.org/focal/ llvm-toolchain-focal-10 main
-            deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main
-            deb http://apt.llvm.org/focal/ llvm-toolchain-focal-12 main
-            deb http://apt.llvm.org/focal/ llvm-toolchain-focal-13 main
-          EOF
-          sudo mv /tmp/extra.list /etc/apt/sources.list.d/
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main'
+          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-12 main'
+          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-13 main'
 
           # Install toolchains
           sudo apt-get update
