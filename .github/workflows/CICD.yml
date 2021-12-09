@@ -33,8 +33,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        gcc: [10, 11]
-        clang: [11, 12, 13]
+        include:
+          - gcc: 10
+            clang: 11
+          - gcc: 11
+            clang: 12
+          - gcc: 11
+            clang: 13
     env:
       CXX: clang++-${{ matrix.clang }}
       CLANG_CXX: clang++-${{ matrix.clang }}
