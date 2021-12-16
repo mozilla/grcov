@@ -1,18 +1,129 @@
 name: CICD
-
-on: [push, pull_request]
-
-env:
-  CARGO_TERM_COLOR: always
-
+on: [pull_request, push]
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
-
+  test-lib:
+    name: Test library
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        toolchain: [stable, nightly]
+    continue-on-error: true
     steps:
-    - uses: actions/checkout@v2
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Setup Rust
+        run: |
+          rustup toolchain add ${{ matrix.toolchain }} --component llvm-tools-preview
+          rustup override set ${{ matrix.toolchain }}
+      - name: Configure cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: test-${{ runner.os }}-cargo-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Test
+        run: cargo test --lib
+  test-coverage:
+    name: Test coverage (gcc-${{ matrix.gcc }}, clang-${{ matrix.clang }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - gcc: 10
+            clang: 11
+          - gcc: 11
+            clang: 12
+          - gcc: 11
+            clang: 13
+    env:
+      CXX: clang++-${{ matrix.clang }}
+      CLANG_CXX: clang++-${{ matrix.clang }}
+      GCC_CXX: g++-${{ matrix.gcc }}
+      GCOV: gcov-${{ matrix.gcc }}
+    continue-on-error: true
+    steps:
+      - name: Prepare C toolchains
+        run: |
+          # Add LLVM keys
+          curl -o- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+
+          # Add extra APT repos
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main'
+          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-12 main'
+          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-13 main'
+
+          # Install toolchains
+          sudo apt-get update
+          sudo apt-get install -y clang-${{ matrix.clang }} g++-${{ matrix.gcc }}
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Setup Rust
+        run: |
+          rustup toolchain add nightly --component llvm-tools-preview
+          rustup override set nightly
+      - name: Configure cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: test-${{ runner.os }}-cargo-gcc-${{ matrix.gcc }}-clang-${{ matrix.clang }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build
+        env:
+          RUSTFLAGS: -Zinstrument-coverage
+        run: cargo build
+      - name: Test
+        env:
+          LLVM_PROFILE_FILE: grcov-%p-%m.profraw
+          RUSTFLAGS: -Zinstrument-coverage
+        run: cargo test
+      - name: Generate coverage
+        run: |
+          ./target/debug/grcov $(find . -name "grcov-*.profraw" -print) \
+            --branch \
+            --ignore-not-existing \
+            --binary-path ./target/debug/ \
+            -s . \
+            -t lcov \
+            --ignore "/*" \
+            -o lcov.info
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
+      - name: Setup Rust
+        run: |
+          rustup update stable
+          rustup override set stable
+      - name: Install pre-commit
+        run: pip install --no-cache-dir pre-commit
+      - name: Configure Rust cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: pre-commit-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Configure pre-commit cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-pre-commit-${{ hashFiles('**/.pre-commit-config.yaml') }}
+      - name: Run pre-commit
+        run: pre-commit run --all-files
