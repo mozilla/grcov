@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::collections::{btree_map, BTreeMap};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
+use std::ops::{Div, Mul};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tera::try_get_value;
@@ -153,11 +154,18 @@ fn get_stats(result: &CovResult) -> HtmlStats {
 }
 
 #[inline(always)]
-fn get_percentage(x: usize, y: usize) -> f64 {
-    if y != 0 {
-        (x as f64) / (y as f64) * 100.
+fn get_percentage<
+    T: Div + Mul + PartialOrd + std::ops::Mul<Output = T> + std::ops::Div<Output = T> + From<u8>,
+>(
+    x: T,
+    y: T,
+) -> T {
+    if y != T::from(0) {
+        x / y * T::from(100)
     } else {
-        0.0
+        // If the file is empty (no lines) then the coverage
+        // must be 100% (0% means "bad" which is not the case).
+        T::from(100)
     }
 }
 
@@ -167,7 +175,7 @@ fn percent(args: &HashMap<String, Value>) -> tera::Result<Value> {
             from_value::<usize>(n.clone()),
             from_value::<usize>(d.clone()),
         ) {
-            Ok(to_value(get_percentage(num, den)).unwrap())
+            Ok(to_value(get_percentage(num as f64, den as f64)).unwrap())
         } else {
             Err(tera::Error::msg("Invalid arguments"))
         }
@@ -455,7 +463,10 @@ pub fn gen_badge(tera: &Tera, stats: &HtmlStats, conf: &Config, output: &Path, s
     };
 
     let mut ctx = make_context();
-    ctx.insert("current", &(stats.covered_lines * 100 / stats.total_lines));
+    ctx.insert(
+        "current",
+        &get_percentage(stats.covered_lines, stats.total_lines),
+    );
     ctx.insert("hi_limit", &conf.hi_limit);
     ctx.insert("med_limit", &conf.med_limit);
 
@@ -499,7 +510,7 @@ pub fn gen_coverage_json(stats: &HtmlStats, conf: &Config, output: &Path) {
         Ok(f) => f,
     };
 
-    let coverage = stats.covered_lines * 100 / stats.total_lines;
+    let coverage = get_percentage(stats.covered_lines, stats.total_lines);
 
     let res = serde_json::to_writer(
         &mut output_stream,

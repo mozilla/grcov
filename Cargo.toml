@@ -1,6 +1,6 @@
 [package]
 name = "grcov"
-version = "0.8.2"
+version = "0.8.4"
 authors = ["Marco Castelluccio <mcastelluccio@mozilla.com>"]
 description = "Rust tool to collect and aggregate code coverage data for multiple source files"
 license = "MPL-2.0"
@@ -52,7 +52,7 @@ globset = "0.4"
 is_executable = "1.0"
 lazy_static = "1.4"
 log = "0.4"
-md-5 = "0.9"
+md-5 = "0.10"
 num_cpus = "1.13"
 quick-xml = "0.22"
 rayon = "1.5"
@@ -61,19 +61,19 @@ rustc-hash = "1.1"
 semver = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-simplelog = "0.10"
-smallvec = "1.6"
-structopt = "0.3.22"
-symbolic-common = "8.2"
-symbolic-demangle = { version = "8.3", default-features = false }
+simplelog = "0.11"
+smallvec = "1.7"
+structopt = "0.3.25"
+symbolic-common = "8.5"
+symbolic-demangle = { version = "8.5", default-features = false }
 tempfile = "3.2"
-tera = "1.12"
+tera = "1.15"
 uuid = { version = "0.8", features = ["v4"] }
 walkdir = "2.3"
 zip = { version = "0.5", default-features = false }
 
 [dev-dependencies]
-pretty_assertions = "0.7"
+pretty_assertions = "1.0"
 
 [profile.release]
 lto = "thin"
