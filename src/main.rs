@@ -259,7 +259,7 @@ fn main() {
             ColorChoice::Auto,
         );
         error!(
-            "Enable to create log file: {}. Switch to stderr",
+            "Unable to create log file: {}. Switch to stderr",
             opt.log.display()
         );
     }
