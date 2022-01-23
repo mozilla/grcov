@@ -4,6 +4,7 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use log::warn;
 use walkdir::WalkDir;
 
 pub fn run(cmd: impl AsRef<OsStr>, args: &[&OsStr]) -> Result<Vec<u8>, String> {
@@ -71,8 +72,12 @@ pub fn profraws_to_lcov(
             "lcov".as_ref(),
         ];
 
-        if let Ok(result) = run(&cov_tool_path, &args) {
-            results.push(result);
+        match run(&cov_tool_path, &args) {
+            Ok(result) => results.push(result),
+            Err(err_str) => warn!(
+                "Suppressing error returned by llvm-cov tool for binary {:?}\n{}",
+                binary, err_str
+            ),
         }
     }
 
