@@ -178,6 +178,14 @@ struct Opt {
     /// Set the file where to log (or stderr or stdout). Defaults to 'stderr'.
     #[structopt(long, value_name = "LOG", default_value = "stderr")]
     log: PathBuf,
+    /// Set the log level.
+    #[structopt(
+        long,
+        value_name = "LEVEL",
+        default_value = "ERROR",
+        possible_values = &["OFF", "ERROR","WARN", "INFO", "DEBUG", "TRACE"],
+    )]
+    log_level: LevelFilter,
     /// Lines in covered files containing this marker will be excluded.
     #[structopt(long, value_name = "regex")]
     excl_line: Option<Regex>,
@@ -229,29 +237,29 @@ fn main() {
 
     if opt.log == stdout {
         let _ = TermLogger::init(
-            LevelFilter::Error,
+            opt.log_level,
             Config::default(),
             TerminalMode::Stdout,
             ColorChoice::Auto,
         );
     } else if opt.log == stderr {
         let _ = TermLogger::init(
-            LevelFilter::Error,
+            opt.log_level,
             Config::default(),
             TerminalMode::Stderr,
             ColorChoice::Auto,
         );
     } else if let Ok(file) = File::create(&opt.log) {
-        let _ = WriteLogger::init(LevelFilter::Error, Config::default(), file);
+        let _ = WriteLogger::init(opt.log_level, Config::default(), file);
     } else {
         let _ = TermLogger::init(
-            LevelFilter::Error,
+            opt.log_level,
             Config::default(),
             TerminalMode::Stderr,
             ColorChoice::Auto,
         );
         error!(
-            "Enable to create log file: {}. Switch to stderr",
+            "Unable to create log file: {}. Switch to stderr",
             opt.log.display()
         );
     }

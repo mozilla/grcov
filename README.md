@@ -100,6 +100,9 @@ OPTIONS:
         --log <LOG>
             Set the file where to log (or stderr or stdout). Defaults to 'stderr' [default: stderr]
 
+        --log-level <LEVEL>
+            Set the log level. [default: ERROR]  [possible values: OFF, ERROR, WARN, INFO, DEBUG, TRACE]
+
     -o, --output-path <PATH>
             Specifies the output path
 
