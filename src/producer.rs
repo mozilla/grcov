@@ -170,8 +170,12 @@ impl Archive {
             }
             ArchiveType::Dir(ref dir) => {
                 for entry in WalkDir::new(&dir) {
-                    let entry =
-                        entry.unwrap_or_else(|err| panic!("Failed to open '{}'.", err.unwrap()));
+                    let entry = entry.unwrap_or_else(|err| {
+                        panic!(
+                            "Failed to open '{}'.",
+                            err.path().unwrap().to_string_lossy()
+                        )
+                    });
                     let full_path = entry.path();
                     if full_path.is_file() {
                         let mut file = File::open(full_path).ok();
