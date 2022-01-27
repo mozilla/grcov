@@ -241,8 +241,6 @@ fn get_coverage(
         .map(|(_, rel_path, result)| {
             let all_lines: Vec<u32> = result.lines.iter().map(|(k, _)| k).cloned().collect();
 
-            let mut orphan_lines: BTreeSet<u32> = all_lines.iter().cloned().collect();
-
             let end: u32 = result.lines.keys().last().unwrap_or(&0) + 1;
 
             let mut start_indexes: Vec<u32> = Vec::new();
@@ -295,7 +293,6 @@ fn get_coverage(
                         .filter(|&&x| x >= function.start && x < func_end)
                     {
                         lines_in_function.push(*line);
-                        orphan_lines.remove(line);
                     }
 
                     let lines: Vec<Line> = lines_in_function
@@ -311,7 +308,7 @@ fn get_coverage(
                 })
                 .collect();
 
-            let lines: Vec<Line> = orphan_lines.into_iter().map(line_from_number).collect();
+            let lines: Vec<Line> = all_lines.into_iter().map(line_from_number).collect();
             let class = Class {
                 name: rel_path
                     .file_stem()
