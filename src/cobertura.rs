@@ -3,12 +3,9 @@ use quick_xml::{
     Writer,
 };
 use rustc_hash::FxHashMap;
+use std::io::{BufWriter, Cursor, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{
-    collections::BTreeSet,
-    io::{BufWriter, Cursor, Write},
-};
 use symbolic_common::Name;
 use symbolic_demangle::{Demangle, DemangleOptions};
 

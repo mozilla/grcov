@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::value::{from_value, to_value, Value};
-use std::array;
 use std::collections::HashMap;
 use std::collections::{btree_map, BTreeMap};
 use std::fs::{self, File};
@@ -439,13 +438,15 @@ impl BadgeStyle {
 
     /// Create an iterator over all possible values of this enum.
     pub fn iter() -> impl Iterator<Item = Self> {
-        array::IntoIter::new([
+        [
             Self::Flat,
             Self::FlatSquare,
             Self::ForTheBadge,
             Self::Plastic,
             Self::Social,
-        ])
+        ]
+        .iter()
+        .copied()
     }
 }
 
