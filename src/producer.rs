@@ -182,7 +182,7 @@ impl Archive {
                         let path = full_path.strip_prefix(dir).unwrap();
                         self.handle_file(
                             file.as_mut(),
-                            &path.to_path_buf(),
+                            path,
                             gcno_stem_archives,
                             gcda_stem_archives,
                             profraws,
