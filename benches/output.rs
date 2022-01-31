@@ -51,7 +51,7 @@ fn bench_output_activedata_etl(b: &mut Bencher) {
     b.iter(|| {
         black_box(output_activedata_etl(
             generate_cov_result_iter(),
-            Some(dir.path().join("temp").to_str().unwrap()),
+            Some(&dir.path().join("temp")),
             false,
         ))
     });
@@ -63,7 +63,7 @@ fn bench_output_covdir(b: &mut Bencher) {
     b.iter(|| {
         black_box(output_covdir(
             generate_cov_result_iter(),
-            Some(dir.path().join("temp").to_str().unwrap()),
+            Some(&dir.path().join("temp")),
         ));
     });
 }
@@ -74,7 +74,7 @@ fn bench_output_lcov(b: &mut Bencher) {
     b.iter(|| {
         black_box(output_lcov(
             generate_cov_result_iter(),
-            Some(dir.path().join("temp").to_str().unwrap()),
+            Some(&dir.path().join("temp")),
             false,
         ));
     });

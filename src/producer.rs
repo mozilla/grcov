@@ -597,7 +597,7 @@ mod tests {
                         ItemType::Content(_) => !elem.1,
                         ItemType::Path((_, ref p)) => elem.1 && p.ends_with(elem.2),
                         ItemType::Paths(ref paths) => paths.iter().any(|p| p.ends_with(elem.2)),
-                        ItemType::Buffers(ref b) => b.stem.replace("\\", "/").ends_with(elem.2),
+                        ItemType::Buffers(ref b) => b.stem.replace('\\', "/").ends_with(elem.2),
                     }
                 }),
                 "Missing {:?}",
@@ -617,7 +617,7 @@ mod tests {
                         ItemType::Content(_) => !x.1,
                         ItemType::Path((_, ref p)) => x.1 && p.ends_with(x.2),
                         ItemType::Paths(ref paths) => paths.iter().any(|p| p.ends_with(x.2)),
-                        ItemType::Buffers(ref b) => b.stem.replace("\\", "/").ends_with(x.2),
+                        ItemType::Buffers(ref b) => b.stem.replace('\\', "/").ends_with(x.2),
                     }
                 }),
                 "Unexpected {:?}",
