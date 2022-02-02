@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::{process, thread};
+use std::borrow::Borrow;
 use structopt::{clap::ArgGroup, StructOpt};
 
 use grcov::*;
@@ -107,8 +108,9 @@ struct Opt {
             "html",
             "cobertura",
         ],
+        multiple=true
     )]
-    output_type: OutputType,
+    output_type: Vec<OutputType>,
     /// Specifies the output path.
     #[structopt(short, long, value_name = "PATH", alias = "output-file")]
     output_path: Option<PathBuf>,
@@ -390,68 +392,74 @@ fn main() {
         }
     }
 
-    let result_map_mutex = Arc::try_unwrap(result_map).unwrap();
-    let result_map = result_map_mutex.into_inner().unwrap();
 
-    let path_mapping_mutex = Arc::try_unwrap(path_mapping).unwrap();
-    let path_mapping = path_mapping_mutex.into_inner().unwrap();
+    opt.output_type
+        .iter()
+        .for_each(|f| {
+            let result_map = Arc::clone(&result_map);
+            let path_mapping = Arc::clone(&path_mapping);
+            let result_map_mutex = Arc::try_unwrap(result_map).unwrap();
+            let result_map = result_map_mutex.into_inner().unwrap();
 
-    let iterator = rewrite_paths(
-        result_map,
-        path_mapping,
-        source_root.as_deref(),
-        prefix_dir.as_deref(),
-        opt.ignore_not_existing,
-        &opt.ignore_dir,
-        &opt.keep_dir,
-        filter_option,
-        file_filter,
-    );
-
-    match opt.output_type {
-        OutputType::Ade => output_activedata_etl(iterator, opt.output_path.as_deref(), demangle),
-        OutputType::Lcov => output_lcov(iterator, opt.output_path.as_deref(), demangle),
-        OutputType::Coveralls => output_coveralls(
-            iterator,
-            opt.token.as_deref(),
-            opt.service_name.as_deref(),
-            &opt.service_number.unwrap_or_default(),
-            opt.service_job_id.as_deref(),
-            &opt.service_pull_request.unwrap_or_default(),
-            &opt.commit_sha.unwrap_or_default(),
-            false,
-            opt.output_path.as_deref(),
-            &opt.vcs_branch,
-            opt.parallel,
-            demangle,
-        ),
-        OutputType::CoverallsPlus => output_coveralls(
-            iterator,
-            opt.token.as_deref(),
-            opt.service_name.as_deref(),
-            &opt.service_number.unwrap_or_default(),
-            opt.service_job_id.as_deref(),
-            &opt.service_pull_request.unwrap_or_default(),
-            &opt.commit_sha.unwrap_or_default(),
-            true,
-            opt.output_path.as_deref(),
-            &opt.vcs_branch,
-            opt.parallel,
-            demangle,
-        ),
-        OutputType::Files => output_files(iterator, opt.output_path.as_deref()),
-        OutputType::Covdir => output_covdir(iterator, opt.output_path.as_deref()),
-        OutputType::Html => output_html(
-            iterator,
-            opt.output_path.as_deref(),
-            num_threads,
-            opt.branch,
-        ),
-        OutputType::Cobertura => output_cobertura(
-            source_root.as_deref(),
-            iterator,
-            opt.output_path.as_deref(),
-            demangle,
-        ),
-    };
+            let path_mapping_mutex = Arc::try_unwrap(path_mapping).unwrap();
+            let path_mapping = path_mapping_mutex.into_inner().unwrap();
+            let path = rewrite_paths(
+                result_map,
+                path_mapping,
+                source_root.as_deref(),
+                prefix_dir.as_deref(),
+                opt.ignore_not_existing,
+                &opt.ignore_dir,
+                &opt.keep_dir,
+                filter_option,
+                file_filter.clone(),
+            );
+            let iterator = Box::new(path.into_iter());
+            match f {
+                OutputType::Ade => output_activedata_etl(iterator, opt.output_path.as_deref(), demangle),
+                OutputType::Lcov => output_lcov(iterator, opt.output_path.as_deref(), demangle),
+                OutputType::Coveralls => output_coveralls(
+                    iterator,
+                    opt.token.as_deref(),
+                    opt.service_name.as_deref(),
+                    opt.service_number.unwrap_or_default(),
+                    opt.service_job_id.as_deref(),
+                    opt.service_pull_request.unwrap_or_default(),
+                    opt.commit_sha.unwrap_or_default(),
+                    false,
+                    opt.output_path.as_deref(),
+                    &opt.vcs_branch,
+                    opt.parallel,
+                    demangle,
+                ),
+                OutputType::CoverallsPlus => output_coveralls(
+                    iterator,
+                    opt.token.as_deref(),
+                    opt.service_name.as_deref(),
+                    &opt.service_number.unwrap_or_default(),
+                    opt.service_job_id.as_deref(),
+                    &opt.service_pull_request.unwrap_or_default(),
+                    &opt.commit_sha.unwrap_or_default(),
+                    true,
+                    opt.output_path.as_deref(),
+                    &opt.vcs_branch,
+                    opt.parallel,
+                    demangle,
+                ),
+                OutputType::Files => output_files(iterator, opt.output_path.as_deref()),
+                OutputType::Covdir => output_covdir(iterator, opt.output_path.as_deref()),
+                OutputType::Html => output_html(
+                    iterator,
+                    opt.output_path.as_deref(),
+                    num_threads,
+                    opt.branch,
+                ),
+                OutputType::Cobertura => output_cobertura(
+                    source_root.as_deref(),
+                    iterator,
+                    opt.output_path.as_deref(),
+                    demangle,
+                ),
+            };
+        });
 }
