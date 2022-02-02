@@ -392,6 +392,9 @@ fn main() {
         }
     }
 
+    let service_number = &opt.service_number.unwrap_or_default();
+    let service_pull_request = &opt.service_pull_request.unwrap_or_default();
+    let commit_sha = &opt.commit_sha.unwrap_or_default();
 
     opt.output_type
         .iter()
@@ -422,10 +425,10 @@ fn main() {
                     iterator,
                     opt.token.as_deref(),
                     opt.service_name.as_deref(),
-                    opt.service_number.unwrap_or_default(),
+                    service_number,
                     opt.service_job_id.as_deref(),
-                    opt.service_pull_request.unwrap_or_default(),
-                    opt.commit_sha.unwrap_or_default(),
+                    service_pull_request,
+                    commit_sha,
                     false,
                     opt.output_path.as_deref(),
                     &opt.vcs_branch,
@@ -436,10 +439,10 @@ fn main() {
                     iterator,
                     opt.token.as_deref(),
                     opt.service_name.as_deref(),
-                    &opt.service_number.unwrap_or_default(),
+                    service_number,
                     opt.service_job_id.as_deref(),
-                    &opt.service_pull_request.unwrap_or_default(),
-                    &opt.commit_sha.unwrap_or_default(),
+                    service_pull_request,
+                    commit_sha,
                     true,
                     opt.output_path.as_deref(),
                     &opt.vcs_branch,
