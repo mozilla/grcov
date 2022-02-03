@@ -342,7 +342,6 @@ pub fn rewrite_paths(
         });
 
     results.collect::<Vec<(PathBuf, PathBuf, CovResult)>>()
-
 }
 
 #[cfg(test)]
@@ -420,17 +419,20 @@ mod tests {
     fn test_rewrite_paths_basic() {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("main.cpp".to_string(), empty_result!());
-        let results = Box::new(rewrite_paths(
-            result_map,
-            None,
-            None,
-            None,
-            false,
-            &[""; 0],
-            &[""; 0],
-            None,
-            Default::default(),
-        ).into_iter());
+        let results = Box::new(
+            rewrite_paths(
+                result_map,
+                None,
+                None,
+                None,
+                false,
+                &[""; 0],
+                &[""; 0],
+                None,
+                Default::default(),
+            )
+            .into_iter(),
+        );
         let mut count = 0;
         for (abs_path, rel_path, result) in results {
             count += 1;
@@ -919,17 +921,20 @@ mod tests {
     #[should_panic]
     fn test_rewrite_paths_rewrite_path_using_relative_source_directory() {
         let result_map: CovResultMap = FxHashMap::default();
-        Box::new(rewrite_paths(
-            result_map,
-            None,
-            Some(Path::new("tests")),
-            None,
-            true,
-            &[""; 0],
-            &[""; 0],
-            None,
-            Default::default(),
-        ).into_iter())
+        Box::new(
+            rewrite_paths(
+                result_map,
+                None,
+                Some(Path::new("tests")),
+                None,
+                true,
+                &[""; 0],
+                &[""; 0],
+                None,
+                Default::default(),
+            )
+            .into_iter(),
+        )
         .any(|_| false);
     }
 
@@ -1049,17 +1054,20 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("java/main.java".to_string(), empty_result!());
         result_map.insert("main.rs".to_string(), empty_result!());
-        let results = Box::new(rewrite_paths(
-            result_map,
-            None,
-            Some(&canonicalize_path(".").unwrap()),
-            None,
-            true,
-            &[""; 0],
-            &[""; 0],
-            None,
-            Default::default(),
-        ).into_iter());
+        let results = Box::new(
+            rewrite_paths(
+                result_map,
+                None,
+                Some(&canonicalize_path(".").unwrap()),
+                None,
+                true,
+                &[""; 0],
+                &[""; 0],
+                None,
+                Default::default(),
+            )
+            .into_iter(),
+        );
         let mut results: Vec<(PathBuf, PathBuf, CovResult)> = results.collect();
         assert!(results.len() == 1);
 

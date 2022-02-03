@@ -8,6 +8,7 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode, WriteLogger};
+use std::borrow::Borrow;
 use std::fs::{self, File};
 use std::ops::Deref;
 use std::panic;
@@ -15,7 +16,6 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::{process, thread};
-use std::borrow::Borrow;
 use structopt::{clap::ArgGroup, StructOpt};
 
 use grcov::*;
@@ -392,7 +392,6 @@ fn main() {
         }
     }
 
-
     let Opt {
         service_number,
         service_pull_request,
@@ -413,73 +412,63 @@ fn main() {
     let service_name = opt.service_name.as_deref();
     let service_job = opt.service_job_id.as_deref();
     let vcs_branch = &opt.vcs_branch;
-    opt.output_type
-        .iter()
-        .for_each(|f| {
-            let result_map = Arc::clone(&result_map);
-            let path_mapping = Arc::clone(&path_mapping);
-            let result_map_mutex = Arc::try_unwrap(result_map).unwrap();
-            let result_map = result_map_mutex.into_inner().unwrap();
+    opt.output_type.iter().for_each(|f| {
+        let result_map = Arc::clone(&result_map);
+        let path_mapping = Arc::clone(&path_mapping);
+        let result_map_mutex = Arc::try_unwrap(result_map).unwrap();
+        let result_map = result_map_mutex.into_inner().unwrap();
 
-            let path_mapping_mutex = Arc::try_unwrap(path_mapping).unwrap();
-            let path_mapping = path_mapping_mutex.into_inner().unwrap();
-            let path = rewrite_paths(
-                result_map,
-                path_mapping,
-                source_root.as_deref(),
-                prefix_dir.as_deref(),
-                ignore_not_existing,
-                ignore_dir,
-                keep_dir,
-                filter_option,
-                file_filter.clone(),
-            );
-            let iterator = Box::new(path.into_iter());
-            match f {
-                OutputType::Ade => output_activedata_etl(iterator, output_path, demangle),
-                OutputType::Lcov => output_lcov(iterator, output_path, demangle),
-                OutputType::Coveralls => output_coveralls(
-                    iterator,
-                    token,
-                    service_name,
-                    &service_number,
-                    service_job,
-                    &service_pull_request,
-                    &commit_sha,
-                    false,
-                    output_path,
-                    vcs_branch,
-                    parallel,
-                    demangle,
-                ),
-                OutputType::CoverallsPlus => output_coveralls(
-                    iterator,
-                    token,
-                    service_name,
-                    &service_number,
-                    service_job,
-                    &service_pull_request,
-                    &commit_sha,
-                    true,
-                    output_path,
-                    vcs_branch,
-                    parallel,
-                    demangle,
-                ),
-                OutputType::Files => output_files(iterator, output_path),
-                OutputType::Covdir => output_covdir(iterator, output_path),
-                OutputType::Html => output_html(
-                    iterator,
-                    output_path,
-                    num_threads,
-                    branch,
-                ),
-                OutputType::Cobertura => output_cobertura(
-                    source_root.as_deref(),
-                    iterator,
-                    output_path,
-                    demangle,
-                ),
-            };
-        });
+        let path_mapping_mutex = Arc::try_unwrap(path_mapping).unwrap();
+        let path_mapping = path_mapping_mutex.into_inner().unwrap();
+        let path = rewrite_paths(
+            result_map,
+            path_mapping,
+            source_root.as_deref(),
+            prefix_dir.as_deref(),
+            ignore_not_existing,
+            ignore_dir,
+            keep_dir,
+            filter_option,
+            file_filter.clone(),
+        );
+        let iterator = Box::new(path.into_iter());
+        match f {
+            OutputType::Ade => output_activedata_etl(iterator, output_path, demangle),
+            OutputType::Lcov => output_lcov(iterator, output_path, demangle),
+            OutputType::Coveralls => output_coveralls(
+                iterator,
+                token,
+                service_name,
+                &service_number,
+                service_job,
+                &service_pull_request,
+                &commit_sha,
+                false,
+                output_path,
+                vcs_branch,
+                parallel,
+                demangle,
+            ),
+            OutputType::CoverallsPlus => output_coveralls(
+                iterator,
+                token,
+                service_name,
+                &service_number,
+                service_job,
+                &service_pull_request,
+                &commit_sha,
+                true,
+                output_path,
+                vcs_branch,
+                parallel,
+                demangle,
+            ),
+            OutputType::Files => output_files(iterator, output_path),
+            OutputType::Covdir => output_covdir(iterator, output_path),
+            OutputType::Html => output_html(iterator, output_path, num_threads, branch),
+            OutputType::Cobertura => {
+                output_cobertura(source_root.as_deref(), iterator, output_path, demangle)
+            }
+        };
+    });
 }
