@@ -96,7 +96,7 @@ fn guess_abs_path(prefix_dir: &Path, path: &Path) -> PathBuf {
     }
     for ancestor in path.ancestors() {
         if prefix_dir.ends_with(ancestor) && !ancestor.as_os_str().is_empty() {
-            return prefix_dir.join(path.strip_prefix(ancestor).unwrap().to_path_buf());
+            return prefix_dir.join(path.strip_prefix(ancestor).unwrap());
         }
     }
     full_path
@@ -135,7 +135,7 @@ fn get_abs_path(source_dir: Option<&Path>, rel_path: PathBuf) -> Option<(PathBuf
         } else {
             guess_abs_path(
                 source_dir,
-                &PathBuf::from(&rel_path.to_str().unwrap().replace("/", "\\")),
+                &PathBuf::from(&rel_path.to_str().unwrap().replace('/', "\\")),
             )
         }
     } else {
@@ -148,7 +148,7 @@ fn get_abs_path(source_dir: Option<&Path>, rel_path: PathBuf) -> Option<(PathBuf
     }
 
     // Fixup the relative path, in case the absolute path was a symlink.
-    let rel_path = fixup_rel_path(source_dir.as_deref(), &abs_path, rel_path);
+    let rel_path = fixup_rel_path(source_dir, &abs_path, rel_path);
 
     // Normalize the path in removing './' or '//' or '..'
     let rel_path = normalize_path(rel_path);
@@ -276,7 +276,7 @@ pub fn rewrite_paths(
     let results = result_map
         .into_par_iter()
         .filter_map(move |(path, mut result)| {
-            let path = path.replace("\\", "/");
+            let path = path.replace('\\', "/");
 
             // Get path from the mapping.
             let rel_path = apply_mapping(&path_mapping, &path);
@@ -307,7 +307,7 @@ pub fn rewrite_paths(
             }
 
             // Always return results with '/'.
-            let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace("\\", "/"));
+            let rel_path = PathBuf::from(rel_path.to_str().unwrap().replace('\\', "/"));
 
             for filter in file_filter.create(&abs_path) {
                 match filter {

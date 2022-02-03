@@ -90,9 +90,12 @@ pub struct Gcno {
 struct GcovFunction {
     identifier: u32,
     start_line: u32,
+    #[allow(dead_code)]
     start_column: u32,
     end_line: u32,
+    #[allow(dead_code)]
     end_column: u32,
+    #[allow(dead_code)]
     artificial: u32,
     line_checksum: u32,
     cfg_checksum: u32,
