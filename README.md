@@ -312,6 +312,7 @@ grcov provides the following output types:
 | ade              | ActiveData\-ETL format. Only useful for Mozilla projects.                 |
 | coveralls        | Generates coverage in Coveralls format.                                   |
 | coveralls+       | Like coveralls but with function level information.                       |
+| cobertura        | Generates coverage in Cobertura format.                                   |
 | files            | Output a file list of covered or uncovered source files.                  |
 | covdir           | Provides coverage in a recursive JSON format.                             |
 | html             | Output a HTML coverage report, including coverage badges for your README. |
