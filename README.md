@@ -25,6 +25,7 @@ This is a project initiated by Mozilla to gather code coverage results on Firefo
     - [LCOV output](#lcov-output)
     - [Coveralls/Codecov output](#coverallscodecov-output)
     - [grcov with Travis](#grcov-with-travis)
+    - [grcov with GitLab](#grcov-with-gitlab)
   - [Alternative reports](#alternative-reports)
   - [Hosting HTML reports and using coverage badges](#hosting-html-reports-and-using-coverage-badges)
     - [Example](#example)
@@ -300,6 +301,28 @@ script:
       zip -0 ccov.zip `find . \( -name "YOUR_PROJECT_NAME*.gc*" \) -print`;
       ./grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o lcov.info;
       bash <(curl -s https://codecov.io/bash) -f lcov.info;
+```
+
+#### grcov with GitLab
+
+Here is an example of a `.gitlab-ci.yml` file for source-based coverage, using
+GitLab's [test coverage visualization feature](https://docs.gitlab.com/ee/user/project/merge_requests/test_coverage_visualization.html):
+
+```yaml
+test:
+  image: rust:latest
+  variables:
+    RUSTC_BOOTSTRAP: 1
+    RUSTFLAGS: -Zinstrument-coverage
+  script:
+    - rustup component add llvm-tools-preview
+    - curl -sSL https://github.com/mozilla/grcov/releases/latest/download/grcov-v0.8.6-x86_64-unknown-linux-gnu.tar.gz | tar -xz
+    - cargo build --verbose
+    - LLVM_PROFILE_FILE="your_name-%p-%m.profraw" cargo test --verbose
+    - ./grcov . --binary-path ./target/debug/ -s . -t cobertura --branch --ignore-not-existing --ignore "/*" -o coverage.xml
+  artifacts:
+    reports:
+      cobertura: coverage.xml
 ```
 
 ### Alternative reports
