@@ -73,7 +73,7 @@ walkdir = "2.3"
 zip = { version = "0.5", default-features = false }
 
 [dev-dependencies]
-pretty_assertions = "1.0"
+pretty_assertions = "1.1"
 
 [profile.release]
 lto = "thin"
