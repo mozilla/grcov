@@ -261,7 +261,7 @@ Here is an example of .travis.yml file for source-based coverage:
 language: rust
 
 before_install:
-  - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
+  - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-v0.8.6-x86_64-unknown-linux-gnu.tar.gz | tar xzf -
 
 matrix:
   include:
@@ -283,7 +283,7 @@ Here is an example of .travis.yml file:
 language: rust
 
 before_install:
-  - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
+  - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-v0.8.6-x86_64-unknown-linux-gnu.tar.gz | tar xzf -
 
 matrix:
   include:
