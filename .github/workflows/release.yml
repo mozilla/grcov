@@ -98,14 +98,14 @@ jobs:
           rm -rf target/dist
           mkdir target/dist
           cd target/${{ matrix.target }}/release
-          tar cjf ../../dist/grcov-${{ github.ref_name }}-${{ matrix.target }}.tar.bz2 grcov
+          tar cjf ../../dist/grcov-${{ matrix.target }}.tar.bz2 grcov
       - name: Package (windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
           if (Test-Path target/dist) { rm -Recurse -Force target/dist }
           mkdir target/dist
           cd target/${{ matrix.target }}/release
-          7z a ../../dist/grcov-${{ github.ref_name }}-${{ matrix.target }}.zip grcov.exe
+          7z a ../../dist/grcov-${{ matrix.target }}.zip grcov.exe
       - name: Upload archive
         uses: actions/upload-artifact@v2
         with:
@@ -123,7 +123,7 @@ jobs:
           set -x
           for dir in $(pwd)/artifact-*; do
             cd $dir
-            sha256sum -b * >> ~/checksums-${{ github.ref_name }}.sha256
+            sha256sum -b * >> ~/checksums.sha256
           done
       - name: Create release
         id: release
@@ -147,7 +147,7 @@ jobs:
       - name: Upload artifacts
         run: |
           set -x
-          for file in $(ls artifact-*/*.{tar.bz2,zip}) ~/checksums-${{ github.ref_name }}.sha256; do
+          for file in $(ls artifact-*/*.{tar.bz2,zip}) ~/checksums.sha256; do
             filename=$(basename -- "$file")
             extension="${filename#*.}"
 
