@@ -354,7 +354,7 @@ fn gen_html(
     ctx.insert("branch_enabled", &branch_enabled);
 
     let items = f
-        .lines()
+        .split(b'\n')
         .enumerate()
         .map(move |(i, l)| {
             let index = i + 1;
@@ -364,7 +364,7 @@ fn gen_html(
                 .map(|&v| v as i64)
                 .unwrap_or(-1);
 
-            (index, count, l.unwrap())
+            (index, count, String::from_utf8_lossy(&l.unwrap()).into_owned())
         })
         .collect::<Vec<_>>();
 
