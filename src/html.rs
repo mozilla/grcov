@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::collections::{btree_map, BTreeMap};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
-use std::ops::{Div, Mul};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tera::try_get_value;
@@ -153,18 +152,13 @@ fn get_stats(result: &CovResult) -> HtmlStats {
 }
 
 #[inline(always)]
-fn get_percentage<
-    T: Div + Mul + PartialOrd + std::ops::Mul<Output = T> + std::ops::Div<Output = T> + From<u8>,
->(
-    x: T,
-    y: T,
-) -> T {
-    if y != T::from(0) {
-        x / y * T::from(100)
+fn get_percentage_of_covered_lines(covered_lines: usize, total_lines: usize) -> f64 {
+    if total_lines != 0 {
+        covered_lines as f64 / total_lines as f64 * 100.0
     } else {
         // If the file is empty (no lines) then the coverage
         // must be 100% (0% means "bad" which is not the case).
-        T::from(100)
+        100.0
     }
 }
 
@@ -174,7 +168,7 @@ fn percent(args: &HashMap<String, Value>) -> tera::Result<Value> {
             from_value::<usize>(n.clone()),
             from_value::<usize>(d.clone()),
         ) {
-            Ok(to_value(get_percentage(num as f64, den as f64)).unwrap())
+            Ok(to_value(get_percentage_of_covered_lines(num, den)).unwrap())
         } else {
             Err(tera::Error::msg("Invalid arguments"))
         }
@@ -466,7 +460,7 @@ pub fn gen_badge(tera: &Tera, stats: &HtmlStats, conf: &Config, output: &Path, s
     let mut ctx = make_context();
     ctx.insert(
         "current",
-        &get_percentage(stats.covered_lines, stats.total_lines),
+        &(get_percentage_of_covered_lines(stats.covered_lines, stats.total_lines) as usize),
     );
     ctx.insert("hi_limit", &conf.hi_limit);
     ctx.insert("med_limit", &conf.med_limit);
@@ -511,7 +505,7 @@ pub fn gen_coverage_json(stats: &HtmlStats, conf: &Config, output: &Path) {
         Ok(f) => f,
     };
 
-    let coverage = get_percentage(stats.covered_lines, stats.total_lines);
+    let coverage = get_percentage_of_covered_lines(stats.covered_lines, stats.total_lines) as usize;
 
     let res = serde_json::to_writer(
         &mut output_stream,
@@ -531,5 +525,19 @@ pub fn gen_coverage_json(stats: &HtmlStats, conf: &Config, output: &Path) {
 
     if res.is_err() {
         eprintln!("cannot write the file {:?}", output_file);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::get_percentage_of_covered_lines;
+
+    #[test]
+    fn test_get_percentage_of_covered_lines() {
+        assert_eq!(get_percentage_of_covered_lines(5, 5), 100.0);
+        assert_eq!(get_percentage_of_covered_lines(1, 2), 50.0);
+        assert_eq!(get_percentage_of_covered_lines(200, 500), 40.0);
+        assert_eq!(get_percentage_of_covered_lines(0, 0), 100.0);
+        assert_eq!(get_percentage_of_covered_lines(5, 0), 100.0);
     }
 }
