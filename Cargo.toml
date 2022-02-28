@@ -65,7 +65,7 @@ simplelog = "0.11"
 smallvec = "1.8"
 structopt = "0.3.26"
 symbolic-common = "8.6"
-symbolic-demangle = { version = "8.5", default-features = false }
+symbolic-demangle = { version = "8.6", default-features = false }
 tempfile = "3.3"
 tera = "1.15"
 uuid = { version = "0.8", features = ["v4"] }
