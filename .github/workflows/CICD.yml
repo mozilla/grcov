@@ -79,12 +79,12 @@ jobs:
           key: test-${{ runner.os }}-cargo-gcc-${{ matrix.gcc }}-clang-${{ matrix.clang }}-${{ hashFiles('**/Cargo.lock') }}
       - name: Build
         env:
-          RUSTFLAGS: -Zinstrument-coverage
+          RUSTFLAGS: -Cinstrument-coverage
         run: cargo build
       - name: Test
         env:
           LLVM_PROFILE_FILE: grcov-%p-%m.profraw
-          RUSTFLAGS: -Zinstrument-coverage
+          RUSTFLAGS: -Cinstrument-coverage
         run: cargo test
       - name: Generate coverage
         run: |
