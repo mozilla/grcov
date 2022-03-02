@@ -174,7 +174,7 @@ RUSTC_BOOTSTRAP=1`, which basically turns your stable rustc into a Nightly one.
 2. Ensure that the following environment variable is set up:
 
    ```sh
-   export RUSTFLAGS="-Zinstrument-coverage"
+   export RUSTFLAGS="-C instrument-coverage"
    ```
 
 3. Build your code:
