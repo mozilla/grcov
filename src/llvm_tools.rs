@@ -149,9 +149,14 @@ mod tests {
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 0);
 
+        #[cfg(unix)]
+        let binary_path = "target/debug/rust-code-coverage-sample";
+        #[cfg(windows)]
+        let binary_path = "target/debug/rust-code-coverage-sample.exe";
+
         let lcovs = profraws_to_lcov(
             &[tmp_path.join("default.profraw")],
-            &tmp_path.join("target/debug/rust-code-coverage-sample"),
+            &tmp_path.join(binary_path),
             &tmp_path,
         );
         assert!(lcovs.is_ok());
