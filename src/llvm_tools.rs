@@ -96,6 +96,8 @@ fn get_profdata_path() -> Result<PathBuf, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_str_eq;
+    use std::fs;
 
     #[test]
     fn test_profraws_to_lcov() {
@@ -107,8 +109,36 @@ mod tests {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
 
+        fs::copy(
+            PathBuf::from("tests/rust/Cargo.toml"),
+            &tmp_path.join("Cargo.toml"),
+        )
+        .expect("Failed to copy file");
+        fs::create_dir(&tmp_path.join("src")).expect("Failed to create dir");
+        fs::copy(
+            PathBuf::from("tests/rust/src/main.rs"),
+            &tmp_path.join("src/main.rs"),
+        )
+        .expect("Failed to copy file");
+
+        let status = Command::new("cargo")
+            .arg("build")
+            .env("RUSTFLAGS", "-Cinstrument-coverage")
+            .current_dir(&tmp_path)
+            .status()
+            .expect("Failed to build");
+        assert!(status.success());
+
+        let status = Command::new("cargo")
+            .arg("run")
+            .env("RUSTFLAGS", "-Cinstrument-coverage")
+            .current_dir(&tmp_path)
+            .status()
+            .expect("Failed to build");
+        assert!(status.success());
+
         let lcovs = profraws_to_lcov(
-            &[PathBuf::from("test/default.profraw")],
+            &[tmp_path.join("default.profraw")],
             &PathBuf::from("src"),
             &tmp_path,
         );
@@ -117,16 +147,16 @@ mod tests {
         assert_eq!(lcovs.len(), 0);
 
         let lcovs = profraws_to_lcov(
-            &[PathBuf::from("test/default.profraw")],
-            &PathBuf::from("test/rust-code-coverage-sample"),
+            &[tmp_path.join("default.profraw")],
+            &tmp_path.join("target/debug/rust-code-coverage-sample"),
             &tmp_path,
         );
         assert!(lcovs.is_ok());
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 1);
-        assert_eq!(
-            String::from_utf8_lossy(&lcovs[0]),
-            "SF:/home/marco/Documenti/workspace/rust-code-coverage-sample/src/main.rs
+        let output_lcov = String::from_utf8_lossy(&lcovs[0]);
+        let expected_lcov = format!(
+            "SF:{}
 FN:3,_RNvXCseEhH7beoFkE_25rust_code_coverage_sampleNtB2_4CiaoNtNtCsbdxa2qjaZ4v_4core3fmt5Debug3fmt
 FN:8,_RNvCseEhH7beoFkE_25rust_code_coverage_sample4main
 FNDA:0,_RNvXCseEhH7beoFkE_25rust_code_coverage_sampleNtB2_4CiaoNtNtCsbdxa2qjaZ4v_4core3fmt5Debug3fmt
@@ -144,7 +174,9 @@ BRH:0
 LF:6
 LH:5
 end_of_record
-"
+",
+            tmp_path.join("src/main.rs").display()
         );
+        assert_str_eq!(expected_lcov, output_lcov);
     }
 }
