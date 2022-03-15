@@ -96,7 +96,6 @@ fn get_profdata_path() -> Result<PathBuf, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pretty_assertions::assert_str_eq;
     use std::fs;
 
     #[test]
@@ -155,28 +154,34 @@ mod tests {
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 1);
         let output_lcov = String::from_utf8_lossy(&lcovs[0]);
-        let expected_lcov = format!(
-            "SF:{}
-FN:3,_RNvXCseEhH7beoFkE_25rust_code_coverage_sampleNtB2_4CiaoNtNtCsbdxa2qjaZ4v_4core3fmt5Debug3fmt
-FN:8,_RNvCseEhH7beoFkE_25rust_code_coverage_sample4main
-FNDA:0,_RNvXCseEhH7beoFkE_25rust_code_coverage_sampleNtB2_4CiaoNtNtCsbdxa2qjaZ4v_4core3fmt5Debug3fmt
-FNDA:1,_RNvCseEhH7beoFkE_25rust_code_coverage_sample4main
-FNF:2
-FNH:1
-DA:3,0
-DA:8,1
-DA:9,1
-DA:10,1
-DA:11,1
-DA:12,1
-BRF:0
-BRH:0
-LF:6
-LH:5
-end_of_record
-",
-            tmp_path.join("src/main.rs").display()
-        );
-        assert_str_eq!(expected_lcov, output_lcov);
+        println!("{}", output_lcov);
+        assert!(output_lcov
+            .lines()
+            .any(|line| line.contains("SF") && line.contains("src/main.rs")));
+        assert!(output_lcov.lines().any(|line| line.contains("FN:3")
+            && line.contains("rust_code_coverage_sample")
+            && line.contains("Ciao")));
+        assert!(output_lcov.lines().any(|line| line.contains("FN:8")
+            && line.contains("rust_code_coverage_sample")
+            && line.contains("main")));
+        assert!(output_lcov.lines().any(|line| line.contains("FNDA:0")
+            && line.contains("rust_code_coverage_sample")
+            && line.contains("Ciao")));
+        assert!(output_lcov.lines().any(|line| line.contains("FNDA:1")
+            && line.contains("rust_code_coverage_sample")
+            && line.contains("main")));
+        assert!(output_lcov.lines().any(|line| line == "FNF:2"));
+        assert!(output_lcov.lines().any(|line| line == "FNH:1"));
+        assert!(output_lcov.lines().any(|line| line == "DA:3,0"));
+        assert!(output_lcov.lines().any(|line| line == "DA:8,1"));
+        assert!(output_lcov.lines().any(|line| line == "DA:9,1"));
+        assert!(output_lcov.lines().any(|line| line == "DA:10,1"));
+        assert!(output_lcov.lines().any(|line| line == "DA:11,1"));
+        assert!(output_lcov.lines().any(|line| line == "DA:12,1"));
+        assert!(output_lcov.lines().any(|line| line == "BRF:0"));
+        assert!(output_lcov.lines().any(|line| line == "BRH:0"));
+        assert!(output_lcov.lines().any(|line| line == "LF:6"));
+        assert!(output_lcov.lines().any(|line| line == "LH:5"));
+        assert!(output_lcov.lines().any(|line| line == "end_of_record"));
     }
 }
