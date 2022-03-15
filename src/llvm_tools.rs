@@ -126,11 +126,11 @@ mod tests {
         assert_eq!(lcovs.len(), 1);
         assert_eq!(
             String::from_utf8_lossy(&lcovs[0]),
-            "SF:src/main.rs
-FN:3,_RNvXCsbfwyntYdFII_25rust_code_coverage_sampleNtB2_4CiaoNtNtCshypYLURccL2_4core3fmt5Debug3fmt
-FN:8,_RNvCsbfwyntYdFII_25rust_code_coverage_sample4main
-FNDA:0,_RNvXCsbfwyntYdFII_25rust_code_coverage_sampleNtB2_4CiaoNtNtCshypYLURccL2_4core3fmt5Debug3fmt
-FNDA:1,_RNvCsbfwyntYdFII_25rust_code_coverage_sample4main
+            "SF:/home/marco/Documenti/workspace/rust-code-coverage-sample/src/main.rs
+FN:3,_RNvXCseEhH7beoFkE_25rust_code_coverage_sampleNtB2_4CiaoNtNtCsbdxa2qjaZ4v_4core3fmt5Debug3fmt
+FN:8,_RNvCseEhH7beoFkE_25rust_code_coverage_sample4main
+FNDA:0,_RNvXCseEhH7beoFkE_25rust_code_coverage_sampleNtB2_4CiaoNtNtCsbdxa2qjaZ4v_4core3fmt5Debug3fmt
+FNDA:1,_RNvCseEhH7beoFkE_25rust_code_coverage_sample4main
 FNF:2
 FNH:1
 DA:3,0
