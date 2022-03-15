@@ -166,7 +166,7 @@ mod tests {
         println!("{}", output_lcov);
         assert!(output_lcov
             .lines()
-            .any(|line| line.contains("SF") && line.contains("src/main.rs")));
+            .any(|line| line.contains("SF") && line.contains("src") && line.contains("main.rs")));
         assert!(output_lcov.lines().any(|line| line.contains("FN:3")
             && line.contains("rust_code_coverage_sample")
             && line.contains("Ciao")));
