@@ -37,11 +37,6 @@ demangle-with-swift = [
     "symbolic-demangle/swift",
 ]
 
-[badges]
-appveyor = { repository = "marco-c/grcov" }
-travis-ci = { repository = "mozilla/grcov" }
-codecov = { repository = "mozilla/grcov" }
-
 [dependencies]
 cargo-binutils = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
