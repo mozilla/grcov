@@ -1,6 +1,7 @@
 use cargo_binutils::Tool;
 use is_executable::IsExecutable;
 use std::ffi::OsStr;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -42,7 +43,10 @@ pub fn profraws_to_lcov(
 
     get_profdata_path().and_then(|p| run(&p, &args))?;
 
-    let binaries = if binary_path.is_file() {
+    let metadata = fs::metadata(binary_path)
+        .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {:?}.", binary_path, e));
+
+    let binaries = if metadata.is_file() {
         vec![binary_path.to_owned()]
     } else {
         let mut paths = vec![];
