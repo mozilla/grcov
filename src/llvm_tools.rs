@@ -135,6 +135,7 @@ mod tests {
         let status = Command::new("cargo")
             .arg("run")
             .env("RUSTFLAGS", "-Cinstrument-coverage")
+            .env("LLVM_PROFILE_FILE", tmp_path.join("default.profraw"))
             .current_dir(&tmp_path)
             .status()
             .expect("Failed to build");
