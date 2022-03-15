@@ -1,7 +1,6 @@
 # grcov
 
-[![Build Status](https://travis-ci.com/mozilla/grcov.svg?branch=master)](https://travis-ci.com/mozilla/grcov)
-[![Build status](https://ci.appveyor.com/api/projects/status/1957u00h26alxey2/branch/master?svg=true)](https://ci.appveyor.com/project/marco-c/grcov)
+[![Build Status](https://github.com/mozilla/grcov/actions/workflows/CICD.yml/badge.svg?branch=master)](https://github.com/mozilla/grcov/actions/workflows/CICD.yml)
 [![codecov](https://codecov.io/gh/mozilla/grcov/branch/master/graph/badge.svg)](https://codecov.io/gh/mozilla/grcov)
 [![crates.io](https://img.shields.io/crates/v/grcov.svg)](https://crates.io/crates/grcov)
 
