@@ -226,7 +226,7 @@ fn check_equal_ade(expected_output: &str, output: &str) {
     let mut actual: Vec<Value> = Vec::new();
     for line in output.lines() {
         let parsed = serde_json::from_str(line).unwrap();
-        println!("{}", serde_json::to_string_pretty(&parsed).unwrap());
+        println!("{}", parsed);
         actual.push(parsed);
     }
 
