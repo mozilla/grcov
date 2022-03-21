@@ -7,7 +7,7 @@ pub enum FilterType {
     Both(u32),
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FileFilter {
     excl_line: Option<Regex>,
     excl_start: Option<Regex>,
