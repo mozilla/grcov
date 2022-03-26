@@ -327,6 +327,8 @@ pub fn gen_dir_index(
     precision: usize,
 ) {
     let index = Path::new(dir_name).join("index.html");
+    let layers = index.components().count() - 1;
+    let prefix = "../".repeat(layers) + "index.html";
     let output_file = output.join(index);
     create_parent(&output_file);
     let mut output = match File::create(&output_file) {
@@ -341,7 +343,7 @@ pub fn gen_dir_index(
     ctx.insert("date", &conf.date);
     ctx.insert("bulma_version", BULMA_VERSION);
     ctx.insert("current", dir_name);
-    ctx.insert("parents", &[("../index.html", "top_level")]);
+    ctx.insert("parents", &[(prefix, "top_level")]);
     ctx.insert("stats", &dir_stats.stats);
     ctx.insert("items", &dir_stats.files);
     ctx.insert("kind", "File");
