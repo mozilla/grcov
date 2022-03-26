@@ -53,7 +53,7 @@
         <td class="has-text-centered has-background-{{ functions_sev }} p-2">{{ functions_per | round(precision=2) }}%</td>
         <td class="has-text-centered has-background-{{ functions_sev }} p-2">{{ stats.covered_funs }} / {{ stats.total_funs }} </td>
         <!-- -->
-        <td class="has-text-centered has-background-{{ branches_sev }} p-2">{{ branches_per | round(precision=2) }}</td>
+        <td class="has-text-centered has-background-{{ branches_sev }} p-2">{{ branches_per | round(precision=2) }}%</td>
         <td class="has-text-centered has-background-{{ branches_sev }} p-2">{{ stats.covered_branches }} / {{ stats.total_branches }}</td>
     </tr>
 {% endmacro %}
