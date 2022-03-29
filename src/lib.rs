@@ -100,13 +100,13 @@ pub fn merge_results(result: &mut CovResult, result2: CovResult) -> bool {
 }
 
 fn add_results(
-    mut results: Vec<(String, CovResult)>,
+    results: Vec<(String, CovResult)>,
     result_map: &SyncCovResultMap,
     source_dir: Option<&Path>,
 ) {
     let mut map = result_map.lock().unwrap();
     let mut warn_overflow = false;
-    for result in results.drain(..) {
+    for result in results.into_iter() {
         let path = match source_dir {
             Some(source_dir) => {
                 // the goal here is to be able to merge results for paths like foo/./bar and foo/bar
@@ -133,7 +133,7 @@ fn add_results(
     }
 }
 
-fn rename_single_files(results: &mut Vec<(String, CovResult)>, stem: &str) {
+fn rename_single_files(results: &mut [(String, CovResult)], stem: &str) {
     // sometimes the gcno just contains foo.c
     // so in such case (with option --guess-directory-when-missing)
     // we guess the filename in using the buffer stem

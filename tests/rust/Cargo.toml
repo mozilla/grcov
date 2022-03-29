@@ -1,0 +1,6 @@
+[package]
+name = "rust-code-coverage-sample"
+version = "0.1.0"
+authors = ["Marco Castelluccio <mcastelluccio@mozilla.com>"]
+
+[dependencies]

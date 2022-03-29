@@ -431,12 +431,12 @@ impl Gcno {
     pub fn compute(
         stem: &str,
         gcno_buf: Vec<u8>,
-        mut gcda_bufs: Vec<Vec<u8>>,
+        gcda_bufs: Vec<Vec<u8>>,
         branch_enabled: bool,
     ) -> Result<Vec<(String, CovResult)>, GcovError> {
         let mut gcno = Self::new();
         gcno.read(FileType::Gcno, gcno_buf, stem)?;
-        for gcda_buf in gcda_bufs.drain(..) {
+        for gcda_buf in gcda_bufs.into_iter() {
             gcno.read(FileType::Gcda, gcda_buf, stem)?;
         }
         gcno.stop();

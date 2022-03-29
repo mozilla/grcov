@@ -1,7 +1,6 @@
 # grcov
 
-[![Build Status](https://travis-ci.com/mozilla/grcov.svg?branch=master)](https://travis-ci.com/mozilla/grcov)
-[![Build status](https://ci.appveyor.com/api/projects/status/1957u00h26alxey2/branch/master?svg=true)](https://ci.appveyor.com/project/marco-c/grcov)
+[![Build Status](https://github.com/mozilla/grcov/actions/workflows/CICD.yml/badge.svg?branch=master)](https://github.com/mozilla/grcov/actions/workflows/CICD.yml)
 [![codecov](https://codecov.io/gh/mozilla/grcov/branch/master/graph/badge.svg)](https://codecov.io/gh/mozilla/grcov)
 [![crates.io](https://img.shields.io/crates/v/grcov.svg)](https://crates.io/crates/grcov)
 
@@ -23,7 +22,7 @@ This is a project initiated by Mozilla to gather code coverage results on Firefo
   - [Example: How to generate .gcda files for a Rust project](#example-how-to-generate-gcda-files-for-a-rust-project)
   - [Generate a coverage report from coverage artifacts](#generate-a-coverage-report-from-coverage-artifacts)
     - [LCOV output](#lcov-output)
-    - [Coveralls/Codecov output](#coverallscodecov-output)
+    - [Coveralls output](#coveralls-output)
     - [grcov with Travis](#grcov-with-travis)
   - [Alternative reports](#alternative-reports)
   - [Hosting HTML reports and using coverage badges](#hosting-html-reports-and-using-coverage-badges)
