@@ -1,6 +1,7 @@
 use cargo_binutils::Tool;
 use is_executable::IsExecutable;
 use std::ffi::OsStr;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -42,7 +43,10 @@ pub fn profraws_to_lcov(
 
     get_profdata_path().and_then(|p| run(&p, &args))?;
 
-    let binaries = if binary_path.is_file() {
+    let metadata = fs::metadata(binary_path)
+        .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {:?}.", binary_path, e));
+
+    let binaries = if metadata.is_file() {
         vec![binary_path.to_owned()]
     } else {
         let mut paths = vec![];
@@ -96,6 +100,7 @@ fn get_profdata_path() -> Result<PathBuf, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn test_profraws_to_lcov() {
@@ -107,8 +112,29 @@ mod tests {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
 
+        fs::copy(
+            PathBuf::from("tests/rust/Cargo.toml"),
+            &tmp_path.join("Cargo.toml"),
+        )
+        .expect("Failed to copy file");
+        fs::create_dir(&tmp_path.join("src")).expect("Failed to create dir");
+        fs::copy(
+            PathBuf::from("tests/rust/src/main.rs"),
+            &tmp_path.join("src/main.rs"),
+        )
+        .expect("Failed to copy file");
+
+        let status = Command::new("cargo")
+            .arg("run")
+            .env("RUSTFLAGS", "-Cinstrument-coverage")
+            .env("LLVM_PROFILE_FILE", tmp_path.join("default.profraw"))
+            .current_dir(&tmp_path)
+            .status()
+            .expect("Failed to build");
+        assert!(status.success());
+
         let lcovs = profraws_to_lcov(
-            &[PathBuf::from("test/default.profraw")],
+            &[tmp_path.join("default.profraw")],
             &PathBuf::from("src"),
             &tmp_path,
         );
@@ -116,35 +142,48 @@ mod tests {
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 0);
 
+        #[cfg(unix)]
+        let binary_path = "target/debug/rust-code-coverage-sample";
+        #[cfg(windows)]
+        let binary_path = "target/debug/rust-code-coverage-sample.exe";
+
         let lcovs = profraws_to_lcov(
-            &[PathBuf::from("test/default.profraw")],
-            &PathBuf::from("test/rust-code-coverage-sample"),
+            &[tmp_path.join("default.profraw")],
+            &tmp_path.join(binary_path),
             &tmp_path,
         );
         assert!(lcovs.is_ok());
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 1);
-        assert_eq!(
-            String::from_utf8_lossy(&lcovs[0]),
-            "SF:src/main.rs
-FN:3,_RNvXCsbfwyntYdFII_25rust_code_coverage_sampleNtB2_4CiaoNtNtCshypYLURccL2_4core3fmt5Debug3fmt
-FN:8,_RNvCsbfwyntYdFII_25rust_code_coverage_sample4main
-FNDA:0,_RNvXCsbfwyntYdFII_25rust_code_coverage_sampleNtB2_4CiaoNtNtCshypYLURccL2_4core3fmt5Debug3fmt
-FNDA:1,_RNvCsbfwyntYdFII_25rust_code_coverage_sample4main
-FNF:2
-FNH:1
-DA:3,0
-DA:8,1
-DA:9,1
-DA:10,1
-DA:11,1
-DA:12,1
-BRF:0
-BRH:0
-LF:6
-LH:5
-end_of_record
-"
-        );
+        let output_lcov = String::from_utf8_lossy(&lcovs[0]);
+        println!("{}", output_lcov);
+        assert!(output_lcov
+            .lines()
+            .any(|line| line.contains("SF") && line.contains("src") && line.contains("main.rs")));
+        assert!(output_lcov.lines().any(|line| line.contains("FN:3")
+            && line.contains("rust_code_coverage_sample")
+            && line.contains("Ciao")));
+        assert!(output_lcov.lines().any(|line| line.contains("FN:8")
+            && line.contains("rust_code_coverage_sample")
+            && line.contains("main")));
+        assert!(output_lcov.lines().any(|line| line.contains("FNDA:0")
+            && line.contains("rust_code_coverage_sample")
+            && line.contains("Ciao")));
+        assert!(output_lcov.lines().any(|line| line.contains("FNDA:1")
+            && line.contains("rust_code_coverage_sample")
+            && line.contains("main")));
+        assert!(output_lcov.lines().any(|line| line == "FNF:2"));
+        assert!(output_lcov.lines().any(|line| line == "FNH:1"));
+        assert!(output_lcov.lines().any(|line| line == "DA:3,0"));
+        assert!(output_lcov.lines().any(|line| line == "DA:8,1"));
+        assert!(output_lcov.lines().any(|line| line == "DA:9,1"));
+        assert!(output_lcov.lines().any(|line| line == "DA:10,1"));
+        assert!(output_lcov.lines().any(|line| line == "DA:11,1"));
+        assert!(output_lcov.lines().any(|line| line == "DA:12,1"));
+        assert!(output_lcov.lines().any(|line| line == "BRF:0"));
+        assert!(output_lcov.lines().any(|line| line == "BRH:0"));
+        assert!(output_lcov.lines().any(|line| line == "LF:6"));
+        assert!(output_lcov.lines().any(|line| line == "LH:5"));
+        assert!(output_lcov.lines().any(|line| line == "end_of_record"));
     }
 }

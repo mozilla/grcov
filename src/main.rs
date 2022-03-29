@@ -112,6 +112,9 @@ struct Opt {
     /// Specifies the output path.
     #[structopt(short, long, value_name = "PATH", alias = "output-file")]
     output_path: Option<PathBuf>,
+    /// Specifies the output config file.
+    #[structopt(long, value_name = "PATH", alias = "output-config-file")]
+    output_config_file: Option<PathBuf>,
     /// Specifies the root directory of the source files.
     #[structopt(short, long, value_name = "DIRECTORY", parse(from_os_str))]
     source_dir: Option<PathBuf>,
@@ -446,6 +449,7 @@ fn main() {
             opt.output_path.as_deref(),
             num_threads,
             opt.branch,
+            opt.output_config_file.as_deref(),
         ),
         OutputType::Cobertura => output_cobertura(
             source_root.as_deref(),
