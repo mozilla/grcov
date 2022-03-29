@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::{btree_map, BTreeMap};
 use std::fs::{self, File};
-use std::io::{Write, Read, BufReader};
+use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tera::try_get_value;
@@ -403,11 +403,17 @@ fn gen_html(
     }
 
     let file_utf8 = String::from_utf8_lossy(&file_buf);
-    if matches!(&file_utf8, Cow::Owned(_)) { // from_utf8_lossy needs to reallocate only when invalid UTF-8, warn.
-        eprintln!("Warning: invalid utf-8 characters in source file {}. They will be replaced by U+FFFD", path.display());
+    if matches!(&file_utf8, Cow::Owned(_)) {
+        // from_utf8_lossy needs to reallocate only when invalid UTF-8, warn.
+        eprintln!(
+            "Warning: invalid utf-8 characters in source file {}. They will be replaced by U+FFFD",
+            path.display()
+        );
     }
 
-    let items = file_utf8.lines().enumerate()
+    let items = file_utf8
+        .lines()
+        .enumerate()
         .map(move |(i, l)| {
             let index = i + 1;
             let count = result
