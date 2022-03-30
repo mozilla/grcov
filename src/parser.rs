@@ -386,8 +386,11 @@ where
     }
 
     match n.as_u64() {
-        Some(value) => return Ok(value),
-        None => Err(serde::de::Error::custom(format!("Unable to parse u64 from {}", n))),
+        Some(value) => Ok(value),
+        None => Err(serde::de::Error::custom(format!(
+            "Unable to parse u64 from {}",
+            n
+        ))),
     }
 }
 
