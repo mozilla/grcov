@@ -1,5 +1,5 @@
 use flate2::read::GzDecoder;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use std::cmp::Ordering;
 use std::collections::{btree_map, hash_map, BTreeMap};
 use std::fmt;
@@ -341,6 +341,7 @@ struct GcovFile {
 struct GcovLine {
     line_number: u32,
     function_name: Option<String>,
+    #[serde(deserialize_with = "deserialize_counter")]
     count: u64,
     unexecuted_block: bool,
     branches: Vec<GcovBr>,
@@ -349,6 +350,7 @@ struct GcovLine {
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 struct GcovBr {
+    #[serde(deserialize_with = "deserialize_counter")]
     count: u64,
     throw: bool,
     fallthrough: bool,
@@ -365,7 +367,28 @@ struct GcovFunction {
     end_column: u32,
     blocks: u32,
     blocks_executed: u32,
+    #[serde(deserialize_with = "deserialize_counter")]
     execution_count: u64,
+}
+
+// JSON sometimes surprises us with floats where we expected integers, use
+// a custom deserializer to ensure all the counters are converted to u64.
+pub fn deserialize_counter<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let n: serde_json::Number = Deserialize::deserialize(deserializer)?;
+    if n.is_f64() {
+        let value: f64 = n.as_f64().unwrap();
+        if (value >= 0.0) && (value <= u64::MAX as f64) {
+            return Ok(value as u64);
+        }
+    }
+
+    match n.as_u64() {
+        Some(value) => return Ok(value),
+        None => Err(serde::de::Error::custom(format!("Unable to parse u64 from {}", n))),
+    }
 }
 
 pub fn parse_gcov_gz(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserError> {
