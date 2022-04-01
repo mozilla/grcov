@@ -747,6 +747,12 @@ mod tests {
                 false,
             ),
             (ItemFormat::Profraw, true, "default_1.profraw", false),
+            (
+                ItemFormat::Gcno,
+                true,
+                "mozillavpn_serverconnection_1.gcno",
+                true,
+            ),
         ];
 
         check_produced(tmp_path, &receiver, expected);
