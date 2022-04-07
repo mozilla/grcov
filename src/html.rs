@@ -422,7 +422,7 @@ fn gen_html(
                 .map(|&v| v as i64)
                 .unwrap_or(-1);
 
-            (index, count, l.to_string())
+            (index, count, l)
         })
         .collect::<Vec<_>>();
 
