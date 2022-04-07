@@ -516,6 +516,7 @@ pub fn output_html(
     output_dir: Option<&Path>,
     num_threads: usize,
     branch_enabled: bool,
+    output_config_file: Option<&Path>,
 ) {
     let output = if let Some(output_dir) = output_dir {
         PathBuf::from(output_dir)
@@ -537,7 +538,7 @@ pub fn output_html(
 
     let stats = Arc::new(Mutex::new(HtmlGlobalStats::default()));
     let mut threads = Vec::with_capacity(num_threads);
-    let (tera, config) = html::get_config();
+    let (tera, config) = html::get_config(output_config_file);
     for i in 0..num_threads {
         let receiver = receiver.clone();
         let output = output.clone();
