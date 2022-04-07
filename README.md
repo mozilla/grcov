@@ -160,8 +160,7 @@ you can run `cargo install grcov`.
 
 ## Usage
 
-**Nightly Rust is required** to use grcov for Rust coverage. Alternatively, you can `export
-RUSTC_BOOTSTRAP=1`, which basically turns your stable rustc into a Nightly one.
+Build your code with rust compiler flag `-C instrument-coverage`. and run with `LLWM_PROFILE_FILE` environment variable.
 
 ### Example: How to generate source-based coverage for a Rust project
 
@@ -266,11 +265,11 @@ before_install:
 matrix:
   include:
     - os: linux
-      rust: nightly
+      rust: stable
 
 script:
     - rustup component add llvm-tools-preview
-    - export RUSTFLAGS="-Zinstrument-coverage"
+    - export RUSTFLAGS="-Cinstrument-coverage"
     - cargo build --verbose
     - LLVM_PROFILE_FILE="your_name-%p-%m.profraw" cargo test --verbose
     - ./grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
@@ -288,7 +287,7 @@ before_install:
 matrix:
   include:
     - os: linux
-      rust: nightly
+      rust: stable
 
 script:
     - export CARGO_INCREMENTAL=0
