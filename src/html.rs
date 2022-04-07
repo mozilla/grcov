@@ -1,10 +1,11 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::value::{from_value, to_value, Value};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::{btree_map, BTreeMap};
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tera::try_get_value;
@@ -355,14 +356,13 @@ fn gen_html(
         return;
     }
 
-    let f = match File::open(&path) {
+    let mut f = match File::open(&path) {
         Err(_) => {
             //eprintln!("Warning: cannot open file {:?}", path);
             return;
         }
         Ok(f) => f,
     };
-    let f = BufReader::new(f);
 
     let stats = get_stats(result);
     get_dirs_result(global, rel_path, &stats);
@@ -396,7 +396,22 @@ fn gen_html(
     ctx.insert("stats", &stats);
     ctx.insert("branch_enabled", &branch_enabled);
 
-    let items = f
+    let mut file_buf = Vec::new();
+    if let Err(e) = f.read_to_end(&mut file_buf) {
+        eprintln!("Failed to read {}: {}", path.display(), e);
+        return;
+    }
+
+    let file_utf8 = String::from_utf8_lossy(&file_buf);
+    if matches!(&file_utf8, Cow::Owned(_)) {
+        // from_utf8_lossy needs to reallocate only when invalid UTF-8, warn.
+        eprintln!(
+            "Warning: invalid utf-8 characters in source file {}. They will be replaced by U+FFFD",
+            path.display()
+        );
+    }
+
+    let items = file_utf8
         .lines()
         .enumerate()
         .map(move |(i, l)| {
@@ -407,7 +422,7 @@ fn gen_html(
                 .map(|&v| v as i64)
                 .unwrap_or(-1);
 
-            (index, count, l.unwrap())
+            (index, count, l)
         })
         .collect::<Vec<_>>();
 
