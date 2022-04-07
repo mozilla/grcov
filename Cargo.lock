@@ -513,7 +513,7 @@ dependencies = [
 
 [[package]]
 name = "grcov"
-version = "0.8.8"
+version = "0.8.9"
 dependencies = [
  "cargo-binutils",
  "chrono",
@@ -873,9 +873,9 @@ checksum = "ac74c624d6b2d21f425f752262f42188365d7b8ff1aff74c82e45136510a4857"
 
 [[package]]
 name = "pretty_assertions"
-version = "1.2.0"
+version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57c038cb5319b9c704bf9c227c261d275bfec0ad438118a2787ce47944fb228b"
+checksum = "c89f989ac94207d048d92db058e4f6ec7342b0971fc58d1271ca148b799b3563"
 dependencies = [
  "ansi_term 0.12.1",
  "ctor",
@@ -1229,9 +1229,9 @@ dependencies = [
 
 [[package]]
 name = "symbolic-common"
-version = "8.6.1"
+version = "8.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52ca6f4079d985e79702d1cce708bdd03ac570e220bcf87105d86f5a8ebb26be"
+checksum = "ac6aac7b803adc9ee75344af7681969f76d4b38e4723c6eaacf3b28f5f1d87ff"
 dependencies = [
  "debugid",
  "memmap2",
@@ -1241,9 +1241,9 @@ dependencies = [
 
 [[package]]
 name = "symbolic-demangle"
-version = "8.6.1"
+version = "8.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7bd7f5075d8bbe9b00eaa9cb47e788fe9405f3306f7497b617b62e5f65ec619a"
+checksum = "8143ea5aa546f86c64f9b9aafdd14223ffad4ecd2d58575c63c21335909c99a7"
 dependencies = [
  "cc",
  "cpp_demangle",

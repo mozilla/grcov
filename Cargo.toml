@@ -1,6 +1,6 @@
 [package]
 name = "grcov"
-version = "0.8.8"
+version = "0.8.9"
 authors = ["Marco Castelluccio <mcastelluccio@mozilla.com>"]
 description = "Rust tool to collect and aggregate code coverage data for multiple source files"
 license = "MPL-2.0"
@@ -59,8 +59,8 @@ serde_json = "1.0"
 simplelog = "0.11"
 smallvec = "1.8"
 structopt = "0.3.26"
-symbolic-common = "8.6"
-symbolic-demangle = { version = "8.6", default-features = false }
+symbolic-common = "8.7"
+symbolic-demangle = { version = "8.7", default-features = false }
 tempfile = "3.3"
 tera = "1.15"
 uuid = { version = "0.8", features = ["v4"] }
