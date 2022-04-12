@@ -159,8 +159,6 @@ you can run `cargo install grcov`.
 
 ## Usage
 
-Build your code with rust compiler flag `-C instrument-coverage`. and run with `LLWM_PROFILE_FILE` environment variable.
-
 ### Example: How to generate source-based coverage for a Rust project
 
 1. Install the llvm-tools or llvm-tools-preview component:
@@ -196,6 +194,9 @@ In the CWD, you will see a `.profraw` file has been generated. This contains the
 Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-coverage` and `-fprofile-arcs` options (see [gcc docs](https://gcc.gnu.org/onlinedocs/gcc/Gcov-Data-Files.html)).
 
 ### Example: How to generate .gcda files for a Rust project
+
+**Nightly Rust is required** to use grcov for Rust gcov-based coverage. Alternatively, you can `export
+RUSTC_BOOTSTRAP=1`, which basically turns your stable rustc into a Nightly one.
 
 1. Ensure that the following environment variables are set up:
 
