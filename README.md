@@ -172,7 +172,7 @@ Build your code with rust compiler flag `-C instrument-coverage`. and run with `
 2. Ensure that the following environment variable is set up:
 
    ```sh
-   export RUSTFLAGS="-C instrument-coverage"
+   export RUSTFLAGS="-Cinstrument-coverage"
    ```
 
 3. Build your code:
