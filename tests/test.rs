@@ -226,7 +226,7 @@ fn check_equal_ade(expected_output: &str, output: &str) {
     let mut actual: Vec<Value> = Vec::new();
     for line in output.lines() {
         let parsed = serde_json::from_str(line).unwrap();
-        println!("{}", serde_json::to_string_pretty(&parsed).unwrap());
+        println!("{}", parsed);
         actual.push(parsed);
     }
 
@@ -460,7 +460,10 @@ fn test_integration() {
         let entry = entry.unwrap();
         let path = entry.path();
 
-        if path.starts_with("tests/basic_zip_zip") || path.starts_with("tests/basic_zip_dir") {
+        if path.starts_with("tests/basic_zip_zip")
+            || path.starts_with("tests/basic_zip_dir")
+            || path.starts_with("tests/rust")
+        {
             continue;
         }
 

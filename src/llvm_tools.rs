@@ -125,16 +125,9 @@ mod tests {
         .expect("Failed to copy file");
 
         let status = Command::new("cargo")
-            .arg("build")
-            .env("RUSTFLAGS", "-Cinstrument-coverage")
-            .current_dir(&tmp_path)
-            .status()
-            .expect("Failed to build");
-        assert!(status.success());
-
-        let status = Command::new("cargo")
             .arg("run")
             .env("RUSTFLAGS", "-Cinstrument-coverage")
+            .env("LLVM_PROFILE_FILE", tmp_path.join("default.profraw"))
             .current_dir(&tmp_path)
             .status()
             .expect("Failed to build");
