@@ -314,6 +314,7 @@ grcov provides the following output types:
 | files            | Output a file list of covered or uncovered source files.                  |
 | covdir           | Provides coverage in a recursive JSON format.                             |
 | html             | Output a HTML coverage report, including coverage badges for your README. |
+| cobertura        | Cobertura XML. Used for coverage analysis in some IDEs and Gitlab CI.     |
 
 ### Hosting HTML reports and using coverage badges
 
