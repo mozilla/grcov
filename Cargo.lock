@@ -1246,9 +1246,9 @@ dependencies = [
 
 [[package]]
 name = "symbolic-common"
-version = "8.7.0"
+version = "8.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac6aac7b803adc9ee75344af7681969f76d4b38e4723c6eaacf3b28f5f1d87ff"
+checksum = "b2523f5f1831bbd2c362b50915b74416d34d15c0f3e46b2f6ee07d27672f58cb"
 dependencies = [
  "debugid",
  "memmap2",
