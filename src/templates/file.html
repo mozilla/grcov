@@ -5,6 +5,7 @@
 
 {% block content -%}
     {{ macros::summary(parents=parents, stats=stats) }}
+    <div role="table" aria-label="Coverage report">
     {%- for item in items -%}
         {%- if item.1 > 0 -%}
             {%- set highlight = "success" -%}
@@ -34,5 +35,6 @@
             </div>
         </div>
     {%- endfor -%}
+    </div>
 {% endblock content -%}
 
