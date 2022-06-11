@@ -11,6 +11,7 @@ use std::str;
 
 use log::error;
 
+use quick_xml::events::attributes::AttrError;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
 
@@ -38,6 +39,12 @@ impl From<quick_xml::Error> for ParserError {
             quick_xml::Error::Io(e) => ParserError::Io(e),
             _ => ParserError::Parse(format!("{:?}", err)),
         }
+    }
+}
+
+impl From<AttrError> for ParserError {
+    fn from(err: AttrError) -> ParserError {
+        ParserError::Parse(format!("{:?}", err))
     }
 }
 
