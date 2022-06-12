@@ -496,7 +496,7 @@ dependencies = [
 
 [[package]]
 name = "grcov"
-version = "0.8.9"
+version = "0.8.10"
 dependencies = [
  "cargo-binutils",
  "chrono",
