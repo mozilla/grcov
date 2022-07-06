@@ -1,4 +1,4 @@
-use crossbeam::channel::{Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender};
 use rustc_hash::FxHashMap;
 use serde::ser::{Serialize, Serializer};
 use std::cell::RefCell;

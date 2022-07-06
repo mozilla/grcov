@@ -2,7 +2,7 @@
 #![allow(clippy::unit_arg)]
 extern crate test;
 
-use crossbeam::channel::unbounded;
+use crossbeam_channel::unbounded;
 use grcov::{CovResult, Function, FunctionMap};
 use rustc_hash::FxHashMap;
 use std::path::PathBuf;
