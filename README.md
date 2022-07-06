@@ -225,7 +225,7 @@ RUSTC_BOOTSTRAP=1`, which basically turns your stable rustc into a Nightly one.
 Generate a html coverage report like this:
 
 ```sh
-grcov . -s . --binary-path ./target/debug/ -t html --branch --ignore-not-existing -o ./target/debug/coverage/
+grcov . -s . --binary-path ./target/debug/ -t html --branch --ignore-not-existing -o ./target/debug/coverage
 ```
 
 N.B.: The `--binary-path` argument is only necessary for source-based coverage.
