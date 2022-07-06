@@ -460,7 +460,7 @@ impl Gcno {
         }
         if self.version >= 80 {
             // hasUnexecutedBlocks
-            let _dummy = reader.skip_u32()?;
+            reader.skip_u32()?;
         }
 
         self.read_functions(&mut reader)
@@ -563,7 +563,8 @@ impl Gcno {
         if version < 80 {
             let length = length as usize;
             for no in 0..length {
-                let _flags = reader.skip_u32()?;
+                // flags, currently unused
+                reader.skip_u32()?;
                 fun.blocks.push(GcovBlock::new(no));
             }
         } else {
@@ -748,7 +749,7 @@ impl Gcno {
                         }
                     } else if tag == GCOV_TAG_OBJECT_SUMMARY {
                         let runcounts = reader.read_u32()?;
-                        let _dummy = reader.skip_u32()?;
+                        reader.skip_u32()?;
                         self.runcounts += if length == 9 {
                             reader.read_u32()?
                         } else {
@@ -756,8 +757,8 @@ impl Gcno {
                         };
                     } else if tag == GCOV_TAG_PROGRAM_SUMMARY {
                         if length > 0 {
-                            let _dummy = reader.skip_u32()?;
-                            let _dummy = reader.skip_u32()?;
+                            reader.skip_u32()?;
+                            reader.skip_u32()?;
                             self.runcounts += reader.read_u32()?;
                         }
                         self.programcounts += 1;
