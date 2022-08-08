@@ -334,6 +334,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "debugid"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bef552e6f588e446098f6ba40d89ac146c8c7b64aade83c051ee00bb5d2bc18d"
+dependencies = [
+ "uuid 1.1.2",
+]
+
+[[package]]
 name = "deunicode"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -516,7 +525,7 @@ dependencies = [
  "simplelog",
  "smallvec",
  "structopt",
- "symbolic-common",
+ "symbolic-common 8.8.0",
  "symbolic-demangle",
  "tcmalloc",
  "tempfile",
@@ -1187,23 +1196,35 @@ version = "8.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f551f902d5642e58039aee6a9021a61037926af96e071816361644983966f540"
 dependencies = [
- "debugid",
+ "debugid 0.7.3",
  "memmap2",
  "stable_deref_trait",
  "uuid 0.8.2",
 ]
 
 [[package]]
-name = "symbolic-demangle"
-version = "8.8.0"
+name = "symbolic-common"
+version = "9.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4564ca7b4e6eb14105aa8bbbce26e080f6b5d9c4373e67167ab31f7b86443750"
+checksum = "87e4ba9eec41633b820fe1d1a2db3c51a6c00992ed6858300b645bef2f2d7ddb"
+dependencies = [
+ "debugid 0.8.0",
+ "memmap2",
+ "stable_deref_trait",
+ "uuid 1.1.2",
+]
+
+[[package]]
+name = "symbolic-demangle"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4da73cc082fa227dfa279dbff0393d9a67d390a8232a929af2732cbc48e66dc"
 dependencies = [
  "cc",
  "cpp_demangle",
  "msvc-demangler",
  "rustc-demangle",
- "symbolic-common",
+ "symbolic-common 9.1.0",
 ]
 
 [[package]]
