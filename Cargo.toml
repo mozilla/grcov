@@ -59,7 +59,7 @@ serde_json = "1.0"
 simplelog = "0.12"
 smallvec = "1.9"
 structopt = "0.3.26"
-symbolic-common = "8.7"
+symbolic-common = "9.1"
 symbolic-demangle = { version = "8.7", default-features = false }
 tempfile = "3.3"
 tera = "1.15"
