@@ -342,16 +342,16 @@ pub fn output_cobertura(
 
     let mut writer = Writer::new_with_indent(Cursor::new(vec![]), b' ', 4);
     writer
-        .write_event(Event::Decl(BytesDecl::new(b"1.0", None, None)))
+        .write_event(Event::Decl(BytesDecl::new("1.0", None, None)))
         .unwrap();
     writer
-        .write_event(Event::DocType(BytesText::from_escaped_str(
+        .write_event(Event::DocType(BytesText::from_escaped(
             " coverage SYSTEM 'http://cobertura.sourceforge.net/xml/coverage-04.dtd'",
         )))
         .unwrap();
 
-    let cov_tag = b"coverage";
-    let mut cov = BytesStart::borrowed(cov_tag, cov_tag.len());
+    let cov_tag = "coverage";
+    let mut cov = BytesStart::from_content(cov_tag, cov_tag.len());
     let stats = coverage.get_stats();
     cov.push_attribute(("lines-covered", stats.lines_covered.to_string().as_ref()));
     cov.push_attribute(("lines-valid", stats.lines_valid.to_string().as_ref()));
@@ -374,45 +374,45 @@ pub fn output_cobertura(
     writer.write_event(Event::Start(cov)).unwrap();
 
     // export header
-    let sources_tag = b"sources";
-    let source_tag = b"source";
+    let sources_tag = "sources";
+    let source_tag = "source";
     writer
-        .write_event(Event::Start(BytesStart::borrowed(
+        .write_event(Event::Start(BytesStart::from_content(
             sources_tag,
             sources_tag.len(),
         )))
         .unwrap();
     for path in &coverage.sources {
         writer
-            .write_event(Event::Start(BytesStart::borrowed(
+            .write_event(Event::Start(BytesStart::from_content(
                 source_tag,
                 source_tag.len(),
             )))
             .unwrap();
         writer
-            .write_event(Event::Text(BytesText::from_plain_str(path)))
+            .write_event(Event::Text(BytesText::new(path)))
             .unwrap();
         writer
-            .write_event(Event::End(BytesEnd::borrowed(source_tag)))
+            .write_event(Event::End(BytesEnd::new(source_tag)))
             .unwrap();
     }
     writer
-        .write_event(Event::End(BytesEnd::borrowed(sources_tag)))
+        .write_event(Event::End(BytesEnd::new(sources_tag)))
         .unwrap();
 
     // export packages
-    let packages_tag = b"packages";
-    let pack_tag = b"package";
+    let packages_tag = "packages";
+    let pack_tag = "package";
 
     writer
-        .write_event(Event::Start(BytesStart::borrowed(
+        .write_event(Event::Start(BytesStart::from_content(
             packages_tag,
             packages_tag.len(),
         )))
         .unwrap();
     // Export the package
     for package in &coverage.packages {
-        let mut pack = BytesStart::borrowed(pack_tag, pack_tag.len());
+        let mut pack = BytesStart::from_content(pack_tag, pack_tag.len());
         pack.push_attribute(("name", package.name.as_ref()));
         let stats = package.get_stats();
         pack.push_attribute(("line-rate", stats.line_rate().to_string().as_ref()));
@@ -422,20 +422,20 @@ pub fn output_cobertura(
         writer.write_event(Event::Start(pack)).unwrap();
 
         // export_classes
-        let classes_tag = b"classes";
-        let class_tag = b"class";
-        let methods_tag = b"methods";
-        let method_tag = b"method";
+        let classes_tag = "classes";
+        let class_tag = "class";
+        let methods_tag = "methods";
+        let method_tag = "method";
 
         writer
-            .write_event(Event::Start(BytesStart::borrowed(
+            .write_event(Event::Start(BytesStart::from_content(
                 classes_tag,
                 classes_tag.len(),
             )))
             .unwrap();
 
         for class in &package.classes {
-            let mut c = BytesStart::borrowed(class_tag, class_tag.len());
+            let mut c = BytesStart::from_content(class_tag, class_tag.len());
             c.push_attribute(("name", class.name.as_ref()));
             c.push_attribute(("filename", class.file_name.as_ref()));
             let stats = class.get_stats();
@@ -445,14 +445,14 @@ pub fn output_cobertura(
 
             writer.write_event(Event::Start(c)).unwrap();
             writer
-                .write_event(Event::Start(BytesStart::borrowed(
+                .write_event(Event::Start(BytesStart::from_content(
                     methods_tag,
                     methods_tag.len(),
                 )))
                 .unwrap();
 
             for method in &class.methods {
-                let mut m = BytesStart::borrowed(method_tag, method_tag.len());
+                let mut m = BytesStart::from_content(method_tag, method_tag.len());
                 m.push_attribute(("name", method.name.as_ref()));
                 m.push_attribute(("signature", method.signature.as_ref()));
                 let stats = method.get_stats();
@@ -463,31 +463,31 @@ pub fn output_cobertura(
 
                 write_lines(&mut writer, &method.lines);
                 writer
-                    .write_event(Event::End(BytesEnd::borrowed(method_tag)))
+                    .write_event(Event::End(BytesEnd::new(method_tag)))
                     .unwrap();
             }
             writer
-                .write_event(Event::End(BytesEnd::borrowed(methods_tag)))
+                .write_event(Event::End(BytesEnd::new(methods_tag)))
                 .unwrap();
             write_lines(&mut writer, &class.lines);
         }
         writer
-            .write_event(Event::End(BytesEnd::borrowed(class_tag)))
+            .write_event(Event::End(BytesEnd::new(class_tag)))
             .unwrap();
         writer
-            .write_event(Event::End(BytesEnd::borrowed(classes_tag)))
+            .write_event(Event::End(BytesEnd::new(classes_tag)))
             .unwrap();
         writer
-            .write_event(Event::End(BytesEnd::borrowed(pack_tag)))
+            .write_event(Event::End(BytesEnd::new(pack_tag)))
             .unwrap();
     }
 
     writer
-        .write_event(Event::End(BytesEnd::borrowed(packages_tag)))
+        .write_event(Event::End(BytesEnd::new(packages_tag)))
         .unwrap();
 
     writer
-        .write_event(Event::End(BytesEnd::borrowed(cov_tag)))
+        .write_event(Event::End(BytesEnd::new(cov_tag)))
         .unwrap();
 
     let result = writer.into_inner().into_inner();
@@ -496,17 +496,17 @@ pub fn output_cobertura(
 }
 
 fn write_lines(writer: &mut Writer<Cursor<Vec<u8>>>, lines: &[Line]) {
-    let lines_tag = b"lines";
-    let line_tag = b"line";
+    let lines_tag = "lines";
+    let line_tag = "line";
 
     writer
-        .write_event(Event::Start(BytesStart::borrowed(
+        .write_event(Event::Start(BytesStart::from_content(
             lines_tag,
             lines_tag.len(),
         )))
         .unwrap();
     for line in lines {
-        let mut l = BytesStart::borrowed(line_tag, line_tag.len());
+        let mut l = BytesStart::from_content(line_tag, line_tag.len());
         match line {
             Line::Plain {
                 ref number,
@@ -526,33 +526,33 @@ fn write_lines(writer: &mut Writer<Cursor<Vec<u8>>>, lines: &[Line]) {
                 l.push_attribute(("branch", "true"));
                 writer.write_event(Event::Start(l)).unwrap();
 
-                let conditions_tag = b"conditions";
-                let condition_tag = b"condition";
+                let conditions_tag = "conditions";
+                let condition_tag = "condition";
 
                 writer
-                    .write_event(Event::Start(BytesStart::borrowed(
+                    .write_event(Event::Start(BytesStart::from_content(
                         conditions_tag,
                         conditions_tag.len(),
                     )))
                     .unwrap();
                 for condition in conditions {
-                    let mut c = BytesStart::borrowed(condition_tag, condition_tag.len());
+                    let mut c = BytesStart::from_content(condition_tag, condition_tag.len());
                     c.push_attribute(("number", condition.number.to_string().as_ref()));
                     c.push_attribute(("type", condition.cond_type.to_string().as_ref()));
                     c.push_attribute(("coverage", condition.coverage.to_string().as_ref()));
                     writer.write_event(Event::Empty(c)).unwrap();
                 }
                 writer
-                    .write_event(Event::End(BytesEnd::borrowed(conditions_tag)))
+                    .write_event(Event::End(BytesEnd::new(conditions_tag)))
                     .unwrap();
             }
         }
         writer
-            .write_event(Event::End(BytesEnd::borrowed(line_tag)))
+            .write_event(Event::End(BytesEnd::new(line_tag)))
             .unwrap();
     }
     writer
-        .write_event(Event::End(BytesEnd::borrowed(lines_tag)))
+        .write_event(Event::End(BytesEnd::new(lines_tag)))
         .unwrap();
 }
 
