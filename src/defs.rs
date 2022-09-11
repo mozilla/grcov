@@ -1,4 +1,4 @@
-use crossbeam::channel::{Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender};
 use rustc_hash::FxHashMap;
 use serde::ser::{Serialize, Serializer};
 use std::cell::RefCell;
@@ -8,20 +8,20 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Mutex;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Function {
     pub start: u32,
     pub executed: bool,
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct CovResult {
     pub lines: BTreeMap<u32, u64>,
     pub branches: BTreeMap<u32, Vec<bool>>,
     pub functions: FunctionMap,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum ItemFormat {
     Gcno,
     Profraw,

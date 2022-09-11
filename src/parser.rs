@@ -11,6 +11,8 @@ use std::str;
 
 use log::error;
 
+use quick_xml::encoding::Decoder;
+use quick_xml::events::attributes::AttrError;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
 
@@ -38,6 +40,12 @@ impl From<quick_xml::Error> for ParserError {
             quick_xml::Error::Io(e) => ParserError::Io(e),
             _ => ParserError::Parse(format!("{:?}", err)),
         }
+    }
+}
+
+impl From<AttrError> for ParserError {
+    fn from(err: AttrError) -> ParserError {
+        ParserError::Parse(format!("{:?}", err))
     }
 }
 
@@ -551,8 +559,8 @@ fn get_xml_attribute<R: BufRead>(
 ) -> Result<String, ParserError> {
     for a in event.attributes() {
         let a = a?;
-        if a.key == name.as_bytes() {
-            return Ok(a.unescape_and_decode_value(reader)?);
+        if a.key.into_inner() == name.as_bytes() {
+            return Ok(a.decode_and_unescape_value(reader)?.into_owned());
         }
     }
     Err(ParserError::InvalidRecord(format!(
@@ -569,16 +577,16 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
     let mut branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();
 
     loop {
-        match parser.read_event(buf) {
-            Ok(Event::Start(ref e)) if e.local_name() == b"line" => {
+        match parser.read_event_into(buf) {
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"line" => {
                 let (mut ci, mut cb, mut mb, mut nr) = (None, None, None, None);
                 for a in e.attributes() {
                     let a = a?;
-                    match a.key {
-                        b"ci" => ci = Some(parser.decode(&a.value)?.parse::<u64>()?),
-                        b"cb" => cb = Some(parser.decode(&a.value)?.parse::<u64>()?),
-                        b"mb" => mb = Some(parser.decode(&a.value)?.parse::<u64>()?),
-                        b"nr" => nr = Some(parser.decode(&a.value)?.parse::<u32>()?),
+                    match a.key.into_inner() {
+                        b"ci" => ci = Some(Decoder {}.decode(&a.value)?.parse::<u64>()?),
+                        b"cb" => cb = Some(Decoder {}.decode(&a.value)?.parse::<u64>()?),
+                        b"mb" => mb = Some(Decoder {}.decode(&a.value)?.parse::<u64>()?),
+                        b"nr" => nr = Some(Decoder {}.decode(&a.value)?.parse::<u32>()?),
                         _ => (),
                     }
                 }
@@ -607,7 +615,7 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
                     lines.insert(nr, hit);
                 }
             }
-            Ok(Event::End(ref e)) if e.local_name() == b"sourcefile" => {
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"sourcefile" => {
                 break;
             }
             Err(e) => return Err(ParserError::Parse(e.to_string())),
@@ -627,13 +635,13 @@ fn parse_jacoco_report_method<T: BufRead>(
     let mut executed = false;
 
     loop {
-        match parser.read_event(buf) {
-            Ok(Event::Start(ref e)) if e.local_name() == b"counter" => {
+        match parser.read_event_into(buf) {
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"counter" => {
                 if get_xml_attribute(parser, e, "type")? == "METHOD" {
                     executed = get_xml_attribute(parser, e, "covered")?.parse::<u32>()? > 0;
                 }
             }
-            Ok(Event::End(ref e)) if e.local_name() == b"method" => break,
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"method" => break,
             Err(e) => return Err(ParserError::Parse(e.to_string())),
             _ => {}
         }
@@ -651,8 +659,8 @@ fn parse_jacoco_report_class<T: BufRead>(
     let mut functions: FunctionMap = FxHashMap::default();
 
     loop {
-        match parser.read_event(buf) {
-            Ok(Event::Start(ref e)) if e.local_name() == b"method" => {
+        match parser.read_event_into(buf) {
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"method" => {
                 let name = get_xml_attribute(parser, e, "name")?;
                 let full_name = format!("{}#{}", class_name, name);
 
@@ -660,7 +668,7 @@ fn parse_jacoco_report_class<T: BufRead>(
                 let function = parse_jacoco_report_method(parser, buf, start_line)?;
                 functions.insert(full_name, function);
             }
-            Ok(Event::End(ref e)) if e.local_name() == b"class" => break,
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"class" => break,
             Err(e) => return Err(ParserError::Parse(e.to_string())),
             _ => {}
         }
@@ -678,9 +686,9 @@ fn parse_jacoco_report_package<T: BufRead>(
     let mut results_map: FxHashMap<String, CovResult> = FxHashMap::default();
 
     loop {
-        match parser.read_event(buf) {
+        match parser.read_event_into(buf) {
             Ok(Event::Start(ref e)) => {
-                match e.local_name() {
+                match e.local_name().into_inner() {
                     b"class" => {
                         // Fully qualified class name: "org/example/Person$Age"
                         let fq_class = get_xml_attribute(parser, e, "name")?;
@@ -735,7 +743,7 @@ fn parse_jacoco_report_package<T: BufRead>(
                     &_ => {}
                 }
             }
-            Ok(Event::End(ref e)) if e.local_name() == b"package" => break,
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"package" => break,
             Err(e) => return Err(ParserError::Parse(e.to_string())),
             _ => {}
         }
@@ -776,8 +784,8 @@ pub fn parse_jacoco_xml_report<T: Read>(
     let mut buf = Vec::new();
 
     loop {
-        match parser.read_event(&mut buf) {
-            Ok(Event::Start(ref e)) if e.local_name() == b"package" => {
+        match parser.read_event_into(&mut buf) {
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"package" => {
                 let package = get_xml_attribute(&parser, e, "name")?;
                 let mut package_results =
                     parse_jacoco_report_package(&mut parser, &mut buf, &package)?;

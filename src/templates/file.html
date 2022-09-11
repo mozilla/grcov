@@ -5,34 +5,42 @@
 
 {% block content -%}
     {{ macros::summary(parents=parents, stats=stats) }}
+    <div role="table" aria-label="Coverage report">
     {%- for item in items -%}
         {%- if item.1 > 0 -%}
             {%- set highlight = "success" -%}
             {%- set highlight_light = "success-light" -%}
             {%- set count = item.1 -%}
+            {%- set aria_label = count -%}
         {%- elif item.1 < 0 -%}
             {% set highlight = "white" -%}
             {% set highlight_light = "white" -%}
             {% set count = "" -%}
+            {%- set aria_label = "no coverage" -%}
         {%- else -%}
             {%- set highlight = "danger" -%}
             {%- set highlight_light = "danger-light" -%}
             {%- set count = "" -%}
+            {%- set aria_label = "0" -%}
         {%- endif -%}
-        <div class="columns p-0 m-0">
+        <div class="columns p-0 m-0" role="row">
             <div
                 class="column is-1 is-narrow p-0 has-text-centered"
-                id="{{ item.0 }}">
+                id="{{ item.0 }}"
+                role="cell">
                 <a href="#{{ item.0 }}">{{ item.0 }}</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-{{ highlight_light }} has-background-{{ highlight }}">
+                class="column is-1 is-narrow p-0 has-text-centered has-text-{{ highlight_light }} has-background-{{ highlight }}"
+                role="cell" aria-label="{{ aria_label }}">
                 {{ count }}
             </div>
-            <div class="column has-background-{{ highlight_light }} p-0">
+            <div class="column has-background-{{ highlight_light }} p-0"
+                 role="cell">
                 <pre class="has-background-{{ highlight_light }} py-0 px-2">{{ item.2 }}</pre>
             </div>
         </div>
     {%- endfor -%}
+    </div>
 {% endblock content -%}
 

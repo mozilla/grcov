@@ -240,7 +240,8 @@ fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &Path, stats: 
     };
     let mut global = global.lock().unwrap();
     global.stats.add(stats);
-    match global.dirs.entry(parent) {
+    let entry = global.dirs.entry(parent);
+    match entry {
         btree_map::Entry::Occupied(ds) => {
             let ds = ds.into_mut();
             ds.stats.add(stats);

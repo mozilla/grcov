@@ -118,7 +118,8 @@ fn add_results(
             }
             None => result.0,
         };
-        match map.entry(path) {
+        let entry = map.entry(path);
+        match entry {
             hash_map::Entry::Occupied(obj) => {
                 warn_overflow |= merge_results(obj.into_mut(), result.1);
             }

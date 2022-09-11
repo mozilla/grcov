@@ -2,7 +2,7 @@
 #[global_allocator]
 static GLOBAL: tcmalloc::TCMalloc = tcmalloc::TCMalloc;
 
-use crossbeam::channel::bounded;
+use crossbeam_channel::bounded;
 use log::error;
 use regex::Regex;
 use rustc_hash::FxHashMap;
