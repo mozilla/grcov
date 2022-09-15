@@ -28,6 +28,7 @@ enum OutputType {
     Covdir,
     Html,
     Cobertura,
+    Markdown,
 }
 
 impl FromStr for OutputType {
@@ -43,6 +44,7 @@ impl FromStr for OutputType {
             "covdir" => Self::Covdir,
             "html" => Self::Html,
             "cobertura" => Self::Cobertura,
+            "markdown" => Self::Markdown,
             _ => return Err(format!("{} is not a supported output type", s)),
         })
     }
@@ -90,6 +92,7 @@ struct Opt {
             - *coveralls+* for the Coveralls specific format with function information;\n\
             - *ade* for the ActiveData-ETL specific format;\n\
             - *files* to only return a list of files.\n\
+            - *markdown* for human easy read.\n\
         ",
         value_name = "OUTPUT TYPE",
         default_value = "lcov",
@@ -106,6 +109,7 @@ struct Opt {
             "covdir",
             "html",
             "cobertura",
+            "markdown",
         ],
     )]
     output_type: OutputType,
@@ -457,5 +461,6 @@ fn main() {
             opt.output_path.as_deref(),
             demangle,
         ),
+        OutputType::Markdown => output_markdown(iterator, opt.output_path.as_deref()),
     };
 }

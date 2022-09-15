@@ -3,7 +3,7 @@ use md5::{Digest, Md5};
 use rustc_hash::FxHashMap;
 use serde_json::{self, json, Value};
 use std::cell::RefCell;
-use std::collections::{hash_map, BTreeSet};
+use std::collections::{hash_map, BTreeMap, BTreeSet};
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{self, BufWriter, Read, Write};
@@ -16,6 +16,7 @@ use std::{
 };
 use symbolic_common::Name;
 use symbolic_demangle::{Demangle, DemangleOptions};
+use tabled::{Style, Table, Tabled};
 use uuid::Uuid;
 
 use crate::defs::*;
@@ -586,6 +587,72 @@ pub fn output_html(
     html::gen_coverage_json(&global.stats, &config, &output);
 }
 
+pub fn output_markdown(results: CovResultIter, output_file: Option<&Path>) {
+    #[derive(Tabled)]
+    struct LineSummary {
+        file: String,
+        coverage: String,
+        covered: String,
+        missed_lines: String,
+    }
+
+    fn format_pair(start: u32, end: u32) -> String {
+        if start == end {
+            start.to_string()
+        } else {
+            format!("{}-{}", start, end)
+        }
+    }
+
+    fn format_lines(lines: &BTreeMap<u32, u64>) -> (usize, String) {
+        let mut total_missed = 0;
+        let mut missed = Vec::new();
+        let mut start: u32 = 0;
+        let mut end: u32 = 0;
+        for (&line, &hits) in lines {
+            if hits == 0 {
+                total_missed += 1;
+                if start == 0 {
+                    start = line;
+                }
+                end = line;
+            } else if start != 0 {
+                missed.push(format_pair(start, end));
+                start = 0;
+            }
+        }
+        if start != 0 {
+            missed.push(format_pair(start, end));
+        }
+        (total_missed, missed.join(", "))
+    }
+
+    let mut summary = Vec::new();
+    let mut total_lines: usize = 0;
+    let mut total_covered: usize = 0;
+    for (_, rel_path, result) in results {
+        let (missed, missed_lines) = format_lines(&result.lines);
+        let covered: usize = result.lines.len() - missed;
+        summary.push(LineSummary {
+            file: rel_path.display().to_string(),
+            coverage: format!("{}%", covered * 100 / result.lines.len()),
+            covered: format!("{} / {}", covered, result.lines.len()),
+            missed_lines,
+        });
+        total_lines += result.lines.len();
+        total_covered += covered;
+    }
+    let mut writer = BufWriter::new(get_target_output_writable(output_file));
+    writeln!(writer, "{}", Table::new(summary).with(Style::markdown())).unwrap();
+    writeln!(writer).unwrap();
+    writeln!(
+        writer,
+        "Total coverage: {}%",
+        total_covered * 100 / total_lines
+    )
+    .unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -855,5 +922,49 @@ mod tests {
 
         assert_eq!(results.get("service_name"), None);
         assert_eq!(results.get("service_job_id"), None);
+    }
+
+    #[test]
+    fn test_markdown() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_markdown";
+        let file_path = tmp_dir.path().join(&file_name);
+
+        let results = vec![
+            (
+                PathBuf::from("foo/bar/a.cpp"),
+                PathBuf::from("foo/bar/a.cpp"),
+                CovResult {
+                    lines: [(1, 10), (2, 11)].iter().cloned().collect(),
+                    branches: BTreeMap::new(),
+                    functions: FxHashMap::default(),
+                },
+            ),
+            (
+                PathBuf::from("foo/bar/b.cpp"),
+                PathBuf::from("foo/bar/b.cpp"),
+                CovResult {
+                    lines: [(1, 0), (2, 10), (4, 10), (5, 0), (7, 0)]
+                        .iter()
+                        .cloned()
+                        .collect(),
+                    branches: BTreeMap::new(),
+                    functions: FxHashMap::default(),
+                },
+            ),
+        ];
+
+        let results = Box::new(results.into_iter());
+        output_markdown(results, Some(&file_path));
+
+        let results = &read_file(&file_path);
+        let expected = "| file          | coverage | covered | missed_lines |
+|---------------|----------|---------|--------------|
+| foo/bar/a.cpp | 100%     | 2 / 2   |              |
+| foo/bar/b.cpp | 40%      | 2 / 5   | 1, 5-7       |
+
+Total coverage: 57%
+";
+        assert_eq!(results, expected);
     }
 }
