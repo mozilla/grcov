@@ -929,6 +929,7 @@ mod tests {
             None,
             Default::default(),
         )
+        .iter()
         .any(|_| false);
     }
 
@@ -1048,7 +1049,7 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("java/main.java".to_string(), empty_result!());
         result_map.insert("main.rs".to_string(), empty_result!());
-        let results = rewrite_paths(
+        let mut results = rewrite_paths(
             result_map,
             None,
             Some(&canonicalize_path(".").unwrap()),
@@ -1059,7 +1060,6 @@ mod tests {
             None,
             Default::default(),
         );
-        let mut results: Vec<(PathBuf, PathBuf, CovResult)> = results.collect();
         assert!(results.len() == 1);
 
         let (abs_path, rel_path, result) = results.remove(0);

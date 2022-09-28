@@ -696,8 +696,7 @@ mod tests {
             },
         )];
 
-        let results = Box::new(results.into_iter());
-        output_lcov(results, Some(&file_path), false);
+        output_lcov(&results, Some(&file_path), false);
 
         let results = read_file(&file_path);
 
@@ -745,8 +744,7 @@ mod tests {
             },
         )];
 
-        let results = Box::new(results.into_iter());
-        output_lcov(results, Some(&file_path), true);
+        output_lcov(&results, Some(&file_path), true);
 
         let results = read_file(&file_path);
 
@@ -800,8 +798,7 @@ mod tests {
             ),
         ];
 
-        let results = Box::new(results.into_iter());
-        output_covdir(results, Some(&file_path));
+        output_covdir(&results, Some(&file_path));
 
         let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
         let expected_path = PathBuf::from("./test/").join(file_name);
@@ -826,12 +823,11 @@ mod tests {
             },
         )];
 
-        let results = Box::new(results.into_iter());
         let expected_service_job_id: &str = "100500";
         let with_function_info: bool = true;
         let parallel: bool = true;
         output_coveralls(
-            results,
+            &results,
             None,
             None,
             "unused",
@@ -866,12 +862,11 @@ mod tests {
             },
         )];
 
-        let results = Box::new(results.into_iter());
         let token = None;
         let with_function_info: bool = true;
         let parallel: bool = true;
         output_coveralls(
-            results,
+            &results,
             token,
             None,
             "unused",
@@ -906,13 +901,12 @@ mod tests {
             },
         )];
 
-        let results = Box::new(results.into_iter());
         let service_name = None;
         let service_job_id = None;
         let with_function_info: bool = true;
         let parallel: bool = true;
         output_coveralls(
-            results,
+            &results,
             None,
             service_name,
             "unused",

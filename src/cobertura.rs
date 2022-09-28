@@ -717,8 +717,7 @@ mod tests {
             coverage_result(Result::Main),
         )];
 
-        let results = Box::new(results.into_iter());
-        output_cobertura(None, results, Some(&file_path), true);
+        output_cobertura(None, &results, Some(&file_path), true);
 
         let results = read_file(&file_path);
 
@@ -752,8 +751,7 @@ mod tests {
             coverage_result(Result::Test),
         )];
 
-        let results = Box::new(results.into_iter());
-        output_cobertura(None, results, Some(file_path.as_ref()), true);
+        output_cobertura(None, &results, Some(file_path.as_ref()), true);
 
         let results = read_file(&file_path);
 
@@ -792,8 +790,7 @@ mod tests {
             ),
         ];
 
-        let results = Box::new(results.into_iter());
-        output_cobertura(None, results, Some(file_path.as_ref()), true);
+        output_cobertura(None, &results, Some(file_path.as_ref()), true);
 
         let results = read_file(&file_path);
 
@@ -825,8 +822,7 @@ mod tests {
             CovResult::default(),
         )];
 
-        let results = Box::new(results.into_iter());
-        output_cobertura(None, results, Some(&file_path), true);
+        output_cobertura(None, &results, Some(&file_path), true);
 
         let results = read_file(&file_path);
 
@@ -846,8 +842,7 @@ mod tests {
             CovResult::default(),
         )];
 
-        let results = Box::new(results.into_iter());
-        output_cobertura(Some(Path::new("src")), results, Some(&file_path), true);
+        output_cobertura(Some(Path::new("src")), &results, Some(&file_path), true);
 
         let results = read_file(&file_path);
 
