@@ -87,7 +87,7 @@ struct Opt {
         short = "t",
         long,
         long_help = "\
-            Sets a custom output type:\n\
+            Comma separated list of custom output types:\n\
             - *html* for a HTML coverage report;\n\
             - *coveralls* for the Coveralls specific format;\n\
             - *lcov* for the lcov INFO format;\n\
@@ -96,6 +96,7 @@ struct Opt {
             - *ade* for the ActiveData-ETL specific format;\n\
             - *files* to only return a list of files.\n\
             - *markdown* for human easy read.\n\
+            - *cobertura* for output in coberura format.\n\
         ",
         value_name = "OUTPUT TYPE",
         default_value = "lcov",
@@ -103,19 +104,10 @@ struct Opt {
             ("coveralls", "coveralls-auth"),
             ("coveralls+", "coveralls-auth"),
         ],
-        possible_values = &[
-            "ade",
-            "lcov",
-            "coveralls",
-            "coveralls+",
-            "files",
-            "covdir",
-            "html",
-            "cobertura",
-            "markdown",
-        ],
+
+        use_delimiter = true
     )]
-    output_type: OutputType,
+    output_types: Vec<OutputType>,
     /// Specifies the output path.
     #[structopt(short, long, value_name = "PATH", alias = "output-file")]
     output_path: Option<PathBuf>,
@@ -422,52 +414,59 @@ fn main() {
         file_filter,
     );
 
-    match opt.output_type {
-        OutputType::Ade => output_activedata_etl(iterator, opt.output_path.as_deref(), demangle),
-        OutputType::Lcov => output_lcov(iterator, opt.output_path.as_deref(), demangle),
-        OutputType::Coveralls => output_coveralls(
-            iterator,
-            opt.token.as_deref(),
-            opt.service_name.as_deref(),
-            &opt.service_number.unwrap_or_default(),
-            opt.service_job_id.as_deref(),
-            &opt.service_pull_request.unwrap_or_default(),
-            &opt.commit_sha.unwrap_or_default(),
-            false,
-            opt.output_path.as_deref(),
-            &opt.vcs_branch,
-            opt.parallel,
-            demangle,
-        ),
-        OutputType::CoverallsPlus => output_coveralls(
-            iterator,
-            opt.token.as_deref(),
-            opt.service_name.as_deref(),
-            &opt.service_number.unwrap_or_default(),
-            opt.service_job_id.as_deref(),
-            &opt.service_pull_request.unwrap_or_default(),
-            &opt.commit_sha.unwrap_or_default(),
-            true,
-            opt.output_path.as_deref(),
-            &opt.vcs_branch,
-            opt.parallel,
-            demangle,
-        ),
-        OutputType::Files => output_files(iterator, opt.output_path.as_deref()),
-        OutputType::Covdir => output_covdir(iterator, opt.output_path.as_deref()),
-        OutputType::Html => output_html(
-            iterator,
-            opt.output_path.as_deref(),
-            num_threads,
-            opt.branch,
-            opt.output_config_file.as_deref(),
-        ),
-        OutputType::Cobertura => output_cobertura(
-            source_root.as_deref(),
-            iterator,
-            opt.output_path.as_deref(),
-            demangle,
-        ),
-        OutputType::Markdown => output_markdown(iterator, opt.output_path.as_deref()),
-    };
+    let service_number = opt.service_number.unwrap_or_default();
+    let service_pull_request = opt.service_pull_request.unwrap_or_default();
+    let commit_sha = opt.commit_sha.unwrap_or_default();
+    for output_type in &opt.output_types {
+        match output_type {
+            OutputType::Ade => {
+                output_activedata_etl(&iterator, opt.output_path.as_deref(), demangle)
+            }
+            OutputType::Lcov => output_lcov(&iterator, opt.output_path.as_deref(), demangle),
+            OutputType::Coveralls => output_coveralls(
+                &iterator,
+                opt.token.as_deref(),
+                opt.service_name.as_deref(),
+                &service_number,
+                opt.service_job_id.as_deref(),
+                &service_pull_request,
+                &commit_sha,
+                false,
+                opt.output_path.as_deref(),
+                &opt.vcs_branch,
+                opt.parallel,
+                demangle,
+            ),
+            OutputType::CoverallsPlus => output_coveralls(
+                &iterator,
+                opt.token.as_deref(),
+                opt.service_name.as_deref(),
+                &service_number,
+                opt.service_job_id.as_deref(),
+                &service_pull_request,
+                &commit_sha,
+                true,
+                opt.output_path.as_deref(),
+                &opt.vcs_branch,
+                opt.parallel,
+                demangle,
+            ),
+            OutputType::Files => output_files(&iterator, opt.output_path.as_deref()),
+            OutputType::Covdir => output_covdir(&iterator, opt.output_path.as_deref()),
+            OutputType::Html => output_html(
+                &iterator,
+                opt.output_path.as_deref(),
+                num_threads,
+                opt.branch,
+                opt.output_config_file.as_deref(),
+            ),
+            OutputType::Cobertura => output_cobertura(
+                source_root.as_deref(),
+                &iterator,
+                opt.output_path.as_deref(),
+                demangle,
+            ),
+            OutputType::Markdown => output_markdown(&iterator, opt.output_path.as_deref()),
+        };
+    }
 }

@@ -235,7 +235,7 @@ pub fn rewrite_paths(
     to_keep_dirs: &[impl AsRef<str>],
     filter_option: Option<bool>,
     file_filter: crate::FileFilter,
-) -> CovResultIter {
+) -> Vec<(PathBuf, PathBuf, CovResult)> {
     let to_ignore_globset = to_globset(to_ignore_dirs);
     let to_keep_globset = to_globset(to_keep_dirs);
 
@@ -341,11 +341,7 @@ pub fn rewrite_paths(
             Some((abs_path, rel_path, result))
         });
 
-    Box::new(
-        results
-            .collect::<Vec<(PathBuf, PathBuf, CovResult)>>()
-            .into_iter(),
-    )
+    results.collect()
 }
 
 #[cfg(test)]

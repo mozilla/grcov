@@ -3,14 +3,16 @@ use quick_xml::{
     Writer,
 };
 use rustc_hash::FxHashMap;
-use std::io::{BufWriter, Cursor, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    io::{BufWriter, Cursor, Write},
+    path::PathBuf,
+};
 use symbolic_common::Name;
 use symbolic_demangle::{Demangle, DemangleOptions};
 
-use crate::defs::CovResultIter;
-use crate::output::get_target_output_writable;
+use crate::{output::get_target_output_writable, CovResult};
 
 macro_rules! demangle {
     ($name: expr, $demangle: expr, $options: expr) => {{
@@ -229,12 +231,13 @@ impl ToString for ConditionType {
 }
 
 fn get_coverage(
-    results: CovResultIter,
+    results: &[(PathBuf, PathBuf, CovResult)],
     sources: Vec<String>,
     demangle: bool,
     demangle_options: DemangleOptions,
 ) -> Coverage {
     let packages: Vec<Package> = results
+        .iter()
         .map(|(_, rel_path, result)| {
             let all_lines: Vec<u32> = result.lines.iter().map(|(k, _)| k).cloned().collect();
 
@@ -246,13 +249,12 @@ fn get_coverage(
             }
             start_indexes.sort_unstable();
 
-            let functions = result.functions;
-            let result_lines = result.lines;
-            let result_branches = result.branches;
+            // let result_lines = result.lines.clone();
+            // let result_branches = result.branches.clone();
 
             let line_from_number = |number| {
-                let hits = result_lines.get(&number).cloned().unwrap_or_default();
-                if let Some(branches) = result_branches.get(&number) {
+                let hits = result.lines.get(&number).cloned().unwrap_or_default();
+                if let Some(branches) = result.branches.get(&number) {
                     let conditions = branches
                         .iter()
                         .enumerate()
@@ -272,7 +274,8 @@ fn get_coverage(
                 }
             };
 
-            let methods: Vec<Method> = functions
+            let methods: Vec<Method> = result
+                .functions
                 .iter()
                 .map(|(name, function)| {
                     let mut func_end = end;
@@ -329,7 +332,7 @@ fn get_coverage(
 
 pub fn output_cobertura(
     source_dir: Option<&Path>,
-    results: CovResultIter,
+    results: &[(PathBuf, PathBuf, CovResult)],
     output_file: Option<&Path>,
     demangle: bool,
 ) {
