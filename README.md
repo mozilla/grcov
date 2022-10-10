@@ -326,7 +326,7 @@ To still allow adding the badge when using a static site host, grcov generates c
 a JSON file with coverage information that can be used with <https://shields.io> to dynamically
 generate badges.
 
-The coverage data for <htttps://shields.io> can be found at `/coverage.json` and the generated
+The coverage data for <https://shields.io> can be found at `/coverage.json` and the generated
 bagdes are available as SVGs at `/badges/*svg`.
 
 The design of generated badges is taken from `shields.io` but may not be updated immediately if there
