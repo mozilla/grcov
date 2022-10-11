@@ -109,11 +109,11 @@ struct Opt {
     )]
     output_types: Vec<OutputType>,
     /// Specifies the output path.
-    #[structopt(short, long, value_name = "PATH", alias = "output-file")]
+    #[structopt(short, long, value_name = "PATH", alias = "output-folder")]
     output_path: Option<PathBuf>,
     /// Specifies the output config file.
-    #[structopt(long, value_name = "PATH", alias = "output-config-file")]
-    output_config_file: Option<PathBuf>,
+    #[structopt(long, value_name = "PATH", alias = "html-output-config-file")]
+    html_output_config_file: Option<PathBuf>,
     /// Specifies the root directory of the source files.
     #[structopt(short, long, value_name = "DIRECTORY", parse(from_os_str))]
     source_dir: Option<PathBuf>,
@@ -417,12 +417,26 @@ fn main() {
     let service_number = opt.service_number.unwrap_or_default();
     let service_pull_request = opt.service_pull_request.unwrap_or_default();
     let commit_sha = opt.commit_sha.unwrap_or_default();
+
+    let output_path = match opt.output_types.len() {
+        0 => return,
+        1 => opt.output_path.as_deref(),
+        _ => match opt.output_path.as_deref() {
+            Some(output_path) => {
+                if output_path.is_dir() {
+                    Some(output_path)
+                } else {
+                    panic!("output_path must be a directory when using multiple outputs");
+                }
+            }
+            _ => None,
+        },
+    };
+
     for output_type in &opt.output_types {
         match output_type {
-            OutputType::Ade => {
-                output_activedata_etl(&iterator, opt.output_path.as_deref(), demangle)
-            }
-            OutputType::Lcov => output_lcov(&iterator, opt.output_path.as_deref(), demangle),
+            OutputType::Ade => output_activedata_etl(&iterator, output_path, demangle),
+            OutputType::Lcov => output_lcov(&iterator, output_path, demangle),
             OutputType::Coveralls => output_coveralls(
                 &iterator,
                 opt.token.as_deref(),
@@ -432,7 +446,7 @@ fn main() {
                 &service_pull_request,
                 &commit_sha,
                 false,
-                opt.output_path.as_deref(),
+                output_path,
                 &opt.vcs_branch,
                 opt.parallel,
                 demangle,
@@ -446,26 +460,23 @@ fn main() {
                 &service_pull_request,
                 &commit_sha,
                 true,
-                opt.output_path.as_deref(),
+                output_path,
                 &opt.vcs_branch,
                 opt.parallel,
                 demangle,
             ),
-            OutputType::Files => output_files(&iterator, opt.output_path.as_deref()),
-            OutputType::Covdir => output_covdir(&iterator, opt.output_path.as_deref()),
+            OutputType::Files => output_files(&iterator, output_path),
+            OutputType::Covdir => output_covdir(&iterator, output_path),
             OutputType::Html => output_html(
                 &iterator,
-                opt.output_path.as_deref(),
+                output_path,
                 num_threads,
                 opt.branch,
-                opt.output_config_file.as_deref(),
+                opt.html_output_config_file.as_deref(),
             ),
-            OutputType::Cobertura => output_cobertura(
-                source_root.as_deref(),
-                &iterator,
-                opt.output_path.as_deref(),
-                demangle,
-            ),
+            OutputType::Cobertura => {
+                output_cobertura(source_root.as_deref(), &iterator, output_path, demangle)
+            },
             OutputType::Markdown => output_markdown(&iterator, opt.output_path.as_deref()),
         };
     }

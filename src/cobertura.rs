@@ -330,7 +330,7 @@ fn get_coverage(
 pub fn output_cobertura(
     source_dir: Option<&Path>,
     results: &[(PathBuf, PathBuf, CovResult)],
-    output_file: Option<&Path>,
+    output_path: Option<&Path>,
     demangle: bool,
 ) {
     let demangle_options = DemangleOptions::name_only();
@@ -491,7 +491,14 @@ pub fn output_cobertura(
         .unwrap();
 
     let result = writer.into_inner().into_inner();
-    let mut file = BufWriter::new(get_target_output_writable(output_file));
+    let output_file = output_path.map(|path| {
+        if path.is_dir() {
+            path.join("cobertura.xml")
+        } else {
+            path.to_path_buf()
+        }
+    });
+    let mut file = BufWriter::new(get_target_output_writable(output_file.as_ref()));
     file.write_all(&result).unwrap();
 }
 

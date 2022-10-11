@@ -36,7 +36,7 @@ macro_rules! demangle {
     }};
 }
 
-pub fn get_target_output_writable(output_file: Option<&Path>) -> Box<dyn Write> {
+pub fn get_target_output_writable(output_file: Option<&PathBuf>) -> Box<dyn Write> {
     let write_target: Box<dyn Write> = match output_file {
         Some(output) => {
             if output.is_dir() {
@@ -72,11 +72,18 @@ pub fn get_target_output_writable(output_file: Option<&Path>) -> Box<dyn Write> 
 
 pub fn output_activedata_etl(
     results: &[(PathBuf, PathBuf, CovResult)],
-    output_file: Option<&Path>,
+    output_path: Option<&Path>,
     demangle: bool,
 ) {
     let demangle_options = DemangleOptions::name_only();
-    let mut writer = BufWriter::new(get_target_output_writable(output_file));
+    let output_file = output_path.map(|path| {
+        if path.is_dir() {
+            path.join("activedata")
+        } else {
+            path.to_path_buf()
+        }
+    });
+    let mut writer = BufWriter::new(get_target_output_writable(output_file.as_ref()));
 
     for (_, rel_path, result) in results {
         let covered: Vec<u32> = result
@@ -184,8 +191,15 @@ pub fn output_activedata_etl(
     }
 }
 
-pub fn output_covdir(results: &[(PathBuf, PathBuf, CovResult)], output_file: Option<&Path>) {
-    let mut writer = BufWriter::new(get_target_output_writable(output_file));
+pub fn output_covdir(results: &[(PathBuf, PathBuf, CovResult)], output_path: Option<&Path>) {
+    let output_file = output_path.map(|path| {
+        if path.is_dir() {
+            path.join("covdir")
+        } else {
+            path.to_path_buf()
+        }
+    });
+    let mut writer = BufWriter::new(get_target_output_writable(output_file.as_ref()));
     let mut relative: FxHashMap<PathBuf, Rc<RefCell<CDDirStats>>> = FxHashMap::default();
     let global = Rc::new(RefCell::new(CDDirStats::new("".to_string())));
     relative.insert(PathBuf::from(""), global.clone());
@@ -242,11 +256,18 @@ pub fn output_covdir(results: &[(PathBuf, PathBuf, CovResult)], output_file: Opt
 
 pub fn output_lcov(
     results: &[(PathBuf, PathBuf, CovResult)],
-    output_file: Option<&Path>,
+    output_path: Option<&Path>,
     demangle: bool,
 ) {
     let demangle_options = DemangleOptions::name_only();
-    let mut writer = BufWriter::new(get_target_output_writable(output_file));
+    let output_file = output_path.map(|path| {
+        if path.is_dir() {
+            path.join("lcov")
+        } else {
+            path.to_path_buf()
+        }
+    });
+    let mut writer = BufWriter::new(get_target_output_writable(output_file.as_ref()));
     writer.write_all(b"TN:\n").unwrap();
 
     for (_, rel_path, result) in results {
@@ -429,7 +450,7 @@ pub fn output_coveralls(
     service_pull_request: &str,
     commit_sha: &str,
     with_function_info: bool,
-    output_file: Option<&Path>,
+    output_path: Option<&Path>,
     vcs_branch: &str,
     parallel: bool,
     demangle: bool,
@@ -509,12 +530,29 @@ pub fn output_coveralls(
         obj.insert("service_job_id".to_string(), json!(service_job_id));
     }
 
-    let mut writer = BufWriter::new(get_target_output_writable(output_file));
+    let output_file = output_path.map(|path| {
+        if path.is_dir() {
+            path.join(format!(
+                "coveralls{}",
+                if with_function_info { "+" } else { "" }
+            ))
+        } else {
+            path.to_path_buf()
+        }
+    });
+    let mut writer = BufWriter::new(get_target_output_writable(output_file.as_ref()));
     serde_json::to_writer(&mut writer, &result).unwrap();
 }
 
-pub fn output_files(results: &[(PathBuf, PathBuf, CovResult)], output_file: Option<&Path>) {
-    let mut writer = BufWriter::new(get_target_output_writable(output_file));
+pub fn output_files(results: &[(PathBuf, PathBuf, CovResult)], output_path: Option<&Path>) {
+    let output_file = output_path.map(|path| {
+        if path.is_dir() {
+            path.join("files")
+        } else {
+            path.to_path_buf()
+        }
+    });
+    let mut writer = BufWriter::new(get_target_output_writable(output_file.as_ref()));
     for (_, rel_path, _) in results {
         writeln!(writer, "{}", rel_path.display()).unwrap();
     }
