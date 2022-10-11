@@ -249,9 +249,6 @@ fn get_coverage(
             }
             start_indexes.sort_unstable();
 
-            // let result_lines = result.lines.clone();
-            // let result_branches = result.branches.clone();
-
             let line_from_number = |number| {
                 let hits = result.lines.get(&number).cloned().unwrap_or_default();
                 if let Some(branches) = result.branches.get(&number) {
