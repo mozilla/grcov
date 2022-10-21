@@ -14,9 +14,8 @@ pub static LLVM_PATH: OnceCell<PathBuf> = OnceCell::new();
 
 pub fn is_binary(path: impl AsRef<Path>) -> bool {
     if let Ok(oty) = infer::get_from_path(path) {
-        match oty.map(|x| x.extension()) {
-            Some("dll" | "exe" | "elf" | "mach") => return true,
-            _ => {}
+        if let Some("dll" | "exe" | "elf" | "mach") = oty.map(|x| x.extension()) {
+            return true;
         }
     }
     false
@@ -91,7 +90,7 @@ pub fn profraws_to_lcov(
 
     let stdin_paths: String = profraw_paths.iter().fold("".into(), |mut a, x| {
         a.push_str(x.to_string_lossy().as_ref());
-        a.push_str("\n");
+        a.push('\n');
         a
     });
 
