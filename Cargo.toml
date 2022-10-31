@@ -14,12 +14,12 @@ exclude = [
     "test/*",
     "tests/*",
     "benches/*",
-    ".travis.yml",
-    "appveyor.yml",
+    ".github/*",
     ".gitignore",
     ".dockerignore",
     ".pre-commit-config.yaml",
     "CODE_OF_CONDUCT.md",
+    ".markdownlint.yaml"
 ]
 edition = "2018"
 
