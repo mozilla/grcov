@@ -508,7 +508,7 @@ dependencies = [
  "simplelog",
  "smallvec",
  "structopt",
- "symbolic-common",
+ "symbolic-common 9.2.1",
  "symbolic-demangle",
  "tabled",
  "tcmalloc",
@@ -1215,16 +1215,28 @@ dependencies = [
 ]
 
 [[package]]
-name = "symbolic-demangle"
-version = "9.2.1"
+name = "symbolic-common"
+version = "10.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b940a1fdbc72bb3369e38714efe6cd332dbbe46d093cf03d668b9ac390d1ad0"
+checksum = "753f48b7c2399e03be394c2ac68537871cc122eb0c3c9890ad700f6a0ed75867"
+dependencies = [
+ "debugid",
+ "memmap2",
+ "stable_deref_trait",
+ "uuid",
+]
+
+[[package]]
+name = "symbolic-demangle"
+version = "10.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa95eece3dc1e998031b07951ef5c8ada9938ef0e907e2154410ad4e15f341f4"
 dependencies = [
  "cc",
  "cpp_demangle",
  "msvc-demangler",
  "rustc-demangle",
- "symbolic-common",
+ "symbolic-common 10.0.0",
 ]
 
 [[package]]
