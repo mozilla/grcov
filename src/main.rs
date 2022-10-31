@@ -79,6 +79,9 @@ struct Opt {
     /// Sets the path to the compiled binary to be used.
     #[structopt(short, long, value_name = "PATH")]
     binary_path: Option<PathBuf>,
+    /// Sets the path to the LLVM bin directory.
+    #[structopt(long, value_name = "PATH")]
+    llvm_path: Option<PathBuf>,
     /// Sets a custom output type.
     #[structopt(
         short = "t",
@@ -234,6 +237,10 @@ fn main() {
             )
             .get_matches(),
     );
+
+    if let Some(path) = opt.llvm_path {
+        LLVM_PATH.set(path).unwrap();
+    }
 
     let filter_option = opt.filter.map(|filter| match filter {
         Filter::Covered => true,

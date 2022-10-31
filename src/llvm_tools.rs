@@ -1,20 +1,66 @@
 use cargo_binutils::Tool;
-use is_executable::IsExecutable;
+use once_cell::sync::OnceCell;
+use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsStr;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use log::warn;
 use walkdir::WalkDir;
 
+pub static LLVM_PATH: OnceCell<PathBuf> = OnceCell::new();
+
+pub fn is_binary(path: impl AsRef<Path>) -> bool {
+    if let Ok(oty) = infer::get_from_path(path) {
+        if let Some("dll" | "exe" | "elf" | "mach") = oty.map(|x| x.extension()) {
+            return true;
+        }
+    }
+    false
+}
+
+pub fn run_with_stdin(
+    cmd: impl AsRef<OsStr>,
+    stdin: impl AsRef<str>,
+    args: &[&OsStr],
+) -> Result<Vec<u8>, String> {
+    let mut command = Command::new(cmd.as_ref());
+    let err_fn = |e| format!("Failed to execute {:?}\n{}", cmd.as_ref(), e);
+
+    command
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped());
+    let mut child = command.spawn().map_err(err_fn)?;
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(stdin.as_ref().as_bytes())
+        .map_err(err_fn)?;
+
+    let output = child.wait_with_output().map_err(err_fn)?;
+    if !output.status.success() {
+        return Err(format!(
+            "Failure while running {:?}\n{}",
+            command,
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    Ok(output.stdout)
+}
+
 pub fn run(cmd: impl AsRef<OsStr>, args: &[&OsStr]) -> Result<Vec<u8>, String> {
     let mut command = Command::new(cmd);
     command.args(args);
-    let output = match command.output() {
-        Ok(output) => output,
-        Err(e) => return Err(format!("Failed to execute {:?}\n{}", command, e)),
-    };
+
+    let output = command
+        .output()
+        .map_err(|e| format!("Failed to execute {:?}\n{}", command, e))?;
+
     if !output.status.success() {
         return Err(format!(
             "Failure while running {:?}\n{}",
@@ -33,15 +79,22 @@ pub fn profraws_to_lcov(
 ) -> Result<Vec<Vec<u8>>, String> {
     let profdata_path = working_dir.join("grcov.profdata");
 
-    let mut args = vec![
+    let args = vec![
         "merge".as_ref(),
+        "-f".as_ref(),
+        "-".as_ref(),
         "-sparse".as_ref(),
         "-o".as_ref(),
         profdata_path.as_ref(),
     ];
-    args.splice(2..2, profraw_paths.iter().map(PathBuf::as_ref));
 
-    get_profdata_path().and_then(|p| run(&p, &args))?;
+    let stdin_paths: String = profraw_paths.iter().fold("".into(), |mut a, x| {
+        a.push_str(x.to_string_lossy().as_ref());
+        a.push('\n');
+        a
+    });
+
+    get_profdata_path().and_then(|p| run_with_stdin(&p, &stdin_paths, &args))?;
 
     let metadata = fs::metadata(binary_path)
         .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {:?}.", binary_path, e));
@@ -55,7 +108,7 @@ pub fn profraws_to_lcov(
             let entry =
                 entry.unwrap_or_else(|_| panic!("Failed to open directory '{:?}'.", binary_path));
 
-            if entry.path().is_executable() && entry.metadata().unwrap().len() > 0 {
+            if is_binary(entry.path()) && entry.metadata().unwrap().len() > 0 {
                 paths.push(entry.into_path());
             }
         }
@@ -64,7 +117,7 @@ pub fn profraws_to_lcov(
     };
 
     let mut results = vec![];
-    let cov_tool_path = Tool::Cov.path().unwrap();
+    let cov_tool_path = get_cov_path()?;
 
     for binary in binaries {
         let args = [
@@ -89,9 +142,30 @@ pub fn profraws_to_lcov(
 }
 
 fn get_profdata_path() -> Result<PathBuf, String> {
-    let path = Tool::Profdata.path().map_err(|x| x.to_string())?;
+    let path = if let Some(mut path) = LLVM_PATH.get().cloned() {
+        path.push(format!("llvm-profdata{}", EXE_SUFFIX));
+        path
+    } else {
+        Tool::Profdata.path().map_err(|x| x.to_string())?
+    };
+
     if !path.exists() {
-        Err(String::from("We couldn't find llvm-profdata. Try installing the llvm-tools component with `rustup component add llvm-tools-preview`."))
+        Err(String::from("We couldn't find llvm-profdata. Try installing the llvm-tools component with `rustup component add llvm-tools-preview` or specifying the --llvm-path option."))
+    } else {
+        Ok(path)
+    }
+}
+
+fn get_cov_path() -> Result<PathBuf, String> {
+    let path = if let Some(mut path) = LLVM_PATH.get().cloned() {
+        path.push(format!("llvm-cov{}", EXE_SUFFIX));
+        path
+    } else {
+        Tool::Cov.path().map_err(|x| x.to_string())?
+    };
+
+    if !path.exists() {
+        Err(String::from("We couldn't find llvm-cov. Try installing the llvm-tools component with `rustup component add llvm-tools-preview` or specifying the --llvm-path option."))
     } else {
         Ok(path)
     }
