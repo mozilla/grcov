@@ -8,6 +8,7 @@ use std::io;
 use std::path::{Component, Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
+use crate::ResultTuple;
 use crate::defs::*;
 use crate::filter::*;
 
@@ -235,7 +236,7 @@ pub fn rewrite_paths(
     to_keep_dirs: &[impl AsRef<str>],
     filter_option: Option<bool>,
     file_filter: crate::FileFilter,
-) -> Vec<(PathBuf, PathBuf, CovResult)> {
+) -> Vec<ResultTuple> {
     let to_ignore_globset = to_globset(to_ignore_dirs);
     let to_keep_globset = to_globset(to_keep_dirs);
 

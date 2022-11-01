@@ -19,7 +19,7 @@ use symbolic_demangle::{Demangle, DemangleOptions};
 use tabled::{Style, Table, Tabled};
 use uuid::Uuid;
 
-use crate::defs::*;
+use crate::{defs::*, ResultTuple};
 use crate::html;
 
 macro_rules! demangle {
@@ -36,7 +36,7 @@ macro_rules! demangle {
     }};
 }
 
-pub fn get_target_output_writable(output_file: Option<&PathBuf>) -> Box<dyn Write> {
+pub fn get_target_output_writable(output_file: Option<&Path>) -> Box<dyn Write> {
     let write_target: Box<dyn Write> = match output_file {
         Some(output) => {
             if output.is_dir() {
@@ -71,19 +71,12 @@ pub fn get_target_output_writable(output_file: Option<&PathBuf>) -> Box<dyn Writ
 }
 
 pub fn output_activedata_etl(
-    results: &[(PathBuf, PathBuf, CovResult)],
-    output_path: Option<&Path>,
+    results: &[ResultTuple],
+    output_file: Option<&Path>,
     demangle: bool,
 ) {
     let demangle_options = DemangleOptions::name_only();
-    let output_file = output_path.map(|path| {
-        if path.is_dir() {
-            path.join("activedata")
-        } else {
-            path.to_path_buf()
-        }
-    });
-    let mut writer = BufWriter::new(get_target_output_writable(output_file.as_ref()));
+    let mut writer = BufWriter::new(get_target_output_writable(output_file));
 
     for (_, rel_path, result) in results {
         let covered: Vec<u32> = result
@@ -191,15 +184,8 @@ pub fn output_activedata_etl(
     }
 }
 
-pub fn output_covdir(results: &[(PathBuf, PathBuf, CovResult)], output_path: Option<&Path>) {
-    let output_file = output_path.map(|path| {
-        if path.is_dir() {
-            path.join("covdir")
-        } else {
-            path.to_path_buf()
-        }
-    });
-    let mut writer = BufWriter::new(get_target_output_writable(output_file.as_ref()));
+pub fn output_covdir(results: &[ResultTuple], output_file: Option<&Path>) {
+    let mut writer = BufWriter::new(get_target_output_writable(output_file));
     let mut relative: FxHashMap<PathBuf, Rc<RefCell<CDDirStats>>> = FxHashMap::default();
     let global = Rc::new(RefCell::new(CDDirStats::new("".to_string())));
     relative.insert(PathBuf::from(""), global.clone());
@@ -255,19 +241,12 @@ pub fn output_covdir(results: &[(PathBuf, PathBuf, CovResult)], output_path: Opt
 }
 
 pub fn output_lcov(
-    results: &[(PathBuf, PathBuf, CovResult)],
-    output_path: Option<&Path>,
+    results: &[ResultTuple],
+    output_file: Option<&Path>,
     demangle: bool,
 ) {
     let demangle_options = DemangleOptions::name_only();
-    let output_file = output_path.map(|path| {
-        if path.is_dir() {
-            path.join("lcov")
-        } else {
-            path.to_path_buf()
-        }
-    });
-    let mut writer = BufWriter::new(get_target_output_writable(output_file.as_ref()));
+    let mut writer = BufWriter::new(get_target_output_writable(output_file));
     writer.write_all(b"TN:\n").unwrap();
 
     for (_, rel_path, result) in results {
@@ -442,7 +421,7 @@ fn get_coveralls_git_info(commit_sha: &str, vcs_branch: &str) -> Value {
 }
 
 pub fn output_coveralls(
-    results: &[(PathBuf, PathBuf, CovResult)],
+    results: &[ResultTuple],
     repo_token: Option<&str>,
     service_name: Option<&str>,
     service_number: &str,
@@ -450,7 +429,7 @@ pub fn output_coveralls(
     service_pull_request: &str,
     commit_sha: &str,
     with_function_info: bool,
-    output_path: Option<&Path>,
+    output_file: Option<&Path>,
     vcs_branch: &str,
     parallel: bool,
     demangle: bool,
@@ -530,36 +509,19 @@ pub fn output_coveralls(
         obj.insert("service_job_id".to_string(), json!(service_job_id));
     }
 
-    let output_file = output_path.map(|path| {
-        if path.is_dir() {
-            path.join(format!(
-                "coveralls{}",
-                if with_function_info { "+" } else { "" }
-            ))
-        } else {
-            path.to_path_buf()
-        }
-    });
-    let mut writer = BufWriter::new(get_target_output_writable(output_file.as_ref()));
+    let mut writer = BufWriter::new(get_target_output_writable(output_file));
     serde_json::to_writer(&mut writer, &result).unwrap();
 }
 
-pub fn output_files(results: &[(PathBuf, PathBuf, CovResult)], output_path: Option<&Path>) {
-    let output_file = output_path.map(|path| {
-        if path.is_dir() {
-            path.join("files")
-        } else {
-            path.to_path_buf()
-        }
-    });
-    let mut writer = BufWriter::new(get_target_output_writable(output_file.as_ref()));
+pub fn output_files(results: &[ResultTuple], output_file: Option<&Path>) {
+    let mut writer = BufWriter::new(get_target_output_writable(output_file));
     for (_, rel_path, _) in results {
         writeln!(writer, "{}", rel_path.display()).unwrap();
     }
 }
 
 pub fn output_html(
-    results: &[(PathBuf, PathBuf, CovResult)],
+    results: &[ResultTuple],
     output_dir: Option<&Path>,
     num_threads: usize,
     branch_enabled: bool,
@@ -570,7 +532,6 @@ pub fn output_html(
     } else {
         PathBuf::from("./html")
     };
-
     if output.exists() {
         if !output.is_dir() {
             eprintln!("{} is not a directory", output.to_str().unwrap());

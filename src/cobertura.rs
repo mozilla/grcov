@@ -7,12 +7,11 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{
     io::{BufWriter, Cursor, Write},
-    path::PathBuf,
 };
 use symbolic_common::Name;
 use symbolic_demangle::{Demangle, DemangleOptions};
 
-use crate::{output::get_target_output_writable, CovResult};
+use crate::{output::get_target_output_writable, ResultTuple};
 
 macro_rules! demangle {
     ($name: expr, $demangle: expr, $options: expr) => {{
@@ -231,7 +230,7 @@ impl ToString for ConditionType {
 }
 
 fn get_coverage(
-    results: &[(PathBuf, PathBuf, CovResult)],
+    results: &[ResultTuple],
     sources: Vec<String>,
     demangle: bool,
     demangle_options: DemangleOptions,
@@ -329,8 +328,8 @@ fn get_coverage(
 
 pub fn output_cobertura(
     source_dir: Option<&Path>,
-    results: &[(PathBuf, PathBuf, CovResult)],
-    output_path: Option<&Path>,
+    results: &[ResultTuple],
+    output_file: Option<&Path>,
     demangle: bool,
 ) {
     let demangle_options = DemangleOptions::name_only();
@@ -491,14 +490,7 @@ pub fn output_cobertura(
         .unwrap();
 
     let result = writer.into_inner().into_inner();
-    let output_file = output_path.map(|path| {
-        if path.is_dir() {
-            path.join("cobertura.xml")
-        } else {
-            path.to_path_buf()
-        }
-    });
-    let mut file = BufWriter::new(get_target_output_writable(output_file.as_ref()));
+    let mut file = BufWriter::new(get_target_output_writable(output_file));
     file.write_all(&result).unwrap();
 }
 

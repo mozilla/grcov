@@ -50,6 +50,27 @@ impl FromStr for OutputType {
     }
 }
 
+impl OutputType {
+    fn to_file_name(&self, output_path: Option<&Path>) -> Option<PathBuf> {
+        output_path.map(|path| {
+            if path.is_dir() {
+                match self {
+                    OutputType::Ade => path.join("activedata"),
+                    OutputType::Lcov => path.join("lcov"),
+                    OutputType::Coveralls => path.join("coveralls"),
+                    OutputType::CoverallsPlus => path.join("coveralls+"),
+                    OutputType::Files => path.join("files"),
+                    OutputType::Covdir => path.join("covdir"),
+                    OutputType::Html => path.join("html"),
+                    OutputType::Cobertura => path.join("cobertura.xml"),
+                }
+            } else {
+                path.to_path_buf()
+            }
+        })
+    }
+}
+
 enum Filter {
     Covered,
     Uncovered,
@@ -108,12 +129,13 @@ struct Opt {
         use_delimiter = true
     )]
     output_types: Vec<OutputType>,
-    /// Specifies the output path.
-    #[structopt(short, long, value_name = "PATH", alias = "output-folder")]
+    /// Specifies the output path. This is a file for a single output type and must be a folder
+    /// for multiple output types.
+    #[structopt(short, long, value_name = "PATH", alias = "output-file")]
     output_path: Option<PathBuf>,
     /// Specifies the output config file.
-    #[structopt(long, value_name = "PATH", alias = "html-output-config-file")]
-    html_output_config_file: Option<PathBuf>,
+    #[structopt(long, value_name = "PATH", alias = "output-config-file")]
+    output_config_file: Option<PathBuf>,
     /// Specifies the root directory of the source files.
     #[structopt(short, long, value_name = "DIRECTORY", parse(from_os_str))]
     source_dir: Option<PathBuf>,
@@ -434,9 +456,11 @@ fn main() {
     };
 
     for output_type in &opt.output_types {
+        let output_path = output_type.to_file_name(output_path);
+
         match output_type {
-            OutputType::Ade => output_activedata_etl(&iterator, output_path, demangle),
-            OutputType::Lcov => output_lcov(&iterator, output_path, demangle),
+            OutputType::Ade => output_activedata_etl(&iterator, output_path.as_deref(), demangle),
+            OutputType::Lcov => output_lcov(&iterator, output_path.as_deref(), demangle),
             OutputType::Coveralls => output_coveralls(
                 &iterator,
                 opt.token.as_deref(),
@@ -446,7 +470,7 @@ fn main() {
                 &service_pull_request,
                 &commit_sha,
                 false,
-                output_path,
+                output_path.as_deref(),
                 &opt.vcs_branch,
                 opt.parallel,
                 demangle,
@@ -460,24 +484,27 @@ fn main() {
                 &service_pull_request,
                 &commit_sha,
                 true,
-                output_path,
+                output_path.as_deref(),
                 &opt.vcs_branch,
                 opt.parallel,
                 demangle,
             ),
-            OutputType::Files => output_files(&iterator, output_path),
-            OutputType::Covdir => output_covdir(&iterator, output_path),
+            OutputType::Files => output_files(&iterator, output_path.as_deref()),
+            OutputType::Covdir => output_covdir(&iterator, output_path.as_deref()),
             OutputType::Html => output_html(
                 &iterator,
-                output_path,
+                output_path.as_deref(),
                 num_threads,
                 opt.branch,
-                opt.html_output_config_file.as_deref(),
+                opt.output_config_file.as_deref(),
             ),
-            OutputType::Cobertura => {
-                output_cobertura(source_root.as_deref(), &iterator, output_path, demangle)
-            },
-            OutputType::Markdown => output_markdown(&iterator, opt.output_path.as_deref()),
+            OutputType::Cobertura => output_cobertura(
+                source_root.as_deref(),
+                &iterator,
+                output_path.as_deref(),
+                demangle,
+            ),
+            OutputType::Markdown => output_markdown(&iterator, output_path.as_deref()),
         };
     }
 }
