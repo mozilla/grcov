@@ -594,7 +594,7 @@ pub fn output_html(
     html::gen_coverage_json(&global.stats, &config, &output);
 }
 
-pub fn output_markdown(results: &[(PathBuf, PathBuf, CovResult)], output_file: Option<&Path>) {
+pub fn output_markdown(results: &[ResultTuple], output_file: Option<&Path>) {
     #[derive(Tabled)]
     struct LineSummary {
         file: String,
@@ -955,8 +955,7 @@ mod tests {
             ),
         ];
 
-        let results = Box::new(results.into_iter());
-        output_markdown(results, Some(&file_path));
+        output_markdown(&results, Some(&file_path));
 
         let results = &read_file(&file_path);
         let expected = "| file          | coverage | covered | missed_lines |

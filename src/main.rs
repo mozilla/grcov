@@ -63,6 +63,7 @@ impl OutputType {
                     OutputType::Covdir => path.join("covdir"),
                     OutputType::Html => path.join("html"),
                     OutputType::Cobertura => path.join("cobertura.xml"),
+                    OutputType::Markdown => path.join("markdown.md"),
                 }
             } else {
                 path.to_path_buf()
