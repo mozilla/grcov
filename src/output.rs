@@ -524,7 +524,7 @@ pub fn output_html(
     } else {
         PathBuf::from("./html")
     };
-    
+
     if output.exists() {
         if !output.is_dir() {
             eprintln!("{} is not a directory", output.to_str().unwrap());
