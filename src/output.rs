@@ -19,7 +19,7 @@ use symbolic_demangle::{Demangle, DemangleOptions};
 use tabled::{Style, Table, Tabled};
 use uuid::Uuid;
 
-use crate::{defs::*, ResultTuple};
+use crate::defs::*;
 use crate::html;
 
 macro_rules! demangle {
@@ -70,11 +70,7 @@ pub fn get_target_output_writable(output_file: Option<&Path>) -> Box<dyn Write> 
     write_target
 }
 
-pub fn output_activedata_etl(
-    results: &[ResultTuple],
-    output_file: Option<&Path>,
-    demangle: bool,
-) {
+pub fn output_activedata_etl(results: &[ResultTuple], output_file: Option<&Path>, demangle: bool) {
     let demangle_options = DemangleOptions::name_only();
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
 
@@ -240,11 +236,7 @@ pub fn output_covdir(results: &[ResultTuple], output_file: Option<&Path>) {
     serde_json::to_writer(&mut writer, &global.into_json()).unwrap();
 }
 
-pub fn output_lcov(
-    results: &[ResultTuple],
-    output_file: Option<&Path>,
-    demangle: bool,
-) {
+pub fn output_lcov(results: &[ResultTuple], output_file: Option<&Path>, demangle: bool) {
     let demangle_options = DemangleOptions::name_only();
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     writer.write_all(b"TN:\n").unwrap();

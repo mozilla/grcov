@@ -8,7 +8,6 @@ use std::io;
 use std::path::{Component, Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
-use crate::ResultTuple;
 use crate::defs::*;
 use crate::filter::*;
 

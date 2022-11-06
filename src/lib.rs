@@ -44,14 +44,11 @@ pub use crate::file_filter::*;
 use log::{error, warn};
 use std::fs;
 use std::io::{BufReader, Cursor};
-use std::path::PathBuf;
 use std::{
     collections::{btree_map, hash_map},
     path::Path,
 };
 use walkdir::WalkDir;
-
-pub type ResultTuple = (PathBuf, PathBuf, CovResult);  
 
 // Merge results, without caring about duplicate lines (they will be removed at the end).
 pub fn merge_results(result: &mut CovResult, result2: CovResult) -> bool {

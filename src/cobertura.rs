@@ -1,17 +1,16 @@
+use crate::defs::*;
 use quick_xml::{
     events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event},
     Writer,
 };
 use rustc_hash::FxHashMap;
+use std::io::{BufWriter, Cursor, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{
-    io::{BufWriter, Cursor, Write},
-};
 use symbolic_common::Name;
 use symbolic_demangle::{Demangle, DemangleOptions};
 
-use crate::{output::get_target_output_writable, ResultTuple};
+use crate::output::get_target_output_writable;
 
 macro_rules! demangle {
     ($name: expr, $demangle: expr, $options: expr) => {{
