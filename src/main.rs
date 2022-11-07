@@ -118,7 +118,7 @@ struct Opt {
             - *ade* for the ActiveData-ETL specific format;\n\
             - *files* to only return a list of files.\n\
             - *markdown* for human easy read.\n\
-            - *cobertura* for output in coberura format.\n\
+            - *cobertura* for output in cobertura format.\n\
         ",
         value_name = "OUTPUT TYPE",
         default_value = "lcov",
