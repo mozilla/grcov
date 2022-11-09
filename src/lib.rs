@@ -221,7 +221,7 @@ pub fn consumer(
                         } else {
                             let mut new_results: Vec<(String, CovResult)> = Vec::new();
 
-                            for entry in WalkDir::new(&working_dir).min_depth(1) {
+                            for entry in WalkDir::new(working_dir).min_depth(1) {
                                 let gcov_path = entry.unwrap();
                                 let gcov_path = gcov_path.path();
 

@@ -45,7 +45,7 @@ pub fn get_target_output_writable(output_file: Option<&Path>) -> Box<dyn Write> 
                     output.display()
                 )
             }
-            Box::new(File::create(&output).unwrap_or_else(|_| {
+            Box::new(File::create(output).unwrap_or_else(|_| {
                 let parent = output.parent();
                 if let Some(parent_path) = parent {
                     if !parent_path.exists() {
@@ -259,7 +259,7 @@ pub fn output_lcov(results: CovResultIter, output_file: Option<&Path>, demangle:
             writeln!(
                 writer,
                 "FNDA:{},{}",
-                if function.executed { 1 } else { 0 },
+                i32::from(function.executed),
                 demangle!(name, demangle, demangle_options)
             )
             .unwrap();
@@ -369,7 +369,7 @@ fn get_coveralls_git_info(commit_sha: &str, vcs_branch: &str) -> Value {
     // Runs `git log` with a given format, to extract some piece of commit info. On failure,
     // returns empty string.
     let gitlog = |format| -> String {
-        get_git_output(&[
+        get_git_output([
             "log",
             "--max-count=1",
             &format!("--pretty=format:{}", format),
@@ -384,7 +384,7 @@ fn get_coveralls_git_info(commit_sha: &str, vcs_branch: &str) -> Value {
     let message = gitlog("%s");
 
     let remotes: Value = {
-        let output = get_git_output(&["remote", "--verbose"]);
+        let output = get_git_output(["remote", "--verbose"]);
 
         let mut remotes = Vec::<Value>::new();
         for line in output.lines() {
@@ -448,7 +448,7 @@ pub fn output_coveralls(
                 branches.push(*line);
                 branches.push(0);
                 branches.push(n as u32);
-                branches.push(if *b_t { 1 } else { 0 });
+                branches.push(u32::from(*b_t));
             }
         }
 
@@ -670,7 +670,7 @@ mod tests {
     fn test_lcov_brf_brh() {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let file_name = "test_lcov_brf_brh.info";
-        let file_path = tmp_dir.path().join(&file_name);
+        let file_path = tmp_dir.path().join(file_name);
 
         let results = vec![(
             PathBuf::from("foo/bar/a.cpp"),
@@ -701,7 +701,7 @@ mod tests {
     fn test_lcov_demangle() {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let file_name = "test_lcov_demangle";
-        let file_path = tmp_dir.path().join(&file_name);
+        let file_path = tmp_dir.path().join(file_name);
 
         let results = vec![(
             PathBuf::from("foo/bar/a.cpp"),
@@ -751,7 +751,7 @@ mod tests {
     fn test_covdir() {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let file_name = "test_covdir.json";
-        let file_path = tmp_dir.path().join(&file_name);
+        let file_path = tmp_dir.path().join(file_name);
 
         let results = vec![
             (
@@ -796,7 +796,7 @@ mod tests {
         output_covdir(results, Some(&file_path));
 
         let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
-        let expected_path = PathBuf::from("./test/").join(&file_name);
+        let expected_path = PathBuf::from("./test/").join(file_name);
         let expected: Value = serde_json::from_str(&read_file(&expected_path)).unwrap();
 
         assert_eq!(results, expected);
@@ -806,7 +806,7 @@ mod tests {
     fn test_coveralls_service_job_id() {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let file_name = "test_coveralls_service_job_id.json";
-        let file_path = tmp_dir.path().join(&file_name);
+        let file_path = tmp_dir.path().join(file_name);
 
         let results = vec![(
             PathBuf::from("foo/bar/a.cpp"),
@@ -846,7 +846,7 @@ mod tests {
     fn test_coveralls_token_field_is_absent_if_arg_is_none() {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let file_name = "test_coveralls_token.json";
-        let file_path = tmp_dir.path().join(&file_name);
+        let file_path = tmp_dir.path().join(file_name);
 
         let results = vec![(
             PathBuf::from("foo/bar/a.cpp"),
@@ -886,7 +886,7 @@ mod tests {
     fn test_coveralls_service_fields_are_absent_if_args_are_none() {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let file_name = "test_coveralls_service_fields.json";
-        let file_path = tmp_dir.path().join(&file_name);
+        let file_path = tmp_dir.path().join(file_name);
 
         let results = vec![(
             PathBuf::from("foo/bar/a.cpp"),
@@ -928,7 +928,7 @@ mod tests {
     fn test_markdown() {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let file_name = "test_markdown";
-        let file_path = tmp_dir.path().join(&file_name);
+        let file_path = tmp_dir.path().join(file_name);
 
         let results = vec![
             (

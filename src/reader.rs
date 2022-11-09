@@ -829,7 +829,7 @@ impl Gcno {
             "{:>9}:{:>5}:Programs:{}",
             "-",
             0,
-            if has_runs { 1 } else { 0 }
+            i32::from(has_runs)
         )?;
         let mut iter = source.split('\n').peekable();
         while let Some(line) = iter.next() {

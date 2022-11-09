@@ -27,10 +27,10 @@ fn make(path: &Path, compiler: &str) {
         glob_builder.add(Glob::new(c_cpp_glob).unwrap());
     }
     let c_cpp_globset = glob_builder.build().unwrap();
-    for entry in WalkDir::new(&path) {
+    for entry in WalkDir::new(path) {
         let entry = entry.expect("Failed to open directory.");
 
-        if c_cpp_globset.is_match(&entry.file_name()) {
+        if c_cpp_globset.is_match(entry.file_name()) {
             args.push(entry.file_name().to_os_string());
         }
     }
@@ -184,10 +184,10 @@ fn rm_files(directory: &Path, file_globs: Vec<&str>) {
     }
     let to_remove_globset = glob_builder.build().unwrap();
 
-    for entry in WalkDir::new(&directory) {
+    for entry in WalkDir::new(directory) {
         let entry = entry.expect("Failed to open directory.");
 
-        if to_remove_globset.is_match(&entry.file_name()) {
+        if to_remove_globset.is_match(entry.file_name()) {
             fs::remove_file(entry.path()).unwrap();
         }
     }
@@ -406,7 +406,7 @@ fn create_zip(zip_path: &Path, base_dir: &Path, base_dir_in_zip: Option<&str>, f
     let mut files: Vec<PathBuf> = Vec::new();
     for entry in WalkDir::new(base_dir) {
         let entry = entry.expect("Failed to open directory.");
-        if globset.is_match(&entry.file_name()) {
+        if globset.is_match(entry.file_name()) {
             files.push(entry.path().to_path_buf());
         }
     }

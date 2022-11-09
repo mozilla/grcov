@@ -403,7 +403,7 @@ where
 }
 
 pub fn parse_gcov_gz(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserError> {
-    let f = File::open(&gcov_path)
+    let f = File::open(gcov_path)
         .unwrap_or_else(|_| panic!("Failed to open gcov file {}", gcov_path.display()));
 
     let file = BufReader::new(&f);
@@ -463,7 +463,7 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
     let mut cur_functions = FxHashMap::default();
     let mut results = Vec::new();
 
-    let f = File::open(&gcov_path)
+    let f = File::open(gcov_path)
         .unwrap_or_else(|_| panic!("Failed to open gcov file {}", gcov_path.display()));
 
     let mut file = BufReader::new(&f);
@@ -611,7 +611,7 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
                     // This line is a statement.
                     // JaCoCo does not feature execution counts, so we set the
                     // count to 0 or 1.
-                    let hit = if ci > 0 { 1 } else { 0 };
+                    let hit = u64::from(ci > 0);
                     lines.insert(nr, hit);
                 }
             }

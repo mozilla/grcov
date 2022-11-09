@@ -104,7 +104,7 @@ pub fn profraws_to_lcov(
     } else {
         let mut paths = vec![];
 
-        for entry in WalkDir::new(&binary_path) {
+        for entry in WalkDir::new(binary_path) {
             let entry =
                 entry.unwrap_or_else(|_| panic!("Failed to open directory '{:?}'.", binary_path));
 

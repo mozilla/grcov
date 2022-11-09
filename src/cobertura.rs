@@ -706,7 +706,7 @@ mod tests {
     fn test_cobertura() {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let file_name = "test_cobertura.xml";
-        let file_path = tmp_dir.path().join(&file_name);
+        let file_path = tmp_dir.path().join(file_name);
 
         let results = vec![(
             PathBuf::from("src/main.rs"),
@@ -741,7 +741,7 @@ mod tests {
     fn test_cobertura_double_lines() {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let file_name = "test_cobertura.xml";
-        let file_path = tmp_dir.path().join(&file_name);
+        let file_path = tmp_dir.path().join(file_name);
 
         let results = vec![(
             PathBuf::from("src/main.rs"),
@@ -774,7 +774,7 @@ mod tests {
     fn test_cobertura_multiple_files() {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let file_name = "test_cobertura.xml";
-        let file_path = tmp_dir.path().join(&file_name);
+        let file_path = tmp_dir.path().join(file_name);
 
         let results = vec![
             (

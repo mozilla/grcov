@@ -105,8 +105,8 @@ fn guess_abs_path(prefix_dir: &Path, path: &Path) -> PathBuf {
 // Remove prefix from the source file's path.
 fn remove_prefix(prefix_dir: Option<&Path>, path: PathBuf) -> PathBuf {
     if let Some(prefix_dir) = prefix_dir {
-        if path.starts_with(&prefix_dir) {
-            return path.strip_prefix(&prefix_dir).unwrap().to_path_buf();
+        if path.starts_with(prefix_dir) {
+            return path.strip_prefix(prefix_dir).unwrap().to_path_buf();
         }
     }
 
@@ -115,8 +115,8 @@ fn remove_prefix(prefix_dir: Option<&Path>, path: PathBuf) -> PathBuf {
 
 fn fixup_rel_path(source_dir: Option<&Path>, abs_path: &Path, rel_path: PathBuf) -> PathBuf {
     if let Some(ref source_dir) = source_dir {
-        if abs_path.starts_with(&source_dir) {
-            return abs_path.strip_prefix(&source_dir).unwrap().to_path_buf();
+        if abs_path.starts_with(source_dir) {
+            return abs_path.strip_prefix(source_dir).unwrap().to_path_buf();
         } else if !rel_path.is_relative() {
             return abs_path.to_owned();
         }
@@ -246,7 +246,7 @@ pub fn rewrite_paths(
     // Traverse source dir and store all paths, reversed.
     let mut file_to_paths: FxHashMap<String, Vec<PathBuf>> = FxHashMap::default();
     if let Some(ref source_dir) = source_dir {
-        for entry in WalkDir::new(&source_dir)
+        for entry in WalkDir::new(source_dir)
             .into_iter()
             .filter_entry(|e| !is_hidden(e) && !is_symbolic_link(e))
         {
@@ -258,7 +258,7 @@ pub fn rewrite_paths(
                 continue;
             }
 
-            let path = full_path.strip_prefix(&source_dir).unwrap().to_path_buf();
+            let path = full_path.strip_prefix(source_dir).unwrap().to_path_buf();
             if to_ignore_globset.is_match(&path) {
                 continue;
             }

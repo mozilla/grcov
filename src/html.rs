@@ -125,7 +125,7 @@ pub fn get_config(output_config_file: Option<&Path>) -> (Tera, Config) {
     let mut tera = Tera::default();
 
     tera.register_filter("severity", conf.clone());
-    tera.register_function("percent", &percent);
+    tera.register_function("percent", percent);
 
     tera.add_raw_templates(get_templates(&user_conf.templates))
         .unwrap();
@@ -357,7 +357,7 @@ fn gen_html(
         return;
     }
 
-    let mut f = match File::open(&path) {
+    let mut f = match File::open(path) {
         Err(_) => {
             //eprintln!("Warning: cannot open file {:?}", path);
             return;

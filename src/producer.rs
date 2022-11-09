@@ -169,7 +169,7 @@ impl Archive {
                 }
             }
             ArchiveType::Dir(ref dir) => {
-                for entry in WalkDir::new(&dir) {
+                for entry in WalkDir::new(dir) {
                     let entry = entry.unwrap_or_else(|err| {
                         panic!(
                             "Failed to open '{}'.",
@@ -272,7 +272,7 @@ impl Archive {
                 let mut zip = zip.borrow_mut();
                 let zipfile = zip.by_name(name);
                 if let Ok(mut f) = zipfile {
-                    let mut file = File::create(&path).expect("Failed to create file");
+                    let mut file = File::create(path).expect("Failed to create file");
                     io::copy(&mut f, &mut file).expect("Failed to copy file from ZIP");
                     true
                 } else {
@@ -460,7 +460,7 @@ pub fn get_mapping(linked_files_maps: &FxHashMap<String, &Archive>) -> Option<Ve
 }
 
 fn open_archive(path: &str) -> ZipArchive<BufReader<File>> {
-    let file = File::open(&path).unwrap_or_else(|_| panic!("Failed to open ZIP file '{}'.", path));
+    let file = File::open(path).unwrap_or_else(|_| panic!("Failed to open ZIP file '{}'.", path));
     let reader = BufReader::new(file);
     ZipArchive::new(reader).unwrap_or_else(|_| panic!("Failed to parse ZIP file: {}", path))
 }
