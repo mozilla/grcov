@@ -1,3 +1,4 @@
+use crate::defs::*;
 use quick_xml::{
     events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event},
     Writer,
@@ -9,7 +10,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use symbolic_common::Name;
 use symbolic_demangle::{Demangle, DemangleOptions};
 
-use crate::defs::CovResultIter;
 use crate::output::get_target_output_writable;
 
 macro_rules! demangle {
@@ -229,12 +229,13 @@ impl ToString for ConditionType {
 }
 
 fn get_coverage(
-    results: CovResultIter,
+    results: &[ResultTuple],
     sources: Vec<String>,
     demangle: bool,
     demangle_options: DemangleOptions,
 ) -> Coverage {
     let packages: Vec<Package> = results
+        .iter()
         .map(|(_, rel_path, result)| {
             let all_lines: Vec<u32> = result.lines.iter().map(|(k, _)| k).cloned().collect();
 
@@ -246,13 +247,9 @@ fn get_coverage(
             }
             start_indexes.sort_unstable();
 
-            let functions = result.functions;
-            let result_lines = result.lines;
-            let result_branches = result.branches;
-
             let line_from_number = |number| {
-                let hits = result_lines.get(&number).cloned().unwrap_or_default();
-                if let Some(branches) = result_branches.get(&number) {
+                let hits = result.lines.get(&number).cloned().unwrap_or_default();
+                if let Some(branches) = result.branches.get(&number) {
                     let conditions = branches
                         .iter()
                         .enumerate()
@@ -272,7 +269,8 @@ fn get_coverage(
                 }
             };
 
-            let methods: Vec<Method> = functions
+            let methods: Vec<Method> = result
+                .functions
                 .iter()
                 .map(|(name, function)| {
                     let mut func_end = end;
@@ -329,7 +327,7 @@ fn get_coverage(
 
 pub fn output_cobertura(
     source_dir: Option<&Path>,
-    results: CovResultIter,
+    results: &[ResultTuple],
     output_file: Option<&Path>,
     demangle: bool,
 ) {
@@ -714,8 +712,7 @@ mod tests {
             coverage_result(Result::Main),
         )];
 
-        let results = Box::new(results.into_iter());
-        output_cobertura(None, results, Some(&file_path), true);
+        output_cobertura(None, &results, Some(&file_path), true);
 
         let results = read_file(&file_path);
 
@@ -749,8 +746,7 @@ mod tests {
             coverage_result(Result::Test),
         )];
 
-        let results = Box::new(results.into_iter());
-        output_cobertura(None, results, Some(file_path.as_ref()), true);
+        output_cobertura(None, &results, Some(file_path.as_ref()), true);
 
         let results = read_file(&file_path);
 
@@ -789,8 +785,7 @@ mod tests {
             ),
         ];
 
-        let results = Box::new(results.into_iter());
-        output_cobertura(None, results, Some(file_path.as_ref()), true);
+        output_cobertura(None, &results, Some(file_path.as_ref()), true);
 
         let results = read_file(&file_path);
 
@@ -822,8 +817,7 @@ mod tests {
             CovResult::default(),
         )];
 
-        let results = Box::new(results.into_iter());
-        output_cobertura(None, results, Some(&file_path), true);
+        output_cobertura(None, &results, Some(&file_path), true);
 
         let results = read_file(&file_path);
 
@@ -843,8 +837,7 @@ mod tests {
             CovResult::default(),
         )];
 
-        let results = Box::new(results.into_iter());
-        output_cobertura(Some(Path::new("src")), results, Some(&file_path), true);
+        output_cobertura(Some(Path::new("src")), &results, Some(&file_path), true);
 
         let results = read_file(&file_path);
 

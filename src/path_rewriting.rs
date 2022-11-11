@@ -235,7 +235,7 @@ pub fn rewrite_paths(
     to_keep_dirs: &[impl AsRef<str>],
     filter_option: Option<bool>,
     file_filter: crate::FileFilter,
-) -> CovResultIter {
+) -> Vec<ResultTuple> {
     let to_ignore_globset = to_globset(to_ignore_dirs);
     let to_keep_globset = to_globset(to_keep_dirs);
 
@@ -341,11 +341,7 @@ pub fn rewrite_paths(
             Some((abs_path, rel_path, result))
         });
 
-    Box::new(
-        results
-            .collect::<Vec<(PathBuf, PathBuf, CovResult)>>()
-            .into_iter(),
-    )
+    results.collect()
 }
 
 #[cfg(test)]
@@ -933,6 +929,7 @@ mod tests {
             None,
             Default::default(),
         )
+        .iter()
         .any(|_| false);
     }
 
@@ -1052,7 +1049,7 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("java/main.java".to_string(), empty_result!());
         result_map.insert("main.rs".to_string(), empty_result!());
-        let results = rewrite_paths(
+        let mut results = rewrite_paths(
             result_map,
             None,
             Some(&canonicalize_path(".").unwrap()),
@@ -1063,7 +1060,6 @@ mod tests {
             None,
             Default::default(),
         );
-        let mut results: Vec<(PathBuf, PathBuf, CovResult)> = results.collect();
         assert!(results.len() == 1);
 
         let (abs_path, rel_path, result) = results.remove(0);
@@ -1079,7 +1075,7 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("java\\main.java".to_string(), empty_result!());
         result_map.insert("main.rs".to_string(), empty_result!());
-        let results = rewrite_paths(
+        let mut results = rewrite_paths(
             result_map,
             None,
             Some(&canonicalize_path(".").unwrap()),
@@ -1090,7 +1086,6 @@ mod tests {
             None,
             Default::default(),
         );
-        let mut results: Vec<(PathBuf, PathBuf, CovResult)> = results.collect();
         assert!(results.len() == 1);
 
         let (abs_path, rel_path, result) = results.remove(0);

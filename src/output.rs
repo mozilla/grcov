@@ -70,7 +70,7 @@ pub fn get_target_output_writable(output_file: Option<&Path>) -> Box<dyn Write> 
     write_target
 }
 
-pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&Path>, demangle: bool) {
+pub fn output_activedata_etl(results: &[ResultTuple], output_file: Option<&Path>, demangle: bool) {
     let demangle_options = DemangleOptions::name_only();
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
 
@@ -180,7 +180,7 @@ pub fn output_activedata_etl(results: CovResultIter, output_file: Option<&Path>,
     }
 }
 
-pub fn output_covdir(results: CovResultIter, output_file: Option<&Path>) {
+pub fn output_covdir(results: &[ResultTuple], output_file: Option<&Path>) {
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     let mut relative: FxHashMap<PathBuf, Rc<RefCell<CDDirStats>>> = FxHashMap::default();
     let global = Rc::new(RefCell::new(CDDirStats::new("".to_string())));
@@ -226,7 +226,7 @@ pub fn output_covdir(results: CovResultIter, output_file: Option<&Path>) {
 
         prev_stats.borrow_mut().files.push(CDFileStats::new(
             path.file_name().unwrap().to_str().unwrap().to_string(),
-            result.lines,
+            result.lines.clone(),
         ));
     }
 
@@ -236,7 +236,7 @@ pub fn output_covdir(results: CovResultIter, output_file: Option<&Path>) {
     serde_json::to_writer(&mut writer, &global.into_json()).unwrap();
 }
 
-pub fn output_lcov(results: CovResultIter, output_file: Option<&Path>, demangle: bool) {
+pub fn output_lcov(results: &[ResultTuple], output_file: Option<&Path>, demangle: bool) {
     let demangle_options = DemangleOptions::name_only();
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     writer.write_all(b"TN:\n").unwrap();
@@ -413,7 +413,7 @@ fn get_coveralls_git_info(commit_sha: &str, vcs_branch: &str) -> Value {
 }
 
 pub fn output_coveralls(
-    results: CovResultIter,
+    results: &[ResultTuple],
     repo_token: Option<&str>,
     service_name: Option<&str>,
     service_number: &str,
@@ -455,7 +455,7 @@ pub fn output_coveralls(
         if !with_function_info {
             source_files.push(json!({
                 "name": rel_path,
-                "source_digest": get_digest(abs_path),
+                "source_digest": get_digest(abs_path.clone()),
                 "coverage": coverage,
                 "branches": branches,
             }));
@@ -471,7 +471,7 @@ pub fn output_coveralls(
 
             source_files.push(json!({
                 "name": rel_path,
-                "source_digest": get_digest(abs_path),
+                "source_digest": get_digest(abs_path.clone()),
                 "coverage": coverage,
                 "branches": branches,
                 "functions": functions,
@@ -505,7 +505,7 @@ pub fn output_coveralls(
     serde_json::to_writer(&mut writer, &result).unwrap();
 }
 
-pub fn output_files(results: CovResultIter, output_file: Option<&Path>) {
+pub fn output_files(results: &[ResultTuple], output_file: Option<&Path>) {
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     for (_, rel_path, _) in results {
         writeln!(writer, "{}", rel_path.display()).unwrap();
@@ -513,7 +513,7 @@ pub fn output_files(results: CovResultIter, output_file: Option<&Path>) {
 }
 
 pub fn output_html(
-    results: CovResultIter,
+    results: &[ResultTuple],
     output_dir: Option<&Path>,
     num_threads: usize,
     branch_enabled: bool,
@@ -559,9 +559,9 @@ pub fn output_html(
     for (abs_path, rel_path, result) in results {
         sender
             .send(Some(HtmlItem {
-                abs_path,
-                rel_path,
-                result,
+                abs_path: abs_path.to_path_buf(),
+                rel_path: rel_path.to_path_buf(),
+                result: result.clone(),
             }))
             .unwrap();
     }
@@ -587,7 +587,7 @@ pub fn output_html(
     html::gen_coverage_json(&global.stats, &config, &output);
 }
 
-pub fn output_markdown(results: CovResultIter, output_file: Option<&Path>) {
+pub fn output_markdown(results: &[ResultTuple], output_file: Option<&Path>) {
     #[derive(Tabled)]
     struct LineSummary {
         file: String,
@@ -688,8 +688,7 @@ mod tests {
             },
         )];
 
-        let results = Box::new(results.into_iter());
-        output_lcov(results, Some(&file_path), false);
+        output_lcov(&results, Some(&file_path), false);
 
         let results = read_file(&file_path);
 
@@ -737,8 +736,7 @@ mod tests {
             },
         )];
 
-        let results = Box::new(results.into_iter());
-        output_lcov(results, Some(&file_path), true);
+        output_lcov(&results, Some(&file_path), true);
 
         let results = read_file(&file_path);
 
@@ -792,8 +790,7 @@ mod tests {
             ),
         ];
 
-        let results = Box::new(results.into_iter());
-        output_covdir(results, Some(&file_path));
+        output_covdir(&results, Some(&file_path));
 
         let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
         let expected_path = PathBuf::from("./test/").join(file_name);
@@ -818,12 +815,11 @@ mod tests {
             },
         )];
 
-        let results = Box::new(results.into_iter());
         let expected_service_job_id: &str = "100500";
         let with_function_info: bool = true;
         let parallel: bool = true;
         output_coveralls(
-            results,
+            &results,
             None,
             None,
             "unused",
@@ -858,12 +854,11 @@ mod tests {
             },
         )];
 
-        let results = Box::new(results.into_iter());
         let token = None;
         let with_function_info: bool = true;
         let parallel: bool = true;
         output_coveralls(
-            results,
+            &results,
             token,
             None,
             "unused",
@@ -898,13 +893,12 @@ mod tests {
             },
         )];
 
-        let results = Box::new(results.into_iter());
         let service_name = None;
         let service_job_id = None;
         let with_function_info: bool = true;
         let parallel: bool = true;
         output_coveralls(
-            results,
+            &results,
             None,
             service_name,
             "unused",
@@ -954,8 +948,7 @@ mod tests {
             ),
         ];
 
-        let results = Box::new(results.into_iter());
-        output_markdown(results, Some(&file_path));
+        output_markdown(&results, Some(&file_path));
 
         let results = &read_file(&file_path);
         let expected = "| file          | coverage | covered | missed_lines |
