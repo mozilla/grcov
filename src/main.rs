@@ -106,7 +106,6 @@ struct Opt {
     llvm_path: Option<PathBuf>,
     /// Sets a custom output type.
     #[structopt(
-        short = "t",
         long,
         long_help = "\
             Comma separated list of custom output types:\n\
@@ -121,15 +120,41 @@ struct Opt {
             - *cobertura* for output in cobertura format.\n\
         ",
         value_name = "OUTPUT TYPE",
-        default_value = "lcov",
         requires_ifs = &[
             ("coveralls", "coveralls-auth"),
             ("coveralls+", "coveralls-auth"),
         ],
 
-        use_delimiter = true
+        use_delimiter = true,
+        conflicts_with = "output_type"
     )]
     output_types: Vec<OutputType>,
+    /// Sets a custom output type.
+    #[structopt(
+            short = "t",
+            long,
+            long_help = "\
+            Sets a custom output type::\n\
+            - *html* for a HTML coverage report;\n\
+            - *coveralls* for the Coveralls specific format;\n\
+            - *lcov* for the lcov INFO format;\n\
+            - *covdir* for the covdir recursive JSON format;\n\
+            - *coveralls+* for the Coveralls specific format with function information;\n\
+            - *ade* for the ActiveData-ETL specific format;\n\
+            - *files* to only return a list of files.\n\
+            - *markdown* for human easy read.\n\
+            - *cobertura* for output in cobertura format.\n\
+            ",
+            value_name = "OUTPUT TYPE",
+            requires_ifs = &[
+            ("coveralls", "coveralls-auth"),
+            ("coveralls+", "coveralls-auth"),
+            ],
+
+            use_delimiter = true,
+            conflicts_with = "output_types"
+    )]
+    output_type: Option<OutputType>,
     /// Specifies the output path. This is a file for a single output type and must be a folder
     /// for multiple output types.
     #[structopt(short, long, value_name = "PATH", alias = "output-file")]
@@ -441,7 +466,12 @@ fn main() {
     let service_pull_request = opt.service_pull_request.unwrap_or_default();
     let commit_sha = opt.commit_sha.unwrap_or_default();
 
-    let output_path = match opt.output_types.len() {
+    let output_types = match opt.output_type {
+        Some(output_type) => vec![output_type],
+        None => opt.output_types,
+    };
+
+    let output_path = match output_types.len() {
         0 => return,
         1 => opt.output_path.as_deref(),
         _ => match opt.output_path.as_deref() {
@@ -456,7 +486,7 @@ fn main() {
         },
     };
 
-    for output_type in &opt.output_types {
+    for output_type in &output_types {
         let output_path = output_type.to_file_name(output_path);
 
         match output_type {
