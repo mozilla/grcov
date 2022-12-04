@@ -7,18 +7,21 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+use file_format::FileFormat;
 use log::warn;
 use walkdir::WalkDir;
 
 pub static LLVM_PATH: OnceCell<PathBuf> = OnceCell::new();
 
+#[inline]
 pub fn is_binary(path: impl AsRef<Path>) -> bool {
-    if let Ok(oty) = infer::get_from_path(path) {
-        if let Some("dll" | "exe" | "elf" | "mach") = oty.map(|x| x.extension()) {
-            return true;
-        }
-    }
-    false
+    FileFormat::from_file(path).map_or(false, |format| {
+        format == FileFormat::DynamicLinkLibrary
+            || format == FileFormat::MsDosExecutable
+            || format == FileFormat::PortableExecutable
+            || format == FileFormat::ExecutableAndLinkableFormat
+            || format == FileFormat::MachO
+    })
 }
 
 pub fn run_with_stdin(
