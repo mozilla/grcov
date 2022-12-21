@@ -41,7 +41,7 @@ demangle-with-swift = [
 cargo-binutils = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 crossbeam-channel = "0.5"
-file-format = "0.10.0"
+file-format = "0.11.0"
 flate2 = "1.0"
 globset = "0.4"
 lazy_static = "1.4"
