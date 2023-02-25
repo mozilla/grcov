@@ -1,5 +1,8 @@
 use rustc_hash::{FxHashMap, FxHashSet};
-use smallvec::SmallVec;
+use serde::ser::{SerializeSeq, Serializer};
+use serde::{self, Serialize};
+use serde_json::{self};
+use smallvec::{Array, SmallVec};
 use std::cmp;
 use std::collections::{btree_map, hash_map, BTreeMap};
 use std::convert::From;
@@ -23,6 +26,19 @@ const GCOV_TAG_LINES: u32 = 0x0145_0000;
 const GCOV_TAG_COUNTER_ARCS: u32 = 0x01a1_0000;
 const GCOV_TAG_OBJECT_SUMMARY: u32 = 0xa100_0000;
 const GCOV_TAG_PROGRAM_SUMMARY: u32 = 0xa300_0000;
+
+fn serialize_smallvec<A, S>(vec: &SmallVec<A>, s: S) -> Result<S::Ok, S::Error>
+where
+    A: Array,
+    A::Item: Serialize,
+    S: Serializer,
+{
+    let mut seq = s.serialize_seq(Some(A::size()))?;
+    for element in vec {
+        seq.serialize_element(element)?;
+    }
+    seq.end()
+}
 
 #[derive(Debug)]
 pub enum GcovError {
@@ -74,7 +90,7 @@ enum FileType {
     Gcda,
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize)]
 pub struct Gcno {
     version: u32,
     checksum: u32,
@@ -83,10 +99,11 @@ pub struct Gcno {
     programcounts: u32,
     runcounts: u32,
     functions: Vec<GcovFunction>,
+    #[serde(skip_serializing)]
     ident_to_fun: FxHashMap<u32, usize>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 struct GcovFunction {
     identifier: u32,
     start_line: u32,
@@ -101,29 +118,38 @@ struct GcovFunction {
     cfg_checksum: u32,
     file_name: String,
     name: String,
+    #[serde(serialize_with = "serialize_smallvec")]
     blocks: SmallVec<[GcovBlock; 16]>,
+    #[serde(serialize_with = "serialize_smallvec")]
     edges: SmallVec<[GcovEdge; 16]>,
     real_edge_count: usize,
     lines: FxHashMap<u32, u64>,
     executed: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 struct GcovBlock {
     no: usize,
+    #[serde(serialize_with = "serialize_smallvec")]
     source: SmallVec<[usize; 2]>,
+    #[serde(serialize_with = "serialize_smallvec")]
     destination: SmallVec<[usize; 2]>,
+    #[serde(serialize_with = "serialize_smallvec")]
     lines: SmallVec<[u32; 16]>,
+    #[serde(skip_serializing)]
     line_max: u32,
+    #[serde(skip_serializing)]
     counter: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 struct GcovEdge {
     source: usize,
     destination: usize,
     flags: u32,
+    #[serde(skip_serializing)]
     counter: u64,
+    #[serde(skip_serializing)]
     cycles: u64,
 }
 
@@ -376,6 +402,57 @@ impl Gcno {
             runcounts: 0,
             functions: Vec::new(),
             ident_to_fun: FxHashMap::default(),
+        }
+    }
+
+    pub fn to_json(
+        gcno_path: PathBuf,
+        gcda_path: Option<PathBuf>,
+        output: Option<String>,
+    ) -> Result<(), GcovError> {
+        let output_path = output.unwrap_or("-".to_owned());
+        let writer: Box<dyn std::io::Write> = if output_path.eq("-") {
+            Box::new(std::io::stdout())
+        } else {
+            let output = std::fs::File::create(&output_path)
+                .unwrap_or_else(|_| panic!("Cannot open file {} for writing", &output_path));
+            Box::new(output)
+        };
+        let writer = std::io::BufWriter::new(writer);
+        Self::write_to_json(gcno_path, gcda_path, writer)
+    }
+
+    pub fn write_to_json<W: Write>(
+        gcno_path: PathBuf,
+        gcda_path: Option<PathBuf>,
+        mut writer: W,
+    ) -> Result<(), GcovError> {
+        let mut gcno = Self::new();
+        let file = File::open(&gcno_path)?;
+        let stem = gcno_path.file_stem().unwrap().to_str().unwrap();
+        let mut reader = BufReader::new(file);
+        let mut buf = vec![];
+        reader.read_to_end(&mut buf)?;
+        gcno.read(FileType::Gcno, buf, stem)?;
+
+        if let Some(gcda_path) = gcda_path {
+            let file = File::open(&gcda_path)?;
+            let stem = gcda_path.file_stem().unwrap().to_str().unwrap();
+            let mut reader = BufReader::new(file);
+            let mut buf = vec![];
+            reader.read_to_end(&mut buf)?;
+            gcno.read(FileType::Gcda, buf, stem)?;
+            gcno.stop();
+            gcno.finalize(true);
+        } else {
+            gcno.stop();
+        }
+
+        let json = serde_json::to_string(&gcno).unwrap();
+        if writeln!(writer, "{json}").is_err() {
+            Err(GcovError::Str("Cannot write json".to_string()))
+        } else {
+            Ok(())
         }
     }
 
@@ -1218,6 +1295,7 @@ mod tests {
 
     use super::*;
     use crate::defs::FunctionMap;
+    use std::io::BufWriter;
 
     fn from_path(gcno: &mut Gcno, typ: FileType, path: &str) {
         let path = PathBuf::from(path);
@@ -1254,6 +1332,17 @@ mod tests {
     }
 
     #[test]
+    fn test_dump_gcno_to_json() {
+        let mut bytes = Vec::new();
+        let buf = BufWriter::new(&mut bytes);
+        Gcno::write_to_json(PathBuf::from("test/llvm/reader.gcno"), None, buf).unwrap();
+        let json = String::from_utf8(bytes).unwrap();
+        let input = get_input_string("test/llvm/reader.gcno.json");
+
+        assert_eq!(json, input);
+    }
+
+    #[test]
     fn test_reader_gcno_gcda() {
         let mut gcno = Gcno::new();
         from_path(&mut gcno, FileType::Gcno, "test/llvm/reader.gcno");
@@ -1263,6 +1352,22 @@ mod tests {
         let input = get_input_string("test/llvm/reader.gcno.1.dump");
 
         assert_eq!(output, input);
+    }
+
+    #[test]
+    fn test_dump_gcno_gcda_to_json() {
+        let mut bytes = Vec::new();
+        let buf = BufWriter::new(&mut bytes);
+        Gcno::write_to_json(
+            PathBuf::from("test/llvm/reader.gcno"),
+            Some(PathBuf::from("test/llvm/reader.gcda")),
+            buf,
+        )
+        .unwrap();
+        let json = String::from_utf8(bytes).unwrap();
+        let input = get_input_string("test/llvm/reader.gcno.gcda.json");
+
+        assert_eq!(json, input);
     }
 
     #[test]

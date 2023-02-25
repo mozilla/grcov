@@ -96,7 +96,7 @@ impl FromStr for Filter {
 )]
 struct Opt {
     /// Sets the input paths to use.
-    #[structopt(required = true)]
+    #[structopt()]
     paths: Vec<String>,
     /// Sets the path to the compiled binary to be used.
     #[structopt(short, long, value_name = "PATH")]
@@ -259,6 +259,12 @@ struct Opt {
     /// No symbol demangling.
     #[structopt(long)]
     no_demangle: bool,
+    #[structopt(long, value_name = "PATH")]
+    gcno: Option<PathBuf>,
+    #[structopt(long, value_name = "PATH")]
+    gcda: Option<PathBuf>,
+    #[structopt(long, value_name = "PATH")]
+    json_output: Option<String>,
 }
 
 fn main() {
@@ -316,6 +322,18 @@ fn main() {
             "Unable to create log file: {}. Switch to stderr",
             opt.log.display()
         );
+    }
+
+    if let Some(gcno) = opt.gcno {
+        if let Err(err) = Gcno::to_json(gcno, opt.gcda, opt.json_output) {
+            error!("Cannot export gcno/gcda to json: {}", err);
+        }
+        return;
+    }
+
+    if opt.paths.is_empty() {
+        error!("paths is a required option.");
+        return;
     }
 
     let file_filter = FileFilter::new(
