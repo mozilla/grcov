@@ -60,7 +60,7 @@ simplelog = "0.12"
 smallvec = "1.10"
 structopt = "0.3.26"
 symbolic-common = "9.2"
-symbolic-demangle = { version = "9.2", default-features = false }
+symbolic-demangle = { version = "12.1", default-features = false }
 tabled = "0.10"
 tempfile = "3.3"
 tera = "1.17"
