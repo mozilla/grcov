@@ -532,6 +532,7 @@ fn main() {
                 num_threads,
                 opt.branch,
                 opt.output_config_file.as_deref(),
+                opt.precision,
             ),
             OutputType::Cobertura => output_cobertura(
                 source_root.as_deref(),

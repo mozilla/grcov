@@ -518,6 +518,7 @@ pub fn output_html(
     num_threads: usize,
     branch_enabled: bool,
     output_config_file: Option<&Path>,
+    precision: usize,
 ) {
     let output = if let Some(output_dir) = output_dir {
         PathBuf::from(output_dir)
@@ -549,7 +550,15 @@ pub fn output_html(
         let t = thread::Builder::new()
             .name(format!("Consumer HTML {}", i))
             .spawn(move || {
-                html::consumer_html(&tera, receiver, stats, &output, config, branch_enabled);
+                html::consumer_html(
+                    &tera,
+                    receiver,
+                    stats,
+                    &output,
+                    config,
+                    branch_enabled,
+                    precision,
+                );
             })
             .unwrap();
 
@@ -578,13 +587,13 @@ pub fn output_html(
 
     let global = Arc::try_unwrap(stats).unwrap().into_inner().unwrap();
 
-    html::gen_index(&tera, &global, &config, &output, branch_enabled);
+    html::gen_index(&tera, &global, &config, &output, branch_enabled, precision);
 
     for style in html::BadgeStyle::iter() {
         html::gen_badge(&tera, &global.stats, &config, &output, style);
     }
 
-    html::gen_coverage_json(&global.stats, &config, &output);
+    html::gen_coverage_json(&global.stats, &config, &output, precision);
 }
 
 pub fn output_markdown(results: &[ResultTuple], output_file: Option<&Path>, precision: usize) {

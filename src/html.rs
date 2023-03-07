@@ -274,6 +274,7 @@ pub fn gen_index(
     conf: &Config,
     output: &Path,
     branch_enabled: bool,
+    precision: usize,
 ) {
     let output_file = output.join("index.html");
     create_parent(&output_file);
@@ -291,6 +292,7 @@ pub fn gen_index(
     ctx.insert("current", "top_level");
     ctx.insert("parents", empty);
     ctx.insert("stats", &global.stats);
+    ctx.insert("precision", &precision);
     ctx.insert("items", &global.dirs);
     ctx.insert("kind", "Directory");
     ctx.insert("branch_enabled", &branch_enabled);
@@ -303,7 +305,15 @@ pub fn gen_index(
     }
 
     for (dir_name, dir_stats) in global.dirs.iter() {
-        gen_dir_index(tera, dir_name, dir_stats, conf, output, branch_enabled);
+        gen_dir_index(
+            tera,
+            dir_name,
+            dir_stats,
+            conf,
+            output,
+            branch_enabled,
+            precision,
+        );
     }
 }
 
@@ -314,6 +324,7 @@ pub fn gen_dir_index(
     conf: &Config,
     output: &Path,
     branch_enabled: bool,
+    precision: usize,
 ) {
     let index = Path::new(dir_name).join("index.html");
     let output_file = output.join(index);
@@ -335,6 +346,7 @@ pub fn gen_dir_index(
     ctx.insert("items", &dir_stats.files);
     ctx.insert("kind", "File");
     ctx.insert("branch_enabled", &branch_enabled);
+    ctx.insert("precision", &precision);
 
     let out = tera.render("index.html", &ctx).unwrap();
 
@@ -352,6 +364,7 @@ fn gen_html(
     rel_path: &Path,
     global: Arc<Mutex<HtmlGlobalStats>>,
     branch_enabled: bool,
+    precision: usize,
 ) {
     if !rel_path.is_relative() {
         return;
@@ -396,6 +409,7 @@ fn gen_html(
     );
     ctx.insert("stats", &stats);
     ctx.insert("branch_enabled", &branch_enabled);
+    ctx.insert("precision", &precision);
 
     let mut file_buf = Vec::new();
     if let Err(e) = f.read_to_end(&mut file_buf) {
@@ -443,6 +457,7 @@ pub fn consumer_html(
     output: &Path,
     conf: Config,
     branch_enabled: bool,
+    precision: usize,
 ) {
     while let Ok(job) = receiver.recv() {
         if job.is_none() {
@@ -458,6 +473,7 @@ pub fn consumer_html(
             &job.rel_path,
             global.clone(),
             branch_enabled,
+            precision,
         );
     }
 }
@@ -550,7 +566,7 @@ pub fn gen_badge(tera: &Tera, stats: &HtmlStats, conf: &Config, output: &Path, s
 ///
 /// `<username>` and `<project>` should be replaced with a real username and project name
 /// respectively, for the URL to work.
-pub fn gen_coverage_json(stats: &HtmlStats, conf: &Config, output: &Path) {
+pub fn gen_coverage_json(stats: &HtmlStats, conf: &Config, output: &Path, precision: usize) {
     #[derive(Serialize)]
     #[serde(rename_all = "camelCase")]
     struct CoverageData {
@@ -570,17 +586,17 @@ pub fn gen_coverage_json(stats: &HtmlStats, conf: &Config, output: &Path) {
         Ok(f) => f,
     };
 
-    let coverage = get_percentage_of_covered_lines(stats.covered_lines, stats.total_lines) as usize;
+    let coverage = get_percentage_of_covered_lines(stats.covered_lines, stats.total_lines);
 
     let res = serde_json::to_writer(
         &mut output_stream,
         &CoverageData {
             schema_version: 1,
             label: "coverage",
-            message: format!("{}%", coverage),
-            color: if coverage as f64 >= conf.hi_limit {
+            message: format!("{:.precision$}%", coverage),
+            color: if coverage >= conf.hi_limit {
                 "green"
-            } else if coverage as f64 >= conf.med_limit {
+            } else if coverage >= conf.med_limit {
                 "yellow"
             } else {
                 "red"

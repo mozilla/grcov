@@ -4,7 +4,7 @@
 {% block title %}Grcov report - {{ current }} {% endblock title %}
 
 {%- block content -%}
-    {{ macros::summary(parents=parents, stats=stats) }}
+    {{ macros::summary(parents=parents, stats=stats, precision=precision) }}
     <table class="table is-fullwidth">
         <thead>
             <tr>
@@ -17,11 +17,11 @@
         <tbody>
             {%- if kind == "Directory" -%}
                 {%- for item, info in items -%}
-                    {{ macros::stats_line(name=item, url=item~"/index.html", stats=info.stats) }}
+                    {{ macros::stats_line(name=item, url=item~"/index.html", stats=info.stats, precision=precision) }}
                 {%- endfor -%}
             {%- else -%}
                 {%- for item, info in items -%}
-                    {{ macros::stats_line(name=item, url=item~".html", stats=info.stats) }}
+                    {{ macros::stats_line(name=item, url=item~".html", stats=info.stats, precision=precision) }}
                 {%- endfor -%}
             {%- endif -%}
         </tbody>
