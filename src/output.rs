@@ -587,7 +587,7 @@ pub fn output_html(
     html::gen_coverage_json(&global.stats, &config, &output);
 }
 
-pub fn output_markdown(results: &[ResultTuple], output_file: Option<&Path>) {
+pub fn output_markdown(results: &[ResultTuple], output_file: Option<&Path>, precision: usize) {
     #[derive(Tabled)]
     struct LineSummary {
         file: String,
@@ -635,7 +635,10 @@ pub fn output_markdown(results: &[ResultTuple], output_file: Option<&Path>) {
         let covered: usize = result.lines.len() - missed;
         summary.push(LineSummary {
             file: rel_path.display().to_string(),
-            coverage: format!("{}%", covered * 100 / result.lines.len()),
+            coverage: format!(
+                "{:.precision$}%",
+                (covered as f32 * 100.0 / result.lines.len() as f32),
+            ),
             covered: format!("{} / {}", covered, result.lines.len()),
             missed_lines,
         });
@@ -647,8 +650,8 @@ pub fn output_markdown(results: &[ResultTuple], output_file: Option<&Path>) {
     writeln!(writer).unwrap();
     writeln!(
         writer,
-        "Total coverage: {}%",
-        total_covered * 100 / total_lines
+        "Total coverage: {:.precision$}%",
+        (total_covered as f32 * 100.0 / total_lines as f32),
     )
     .unwrap()
 }
@@ -948,15 +951,15 @@ mod tests {
             ),
         ];
 
-        output_markdown(&results, Some(&file_path));
+        output_markdown(&results, Some(&file_path), 2);
 
         let results = &read_file(&file_path);
         let expected = "| file          | coverage | covered | missed_lines |
 |---------------|----------|---------|--------------|
-| foo/bar/a.cpp | 100%     | 2 / 2   |              |
-| foo/bar/b.cpp | 40%      | 2 / 5   | 1, 5-7       |
+| foo/bar/a.cpp | 100.00%  | 2 / 2   |              |
+| foo/bar/b.cpp | 40.00%   | 2 / 5   | 1, 5-7       |
 
-Total coverage: 57%
+Total coverage: 57.14%
 ";
         assert_eq!(results, expected);
     }

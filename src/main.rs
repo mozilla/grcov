@@ -222,7 +222,7 @@ struct Opt {
     threads: Option<usize>,
     /// Sets coverage decimal point precision on output reports.
     #[structopt(long, value_name = "NUMBER", default_value = "2")]
-    _precision: usize,
+    precision: usize,
     #[structopt(long = "guess-directory-when-missing")]
     guess_directory: bool,
     /// Set the branch for coveralls report. Defaults to 'master'.
@@ -539,7 +539,9 @@ fn main() {
                 output_path.as_deref(),
                 demangle,
             ),
-            OutputType::Markdown => output_markdown(&iterator, output_path.as_deref()),
+            OutputType::Markdown => {
+                output_markdown(&iterator, output_path.as_deref(), opt.precision)
+            }
         };
     }
 }
