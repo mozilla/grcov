@@ -94,7 +94,7 @@ pub fn profraws_to_lcov(
         a
     });
 
-    get_profdata_path().and_then(|p| run_with_stdin(&p, &stdin_paths, &args))?;
+    get_profdata_path().and_then(|p| run_with_stdin(p, &stdin_paths, &args))?;
 
     let metadata = fs::metadata(binary_path)
         .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {:?}.", binary_path, e));
@@ -188,13 +188,13 @@ mod tests {
 
         fs::copy(
             PathBuf::from("tests/rust/Cargo.toml"),
-            &tmp_path.join("Cargo.toml"),
+            tmp_path.join("Cargo.toml"),
         )
         .expect("Failed to copy file");
-        fs::create_dir(&tmp_path.join("src")).expect("Failed to create dir");
+        fs::create_dir(tmp_path.join("src")).expect("Failed to create dir");
         fs::copy(
             PathBuf::from("tests/rust/src/main.rs"),
-            &tmp_path.join("src/main.rs"),
+            tmp_path.join("src/main.rs"),
         )
         .expect("Failed to copy file");
 

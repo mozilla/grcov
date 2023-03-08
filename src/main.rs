@@ -351,9 +351,7 @@ fn main() {
     let source_root = opt
         .source_dir
         .filter(|source_dir| source_dir != Path::new(""))
-        .map(|source_dir| {
-            canonicalize_path(&source_dir).expect("Source directory does not exist.")
-        });
+        .map(|source_dir| canonicalize_path(source_dir).expect("Source directory does not exist."));
 
     let prefix_dir = opt.prefix_dir.or_else(|| source_root.clone());
 
@@ -474,6 +472,9 @@ fn main() {
     let output_path = match output_types.len() {
         0 => return,
         1 => opt.output_path.as_deref(),
+        //TODO: Remove this #[allow()] which is a false positive clippy warning
+        //      see issue https://github.com/mozilla/grcov/issues/980
+        #[allow(clippy::manual_filter)]
         _ => match opt.output_path.as_deref() {
             Some(output_path) => {
                 if output_path.is_dir() {

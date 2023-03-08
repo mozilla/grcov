@@ -37,7 +37,7 @@ pub fn run_gcov(
     branch_enabled: bool,
     working_dir: &Path,
 ) -> Result<(), GcovError> {
-    let mut command = Command::new(&get_gcov());
+    let mut command = Command::new(get_gcov());
     let command = if branch_enabled {
         command.arg("-b").arg("-c")
     } else {
@@ -68,7 +68,7 @@ pub fn run_gcov(
 pub fn get_gcov_version() -> &'static Version {
     lazy_static! {
         static ref V: Version = {
-            let output = Command::new(&get_gcov())
+            let output = Command::new(get_gcov())
                 .arg("--version")
                 .output()
                 .expect("Failed to execute `gcov`. `gcov` is required (it is part of GCC).");

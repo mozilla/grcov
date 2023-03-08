@@ -117,7 +117,7 @@ fn read_expected(
             }
         }
     };
-    read_file(&path.join(&name))
+    read_file(&path.join(name))
 }
 
 /// Returns the path to grcov executable.

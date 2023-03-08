@@ -316,7 +316,7 @@ pub fn gen_dir_index(
     branch_enabled: bool,
 ) {
     let index = Path::new(dir_name).join("index.html");
-    let output_file = output.join(&index);
+    let output_file = output.join(index);
     create_parent(&output_file);
     let mut output = match File::create(&output_file) {
         Err(_) => {

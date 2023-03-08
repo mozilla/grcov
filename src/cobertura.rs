@@ -237,7 +237,7 @@ fn get_coverage(
     let packages: Vec<Package> = results
         .iter()
         .map(|(_, rel_path, result)| {
-            let all_lines: Vec<u32> = result.lines.iter().map(|(k, _)| k).cloned().collect();
+            let all_lines: Vec<u32> = result.lines.keys().cloned().collect();
 
             let end: u32 = result.lines.keys().last().unwrap_or(&0) + 1;
 
