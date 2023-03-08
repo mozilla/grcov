@@ -180,7 +180,7 @@ pub fn output_activedata_etl(results: &[ResultTuple], output_file: Option<&Path>
     }
 }
 
-pub fn output_covdir(results: &[ResultTuple], output_file: Option<&Path>) {
+pub fn output_covdir(results: &[ResultTuple], output_file: Option<&Path>, precision: usize) {
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     let mut relative: FxHashMap<PathBuf, Rc<RefCell<CDDirStats>>> = FxHashMap::default();
     let global = Rc::new(RefCell::new(CDDirStats::new("".to_string())));
@@ -227,11 +227,12 @@ pub fn output_covdir(results: &[ResultTuple], output_file: Option<&Path>) {
         prev_stats.borrow_mut().files.push(CDFileStats::new(
             path.file_name().unwrap().to_str().unwrap().to_string(),
             result.lines.clone(),
+            precision,
         ));
     }
 
     let mut global = global.take();
-    global.set_stats();
+    global.set_stats(precision);
 
     serde_json::to_writer(&mut writer, &global.into_json()).unwrap();
 }
@@ -802,7 +803,7 @@ mod tests {
             ),
         ];
 
-        output_covdir(&results, Some(&file_path));
+        output_covdir(&results, Some(&file_path), 2);
 
         let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
         let expected_path = PathBuf::from("./test/").join(file_name);

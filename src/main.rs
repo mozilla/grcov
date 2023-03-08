@@ -525,7 +525,7 @@ fn main() {
                 demangle,
             ),
             OutputType::Files => output_files(&iterator, output_path.as_deref()),
-            OutputType::Covdir => output_covdir(&iterator, output_path.as_deref()),
+            OutputType::Covdir => output_covdir(&iterator, output_path.as_deref(), opt.precision),
             OutputType::Html => output_html(
                 &iterator,
                 output_path.as_deref(),
