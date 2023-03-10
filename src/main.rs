@@ -220,6 +220,9 @@ struct Opt {
     parallel: bool,
     #[structopt(long, value_name = "NUMBER")]
     threads: Option<usize>,
+    /// Sets coverage decimal point precision on output reports.
+    #[structopt(long, value_name = "NUMBER", default_value = "2")]
+    _precision: usize,
     #[structopt(long = "guess-directory-when-missing")]
     guess_directory: bool,
     /// Set the branch for coveralls report. Defaults to 'master'.
