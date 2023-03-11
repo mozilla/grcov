@@ -530,7 +530,7 @@ pub fn output_html(
             eprintln!("{} is not a directory", output.to_str().unwrap());
             return;
         }
-    } else if std::fs::create_dir(&output).is_err() {
+    } else if std::fs::create_dir_all(&output).is_err() {
         eprintln!("Cannot create directory {}", output.to_str().unwrap());
         return;
     }
