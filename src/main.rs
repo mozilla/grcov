@@ -475,9 +475,6 @@ fn main() {
     let output_path = match output_types.len() {
         0 => return,
         1 => opt.output_path.as_deref(),
-        //TODO: Remove this #[allow()] which is a false positive clippy warning
-        //      see issue https://github.com/mozilla/grcov/issues/980
-        #[allow(clippy::manual_filter)]
         _ => match opt.output_path.as_deref() {
             Some(output_path) => {
                 if output_path.is_dir() {
