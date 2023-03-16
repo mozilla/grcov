@@ -220,6 +220,9 @@ struct Opt {
     parallel: bool,
     #[structopt(long, value_name = "NUMBER")]
     threads: Option<usize>,
+    /// Sets coverage decimal point precision on output reports.
+    #[structopt(long, value_name = "NUMBER", default_value = "2")]
+    precision: usize,
     #[structopt(long = "guess-directory-when-missing")]
     guess_directory: bool,
     /// Set the branch for coveralls report. Defaults to 'master'.
@@ -519,13 +522,14 @@ fn main() {
                 demangle,
             ),
             OutputType::Files => output_files(&iterator, output_path.as_deref()),
-            OutputType::Covdir => output_covdir(&iterator, output_path.as_deref()),
+            OutputType::Covdir => output_covdir(&iterator, output_path.as_deref(), opt.precision),
             OutputType::Html => output_html(
                 &iterator,
                 output_path.as_deref(),
                 num_threads,
                 opt.branch,
                 opt.output_config_file.as_deref(),
+                opt.precision,
             ),
             OutputType::Cobertura => output_cobertura(
                 source_root.as_deref(),
@@ -533,7 +537,9 @@ fn main() {
                 output_path.as_deref(),
                 demangle,
             ),
-            OutputType::Markdown => output_markdown(&iterator, output_path.as_deref()),
+            OutputType::Markdown => {
+                output_markdown(&iterator, output_path.as_deref(), opt.precision)
+            }
         };
     }
 }

@@ -1,15 +1,15 @@
-{% macro summary_line(kind, covered, total) %}
+{% macro summary_line(kind, covered, total, precision) %}
     {%- set per = percent(num=covered, den=total) -%}
     <div class="level-item has-text-centered">
         <div>
             <p class="heading">{{ kind | capitalize }}</p>
             <p class="title has-text-{{ per | severity(kind=kind) }}">
-                <abbr title="{{ covered }} / {{ total }}">{{ per | round(precision=2) }} %</abbr></p>
+                <abbr title="{{ covered }} / {{ total }}">{{ per | round(precision=precision) }} %</abbr></p>
         </div>
     </div>
 {% endmacro -%}
 
-{% macro summary(parents, stats) %}
+{% macro summary(parents, stats, precision) %}
     <nav class="breadcrumb is-right" aria-label="breadcrumbs">
         <ul>
             {%- for parent in parents -%}
@@ -19,13 +19,13 @@
         </ul>
     </nav>
     <nav class="level">
-        {{ self::summary_line(kind="lines", covered=stats.covered_lines, total=stats.total_lines) }}
-        {{ self::summary_line(kind="functions", covered=stats.covered_funs, total=stats.total_funs) }}
-        {{ self::summary_line(kind="branches", covered=stats.covered_branches, total=stats.total_branches) }}
+        {{ self::summary_line(kind="lines", covered=stats.covered_lines, total=stats.total_lines, precision=precision) }}
+        {{ self::summary_line(kind="functions", covered=stats.covered_funs, total=stats.total_funs, precision=precision) }}
+        {{ self::summary_line(kind="branches", covered=stats.covered_branches, total=stats.total_branches, precision=precision) }}
     </nav>
 {% endmacro %}
 
-{% macro stats_line(name, url, stats) %}
+{% macro stats_line(name, url, stats, precision) %}
     {%- set lines_per = percent(num=stats.covered_lines, den=stats.total_lines) -%}
     {%- set lines_sev = lines_per | severity(kind="lines") -%}
     {%- set functions_per = percent(num=stats.covered_funs, den=stats.total_funs) -%}
@@ -40,20 +40,20 @@
                 class="progress is-{{ lines_sev }} is-large"
                 value="{{ lines_per }}"
                 max="100">
-                {{ lines_per | round(precision=2) }}%
+                {{ lines_per | round(precision=precision) }}%
             </progress>
         </td>
         <td class="has-text-centered has-background-{{ lines_sev }} p-2">
-            {{ lines_per | round(precision=2) }}%
+            {{ lines_per | round(precision=precision) }}%
         </td>
         <td class="has-text-centered has-background-{{ lines_sev }} p-2">
             {{ stats.covered_lines }} / {{ stats.total_lines }}
         </td>
         <!-- -->
-        <td class="has-text-centered has-background-{{ functions_sev }} p-2">{{ functions_per | round(precision=2) }}%</td>
+        <td class="has-text-centered has-background-{{ functions_sev }} p-2">{{ functions_per | round(precision=precision) }}%</td>
         <td class="has-text-centered has-background-{{ functions_sev }} p-2">{{ stats.covered_funs }} / {{ stats.total_funs }} </td>
         <!-- -->
-        <td class="has-text-centered has-background-{{ branches_sev }} p-2">{{ branches_per | round(precision=2) }}%</td>
+        <td class="has-text-centered has-background-{{ branches_sev }} p-2">{{ branches_per | round(precision=precision) }}%</td>
         <td class="has-text-centered has-background-{{ branches_sev }} p-2">{{ stats.covered_branches }} / {{ stats.total_branches }}</td>
     </tr>
 {% endmacro %}

@@ -4,7 +4,7 @@
 {% block title %}Grcov report - {{ current }} {% endblock title %}
 
 {% block content -%}
-    {{ macros::summary(parents=parents, stats=stats) }}
+    {{ macros::summary(parents=parents, stats=stats, precision=precision) }}
     <div role="table" aria-label="Coverage report">
     {%- for item in items -%}
         {%- if item.1 > 0 -%}

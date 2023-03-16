@@ -180,7 +180,7 @@ pub fn output_activedata_etl(results: &[ResultTuple], output_file: Option<&Path>
     }
 }
 
-pub fn output_covdir(results: &[ResultTuple], output_file: Option<&Path>) {
+pub fn output_covdir(results: &[ResultTuple], output_file: Option<&Path>, precision: usize) {
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     let mut relative: FxHashMap<PathBuf, Rc<RefCell<CDDirStats>>> = FxHashMap::default();
     let global = Rc::new(RefCell::new(CDDirStats::new("".to_string())));
@@ -227,11 +227,12 @@ pub fn output_covdir(results: &[ResultTuple], output_file: Option<&Path>) {
         prev_stats.borrow_mut().files.push(CDFileStats::new(
             path.file_name().unwrap().to_str().unwrap().to_string(),
             result.lines.clone(),
+            precision,
         ));
     }
 
     let mut global = global.take();
-    global.set_stats();
+    global.set_stats(precision);
 
     serde_json::to_writer(&mut writer, &global.into_json()).unwrap();
 }
@@ -518,6 +519,7 @@ pub fn output_html(
     num_threads: usize,
     branch_enabled: bool,
     output_config_file: Option<&Path>,
+    precision: usize,
 ) {
     let output = if let Some(output_dir) = output_dir {
         PathBuf::from(output_dir)
@@ -549,7 +551,15 @@ pub fn output_html(
         let t = thread::Builder::new()
             .name(format!("Consumer HTML {}", i))
             .spawn(move || {
-                html::consumer_html(&tera, receiver, stats, &output, config, branch_enabled);
+                html::consumer_html(
+                    &tera,
+                    receiver,
+                    stats,
+                    &output,
+                    config,
+                    branch_enabled,
+                    precision,
+                );
             })
             .unwrap();
 
@@ -578,16 +588,16 @@ pub fn output_html(
 
     let global = Arc::try_unwrap(stats).unwrap().into_inner().unwrap();
 
-    html::gen_index(&tera, &global, &config, &output, branch_enabled);
+    html::gen_index(&tera, &global, &config, &output, branch_enabled, precision);
 
     for style in html::BadgeStyle::iter() {
         html::gen_badge(&tera, &global.stats, &config, &output, style);
     }
 
-    html::gen_coverage_json(&global.stats, &config, &output);
+    html::gen_coverage_json(&global.stats, &config, &output, precision);
 }
 
-pub fn output_markdown(results: &[ResultTuple], output_file: Option<&Path>) {
+pub fn output_markdown(results: &[ResultTuple], output_file: Option<&Path>, precision: usize) {
     #[derive(Tabled)]
     struct LineSummary {
         file: String,
@@ -635,7 +645,10 @@ pub fn output_markdown(results: &[ResultTuple], output_file: Option<&Path>) {
         let covered: usize = result.lines.len() - missed;
         summary.push(LineSummary {
             file: rel_path.display().to_string(),
-            coverage: format!("{}%", covered * 100 / result.lines.len()),
+            coverage: format!(
+                "{:.precision$}%",
+                (covered as f32 * 100.0 / result.lines.len() as f32),
+            ),
             covered: format!("{} / {}", covered, result.lines.len()),
             missed_lines,
         });
@@ -647,8 +660,8 @@ pub fn output_markdown(results: &[ResultTuple], output_file: Option<&Path>) {
     writeln!(writer).unwrap();
     writeln!(
         writer,
-        "Total coverage: {}%",
-        total_covered * 100 / total_lines
+        "Total coverage: {:.precision$}%",
+        (total_covered as f32 * 100.0 / total_lines as f32),
     )
     .unwrap()
 }
@@ -790,7 +803,7 @@ mod tests {
             ),
         ];
 
-        output_covdir(&results, Some(&file_path));
+        output_covdir(&results, Some(&file_path), 2);
 
         let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
         let expected_path = PathBuf::from("./test/").join(file_name);
@@ -948,15 +961,15 @@ mod tests {
             ),
         ];
 
-        output_markdown(&results, Some(&file_path));
+        output_markdown(&results, Some(&file_path), 2);
 
         let results = &read_file(&file_path);
         let expected = "| file          | coverage | covered | missed_lines |
 |---------------|----------|---------|--------------|
-| foo/bar/a.cpp | 100%     | 2 / 2   |              |
-| foo/bar/b.cpp | 40%      | 2 / 5   | 1, 5-7       |
+| foo/bar/a.cpp | 100.00%  | 2 / 2   |              |
+| foo/bar/b.cpp | 40.00%   | 2 / 5   | 1, 5-7       |
 
-Total coverage: 57%
+Total coverage: 57.14%
 ";
         assert_eq!(results, expected);
     }
