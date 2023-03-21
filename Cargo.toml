@@ -63,7 +63,7 @@ symbolic-common = "9.2"
 symbolic-demangle = { version = "9.2", default-features = false }
 tabled = "0.10"
 tempfile = "3.3"
-tera = "1.17"
+tera = "1.18"
 uuid = { version = "1.2", features = ["v4"] }
 walkdir = "2.3"
 zip = { version = "0.6", default-features = false }
