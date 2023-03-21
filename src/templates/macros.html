@@ -21,7 +21,9 @@
     <nav class="level">
         {{ self::summary_line(kind="lines", covered=stats.covered_lines, total=stats.total_lines, precision=precision) }}
         {{ self::summary_line(kind="functions", covered=stats.covered_funs, total=stats.total_funs, precision=precision) }}
-        {{ self::summary_line(kind="branches", covered=stats.covered_branches, total=stats.total_branches, precision=precision) }}
+        {% if branch_enabled %}
+	    {{ self::summary_line(kind="branches", covered=stats.covered_branches, total=stats.total_branches, precision=precision) }}
+	{% endif %}
     </nav>
 {% endmacro %}
 
@@ -30,8 +32,10 @@
     {%- set lines_sev = lines_per | severity(kind="lines") -%}
     {%- set functions_per = percent(num=stats.covered_funs, den=stats.total_funs) -%}
     {%- set functions_sev = functions_per | severity(kind="functions") -%}
-    {%- set branches_per = percent(num=stats.covered_branches, den=stats.total_branches) -%}
-    {%- set branches_sev = branches_per | severity(kind="branches") -%}
+    {% if branch_enabled %}
+        {%- set branches_per = percent(num=stats.covered_branches, den=stats.total_branches) -%}
+        {%- set branches_sev = branches_per | severity(kind="branches") -%}
+    {% endif %}
     <tr>
         <th><a href="{{ url }}">{{ name }}</a></th>
         <!-- -->
@@ -53,7 +57,9 @@
         <td class="has-text-centered has-background-{{ functions_sev }} p-2">{{ functions_per | round(precision=precision) }}%</td>
         <td class="has-text-centered has-background-{{ functions_sev }} p-2">{{ stats.covered_funs }} / {{ stats.total_funs }} </td>
         <!-- -->
-        <td class="has-text-centered has-background-{{ branches_sev }} p-2">{{ branches_per | round(precision=precision) }}%</td>
-        <td class="has-text-centered has-background-{{ branches_sev }} p-2">{{ stats.covered_branches }} / {{ stats.total_branches }}</td>
+        {% if branch_enabled %}
+            <td class="has-text-centered has-background-{{ branches_sev }} p-2">{{ branches_per | round(precision=precision) }}%</td>
+            <td class="has-text-centered has-background-{{ branches_sev }} p-2">{{ stats.covered_branches }} / {{ stats.total_branches }}</td>
+        {% endif %}
     </tr>
 {% endmacro %}

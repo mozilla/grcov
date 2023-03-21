@@ -11,7 +11,9 @@
                 <th>{{ kind }}</th>
                 <th class="has-text-centered" colspan="3">Line Coverage</th>
                 <th class="has-text-centered" colspan="2">Functions</th>
-                <th class="has-text-centered" colspan="2">Branches</th>
+                {% if branch_enabled %}
+                    <th class="has-text-centered" colspan="2">Branches</th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
