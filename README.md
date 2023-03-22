@@ -304,22 +304,24 @@ script:
 
 #### grcov with Gitlab
 
-Here is an example `.gitlab-ci.yml` which will build your project, then collect coverage data in a format that Gitlab understands:
+Here is an example `.gitlab-ci.yml` which will build your project, then collect coverage data in a format that Gitlab understands. It is assumed that you'll use an image which already has relevant tools installed, if that's not the case put the appropriate commands at the beginning of the `script` stanza.
 
 ```yaml
 build:
   variables:
-    # Set an environment variable which causes LLVM to write coverage data to the specified location. This is arbitrary, but the path passed to grcov must include these files.
+    # Set an environment variable which causes LLVM to write coverage data to the specified location. This is arbitrary, but the path passed to grcov (the first argument) must contain these files or the coverage data won't be noticed.
     LLVM_PROFILE_FILE: "target/coverage/%p-%m.profraw"
   script:
+    # Run all your Rust-based tests
     - cargo test --workspace
     # Optionally, run some other command that exercises your code:
-    -  ./bin/integration-tests --foo bar
+    - ./bin/integration-tests --foo bar
     # Once a release with https://github.com/mozilla/grcov/pull/893 is available, modify this to use the multiple-outputs mechanism :)
-    - grcov target/coverage --binary-path target/debug -s . -o target/coverage.xml -t cobertura
+    - grcov target/coverage --binary-path target/debug -s . -o target/coverage.xml -t cobertura --keep-only 'src/*'
+    # Doing both isn't strictly necessary, if you won't use the HTML version you can remove this line.
     - grcov target/coverage --binary-path target/debug -s . -o target/coverage -t html
-    # This is an awful hack whose goal is to print the coverage number by extracting it from the HTML report.
-    - awk 'c&&--c { gsub(" *<abbr[^>]+>", "Coverage: ", $0); print; } /<p class="heading">Lines</p>/{c=2}' target/coverage/index.html
+    # Extract just the top-level coverage number from the XML report.
+    - echo "Coverage: $(echo 100*$(xmllint --xpath "string(coverage/@line-rate)" target/coverage.xml) | bc)%"
   coverage: '/Coverage: \d+(?:\.\d+)?/'
   artifacts:
     paths:
@@ -334,6 +336,8 @@ This also ties into Gitlab's coverage percentage collection, so in merge request
 
 - increases or decreases of coverage
 - whether particular lines of code modified by a merge request are covered or not.
+
+Additionally, the HTML-formatted coverage report (if you leave it enabled) will be produced as an artifact. 
 
 ### Alternative reports
 
