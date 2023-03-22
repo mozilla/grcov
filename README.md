@@ -304,14 +304,17 @@ script:
 
 #### grcov with Gitlab
 
-Here is an example `.gitlab-ci.yml` which will build and collect coverage data in Gitlab:
+Here is an example `.gitlab-ci.yml` which will build your project, then collect coverage data in a format that Gitlab understands:
 
 ```yaml
 build:
+  variables:
+    # Set an environment variable which causes LLVM to write coverage data to the specified location. This is arbitrary, but the path passed to grcov must include these files.
+    LLVM_PROFILE_FILE: "target/coverage/%p-%m.profraw"
   script:
     - cargo test --workspace
     # Optionally, run some other command that exercises your code:
-    - LLVM_PROFILE_FILE="target/coverage/%p-%m.profraw" ./bin/integration-tests --foo bar
+    -  ./bin/integration-tests --foo bar
     # Once a release with https://github.com/mozilla/grcov/pull/893 is available, modify this to use the multiple-outputs mechanism :)
     - grcov target/coverage --binary-path target/debug -s . -o target/coverage.xml -t cobertura
     - grcov target/coverage --binary-path target/debug -s . -o target/coverage -t html
@@ -326,6 +329,11 @@ build:
         coverage_format: cobertura
         path: target/coverage.xml
 ```
+
+This also ties into Gitlab's coverage percentage collection, so in merge requests you'll be able to see:
+
+- increases or decreases of coverage
+- whether particular lines of code modified by a merge request are covered or not.
 
 ### Alternative reports
 
