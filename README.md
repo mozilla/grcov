@@ -24,6 +24,7 @@ This is a project initiated by Mozilla to gather code coverage results on Firefo
     - [LCOV output](#lcov-output)
     - [Coveralls output](#coveralls-output)
     - [grcov with Travis](#grcov-with-travis)
+    - [grcov with Gitlab](#grcov-with-gitlab)
   - [Alternative reports](#alternative-reports)
   - [Hosting HTML reports and using coverage badges](#hosting-html-reports-and-using-coverage-badges)
     - [Example](#example)
@@ -299,6 +300,31 @@ script:
       zip -0 ccov.zip `find . \( -name "YOUR_PROJECT_NAME*.gc*" \) -print`;
       ./grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o lcov.info;
       bash <(curl -s https://codecov.io/bash) -f lcov.info;
+```
+
+#### grcov with Gitlab
+
+Here is an example `.gitlab-ci.yml` which will build and collect coverage data in Gitlab:
+
+```yaml
+build:
+  script:
+    - cargo test --workspace
+    # Optionally, run some other command that exercises your code:
+    - LLVM_PROFILE_FILE="target/coverage/%p-%m.profraw" ./bin/integration-tests --foo bar
+    # Once a release with https://github.com/mozilla/grcov/pull/893 is available, modify this to use the multiple-outputs mechanism :)
+    - grcov target/coverage --binary-path target/debug -s . -o target/coverage.xml -t cobertura
+    - grcov target/coverage --binary-path target/debug -s . -o target/coverage -t html
+    # This is an awful hack whose goal is to print the coverage number by extracting it from the HTML report.
+    - awk 'c&&--c { gsub(" *<abbr[^>]+>", "Coverage: ", $0); print; } /<p class="heading">Lines</p>/{c=2}' target/coverage/index.html
+  coverage: '/Coverage: \d+(?:\.\d+)?/'
+  artifacts:
+    paths:
+      - target/coverage/
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: target/coverage.xml
 ```
 
 ### Alternative reports
