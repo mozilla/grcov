@@ -314,7 +314,7 @@ build:
   script:
     # Run all your Rust-based tests
     - cargo test --workspace
-    # Optionally, run some other command that exercises your code:
+    # Optionally, run some other command that exercises your code to get more coverage:
     - ./bin/integration-tests --foo bar
     # Once a release with https://github.com/mozilla/grcov/pull/893 is available, modify this to use the multiple-outputs mechanism :)
     - grcov target/coverage --binary-path target/debug -s . -o target/coverage.xml -t cobertura --keep-only 'src/*'
@@ -337,7 +337,7 @@ This also ties into Gitlab's coverage percentage collection, so in merge request
 - increases or decreases of coverage
 - whether particular lines of code modified by a merge request are covered or not.
 
-Additionally, the HTML-formatted coverage report (if you leave it enabled) will be produced as an artifact. 
+Additionally, the HTML-formatted coverage report (if you leave it enabled) will be produced as an artifact.
 
 ### Alternative reports
 
