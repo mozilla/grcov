@@ -122,5 +122,6 @@ mod tests {
             parse_version("gcov (Ubuntu 6.3.0-12ubuntu2) 6.3.0 20170406"),
             Version::new(6, 3, 0)
         );
+        assert_eq!(parse_version("gcov (GCC) 12.2.0"), Version::new(12, 2, 0));
     }
 }
