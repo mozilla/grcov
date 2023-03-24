@@ -50,7 +50,7 @@ jobs:
               echo 'linker = "aarch64-linux-gnu-gcc"' >> .cargo/config
               ;;
             aarch64-unknown-linux-musl)
-              mkdir $HOME/.local
+              mkdir -p $HOME/.local
 
               curl -o /tmp/musl.tgz https://musl.cc/aarch64-linux-musl-cross.tgz
               tar -xzf /tmp/musl.tgz -C $HOME/.local
