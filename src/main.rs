@@ -2,7 +2,7 @@
 #[global_allocator]
 static GLOBAL: tcmalloc::TCMalloc = tcmalloc::TCMalloc;
 
-use clap::{ArgGroup, Parser};
+use clap::{builder::PossibleValue, ArgGroup, Parser, ValueEnum};
 use crossbeam_channel::bounded;
 use log::error;
 use regex::Regex;
@@ -19,6 +19,7 @@ use std::{process, thread};
 
 use grcov::*;
 
+#[derive(Clone)]
 enum OutputType {
     Ade,
     Lcov,
@@ -93,7 +94,7 @@ impl FromStr for Filter {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 struct LevelFilterArg(LevelFilter);
 
-impl clap::ValueEnum for LevelFilterArg {
+impl ValueEnum for LevelFilterArg {
     fn value_variants<'a>() -> &'a [Self] {
         &[
             Self(LevelFilter::Off),
@@ -105,20 +106,20 @@ impl clap::ValueEnum for LevelFilterArg {
         ]
     }
 
-    fn to_possible_value<'a>(&self) -> Option<clap::PossibleValue<'a>> {
+    fn to_possible_value(&self) -> Option<PossibleValue> {
         match self.0 {
-            LevelFilter::Off => Some(clap::PossibleValue::new("OFF")),
-            LevelFilter::Error => Some(clap::PossibleValue::new("ERROR")),
-            LevelFilter::Warn => Some(clap::PossibleValue::new("WARN")),
-            LevelFilter::Info => Some(clap::PossibleValue::new("INFO")),
-            LevelFilter::Debug => Some(clap::PossibleValue::new("DEBUG")),
-            LevelFilter::Trace => Some(clap::PossibleValue::new("TRACE")),
+            LevelFilter::Off => Some(PossibleValue::new("OFF")),
+            LevelFilter::Error => Some(PossibleValue::new("ERROR")),
+            LevelFilter::Warn => Some(PossibleValue::new("WARN")),
+            LevelFilter::Info => Some(PossibleValue::new("INFO")),
+            LevelFilter::Debug => Some(PossibleValue::new("DEBUG")),
+            LevelFilter::Trace => Some(PossibleValue::new("TRACE")),
         }
     }
 }
 
 #[derive(Parser)]
-#[clap(
+#[command(
     author,
     about = "Parse, collect and aggregate code coverage data for multiple source files",
     // This group requires that at least one of --token and --service-job-id
@@ -128,21 +129,21 @@ impl clap::ValueEnum for LevelFilterArg {
     // - --token --service-job-id --service-name
     // - --service-job-id --service-name
     group = ArgGroup::new("coveralls-auth")
-        .args(&["token", "service-job-id"])
+        .args(&["token", "service_job_id"])
         .multiple(true),
 )]
 struct Opt {
     /// Sets the input paths to use.
-    #[clap(required = true)]
+    #[arg(required = true)]
     paths: Vec<String>,
     /// Sets the path to the compiled binary to be used.
-    #[clap(short, long, value_name = "PATH")]
+    #[arg(short, long, value_name = "PATH")]
     binary_path: Option<PathBuf>,
     /// Sets the path to the LLVM bin directory.
-    #[clap(long, value_name = "PATH")]
+    #[arg(long, value_name = "PATH")]
     llvm_path: Option<PathBuf>,
     /// Sets a custom output type.
-    #[clap(
+    #[arg(
         long,
         long_help = "\
             Comma separated list of custom output types:\n\
@@ -157,17 +158,17 @@ struct Opt {
             - *cobertura* for output in cobertura format.\n\
         ",
         value_name = "OUTPUT TYPE",
-        requires_ifs = &[
+        requires_ifs = [
             ("coveralls", "coveralls-auth"),
             ("coveralls+", "coveralls-auth"),
         ],
 
-        use_value_delimiter = true,
-        conflicts_with = "output-type"
+        value_delimiter = ',',
+        conflicts_with = "output_type"
     )]
     output_types: Vec<OutputType>,
     /// Sets a custom output type.
-    #[clap(
+    #[arg(
             short = 't',
             long,
             long_help = "\
@@ -183,116 +184,116 @@ struct Opt {
             - *cobertura* for output in cobertura format.\n\
             ",
             value_name = "OUTPUT TYPE",
-            requires_ifs = &[
+            requires_ifs = [
             ("coveralls", "coveralls-auth"),
             ("coveralls+", "coveralls-auth"),
             ],
 
-            use_value_delimiter = true,
-            conflicts_with = "output-types"
+            value_delimiter = ',',
+            conflicts_with = "output_types"
     )]
     output_type: Option<OutputType>,
     /// Specifies the output path. This is a file for a single output type and must be a folder
     /// for multiple output types.
-    #[clap(short, long, value_name = "PATH", alias = "output-file")]
+    #[arg(short, long, value_name = "PATH", alias = "output-file")]
     output_path: Option<PathBuf>,
     /// Specifies the output config file.
-    #[clap(long, value_name = "PATH", alias = "output-config-file")]
+    #[arg(long, value_name = "PATH", alias = "output-config-file")]
     output_config_file: Option<PathBuf>,
     /// Specifies the root directory of the source files.
-    #[clap(short, long, value_name = "DIRECTORY")]
+    #[arg(short, long, value_name = "DIRECTORY")]
     source_dir: Option<PathBuf>,
     /// Specifies a prefix to remove from the paths (e.g. if grcov is run on a different machine
     /// than the one that generated the code coverage information).
-    #[clap(short, long, value_name = "PATH")]
+    #[arg(short, long, value_name = "PATH")]
     prefix_dir: Option<PathBuf>,
     /// Ignore source files that can't be found on the disk.
-    #[clap(long)]
+    #[arg(long)]
     ignore_not_existing: bool,
     /// Ignore files/directories specified as globs.
-    #[clap(long = "ignore", value_name = "PATH", number_of_values = 1)]
+    #[arg(long = "ignore", value_name = "PATH", num_args = 1)]
     ignore_dir: Vec<String>,
     /// Keep only files/directories specified as globs.
-    #[clap(long = "keep-only", value_name = "PATH", number_of_values = 1)]
+    #[arg(long = "keep-only", value_name = "PATH", num_args = 1)]
     keep_dir: Vec<String>,
-    #[clap(long, value_name = "PATH")]
+    #[arg(long, value_name = "PATH")]
     path_mapping: Option<PathBuf>,
     /// Enables parsing branch coverage information.
-    #[clap(long)]
+    #[arg(long)]
     branch: bool,
     /// Filters out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered'
     /// to only return uncovered files.
-    #[clap(long, value_enum)]
+    #[arg(long, value_enum)]
     filter: Option<Filter>,
     /// Speeds-up parsing, when the code coverage information is exclusively coming from a llvm
     /// build.
-    #[clap(long)]
+    #[arg(long)]
     llvm: bool,
     /// Sets the repository token from Coveralls, required for the 'coveralls' and 'coveralls+'
     /// formats.
-    #[clap(long, value_name = "TOKEN")]
+    #[arg(long, value_name = "TOKEN")]
     token: Option<String>,
     /// Sets the hash of the commit used to generate the code coverage data.
-    #[clap(long, value_name = "COMMIT HASH")]
+    #[arg(long, value_name = "COMMIT HASH")]
     commit_sha: Option<String>,
     /// Sets the service name.
-    #[clap(long, value_name = "SERVICE NAME")]
+    #[arg(long, value_name = "SERVICE NAME")]
     service_name: Option<String>,
     /// Sets the service number.
-    #[clap(long, value_name = "SERVICE NUMBER")]
+    #[arg(long, value_name = "SERVICE NUMBER")]
     service_number: Option<String>,
     /// Sets the service job id.
-    #[clap(
+    #[arg(
         long,
         value_name = "SERVICE JOB ID",
         visible_alias = "service-job-number",
-        requires = "service-name"
+        requires = "service_name"
     )]
     service_job_id: Option<String>,
     /// Sets the service pull request number.
-    #[clap(long, value_name = "SERVICE PULL REQUEST")]
+    #[arg(long, value_name = "SERVICE PULL REQUEST")]
     service_pull_request: Option<String>,
     /// Sets the build type to be parallel for 'coveralls' and 'coveralls+' formats.
-    #[clap(long)]
+    #[arg(long)]
     parallel: bool,
-    #[clap(long, value_name = "NUMBER")]
+    #[arg(long, value_name = "NUMBER")]
     threads: Option<usize>,
     /// Sets coverage decimal point precision on output reports.
-    #[clap(long, value_name = "NUMBER", default_value = "2")]
+    #[arg(long, value_name = "NUMBER", default_value = "2")]
     precision: usize,
-    #[clap(long = "guess-directory-when-missing")]
+    #[arg(long = "guess-directory-when-missing")]
     guess_directory: bool,
     /// Set the branch for coveralls report. Defaults to 'master'.
-    #[clap(long, value_name = "VCS BRANCH", default_value = "master")]
+    #[arg(long, value_name = "VCS BRANCH", default_value = "master")]
     vcs_branch: String,
     /// Set the file where to log (or stderr or stdout). Defaults to 'stderr'.
-    #[clap(long, value_name = "LOG", default_value = "stderr")]
+    #[arg(long, value_name = "LOG", default_value = "stderr")]
     log: PathBuf,
     /// Set the log level.
-    #[clap(long, value_name = "LEVEL", default_value = "ERROR", value_enum)]
+    #[arg(long, value_name = "LEVEL", default_value = "ERROR", value_enum)]
     log_level: LevelFilterArg,
     /// Lines in covered files containing this marker will be excluded.
-    #[clap(long, value_name = "regex")]
+    #[arg(long, value_name = "regex")]
     excl_line: Option<Regex>,
     /// Marks the beginning of an excluded section. The current line is part of this section.
-    #[clap(long, value_name = "regex")]
+    #[arg(long, value_name = "regex")]
     excl_start: Option<Regex>,
     /// Marks the end of an excluded section. The current line is part of this section.
-    #[clap(long, value_name = "regex")]
+    #[arg(long, value_name = "regex")]
     excl_stop: Option<Regex>,
     /// Lines in covered files containing this marker will be excluded from branch coverage.
-    #[clap(long, value_name = "regex")]
+    #[arg(long, value_name = "regex")]
     excl_br_line: Option<Regex>,
     /// Marks the beginning of a section excluded from branch coverage. The current line is part of
     /// this section.
-    #[clap(long, value_name = "regex")]
+    #[arg(long, value_name = "regex")]
     excl_br_start: Option<Regex>,
     /// Marks the end of a section excluded from branch coverage. The current line is part of this
     /// section.
-    #[clap(long, value_name = "regex")]
+    #[arg(long, value_name = "regex")]
     excl_br_stop: Option<Regex>,
     /// No symbol demangling.
-    #[clap(long)]
+    #[arg(long)]
     no_demangle: bool,
 }
 
