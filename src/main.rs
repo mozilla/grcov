@@ -121,7 +121,16 @@ impl ValueEnum for LevelFilterArg {
 #[derive(Parser)]
 #[command(
     author,
+    version,
+    max_term_width = 100,
     about = "Parse, collect and aggregate code coverage data for multiple source files",
+    help_template = "\
+{before-help}{name}
+{author-with-newline}{about-with-newline}
+{usage-heading} {usage}
+
+{all-args}{after-help}
+",
     // This group requires that at least one of --token and --service-job-id
     // be present. --service-job-id requires --service-name, so this
     // effectively means we accept the following combinations:
