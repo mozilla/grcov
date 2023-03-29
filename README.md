@@ -316,12 +316,32 @@ build:
     - cargo test --workspace
     # Optionally, run some other command that exercises your code to get more coverage:
     - ./bin/integration-tests --foo bar
-    # Once a release with https://github.com/mozilla/grcov/pull/893 is available, modify this to use the multiple-outputs mechanism :)
-    - grcov target/coverage --binary-path target/debug -s . -o target/coverage.xml -t cobertura --keep-only 'src/*'
-    # Doing both isn't strictly necessary, if you won't use the HTML version you can remove this line.
-    - grcov target/coverage --binary-path target/debug -s . -o target/coverage -t html
+    # Create the output directory
+    - mkdir target/coverage
+    # This is a multi-line command. You can also write it all as one line if desired, just remove
+    # the '|' and all the newlines.
+    - |
+        grcov
+    # This path must match the setting in LLVM_PROFILE_FILE. If you're not getting the coverage
+    # you expect, look for '.profraw' files in other directories.
+        target/coverage
+    # If your target dir is modified, this will need to match...
+        --binary-path target/debug
+    # Where the source directory is expected
+        -s .
+    # Where to write the output; this should be a directory that exists.
+        -o target/coverage
+    # Exclude coverage of crates and Rust stdlib code. If you get unexpected coverage results from
+    # this (empty, for example), try different combinations of '--ignore-not-existing',
+    # '--ignore "$HOME/.cargo/**"' and see what kind of filtering gets you the coverage you're
+    # looking for.
+        --keep-only 'src/*'
+    # Doing both isn't strictly necessary, if you won't use the HTML version you can modify this
+    # line.
+        --output-types html,cobertura
+
     # Extract just the top-level coverage number from the XML report.
-    - echo "Coverage: $(echo 100*$(xmllint --xpath "string(coverage/@line-rate)" target/coverage.xml) | bc)%"
+    - xmllint --xpath "concat('Coverage: ', 100 * string(//coverage/@line-rate), '%')" target/coverage/cobertura.xml
   coverage: '/Coverage: \d+(?:\.\d+)?/'
   artifacts:
     paths:
