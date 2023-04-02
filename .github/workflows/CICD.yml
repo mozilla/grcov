@@ -11,13 +11,13 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup Rust
         run: |
           rustup toolchain add ${{ matrix.toolchain }} --component llvm-tools-preview
           rustup override set ${{ matrix.toolchain }}
       - name: Configure cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/bin/
@@ -62,13 +62,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang-${{ matrix.clang }} g++-${{ matrix.gcc }}
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup Rust
         run: |
           rustup toolchain add nightly --component llvm-tools-preview
           rustup override set nightly
       - name: Configure cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/bin/
@@ -101,9 +101,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
       - name: Setup Rust
         run: |
           rustup update stable
@@ -111,7 +111,7 @@ jobs:
       - name: Install pre-commit
         run: pip install --no-cache-dir pre-commit
       - name: Configure Rust cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/bin/
@@ -121,7 +121,7 @@ jobs:
             target/
           key: pre-commit-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Configure pre-commit cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ runner.os }}-pre-commit-${{ hashFiles('**/.pre-commit-config.yaml') }}

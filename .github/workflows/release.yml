@@ -28,7 +28,7 @@ jobs:
             target: aarch64-pc-windows-msvc
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup Rust
         run: rustup target add ${{ matrix.target }}
       - name: Install additional toolchains
@@ -61,7 +61,7 @@ jobs:
               ;;
           esac
       - name: Configure cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/bin/
@@ -107,7 +107,7 @@ jobs:
           cd target/${{ matrix.target }}/release
           7z a ../../dist/grcov-${{ matrix.target }}.zip grcov.exe
       - name: Upload archive
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: artifact-${{ matrix.target }}
           path: target/dist/*
@@ -117,7 +117,7 @@ jobs:
     needs: [release]
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
       - name: Create checksums
         run: |
           set -x
