@@ -37,120 +37,152 @@ This is a project initiated by Mozilla to gather code coverage results on Firefo
 ## man grcov
 
 ```text
-USAGE:
-    grcov [FLAGS] [OPTIONS] <paths>...
+Usage: grcov [OPTIONS] <PATHS>...
 
-FLAGS:
-        --branch
-            Enables parsing branch coverage information
+Arguments:
+  <PATHS>...
+          Sets the input paths to use
 
-        --guess-directory-when-missing
+Options:
+  -b, --binary-path <PATH>
+          Sets the path to the compiled binary to be used
 
+      --llvm-path <PATH>
+          Sets the path to the LLVM bin directory
 
-    -h, --help
-            Prints help information
-
-        --ignore-not-existing
-            Ignore source files that can't be found on the disk
-
-        --llvm
-            Speeds-up parsing, when the code coverage information is exclusively coming from a llvm build
-
-        --parallel
-            Sets the build type to be parallel for 'coveralls' and 'coveralls+' formats
-
-    -V, --version
-            Prints version information
-
-
-OPTIONS:
-    -b, --binary-path <PATH>
-            Sets the path to the directory containing the compiled binaries to be used
-
-        --commit-sha <COMMIT HASH>
-            Sets the hash of the commit used to generate the code coverage data
-
-        --excl-br-line <regex>
-            Lines in covered files containing this marker will be excluded from branch coverage.
-
-        --excl-br-start <regex>
-            Marks the beginning of a section excluded from branch coverage. The current line is part of this section.
-
-        --excl-br-stop <regex>
-            Marks the end of a section excluded from branch coverage. The current line is part of this section.
-
-        --excl-line <regex>
-            Lines in covered files containing this marker will be excluded.
-
-        --excl-start <regex>
-            Marks the beginning of an excluded section. The current line is part of this section.
-
-        --excl-stop <regex>
-            Marks the end of an excluded section. The current line is part of this section.
-
-        --filter <filter>
-            Filters out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered' to only return
-            uncovered files [possible values: covered, uncovered]
-        --ignore <PATH>...
-            Ignore files/directories specified as globs
-
-        --keep-only <PATH>...
-            Keep only files/directories specified as globs
-
-        --log <LOG>
-            Set the file where to log (or stderr or stdout). Defaults to 'stderr' [default: stderr]
-
-        --log-level <LEVEL>
-            Set the log level. [default: ERROR]  [possible values: OFF, ERROR, WARN, INFO, DEBUG, TRACE]
-
-    -o, --output-path <PATH>
-            Specifies the output path
-
-    -t, --output-type <OUTPUT TYPE>
-            Sets a custom output type:
-            - *html* for a HTML coverage report;
-            - *coveralls* for the Coveralls specific format;
-            - *lcov* for the lcov INFO format;
-            - *covdir* for the covdir recursive JSON format;
-            - *coveralls+* for the Coveralls specific format with function information;
-            - *ade* for the ActiveData-ETL specific format;
-            - *cobertura* for a cobertura coverage report;
-            - *files* to only return a list of files.
-             [default: lcov]  [possible values: ade, lcov, coveralls, coveralls+, files, covdir, html, cobertura]
-        --path-mapping <PATH>...
+  -t, --output-types <OUTPUT TYPE>
+          Comma separated list of custom output types:
+          - *html* for a HTML coverage report;
+          - *coveralls* for the Coveralls specific format;
+          - *lcov* for the lcov INFO format;
+          - *covdir* for the covdir recursive JSON format;
+          - *coveralls+* for the Coveralls specific format with function information;
+          - *ade* for the ActiveData-ETL specific format;
+          - *files* to only return a list of files.
+          - *markdown* for human easy read.
+          - *cobertura* for output in cobertura format.
 
 
-    -p, --prefix-dir <PATH>
-            Specifies a prefix to remove from the paths (e.g. if grcov is run on a different machine than the one that
-            generated the code coverage information)
-        --service-job-id <SERVICE JOB ID>
-            Sets the service job id [aliases: service-job-number]
+          [default: lcov]
 
-        --service-name <SERVICE NAME>
-            Sets the service name
+  -o, --output-path <PATH>
+          Specifies the output path. This is a file for a single output type and must be a folder
+          for multiple output types
 
-        --service-number <SERVICE NUMBER>
-            Sets the service number
+      --output-config-file <PATH>
+          Specifies the output config file
 
-        --service-pull-request <SERVICE PULL REQUEST>
-            Sets the service pull request number
+  -s, --source-dir <DIRECTORY>
+          Specifies the root directory of the source files
 
-    -s, --source-dir <DIRECTORY>
-            Specifies the root directory of the source files
+  -p, --prefix-dir <PATH>
+          Specifies a prefix to remove from the paths (e.g. if grcov is run on a different machine
+          than the one that generated the code coverage information)
 
-        --threads <NUMBER>
-             [default: 11]
+      --ignore-not-existing
+          Ignore source files that can't be found on the disk
 
-        --token <TOKEN>
-            Sets the repository token from Coveralls, required for the 'coveralls' and 'coveralls+' formats
+      --ignore <PATH>
+          Ignore files/directories specified as globs
 
-        --vcs-branch <VCS BRANCH>
-            Set the branch for coveralls report. Defaults to 'master' [default: master]
+      --keep-only <PATH>
+          Keep only files/directories specified as globs
+
+      --path-mapping <PATH>
 
 
-ARGS:
-    <paths>...
-            Sets the input paths to use
+      --branch
+          Enables parsing branch coverage information
+
+      --filter <FILTER>
+          Filters out covered/uncovered files. Use 'covered' to only return covered files,
+          'uncovered' to only return uncovered files
+
+          [possible values: covered, uncovered]
+
+      --llvm
+          Speeds-up parsing, when the code coverage information is exclusively coming from a llvm
+          build
+
+      --token <TOKEN>
+          Sets the repository token from Coveralls, required for the 'coveralls' and 'coveralls+'
+          formats
+
+      --commit-sha <COMMIT HASH>
+          Sets the hash of the commit used to generate the code coverage data
+
+      --service-name <SERVICE NAME>
+          Sets the service name
+
+      --service-number <SERVICE NUMBER>
+          Sets the service number
+
+      --service-job-id <SERVICE JOB ID>
+          Sets the service job id
+
+          [aliases: service-job-number]
+
+      --service-pull-request <SERVICE PULL REQUEST>
+          Sets the service pull request number
+
+      --parallel
+          Sets the build type to be parallel for 'coveralls' and 'coveralls+' formats
+
+      --threads <NUMBER>
+
+
+      --precision <NUMBER>
+          Sets coverage decimal point precision on output reports
+
+          [default: 2]
+
+      --guess-directory-when-missing
+
+
+      --vcs-branch <VCS BRANCH>
+          Set the branch for coveralls report. Defaults to 'master'
+
+          [default: master]
+
+      --log <LOG>
+          Set the file where to log (or stderr or stdout). Defaults to 'stderr'
+
+          [default: stderr]
+
+      --log-level <LEVEL>
+          Set the log level
+
+          [default: ERROR]
+          [possible values: OFF, ERROR, WARN, INFO, DEBUG, TRACE]
+
+      --excl-line <regex>
+          Lines in covered files containing this marker will be excluded
+
+      --excl-start <regex>
+          Marks the beginning of an excluded section. The current line is part of this section
+
+      --excl-stop <regex>
+          Marks the end of an excluded section. The current line is part of this section
+
+      --excl-br-line <regex>
+          Lines in covered files containing this marker will be excluded from branch coverage
+
+      --excl-br-start <regex>
+          Marks the beginning of a section excluded from branch coverage. The current line is part
+          of this section
+
+      --excl-br-stop <regex>
+          Marks the end of a section excluded from branch coverage. The current line is part of this
+          section
+
+      --no-demangle
+          No symbol demangling
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
 ```
 
 ## How to get grcov
