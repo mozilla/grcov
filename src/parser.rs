@@ -8,6 +8,7 @@ use std::io::{self, BufRead, BufReader, Read};
 use std::num::ParseIntError;
 use std::path::Path;
 use std::str;
+use std::sync::Arc;
 
 use log::error;
 
@@ -37,7 +38,7 @@ impl From<io::Error> for ParserError {
 impl From<quick_xml::Error> for ParserError {
     fn from(err: quick_xml::Error) -> ParserError {
         match err {
-            quick_xml::Error::Io(e) => ParserError::Io(e),
+            quick_xml::Error::Io(e) => ParserError::Io(Arc::try_unwrap(e).unwrap()),
             _ => ParserError::Parse(format!("{:?}", err)),
         }
     }
