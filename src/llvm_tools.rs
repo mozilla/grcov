@@ -1,5 +1,6 @@
 use cargo_binutils::Tool;
 use once_cell::sync::OnceCell;
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsStr;
 use std::fs;
@@ -116,27 +117,31 @@ pub fn profraws_to_lcov(
         paths
     };
 
-    let mut results = vec![];
     let cov_tool_path = get_cov_path()?;
+    let results = binaries
+        .into_par_iter()
+        .filter_map(|binary| {
+            let args = [
+                "export".as_ref(),
+                binary.as_ref(),
+                "--instr-profile".as_ref(),
+                profdata_path.as_ref(),
+                "--format".as_ref(),
+                "lcov".as_ref(),
+            ];
 
-    for binary in binaries {
-        let args = [
-            "export".as_ref(),
-            binary.as_ref(),
-            "--instr-profile".as_ref(),
-            profdata_path.as_ref(),
-            "--format".as_ref(),
-            "lcov".as_ref(),
-        ];
-
-        match run(&cov_tool_path, &args) {
-            Ok(result) => results.push(result),
-            Err(err_str) => warn!(
-                "Suppressing error returned by llvm-cov tool for binary {:?}\n{}",
-                binary, err_str
-            ),
-        }
-    }
+            match run(&cov_tool_path, &args) {
+                Ok(result) => Some(result),
+                Err(err_str) => {
+                    warn!(
+                        "Suppressing error returned by llvm-cov tool for binary {:?}\n{}",
+                        binary, err_str
+                    );
+                    None
+                }
+            }
+        })
+        .collect::<Vec<_>>();
 
     Ok(results)
 }
