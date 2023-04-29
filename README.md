@@ -265,14 +265,18 @@ N.B.: The `--binary-path` argument is only necessary for source-based coverage.
 
 You can see the report in `target/debug/coverage/index.html`.
 
-(or alternatively with `-t lcov` grcov will output a lcov compatible coverage report that you could then feed into lcov's `genhtml` command).
+Or alternatively with `-t lcov`, grcov will output a lcov compatible coverage report
+
+```sh
+grcov . -s . --binary-path ./target/debug/ -t lcov --branch --ignore-not-existing -o ./target/debug/
+```
 
 #### LCOV output
 
-By passing `-t lcov` you could generate an lcov.info file and pass it to genhtml:
+The above command will generate a file called `lcov` in `./target/debug`, which you can pass to `genhtml` to generate an HTML report:
 
 ```sh
-genhtml -o ./target/debug/coverage/ --show-details --highlight --ignore-errors source --legend ./target/debug/lcov.info
+genhtml -o ./target/debug/coverage/ --show-details --highlight --ignore-errors source --legend ./target/debug/lcov
 ```
 
 LCOV output should be used when uploading to Codecov, with the `--branch` argument for branch coverage support.
