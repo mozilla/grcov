@@ -420,6 +420,7 @@ pub fn output_coveralls(
     service_number: &str,
     service_job_id: Option<&str>,
     service_pull_request: &str,
+    service_flag_name: Option<&str>,
     commit_sha: &str,
     with_function_info: bool,
     output_file: Option<&Path>,
@@ -496,6 +497,10 @@ pub fn output_coveralls(
 
     if let (Some(service_name), Some(obj)) = (service_name, result.as_object_mut()) {
         obj.insert("service_name".to_string(), json!(service_name));
+    }
+
+    if let (Some(service_flag_name), Some(obj)) = (service_flag_name, result.as_object_mut()) {
+        obj.insert("flag_name".to_string(), json!(service_flag_name));
     }
 
     if let (Some(service_job_id), Some(obj)) = (service_job_id, result.as_object_mut()) {
@@ -838,6 +843,7 @@ mod tests {
             "unused",
             Some(expected_service_job_id),
             "unused",
+            Some("unused"),
             "unused",
             with_function_info,
             Some(&file_path),
@@ -849,6 +855,47 @@ mod tests {
         let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
 
         assert_eq!(results["service_job_id"], expected_service_job_id);
+    }
+
+    #[test]
+    fn test_coveralls_service_flag_name() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_name = "test_coveralls_service_job_id.json";
+        let file_path = tmp_dir.path().join(file_name);
+
+        let results = vec![(
+            PathBuf::from("foo/bar/a.cpp"),
+            PathBuf::from("foo/bar/a.cpp"),
+            CovResult {
+                lines: [(1, 10), (2, 11)].iter().cloned().collect(),
+                branches: BTreeMap::new(),
+                functions: FxHashMap::default(),
+            },
+        )];
+
+        let expected_service_job_id: &str = "100500";
+        let expected_flag_name: &str = "expected flag name";
+        let with_function_info: bool = true;
+        let parallel: bool = true;
+        output_coveralls(
+            &results,
+            None,
+            None,
+            "unused",
+            Some(expected_service_job_id),
+            "unused",
+            Some(expected_flag_name),
+            "unused",
+            with_function_info,
+            Some(&file_path),
+            "unused",
+            parallel,
+            false,
+        );
+
+        let results: Value = serde_json::from_str(&read_file(&file_path)).unwrap();
+
+        assert_eq!(results["flag_name"], expected_flag_name);
     }
 
     #[test]
@@ -877,6 +924,7 @@ mod tests {
             "unused",
             None,
             "unused",
+            Some("unused"),
             "unused",
             with_function_info,
             Some(&file_path),
@@ -917,6 +965,7 @@ mod tests {
             "unused",
             service_job_id,
             "unused",
+            None,
             "unused",
             with_function_info,
             Some(&file_path),
@@ -929,6 +978,7 @@ mod tests {
 
         assert_eq!(results.get("service_name"), None);
         assert_eq!(results.get("service_job_id"), None);
+        assert_eq!(results.get("flag_name"), None)
     }
 
     #[test]

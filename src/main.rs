@@ -238,6 +238,9 @@ struct Opt {
     /// Sets the service pull request number.
     #[arg(long, value_name = "SERVICE PULL REQUEST")]
     service_pull_request: Option<String>,
+    /// Sets the service flag name for coveralls parallel/carryover mode
+    #[arg(long, value_name = "SERVICE FLAG NAME")]
+    service_flag_name: Option<String>,
     /// Sets the build type to be parallel for 'coveralls' and 'coveralls+' formats.
     #[arg(long)]
     parallel: bool,
@@ -501,6 +504,7 @@ fn main() {
                 &service_number,
                 opt.service_job_id.as_deref(),
                 &service_pull_request,
+                opt.service_flag_name.as_deref(),
                 &commit_sha,
                 false,
                 output_path.as_deref(),
@@ -515,6 +519,7 @@ fn main() {
                 &service_number,
                 opt.service_job_id.as_deref(),
                 &service_pull_request,
+                opt.service_flag_name.as_deref(),
                 &commit_sha,
                 true,
                 output_path.as_deref(),
