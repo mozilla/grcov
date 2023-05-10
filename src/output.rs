@@ -57,7 +57,7 @@ pub fn get_target_output_writable(output_file: Option<&Path>) -> Box<dyn Write> 
                     }
                 }
                 panic!(
-                    "Cannot create file {} to dump coverage data.",
+                    "Cannot create the file {} to dump coverage data.",
                     output.display()
                 )
             }))
