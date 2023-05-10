@@ -50,14 +50,14 @@ pub fn get_target_output_writable(output_file: Option<&Path>) -> Box<dyn Write> 
                 if let Some(parent_path) = parent {
                     if !parent_path.exists() {
                         panic!(
-                            "Cannot create file {} to dump coverage data, as directory {} doesn't exist",
+                            "Cannot create file {} to dump coverage data, as the parent directory {} doesn't exist.",
                             output.display(),
                             parent_path.display()
                         )
                     }
                 }
                 panic!(
-                    "Cannot create file {} to dump coverage data, as the directory doesn't exist",
+                    "Cannot create file {} to dump coverage data.",
                     output.display()
                 )
             }))
