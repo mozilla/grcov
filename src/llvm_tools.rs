@@ -2,7 +2,6 @@ use cargo_binutils::Tool;
 use once_cell::sync::OnceCell;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use std::env::consts::EXE_SUFFIX;
-use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::io::Write;
