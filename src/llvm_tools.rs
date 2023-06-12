@@ -2,6 +2,7 @@ use cargo_binutils::Tool;
 use once_cell::sync::OnceCell;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use std::env::consts::EXE_SUFFIX;
+use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::io::Write;
@@ -222,9 +223,9 @@ mod tests {
         assert_eq!(lcovs.len(), 0);
 
         #[cfg(unix)]
-        let binary_path = "target/debug/rust-code-coverage-sample";
+        let binary_path = format!("{}/debug/rust-code-coverage-sample", env::var("CARGO_TARGET_DIR").unwrap());
         #[cfg(windows)]
-        let binary_path = "target/debug/rust-code-coverage-sample.exe";
+        let binary_path = format!("{}/debug/rust-code-coverage-sample.exe", env::var("CARGO_TARGET_DIR").unwrap());
 
         let lcovs = profraws_to_lcov(
             &[tmp_path.join("default.profraw")],
