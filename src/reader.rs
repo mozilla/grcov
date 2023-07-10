@@ -25,14 +25,14 @@ const GCOV_TAG_OBJECT_SUMMARY: u32 = 0xa100_0000;
 const GCOV_TAG_PROGRAM_SUMMARY: u32 = 0xa300_0000;
 
 #[derive(Debug)]
-pub enum GcovError {
+pub enum GcovReaderError {
     Io(std::io::Error),
     Str(String),
 }
 
-impl From<Error> for GcovError {
-    fn from(err: Error) -> GcovError {
-        GcovError::Str(format!("Reader error: {}", err))
+impl From<Error> for GcovReaderError {
+    fn from(err: Error) -> GcovReaderError {
+        GcovReaderError::Str(format!("Reader error: {}", err))
     }
 }
 
@@ -41,15 +41,15 @@ pub trait Endian {
 }
 
 pub trait GcovReader<E: Endian> {
-    fn read_string(&mut self) -> Result<String, GcovError>;
-    fn read_u32(&mut self) -> Result<u32, GcovError>;
-    fn read_counter(&mut self) -> Result<u64, GcovError>;
+    fn read_string(&mut self) -> Result<String, GcovReaderError>;
+    fn read_u32(&mut self) -> Result<u32, GcovReaderError>;
+    fn read_counter(&mut self) -> Result<u64, GcovReaderError>;
     fn get_version(&self, buf: &[u8]) -> u32;
-    fn read_version(&mut self) -> Result<u32, GcovError>;
+    fn read_version(&mut self) -> Result<u32, GcovReaderError>;
     fn get_pos(&self) -> usize;
     fn get_stem(&self) -> &str;
-    fn skip_u32(&mut self) -> Result<(), GcovError>;
-    fn skip(&mut self, len: usize) -> Result<(), GcovError>;
+    fn skip_u32(&mut self) -> Result<(), GcovReaderError>;
+    fn skip(&mut self, len: usize) -> Result<(), GcovReaderError>;
     fn is_little_endian(&self) -> bool {
         E::is_little_endian()
     }
@@ -182,7 +182,7 @@ macro_rules! read_u {
                 val.to_be()
             })
         } else {
-            Err(GcovError::Str(format!(
+            Err(GcovReaderError::Str(format!(
                 "Not enough data in buffer: cannot read integer in {}",
                 $buf.get_stem()
             )))
@@ -196,7 +196,7 @@ macro_rules! skip {
         if $buf.pos < $buf.buffer.len() {
             Ok(())
         } else {
-            Err(GcovError::Str(format!(
+            Err(GcovReaderError::Str(format!(
                 "Not enough data in buffer: cannot skip {} bytes in {}",
                 $size,
                 $buf.get_stem()
@@ -222,16 +222,16 @@ impl<E: Endian> GcovReader<E> for GcovReaderBuf<E> {
     }
 
     #[inline(always)]
-    fn skip_u32(&mut self) -> Result<(), GcovError> {
+    fn skip_u32(&mut self) -> Result<(), GcovReaderError> {
         skip!(std::mem::size_of::<u32>(), self)
     }
 
     #[inline(always)]
-    fn skip(&mut self, len: usize) -> Result<(), GcovError> {
+    fn skip(&mut self, len: usize) -> Result<(), GcovReaderError> {
         skip!(len, self)
     }
 
-    fn read_string(&mut self) -> Result<String, GcovError> {
+    fn read_string(&mut self) -> Result<String, GcovReaderError> {
         let len = read_u!(u32, self)?;
         if len == 0 {
             return Ok("".to_string());
@@ -244,7 +244,7 @@ impl<E: Endian> GcovReader<E> for GcovReaderBuf<E> {
             let i = len - bytes.iter().rev().position(|&x| x != 0).unwrap();
             Ok(unsafe { std::str::from_utf8_unchecked(&bytes[..i]).to_string() })
         } else {
-            Err(GcovError::Str(format!(
+            Err(GcovReaderError::Str(format!(
                 "Not enough data in buffer: cannot read string in {}",
                 self.get_stem()
             )))
@@ -252,12 +252,12 @@ impl<E: Endian> GcovReader<E> for GcovReaderBuf<E> {
     }
 
     #[inline(always)]
-    fn read_u32(&mut self) -> Result<u32, GcovError> {
+    fn read_u32(&mut self) -> Result<u32, GcovReaderError> {
         read_u!(u32, self)
     }
 
     #[inline(always)]
-    fn read_counter(&mut self) -> Result<u64, GcovError> {
+    fn read_counter(&mut self) -> Result<u64, GcovReaderError> {
         let lo = read_u!(u32, self)?;
         let hi = read_u!(u32, self)?;
 
@@ -274,7 +274,7 @@ impl<E: Endian> GcovReader<E> for GcovReaderBuf<E> {
         }
     }
 
-    fn read_version(&mut self) -> Result<u32, GcovError> {
+    fn read_version(&mut self) -> Result<u32, GcovReaderError> {
         let i = self.pos;
         if i + 4 <= self.buffer.len() {
             self.pos += 4;
@@ -285,14 +285,14 @@ impl<E: Endian> GcovReader<E> for GcovReaderBuf<E> {
                 Ok(self.get_version(&buf))
             } else {
                 let bytes = &self.buffer[i..i + 4];
-                Err(GcovError::Str(format!(
+                Err(GcovReaderError::Str(format!(
                     "Unexpected version: {} in {}",
                     String::from_utf8_lossy(bytes),
                     self.get_stem()
                 )))
             }
         } else {
-            Err(GcovError::Str(format!(
+            Err(GcovReaderError::Str(format!(
                 "Not enough data in buffer: Cannot read version in {}",
                 self.get_stem()
             )))
@@ -305,11 +305,11 @@ impl<E: Endian> GcovReader<E> for GcovReaderBuf<E> {
     }
 }
 
-impl Display for GcovError {
+impl Display for GcovReaderError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            GcovError::Io(e) => write!(f, "{}", e),
-            GcovError::Str(e) => write!(f, "{}", e),
+            GcovReaderError::Io(e) => write!(f, "{}", e),
+            GcovReaderError::Str(e) => write!(f, "{}", e),
         }
     }
 }
@@ -379,7 +379,11 @@ impl Gcno {
         }
     }
 
-    fn guess_endianness(mut typ: [u8; 4], buffer: &[u8], stem: &str) -> Result<bool, GcovError> {
+    fn guess_endianness(
+        mut typ: [u8; 4],
+        buffer: &[u8],
+        stem: &str,
+    ) -> Result<bool, GcovReaderError> {
         if 4 <= buffer.len() {
             let bytes = &buffer[..4];
             if bytes == typ {
@@ -391,7 +395,7 @@ impl Gcno {
                     // Big endian
                     Ok(false)
                 } else {
-                    Err(GcovError::Str(format!(
+                    Err(GcovReaderError::Str(format!(
                         "Unexpected file type: {} in {}.",
                         std::str::from_utf8(bytes).unwrap(),
                         stem
@@ -399,14 +403,14 @@ impl Gcno {
                 }
             }
         } else {
-            Err(GcovError::Str(format!(
+            Err(GcovReaderError::Str(format!(
                 "Not enough data in buffer: Cannot compare types in {}",
                 stem
             )))
         }
     }
 
-    fn read(&mut self, typ: FileType, buf: Vec<u8>, stem: &str) -> Result<(), GcovError> {
+    fn read(&mut self, typ: FileType, buf: Vec<u8>, stem: &str) -> Result<(), GcovReaderError> {
         let little_endian = Self::guess_endianness(
             match typ {
                 FileType::Gcno => *b"oncg",
@@ -433,7 +437,7 @@ impl Gcno {
         gcno_buf: Vec<u8>,
         gcda_bufs: Vec<Vec<u8>>,
         branch_enabled: bool,
-    ) -> Result<Vec<(String, CovResult)>, GcovError> {
+    ) -> Result<Vec<(String, CovResult)>, GcovReaderError> {
         let mut gcno = Self::new();
         gcno.read(FileType::Gcno, gcno_buf, stem)?;
         for gcda_buf in gcda_bufs.into_iter() {
@@ -452,7 +456,7 @@ impl Gcno {
     pub fn read_gcno<E: Endian, T: GcovReader<E>>(
         &mut self,
         mut reader: T,
-    ) -> Result<(), GcovError> {
+    ) -> Result<(), GcovReaderError> {
         self.version = reader.read_version()?;
         self.checksum = reader.read_u32()?;
         if self.version >= 90 {
@@ -470,7 +474,7 @@ impl Gcno {
         fun: &mut GcovFunction,
         count: u32,
         reader: &mut T,
-    ) -> Result<(), GcovError> {
+    ) -> Result<(), GcovReaderError> {
         let edges = &mut fun.edges;
         let blocks = &mut fun.blocks;
         let count = ((count - 1) / 2) as usize;
@@ -502,7 +506,7 @@ impl Gcno {
                 }
             }
         } else {
-            return Err(GcovError::Str(format!(
+            return Err(GcovReaderError::Str(format!(
                 "Unexpected block number: {} (in {}) in {}",
                 block_no,
                 fun.name,
@@ -516,7 +520,7 @@ impl Gcno {
         fun: &mut GcovFunction,
         version: u32,
         reader: &mut T,
-    ) -> Result<(), GcovError> {
+    ) -> Result<(), GcovReaderError> {
         let block_no = reader.read_u32()? as usize;
         let mut must_take = true;
         if block_no <= fun.blocks.len() {
@@ -546,7 +550,7 @@ impl Gcno {
                 }
             }
         } else {
-            return Err(GcovError::Str(format!(
+            return Err(GcovReaderError::Str(format!(
                 "Unexpected block number: {} (in {}).",
                 block_no, fun.name
             )));
@@ -559,7 +563,7 @@ impl Gcno {
         length: u32,
         version: u32,
         reader: &mut T,
-    ) -> Result<(), GcovError> {
+    ) -> Result<(), GcovReaderError> {
         if version < 80 {
             let length = length as usize;
             for no in 0..length {
@@ -580,7 +584,7 @@ impl Gcno {
     fn read_functions<E: Endian, T: GcovReader<E> + Sized>(
         &mut self,
         reader: &mut T,
-    ) -> Result<(), GcovError> {
+    ) -> Result<(), GcovReaderError> {
         while let Ok(tag) = reader.read_u32() {
             if tag == 0 {
                 break;
@@ -662,17 +666,17 @@ impl Gcno {
     pub fn read_gcda<E: Endian, T: GcovReader<E>>(
         &mut self,
         mut reader: T,
-    ) -> Result<(), GcovError> {
+    ) -> Result<(), GcovReaderError> {
         let version = reader.read_version()?;
         if version != self.version {
-            Err(GcovError::Str(format!(
+            Err(GcovReaderError::Str(format!(
                 "GCOV versions do not match in {}",
                 reader.get_stem()
             )))
         } else {
             let checksum = reader.read_u32()?;
             if checksum != self.checksum {
-                Err(GcovError::Str(format!(
+                Err(GcovReaderError::Str(format!(
                     "File checksums do not match: {} != {} in {}",
                     self.checksum,
                     checksum,
@@ -693,7 +697,7 @@ impl Gcno {
                         }
 
                         if length == 1 {
-                            return Err(GcovError::Str(format!(
+                            return Err(GcovReaderError::Str(format!(
                                 "Invalid header length in {}",
                                 reader.get_stem()
                             )));
@@ -705,7 +709,7 @@ impl Gcno {
                         if let Some(fun_id) = self.ident_to_fun.get(&id) {
                             let fun = &self.functions[*fun_id];
                             if line_sum != fun.line_checksum || cfg_sum != fun.cfg_checksum {
-                                return Err(GcovError::Str(format!(
+                                return Err(GcovReaderError::Str(format!(
                                     "Checksum mismatch ({}, {}) != ({}, {}) in {}",
                                     line_sum,
                                     fun.line_checksum,
@@ -716,7 +720,7 @@ impl Gcno {
                             }
                             current_fun_id = Some(*fun_id);
                         } else {
-                            return Err(GcovError::Str(format!(
+                            return Err(GcovReaderError::Str(format!(
                                 "Invalid function identifier {} in {}",
                                 id,
                                 reader.get_stem()
@@ -732,7 +736,7 @@ impl Gcno {
                         let count = length;
                         let edges = &mut fun.edges;
                         if fun.real_edge_count as u32 != count / 2 {
-                            return Err(GcovError::Str(format!(
+                            return Err(GcovReaderError::Str(format!(
                                 "Unexpected number of edges (in {}) in {}",
                                 fun.name,
                                 reader.get_stem()
@@ -799,7 +803,7 @@ impl Gcno {
         path: &Path,
         file_name: &str,
         writer: &mut dyn Write,
-    ) -> Result<(), GcovError> {
+    ) -> Result<(), GcovReaderError> {
         let file = File::open(path)?;
         let mut reader = BufReader::new(file);
         let mut source = String::new();

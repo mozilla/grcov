@@ -16,7 +16,8 @@ use std::{
 };
 use symbolic_common::Name;
 use symbolic_demangle::{Demangle, DemangleOptions};
-use tabled::{Style, Table, Tabled};
+use tabled::settings::Style;
+use tabled::{Table, Tabled};
 use uuid::Uuid;
 
 use crate::defs::*;
