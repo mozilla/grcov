@@ -222,9 +222,15 @@ mod tests {
         assert_eq!(lcovs.len(), 0);
 
         #[cfg(unix)]
-        let binary_path = format!("{}/debug/rust-code-coverage-sample", std::env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string()));
+        let binary_path = format!(
+            "{}/debug/rust-code-coverage-sample",
+            std::env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string())
+        );
         #[cfg(windows)]
-        let binary_path = format!("{}/debug/rust-code-coverage-sample.exe", std::env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string()));
+        let binary_path = format!(
+            "{}/debug/rust-code-coverage-sample.exe",
+            std::env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string())
+        );
 
         let lcovs = profraws_to_lcov(
             &[tmp_path.join("default.profraw")],
