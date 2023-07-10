@@ -6,16 +6,16 @@ use std::path::Path;
 use std::process::Command;
 
 #[derive(Debug)]
-pub enum GcovError {
+pub enum GcovToolError {
     ProcessFailure,
     Failure((String, String, String)),
 }
 
-impl fmt::Display for GcovError {
+impl fmt::Display for GcovToolError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            GcovError::ProcessFailure => write!(f, "Failed to execute gcov process"),
-            GcovError::Failure((ref path, ref stdout, ref stderr)) => {
+            GcovToolError::ProcessFailure => write!(f, "Failed to execute gcov process"),
+            GcovToolError::Failure((ref path, ref stdout, ref stderr)) => {
                 writeln!(f, "gcov execution failed on {}", path)?;
                 writeln!(f, "gcov stdout: {}", stdout)?;
                 writeln!(f, "gcov stderr: {}", stderr)
@@ -36,7 +36,7 @@ pub fn run_gcov(
     gcno_path: &Path,
     branch_enabled: bool,
     working_dir: &Path,
-) -> Result<(), GcovError> {
+) -> Result<(), GcovToolError> {
     let mut command = Command::new(get_gcov());
     let command = if branch_enabled {
         command.arg("-b").arg("-c")
@@ -51,11 +51,11 @@ pub fn run_gcov(
     let output = if let Ok(output) = status.output() {
         output
     } else {
-        return Err(GcovError::ProcessFailure);
+        return Err(GcovToolError::ProcessFailure);
     };
 
     if !output.status.success() {
-        return Err(GcovError::Failure((
+        return Err(GcovToolError::Failure((
             gcno_path.to_str().unwrap().to_string(),
             String::from_utf8_lossy(&output.stdout).to_string(),
             String::from_utf8_lossy(&output.stderr).to_string(),
