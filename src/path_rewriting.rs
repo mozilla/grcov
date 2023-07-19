@@ -341,7 +341,9 @@ pub fn rewrite_paths(
             Some((abs_path, rel_path, result))
         });
 
-    results.collect()
+    let mut results_vec: Vec<_> = results.collect();
+    results_vec.sort_by_key(|result| result.0.display().to_string());
+    results_vec
 }
 
 #[cfg(test)]
