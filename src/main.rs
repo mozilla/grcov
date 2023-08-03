@@ -19,7 +19,7 @@ use std::{process, thread};
 
 use grcov::*;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 enum OutputType {
     Ade,
     Lcov,
@@ -210,6 +210,15 @@ struct Opt {
     /// to only return uncovered files.
     #[arg(long, value_enum)]
     filter: Option<Filter>,
+    /// Comma separated list of output types to sort files lexicographically for.
+    #[arg(
+        long,
+        value_name = "OUTPUT TYPES",
+        value_delimiter = ',',
+        alias = "sort-output-types",
+        default_value = "markdown"
+    )]
+    sort_output_types: Vec<OutputType>,
     /// Speeds-up parsing, when the code coverage information is exclusively coming from a llvm
     /// build.
     #[arg(long)]
@@ -469,6 +478,7 @@ fn main() {
         filter_option,
         file_filter,
     );
+    let mut sorted_iterator: Option<Vec<ResultTuple>> = None;
 
     let service_number = opt.service_number.unwrap_or_default();
     let service_pull_request = opt.service_pull_request.unwrap_or_default();
@@ -493,12 +503,23 @@ fn main() {
 
     for output_type in &output_types {
         let output_path = output_type.to_file_name(output_path);
+        let results = if opt.sort_output_types.contains(output_type) {
+            // compute and cache the sorted results if not already used
+            sorted_iterator = sorted_iterator.or_else(|| {
+                let mut results = iterator.clone();
+                results.sort_by_key(|result| result.0.display().to_string());
+                Some(results)
+            });
+            sorted_iterator.as_ref().unwrap()
+        } else {
+            &iterator
+        };
 
         match output_type {
-            OutputType::Ade => output_activedata_etl(&iterator, output_path.as_deref(), demangle),
-            OutputType::Lcov => output_lcov(&iterator, output_path.as_deref(), demangle),
+            OutputType::Ade => output_activedata_etl(results, output_path.as_deref(), demangle),
+            OutputType::Lcov => output_lcov(results, output_path.as_deref(), demangle),
             OutputType::Coveralls => output_coveralls(
-                &iterator,
+                results,
                 opt.token.as_deref(),
                 opt.service_name.as_deref(),
                 &service_number,
@@ -513,7 +534,7 @@ fn main() {
                 demangle,
             ),
             OutputType::CoverallsPlus => output_coveralls(
-                &iterator,
+                results,
                 opt.token.as_deref(),
                 opt.service_name.as_deref(),
                 &service_number,
@@ -527,10 +548,10 @@ fn main() {
                 opt.parallel,
                 demangle,
             ),
-            OutputType::Files => output_files(&iterator, output_path.as_deref()),
-            OutputType::Covdir => output_covdir(&iterator, output_path.as_deref(), opt.precision),
+            OutputType::Files => output_files(results, output_path.as_deref()),
+            OutputType::Covdir => output_covdir(results, output_path.as_deref(), opt.precision),
             OutputType::Html => output_html(
-                &iterator,
+                results,
                 output_path.as_deref(),
                 num_threads,
                 opt.branch,
@@ -539,13 +560,11 @@ fn main() {
             ),
             OutputType::Cobertura => output_cobertura(
                 source_root.as_deref(),
-                &iterator,
+                results,
                 output_path.as_deref(),
                 demangle,
             ),
-            OutputType::Markdown => {
-                output_markdown(&iterator, output_path.as_deref(), opt.precision)
-            }
+            OutputType::Markdown => output_markdown(results, output_path.as_deref(), opt.precision),
         };
     }
 }
