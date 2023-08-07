@@ -61,7 +61,7 @@ simplelog = "0.12"
 smallvec = "1.10"
 symbolic-common = "12.1"
 symbolic-demangle = { version = "12.1", default-features = false }
-tabled = "0.12"
+tabled = "0.14"
 tempfile = "3.5"
 tera = "1.18"
 uuid = { version = "1.3", features = ["v4"] }
