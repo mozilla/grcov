@@ -59,7 +59,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 simplelog = "0.12"
 smallvec = "1.10"
-symbolic-common = "12.1"
+symbolic-common = "12.4"
 symbolic-demangle = { version = "12.1", default-features = false }
 tabled = "0.12"
 tempfile = "3.5"
