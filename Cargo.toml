@@ -40,7 +40,7 @@ demangle-with-swift = [
 [dependencies]
 cargo-binutils = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
-clap = { version = "4.1", features = ["cargo", "derive", "deprecated", "wrap_help"] }
+clap = { version = "4.4", features = ["cargo", "derive", "deprecated", "wrap_help"] }
 crossbeam-channel = "0.5"
 flate2 = "1.0"
 globset = "0.4"
