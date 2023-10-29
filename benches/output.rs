@@ -63,6 +63,7 @@ fn bench_output_covdir(b: &mut Bencher) {
         black_box(output_covdir(
             &generate_cov_result_iter(),
             Some(&dir.path().join("temp")),
+            2,
         ));
     });
 }
