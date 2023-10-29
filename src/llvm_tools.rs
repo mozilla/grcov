@@ -262,13 +262,20 @@ mod tests {
         assert!(output_lcov.lines().any(|line| line == "DA:3,0"));
         assert!(output_lcov.lines().any(|line| line == "DA:8,1"));
         assert!(output_lcov.lines().any(|line| line == "DA:9,1"));
-        assert!(output_lcov.lines().any(|line| line == "DA:10,1"));
+        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
+            assert!(output_lcov.lines().any(|line| line == "DA:10,1"));
+        }
         assert!(output_lcov.lines().any(|line| line == "DA:11,1"));
         assert!(output_lcov.lines().any(|line| line == "DA:12,1"));
         assert!(output_lcov.lines().any(|line| line == "BRF:0"));
         assert!(output_lcov.lines().any(|line| line == "BRH:0"));
-        assert!(output_lcov.lines().any(|line| line == "LF:6"));
-        assert!(output_lcov.lines().any(|line| line == "LH:5"));
+        if rustc_version::version_meta().unwrap().channel == rustc_version::Channel::Nightly {
+            assert!(output_lcov.lines().any(|line| line == "LF:5"));
+            assert!(output_lcov.lines().any(|line| line == "LH:4"));
+        } else {
+            assert!(output_lcov.lines().any(|line| line == "LF:6"));
+            assert!(output_lcov.lines().any(|line| line == "LH:5"));
+        }
         assert!(output_lcov.lines().any(|line| line == "end_of_record"));
     }
 }

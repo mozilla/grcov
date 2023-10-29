@@ -616,6 +616,7 @@ dependencies = [
  "rayon",
  "regex",
  "rustc-hash",
+ "rustc_version",
  "semver",
  "serde",
  "serde_json",
