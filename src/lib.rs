@@ -34,7 +34,6 @@ mod reader;
 pub use crate::reader::*;
 
 mod covdir;
-pub use crate::covdir::*;
 
 pub mod html;
 
