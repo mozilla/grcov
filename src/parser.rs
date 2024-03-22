@@ -423,12 +423,20 @@ pub fn parse_gcov_gz(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, Parse
         let mut lines = BTreeMap::new();
         let mut branches = BTreeMap::new();
         for mut line in file.lines.drain(..) {
-            lines.insert(line.line_number, line.count);
+            lines
+                .entry(line.line_number)
+                .and_modify(|v| *v += line.count)
+                .or_insert(line.count);
             if !line.branches.is_empty() {
-                branches.insert(
-                    line.line_number,
-                    line.branches.drain(..).map(|b| b.count > 0).collect(),
-                );
+                let values: Vec<bool> = line.branches.drain(..).map(|b| b.count > 0).collect();
+                branches
+                    .entry(line.line_number)
+                    .and_modify(|v: &mut Vec<bool>| {
+                        v.iter_mut()
+                            .zip(values.iter())
+                            .for_each(|(val, newval)| *val &= newval)
+                    })
+                    .or_insert(values);
             }
         }
         if lines.is_empty() {
