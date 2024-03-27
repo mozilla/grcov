@@ -512,7 +512,7 @@ fn write_lines(writer: &mut Writer<Cursor<Vec<u8>>>, lines: &[Line]) {
             } => {
                 l.push_attribute(("number", number.to_string().as_ref()));
                 l.push_attribute(("hits", hits.to_string().as_ref()));
-                writer.write_event(Event::Start(l)).unwrap();
+                writer.write_event(Event::Empty(l)).unwrap();
             }
             Line::Branch {
                 ref number,
@@ -543,11 +543,11 @@ fn write_lines(writer: &mut Writer<Cursor<Vec<u8>>>, lines: &[Line]) {
                 writer
                     .write_event(Event::End(BytesEnd::new(conditions_tag)))
                     .unwrap();
+                writer
+                    .write_event(Event::End(BytesEnd::new(line_tag)))
+                    .unwrap();
             }
         }
-        writer
-            .write_event(Event::End(BytesEnd::new(line_tag)))
-            .unwrap();
     }
     writer
         .write_event(Event::End(BytesEnd::new(lines_tag)))
@@ -721,7 +721,7 @@ mod tests {
         assert!(results.contains(r#"package name="src/main.rs""#));
         assert!(results.contains(r#"class name="main" filename="src/main.rs""#));
         assert!(results.contains(r#"method name="cov_test::main""#));
-        assert!(results.contains(r#"line number="1" hits="1">"#));
+        assert!(results.contains(r#"line number="1" hits="1"/>"#));
         assert!(results.contains(r#"line number="3" hits="2" branch="true""#));
         assert!(results.contains(r#"<condition number="0" type="jump" coverage="1"/>"#));
 
