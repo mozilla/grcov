@@ -61,6 +61,7 @@ Options:
           - *files* to only return a list of files.
           - *markdown* for human easy read.
           - *cobertura* for output in cobertura format.
+          - *cobertura-pretty* to pretty-print in cobertura format.
 
 
           [default: lcov]
@@ -405,6 +406,7 @@ grcov provides the following output types:
 | covdir           | Provides coverage in a recursive JSON format.                             |
 | html             | Output a HTML coverage report, including coverage badges for your README. |
 | cobertura        | Cobertura XML. Used for coverage analysis in some IDEs and Gitlab CI.     |
+| cobertura-pretty | Pretty-printed Cobertura XML.                                             |
 
 ### Hosting HTML reports and using coverage badges
 
