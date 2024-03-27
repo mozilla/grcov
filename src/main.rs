@@ -29,6 +29,7 @@ enum OutputType {
     Covdir,
     Html,
     Cobertura,
+    CoberturaPretty,
     Markdown,
 }
 
@@ -45,6 +46,7 @@ impl FromStr for OutputType {
             "covdir" => Self::Covdir,
             "html" => Self::Html,
             "cobertura" => Self::Cobertura,
+            "cobertura-pretty" => Self::CoberturaPretty,
             "markdown" => Self::Markdown,
             _ => return Err(format!("{} is not a supported output type", s)),
         })
@@ -63,7 +65,9 @@ impl OutputType {
                     OutputType::Files => path.join("files"),
                     OutputType::Covdir => path.join("covdir"),
                     OutputType::Html => path.join("html"),
-                    OutputType::Cobertura => path.join("cobertura.xml"),
+                    OutputType::Cobertura | OutputType::CoberturaPretty => {
+                        path.join("cobertura.xml")
+                    }
                     OutputType::Markdown => path.join("markdown.md"),
                 }
             } else {
@@ -166,6 +170,7 @@ struct Opt {
             - *files* to only return a list of files.\n\
             - *markdown* for human easy read.\n\
             - *cobertura* for output in cobertura format.\n\
+            - *cobertura-pretty* to pretty-print in cobertura format.\n\
         ",
         value_name = "OUTPUT TYPE",
         requires_ifs = [
@@ -563,6 +568,14 @@ fn main() {
                 results,
                 output_path.as_deref(),
                 demangle,
+                false,
+            ),
+            OutputType::CoberturaPretty => output_cobertura(
+                source_root.as_deref(),
+                results,
+                output_path.as_deref(),
+                demangle,
+                true,
             ),
             OutputType::Markdown => output_markdown(results, output_path.as_deref(), opt.precision),
         };

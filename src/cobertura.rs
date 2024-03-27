@@ -330,6 +330,7 @@ pub fn output_cobertura(
     results: &[ResultTuple],
     output_file: Option<&Path>,
     demangle: bool,
+    pretty: bool,
 ) {
     let demangle_options = DemangleOptions::name_only();
     let sources = vec![source_dir
@@ -338,7 +339,11 @@ pub fn output_cobertura(
         .to_string()];
     let coverage = get_coverage(results, sources, demangle, demangle_options);
 
-    let mut writer = Writer::new_with_indent(Cursor::new(vec![]), b' ', 4);
+    let mut writer = if pretty {
+        Writer::new_with_indent(Cursor::new(vec![]), b' ', 4)
+    } else {
+        Writer::new(Cursor::new(vec![]))
+    };
     writer
         .write_event(Event::Decl(BytesDecl::new("1.0", None, None)))
         .unwrap();
@@ -712,26 +717,28 @@ mod tests {
             coverage_result(Result::Main),
         )];
 
-        output_cobertura(None, &results, Some(&file_path), true);
+        for pretty in [false, true] {
+            output_cobertura(None, &results, Some(&file_path), true, pretty);
 
-        let results = read_file(&file_path);
+            let results = read_file(&file_path);
 
-        assert!(results.contains(r#"<source>.</source>"#));
+            assert!(results.contains(r#"<source>.</source>"#));
 
-        assert!(results.contains(r#"package name="src/main.rs""#));
-        assert!(results.contains(r#"class name="main" filename="src/main.rs""#));
-        assert!(results.contains(r#"method name="cov_test::main""#));
-        assert!(results.contains(r#"line number="1" hits="1"/>"#));
-        assert!(results.contains(r#"line number="3" hits="2" branch="true""#));
-        assert!(results.contains(r#"<condition number="0" type="jump" coverage="1"/>"#));
+            assert!(results.contains(r#"package name="src/main.rs""#));
+            assert!(results.contains(r#"class name="main" filename="src/main.rs""#));
+            assert!(results.contains(r#"method name="cov_test::main""#));
+            assert!(results.contains(r#"line number="1" hits="1"/>"#));
+            assert!(results.contains(r#"line number="3" hits="2" branch="true""#));
+            assert!(results.contains(r#"<condition number="0" type="jump" coverage="1"/>"#));
 
-        assert!(results.contains(r#"lines-covered="6""#));
-        assert!(results.contains(r#"lines-valid="8""#));
-        assert!(results.contains(r#"line-rate="0.75""#));
+            assert!(results.contains(r#"lines-covered="6""#));
+            assert!(results.contains(r#"lines-valid="8""#));
+            assert!(results.contains(r#"line-rate="0.75""#));
 
-        assert!(results.contains(r#"branches-covered="1""#));
-        assert!(results.contains(r#"branches-valid="4""#));
-        assert!(results.contains(r#"branch-rate="0.25""#));
+            assert!(results.contains(r#"branches-covered="1""#));
+            assert!(results.contains(r#"branches-valid="4""#));
+            assert!(results.contains(r#"branch-rate="0.25""#));
+        }
     }
 
     #[test]
@@ -746,7 +753,7 @@ mod tests {
             coverage_result(Result::Test),
         )];
 
-        output_cobertura(None, &results, Some(file_path.as_ref()), true);
+        output_cobertura(None, &results, Some(file_path.as_ref()), true, true);
 
         let results = read_file(&file_path);
 
@@ -785,7 +792,7 @@ mod tests {
             ),
         ];
 
-        output_cobertura(None, &results, Some(file_path.as_ref()), true);
+        output_cobertura(None, &results, Some(file_path.as_ref()), true, true);
 
         let results = read_file(&file_path);
 
@@ -817,7 +824,7 @@ mod tests {
             CovResult::default(),
         )];
 
-        output_cobertura(None, &results, Some(&file_path), true);
+        output_cobertura(None, &results, Some(&file_path), true, true);
 
         let results = read_file(&file_path);
 
@@ -837,7 +844,13 @@ mod tests {
             CovResult::default(),
         )];
 
-        output_cobertura(Some(Path::new("src")), &results, Some(&file_path), true);
+        output_cobertura(
+            Some(Path::new("src")),
+            &results,
+            Some(&file_path),
+            true,
+            true,
+        );
 
         let results = read_file(&file_path);
 
