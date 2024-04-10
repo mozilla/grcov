@@ -5,7 +5,7 @@ use std::fs::{self, File};
 use std::io::{self, BufReader, Read};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
-use zip::ZipArchive;
+use zip_next::ZipArchive;
 
 use crate::defs::*;
 

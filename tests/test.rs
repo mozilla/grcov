@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{env, fs};
 use walkdir::WalkDir;
-use zip::write::FileOptions;
-use zip::ZipWriter;
+use zip_next::write::FileOptions;
+use zip_next::ZipWriter;
 
 fn get_tool(name: &str, default: &str) -> String {
     match env::var(name) {
