@@ -4,9 +4,12 @@ use quick_xml::{
     Writer,
 };
 use rustc_hash::FxHashMap;
-use std::io::{BufWriter, Cursor, Write};
-use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    fmt::Display,
+    io::{BufWriter, Cursor, Write},
+};
+use std::{fmt::Formatter, path::Path};
 use symbolic_common::Name;
 use symbolic_demangle::{Demangle, DemangleOptions};
 
@@ -220,10 +223,10 @@ enum ConditionType {
     Jump,
 }
 
-impl ToString for ConditionType {
-    fn to_string(&self) -> String {
-        match *self {
-            Self::Jump => String::from("jump"),
+impl Display for ConditionType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Jump => write!(f, "jump"),
         }
     }
 }

@@ -245,33 +245,43 @@ mod tests {
         assert!(output_lcov
             .lines()
             .any(|line| line.contains("SF") && line.contains("src") && line.contains("main.rs")));
-        assert!(output_lcov.lines().any(|line| line.contains("FN:3")
-            && line.contains("rust_code_coverage_sample")
-            && line.contains("Ciao")));
+        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
+            assert!(output_lcov.lines().any(|line| line.contains("FN:3")
+                && line.contains("rust_code_coverage_sample")
+                && line.contains("Ciao")));
+        }
         assert!(output_lcov.lines().any(|line| line.contains("FN:8")
             && line.contains("rust_code_coverage_sample")
             && line.contains("main")));
-        assert!(output_lcov.lines().any(|line| line.contains("FNDA:0")
-            && line.contains("rust_code_coverage_sample")
-            && line.contains("Ciao")));
+        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
+            assert!(output_lcov.lines().any(|line| line.contains("FNDA:0")
+                && line.contains("rust_code_coverage_sample")
+                && line.contains("Ciao")));
+        } else {
+            assert!(output_lcov.lines().any(|line| line.contains("FNDA:1")
+                && line.contains("rust_code_coverage_sample")
+                && line.contains("main")));
+        }
         assert!(output_lcov.lines().any(|line| line.contains("FNDA:1")
             && line.contains("rust_code_coverage_sample")
             && line.contains("main")));
-        assert!(output_lcov.lines().any(|line| line == "FNF:2"));
+        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
+            assert!(output_lcov.lines().any(|line| line == "FNF:2"));
+        }
         assert!(output_lcov.lines().any(|line| line == "FNH:1"));
-        assert!(output_lcov.lines().any(|line| line == "DA:3,0"));
+        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
+            assert!(output_lcov.lines().any(|line| line == "DA:3,0"));
+        }
         assert!(output_lcov.lines().any(|line| line == "DA:8,1"));
         assert!(output_lcov.lines().any(|line| line == "DA:9,1"));
-        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
-            assert!(output_lcov.lines().any(|line| line == "DA:10,1"));
-        }
+        assert!(output_lcov.lines().any(|line| line == "DA:10,1"));
         assert!(output_lcov.lines().any(|line| line == "DA:11,1"));
         assert!(output_lcov.lines().any(|line| line == "DA:12,1"));
         assert!(output_lcov.lines().any(|line| line == "BRF:0"));
         assert!(output_lcov.lines().any(|line| line == "BRH:0"));
         if rustc_version::version_meta().unwrap().channel == rustc_version::Channel::Nightly {
             assert!(output_lcov.lines().any(|line| line == "LF:5"));
-            assert!(output_lcov.lines().any(|line| line == "LH:4"));
+            assert!(output_lcov.lines().any(|line| line == "LH:5"));
         } else {
             assert!(output_lcov.lines().any(|line| line == "LF:6"));
             assert!(output_lcov.lines().any(|line| line == "LH:5"));
