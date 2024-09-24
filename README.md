@@ -445,7 +445,7 @@ you do not need to run as Administrator to use `grcov`.
 1. Click Start, then select "Local Group Policy Editor". Or just run
    `gpedit.msc` to open it directly.
 1. In the navigation tree, select "Computer Configuration", "Windows Settings",
-   "Security Settings", "Local Policies".
+   "Security Settings", "Local Policies", "User Rights Assignment".
 1. In the pane on the right, select "Create symbolic links" and double-click it.
 1. Click "Add User or Group", and add your account.
 1. Log out and then log back in.

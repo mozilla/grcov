@@ -60,7 +60,7 @@ pub fn merge_results(result: &mut CovResult, result2: CovResult) -> bool {
             btree_map::Entry::Occupied(c) => {
                 let v = c.get().checked_add(execution_count).unwrap_or_else(|| {
                     warn_overflow = true;
-                    std::u64::MAX
+                    u64::MAX
                 });
 
                 *c.into_mut() = v;
@@ -143,7 +143,7 @@ fn rename_single_files(results: &mut [(String, CovResult)], stem: &str) {
     if let Some(parent) = Path::new(stem).parent() {
         for (file, _) in results.iter_mut() {
             if has_no_parent(file) {
-                *file = parent.join(&file).to_str().unwrap().to_string();
+                *file = parent.join(file.as_str()).to_str().unwrap().to_string();
             }
         }
     }
