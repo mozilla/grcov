@@ -65,7 +65,7 @@ tabled = "0.14"
 tempfile = "3.10"
 tera = "1.20"
 uuid = { version = "1.10", features = ["v4"] }
-walkdir = "2.4"
+walkdir = "2.5"
 zip = { version = "0.6", default-features = false }
 
 [dev-dependencies]
