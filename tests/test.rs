@@ -88,14 +88,7 @@ fn read_expected(
         "linux"
     };
 
-    let base_name = format!(
-        "expected{}",
-        if let Some(additional) = additional {
-            additional
-        } else {
-            ""
-        }
-    );
+    let base_name = format!("expected{}", additional.unwrap_or_default());
 
     let name_with_ver_and_os = format!(
         "{}_{}_{}_{}.{}",
