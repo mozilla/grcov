@@ -96,7 +96,7 @@ pub fn get_gcov_output_ext() -> &'static str {
 
 fn parse_version(gcov_output: &str) -> Version {
     let mut versions: Vec<_> = gcov_output
-        .split(|c| c == ' ' || c == '\n')
+        .split([' ', '\n'])
         .filter_map(|value| Version::parse(value).ok())
         .collect();
     assert!(!versions.is_empty(), "no version found for `gcov`.");

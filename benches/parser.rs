@@ -25,7 +25,7 @@ fn bench_parser_gcov(b: &mut Bencher) {
 fn bench_parser_jacoco(b: &mut Bencher) {
     let path = Path::new("./test/jacoco/full-junit4-report-multiple-top-level-classes.xml");
     b.iter(|| {
-        let file = BufReader::new(File::open(&path).unwrap());
+        let file = BufReader::new(File::open(path).unwrap());
         black_box(grcov::parse_jacoco_xml_report(file))
     });
 }
