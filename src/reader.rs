@@ -944,7 +944,7 @@ impl Gcno {
 
 impl GcovFunction {
     fn get_cycle_count(edges: &mut [GcovEdge], path: &[usize]) -> u64 {
-        let mut count = std::u64::MAX;
+        let mut count = u64::MAX;
         for e in path.iter() {
             count = cmp::min(count, edges[*e].cycles);
         }
