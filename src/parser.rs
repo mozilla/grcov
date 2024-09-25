@@ -561,7 +561,7 @@ fn get_xml_attribute<R: BufRead>(
     for a in event.attributes() {
         let a = a?;
         if a.key.into_inner() == name.as_bytes() {
-            return Ok(a.decode_and_unescape_value(reader)?.into_owned());
+            return Ok(a.decode_and_unescape_value(reader.decoder())?.into_owned());
         }
     }
     Err(ParserError::InvalidRecord(format!(
