@@ -143,7 +143,7 @@ jobs:
             --fail > release.json
 
           id=$(jq .id release.json)
-          echo "::set-output name=id::$id"
+          echo "id=$id" >> $GITHUB_OUTPUT
       - name: Upload artifacts
         run: |
           set -x

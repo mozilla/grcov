@@ -561,7 +561,7 @@ fn get_xml_attribute<R: BufRead>(
     for a in event.attributes() {
         let a = a?;
         if a.key.into_inner() == name.as_bytes() {
-            return Ok(a.decode_and_unescape_value(reader)?.into_owned());
+            return Ok(a.decode_and_unescape_value(reader.decoder())?.into_owned());
         }
     }
     Err(ParserError::InvalidRecord(format!(
@@ -779,7 +779,9 @@ pub fn parse_jacoco_xml_report<T: Read>(
     xml_reader: BufReader<T>,
 ) -> Result<Vec<(String, CovResult)>, ParserError> {
     let mut parser = Reader::from_reader(xml_reader);
-    parser.expand_empty_elements(true).trim_text(false);
+    let config = parser.config_mut();
+    config.expand_empty_elements = true;
+    config.trim_text(false);
 
     let mut results = Vec::new();
     let mut buf = Vec::new();
