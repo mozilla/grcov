@@ -95,13 +95,13 @@ pub fn get_gcov_output_ext() -> &'static str {
 }
 
 fn parse_version(gcov_output: &str) -> Version {
-    let mut versions: Vec<_> = gcov_output
+    let version = gcov_output
         .split([' ', '\n'])
-        .filter_map(|value| Version::parse(value).ok())
-        .collect();
-    assert!(!versions.is_empty(), "no version found for `gcov`.");
+        .filter_map(|value| Version::parse(value.trim()).ok())
+        .last();
+    assert!(version.is_some(), "no version found for `gcov`.");
 
-    versions.pop().unwrap()
+    version.unwrap()
 }
 
 #[cfg(test)]
@@ -123,5 +123,6 @@ mod tests {
             Version::new(6, 3, 0)
         );
         assert_eq!(parse_version("gcov (GCC) 12.2.0"), Version::new(12, 2, 0));
+        assert_eq!(parse_version("gcov (GCC) 12.2.0\r"), Version::new(12, 2, 0));
     }
 }
