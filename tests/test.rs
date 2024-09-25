@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{env, fs};
 use walkdir::WalkDir;
-use zip::write::FileOptions;
+use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
 
 fn get_tool(name: &str, default: &str) -> String {
@@ -424,7 +424,7 @@ fn create_zip(zip_path: &Path, base_dir: &Path, base_dir_in_zip: Option<&str>, f
             None => filename_in_zip.to_string(),
         };
 
-        zip.start_file(filename_in_zip, FileOptions::default())
+        zip.start_file(filename_in_zip, SimpleFileOptions::default())
             .unwrap_or_else(|_| panic!("Cannot create zip for {:?}", zip_path));
         zip.write_all(content.as_slice())
             .unwrap_or_else(|_| panic!("Cannot write {:?}", zip_path));
@@ -436,7 +436,7 @@ fn create_zip(zip_path: &Path, base_dir: &Path, base_dir_in_zip: Option<&str>, f
         while let Some(parent) = path {
             let ancestor = parent.to_str().unwrap();
             if !ancestor.is_empty() {
-                zip.add_directory(ancestor, FileOptions::default())
+                zip.add_directory(ancestor, SimpleFileOptions::default())
                     .unwrap_or_else(|_| panic!("Cannot add a directory"));
             }
             path = parent.parent();
