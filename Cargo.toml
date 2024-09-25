@@ -38,7 +38,6 @@ demangle-with-swift = [
 ]
 
 [dependencies]
-cargo-binutils = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4.5", features = ["cargo", "derive", "deprecated", "wrap_help"] }
 crossbeam-channel = "0.5"
@@ -54,6 +53,7 @@ quick-xml = "0.36"
 rayon = "1.10"
 regex = "1.10"
 rustc-hash = "2.0"
+rustc_version = "0.4"
 semver = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
