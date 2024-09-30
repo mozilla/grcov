@@ -62,7 +62,7 @@ smallvec = "1.13"
 symbolic-common = "12.1"
 symbolic-demangle = { version = "12.11", default-features = false }
 tabled = "0.16"
-tempfile = "3.12"
+tempfile = "3.13"
 tera = "1.20"
 uuid = { version = "1.10", features = ["v4"] }
 walkdir = "2.5"
