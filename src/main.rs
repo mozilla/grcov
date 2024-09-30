@@ -297,6 +297,9 @@ struct Opt {
     /// No symbol demangling.
     #[arg(long)]
     no_demangle: bool,
+    /// Print a summary of the results
+    #[arg(long)]
+    print_summary: bool,
 }
 
 fn main() {
@@ -579,6 +582,10 @@ fn main() {
             ),
             OutputType::Markdown => output_markdown(results, output_path.as_deref(), opt.precision),
         };
+    }
+
+    if opt.print_summary {
+        print_summary(&iterator);
     }
 }
 
