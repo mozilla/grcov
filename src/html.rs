@@ -72,8 +72,6 @@ impl ConfigFile {
     }
 }
 
-static BULMA_VERSION: &str = "0.9.1";
-
 fn load_template(path: &str) -> String {
     fs::read_to_string(path).unwrap()
 }
@@ -260,14 +258,6 @@ fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &Path, stats: 
 
 use tera::{Context, Tera};
 
-fn make_context() -> Context {
-    let mut ctx = Context::new();
-    let ver = std::env::var("BULMA_VERSION").map_or(BULMA_VERSION.into(), |v| v);
-    ctx.insert("bulma_version", &ver);
-
-    ctx
-}
-
 pub fn gen_index(
     tera: &Tera,
     global: &HtmlGlobalStats,
@@ -286,11 +276,12 @@ pub fn gen_index(
         Ok(f) => f,
     };
 
-    let mut ctx = make_context();
+    let mut ctx = Context::new();
     let empty: &[&str] = &[];
     ctx.insert("date", &conf.date);
     ctx.insert("current", "top_level");
     ctx.insert("parents", empty);
+    ctx.insert("bulma_path", "bulma.min.css");
     ctx.insert("stats", &global.stats);
     ctx.insert("precision", &precision);
     ctx.insert("items", &global.dirs);
@@ -301,6 +292,22 @@ pub fn gen_index(
 
     if output_stream.write_all(out.as_bytes()).is_err() {
         eprintln!("Cannot write the file {:?}", output_file);
+        return;
+    }
+
+    let bulma_file = output.join("bulma.min.css");
+    let mut bulma_stream = match File::create(&bulma_file) {
+        Err(_) => {
+            eprintln!("Cannot create file {:?}", output_file);
+            return;
+        }
+        Ok(f) => f,
+    };
+    if bulma_stream
+        .write_all(include_bytes!("bulma.min.css"))
+        .is_err()
+    {
+        eprintln!("Cannot write the file {:?}", bulma_file);
         return;
     }
 
@@ -329,6 +336,7 @@ pub fn gen_dir_index(
     let index = Path::new(dir_name).join("index.html");
     let layers = index.components().count() - 1;
     let prefix = "../".repeat(layers) + "index.html";
+    let bulma_path = "../".repeat(layers) + "bulma.min.css";
     let output_file = output.join(index);
     create_parent(&output_file);
     let mut output = match File::create(&output_file) {
@@ -339,9 +347,9 @@ pub fn gen_dir_index(
         Ok(f) => f,
     };
 
-    let mut ctx = make_context();
+    let mut ctx = Context::new();
     ctx.insert("date", &conf.date);
-    ctx.insert("bulma_version", BULMA_VERSION);
+    ctx.insert("bulma_path", &bulma_path);
     ctx.insert("current", dir_name);
     ctx.insert("parents", &[(prefix, "top_level")]);
     ctx.insert("stats", &dir_stats.stats);
@@ -395,12 +403,13 @@ fn gen_html(
     let base_url = get_base(rel_path);
     let filename = rel_path.file_name().unwrap().to_str().unwrap();
     let parent = rel_path.parent().unwrap().to_str().unwrap().to_string();
+    let bulma_path = format!("{base_url}bulma.min.css");
     let mut index_url = base_url;
     index_url.push_str("index.html");
 
-    let mut ctx = make_context();
+    let mut ctx = Context::new();
     ctx.insert("date", &conf.date);
-    ctx.insert("bulma_version", BULMA_VERSION);
+    ctx.insert("bulma_path", &bulma_path);
     ctx.insert("current", filename);
     ctx.insert(
         "parents",
@@ -540,7 +549,7 @@ pub fn gen_badge(tera: &Tera, stats: &HtmlStats, conf: &Config, output: &Path, s
         Ok(f) => f,
     };
 
-    let mut ctx = make_context();
+    let mut ctx = Context::new();
     ctx.insert(
         "current",
         &(get_percentage_of_covered_lines(stats.covered_lines, stats.total_lines) as usize),
