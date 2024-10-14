@@ -60,7 +60,7 @@ serde_json = "1.0"
 simplelog = "0.12"
 smallvec = "1.13"
 symbolic-common = "12.12"
-symbolic-demangle = { version = "12.11", default-features = false }
+symbolic-demangle = { version = "12.12", default-features = false }
 tabled = "0.16"
 tempfile = "3.13"
 tera = "1.20"
