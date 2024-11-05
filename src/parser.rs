@@ -191,9 +191,19 @@ pub fn parse_lcov(
                 }
 
                 let key = iter
-                    .take_while(|&&c| c != b':')
-                    .fold(*c as u32, |r, &x| r * (1 << 8) + u32::from(x));
-                match key {
+                    .take_while(|&&c| c.is_ascii_uppercase())
+                    .try_fold(*c as u32, |r, &x| {
+                        r.checked_mul(1 << 8)?.checked_add(u32::from(x))
+                    });
+
+                if key.is_none() {
+                    return Err(ParserError::InvalidRecord(format!(
+                        "Invalid key at line {}",
+                        line
+                    )));
+                }
+
+                match key.unwrap() {
                     SF => {
                         // SF:string
                         cur_file = Some(
@@ -204,9 +214,19 @@ pub fn parse_lcov(
                     }
                     DA => {
                         // DA:uint,int
+                        if let Some(c) = iter.peek() {
+                            if !c.is_ascii_digit() {
+                                return Err(ParserError::InvalidRecord(format!(
+                                    "DA at line {}",
+                                    line
+                                )));
+                            }
+                        }
+
                         let line_no = iter
-                            .take_while(|&&c| c != b',')
+                            .take_while(|&&c| c.is_ascii_digit())
                             .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
+
                         if iter.peek().is_none() {
                             return Err(ParserError::InvalidRecord(format!("DA at line {}", line)));
                         }
@@ -215,7 +235,7 @@ pub fn parse_lcov(
                                 iter.take_while(|&&c| c != b'\n').last();
                                 0
                             } else {
-                                iter.take_while(|&&c| c != b'\n' && c != b'\r')
+                                iter.take_while(|&&c| c.is_ascii_digit())
                                     .fold(u64::from(*c - b'0'), |r, &x| {
                                         r * 10 + u64::from(x - b'0')
                                     })
@@ -227,8 +247,16 @@ pub fn parse_lcov(
                     }
                     FN => {
                         // FN:int,string
+                        if let Some(c) = iter.peek() {
+                            if !c.is_ascii_digit() {
+                                return Err(ParserError::InvalidRecord(format!(
+                                    "FN at line {}",
+                                    line
+                                )));
+                            }
+                        }
                         let start = iter
-                            .take_while(|&&c| c != b',')
+                            .take_while(|&&c| c.is_ascii_digit())
                             .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
                         if iter.peek().is_none() {
                             return Err(ParserError::InvalidRecord(format!("FN at line {}", line)));
@@ -255,8 +283,16 @@ pub fn parse_lcov(
                     }
                     FNDA => {
                         // FNDA:int,string
+                        if let Some(c) = iter.peek() {
+                            if !c.is_ascii_digit() {
+                                return Err(ParserError::InvalidRecord(format!(
+                                    "FNDA at line {}",
+                                    line
+                                )));
+                            }
+                        }
                         let executed = iter
-                            .take_while(|&&c| c != b',')
+                            .take_while(|&&c| c.is_ascii_digit())
                             .fold(0, |r, &x| r * 10 + u64::from(x - b'0'));
                         if iter.peek().is_none() {
                             return Err(ParserError::InvalidRecord(format!(
@@ -280,8 +316,16 @@ pub fn parse_lcov(
                     BRDA => {
                         // BRDA:int,int,int,int or -
                         if branch_enabled {
+                            if let Some(c) = iter.peek() {
+                                if !c.is_ascii_digit() {
+                                    return Err(ParserError::InvalidRecord(format!(
+                                        "BRDA at line {}",
+                                        line
+                                    )));
+                                }
+                            }
                             let line_no = iter
-                                .take_while(|&&c| c != b',')
+                                .take_while(|&&c| c.is_ascii_digit())
                                 .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
                             if iter.peek().is_none() {
                                 return Err(ParserError::InvalidRecord(format!(
@@ -290,7 +334,7 @@ pub fn parse_lcov(
                                 )));
                             }
                             let _block_number = iter
-                                .take_while(|&&c| c != b',')
+                                .take_while(|&&c| c.is_ascii_digit())
                                 .fold(0, |r, &x| r * 10 + u64::from(x - b'0'));
                             if iter.peek().is_none() {
                                 return Err(ParserError::InvalidRecord(format!(
@@ -299,7 +343,7 @@ pub fn parse_lcov(
                                 )));
                             }
                             let branch_number = iter
-                                .take_while(|&&c| c != b',')
+                                .take_while(|&&c| c.is_ascii_digit())
                                 .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
                             if iter.peek().is_none() {
                                 return Err(ParserError::InvalidRecord(format!(
@@ -1206,6 +1250,22 @@ mod tests {
         f.read_to_end(&mut buf).unwrap();
         let result = parse_lcov(buf, true);
         assert!(result.is_err());
+    }
+
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_lcov_parser_empty_DA_record() {
+        let buf = "DA:152,4
+DA:153,4
+DA:154,8
+DA:156,12
+DA
+TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_2dinherit_2emeta_2funset_2fiframe_2dtag_2ehttp_2ehtml_2c_20about_3ablank"
+        .as_bytes().to_vec();
+        let result = parse_lcov(buf, true);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.to_string(), "Invalid record: 'DA at line 5'");
     }
 
     #[test]
