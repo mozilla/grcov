@@ -68,7 +68,7 @@ impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             ParserError::Io(ref err) => write!(f, "IO error: {err}"),
-            ParserError::Parse(ref s) => write!(f, "Record containing invalid integer: '{s}'"),
+            ParserError::Parse(ref s) => write!(f, "Parsing error: '{s}'"),
             ParserError::InvalidRecord(ref s) => write!(f, "Invalid record: '{s}'"),
             ParserError::InvalidData(ref s) => write!(f, "Invalid data: '{s}'"),
         }
