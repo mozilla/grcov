@@ -310,7 +310,7 @@ pub fn parse_lcov(
                             .map(|&c| c as char)
                             .collect();
                         if !duplicated_error_logged && cur_functions.contains_key(&f_name) {
-                            error!(
+                            warn!(
                                 "FN '{}' duplicated for '{}' in a lcov file",
                                 f_name,
                                 cur_file.as_ref().unwrap()
