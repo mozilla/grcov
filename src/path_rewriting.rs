@@ -1,4 +1,5 @@
 use globset::{Glob, GlobSet, GlobSetBuilder};
+use log::error;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -7,7 +8,6 @@ use std::fs;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
-use log::error;
 
 use crate::defs::*;
 use crate::filter::*;
@@ -286,7 +286,8 @@ pub fn rewrite_paths(
             let rel_path = remove_prefix(prefix_dir, rel_path);
 
             // Try mapping a partial path to a full path.
-            let rel_path = if check_extension(&rel_path, "java") || check_extension(&rel_path, "kt"){
+            let rel_path = if check_extension(&rel_path, "java") || check_extension(&rel_path, "kt")
+            {
                 map_partial_path(&file_to_paths, rel_path)
             } else {
                 rel_path
@@ -1050,7 +1051,7 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("kt/main.kt".to_string(), empty_result!());
         result_map.insert("main.rs".to_string(), empty_result!());
-        
+
         let mut results = rewrite_paths(
             result_map,
             None,
