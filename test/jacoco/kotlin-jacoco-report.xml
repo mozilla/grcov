@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="sdui">
+  <sessioninfo id="aggregate-1" start="1737346199745" dump="1737346208622"/>
+  <sessioninfo id="aggregate-2" start="1737999484435" dump="1737999487635"/>
+  <package name="">
+    <class name="Breakpoint" sourcefilename="BreakpointValue.kt">
+      <method name="getEntries" desc="()Lkotlin/enums/EnumEntries;" line="112">
+        <counter type="INSTRUCTION" missed="2" covered="0"/>
+        <counter type="LINE" missed="1" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <method name="&lt;clinit&gt;" desc="()V" line="104">
+        <counter type="INSTRUCTION" missed="55" covered="0"/>
+        <counter type="LINE" missed="8" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <counter type="INSTRUCTION" missed="57" covered="0"/>
+      <counter type="LINE" missed="9" covered="0"/>
+      <counter type="COMPLEXITY" missed="2" covered="0"/>
+      <counter type="METHOD" missed="2" covered="0"/>
+      <counter type="CLASS" missed="1" covered="0"/>
+    </class>
+    <class name="BreakpointValue" sourcefilename="BreakpointValue.kt">
+      <method name="&lt;init&gt;" desc="()V" line="5">
+        <counter type="INSTRUCTION" missed="9" covered="0"/>
+        <counter type="LINE" missed="2" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <method name="getBreakpointValueMap" desc="()Ljava/util/Map;" line="14">
+        <counter type="INSTRUCTION" missed="3" covered="0"/>
+        <counter type="LINE" missed="1" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <method name="setValue" desc="(LBreakpoint;Ljava/lang/Object;)LBreakpointValue;" line="26">
+        <counter type="INSTRUCTION" missed="29" covered="0"/>
+        <counter type="BRANCH" missed="4" covered="0"/>
+        <counter type="LINE" missed="4" covered="0"/>
+        <counter type="COMPLEXITY" missed="3" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <method name="none" desc="(Ljava/lang/Object;)LBreakpointValue;" line="41">
+        <counter type="INSTRUCTION" missed="8" covered="0"/>
+        <counter type="LINE" missed="1" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <method name="xxsmall" desc="(Ljava/lang/Object;)LBreakpointValue;" line="49">
+        <counter type="INSTRUCTION" missed="8" covered="0"/>
+        <counter type="LINE" missed="1" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <method name="xsmall" desc="(Ljava/lang/Object;)LBreakpointValue;" line="57">
+        <counter type="INSTRUCTION" missed="8" covered="0"/>
+        <counter type="LINE" missed="1" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <method name="small" desc="(Ljava/lang/Object;)LBreakpointValue;" line="65">
+        <counter type="INSTRUCTION" missed="8" covered="0"/>
+        <counter type="LINE" missed="1" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <method name="medium" desc="(Ljava/lang/Object;)LBreakpointValue;" line="73">
+        <counter type="INSTRUCTION" missed="8" covered="0"/>
+        <counter type="LINE" missed="1" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <method name="large" desc="(Ljava/lang/Object;)LBreakpointValue;" line="81">
+        <counter type="INSTRUCTION" missed="8" covered="0"/>
+        <counter type="LINE" missed="1" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <method name="xlarge" desc="(Ljava/lang/Object;)LBreakpointValue;" line="89">
+        <counter type="INSTRUCTION" missed="8" covered="0"/>
+        <counter type="LINE" missed="1" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <method name="xxlarge" desc="(Ljava/lang/Object;)LBreakpointValue;" line="97">
+        <counter type="INSTRUCTION" missed="8" covered="0"/>
+        <counter type="LINE" missed="1" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <counter type="INSTRUCTION" missed="105" covered="0"/>
+      <counter type="BRANCH" missed="4" covered="0"/>
+      <counter type="LINE" missed="15" covered="0"/>
+      <counter type="COMPLEXITY" missed="13" covered="0"/>
+      <counter type="METHOD" missed="11" covered="0"/>
+      <counter type="CLASS" missed="1" covered="0"/>
+    </class>
+    <class name="BreakpointDirection" sourcefilename="BreakpointValue.kt">
+      <method name="getEntries" desc="()Lkotlin/enums/EnumEntries;" line="120">
+        <counter type="INSTRUCTION" missed="2" covered="0"/>
+        <counter type="LINE" missed="1" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <method name="&lt;clinit&gt;" desc="()V" line="118">
+        <counter type="INSTRUCTION" missed="19" covered="0"/>
+        <counter type="LINE" missed="2" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+      </method>
+      <counter type="INSTRUCTION" missed="21" covered="0"/>
+      <counter type="LINE" missed="3" covered="0"/>
+      <counter type="COMPLEXITY" missed="2" covered="0"/>
+      <counter type="METHOD" missed="2" covered="0"/>
+      <counter type="CLASS" missed="1" covered="0"/>
+    </class>
+    <sourcefile name="BreakpointValue.kt">
+      <line nr="5" mi="3" ci="0" mb="0" cb="0"/>
+      <line nr="9" mi="6" ci="0" mb="0" cb="0"/>
+      <line nr="14" mi="3" ci="0" mb="0" cb="0"/>
+      <line nr="26" mi="18" ci="0" mb="4" cb="0"/>
+      <line nr="27" mi="3" ci="0" mb="0" cb="0"/>
+      <line nr="30" mi="6" ci="0" mb="0" cb="0"/>
+      <line nr="32" mi="2" ci="0" mb="0" cb="0"/>
+      <line nr="41" mi="5" ci="0" mb="0" cb="0"/>
+      <line nr="49" mi="5" ci="0" mb="0" cb="0"/>
+      <line nr="57" mi="5" ci="0" mb="0" cb="0"/>
+      <line nr="65" mi="5" ci="0" mb="0" cb="0"/>
+      <line nr="73" mi="5" ci="0" mb="0" cb="0"/>
+      <line nr="81" mi="5" ci="0" mb="0" cb="0"/>
+      <line nr="89" mi="5" ci="0" mb="0" cb="0"/>
+      <line nr="97" mi="5" ci="0" mb="0" cb="0"/>
+      <line nr="104" mi="6" ci="0" mb="0" cb="0"/>
+      <line nr="105" mi="6" ci="0" mb="0" cb="0"/>
+      <line nr="106" mi="6" ci="0" mb="0" cb="0"/>
+      <line nr="107" mi="6" ci="0" mb="0" cb="0"/>
+      <line nr="108" mi="6" ci="0" mb="0" cb="0"/>
+      <line nr="109" mi="6" ci="0" mb="0" cb="0"/>
+      <line nr="110" mi="6" ci="0" mb="0" cb="0"/>
+      <line nr="111" mi="13" ci="0" mb="0" cb="0"/>
+      <line nr="112" mi="1" ci="0" mb="0" cb="0"/>
+      <line nr="118" mi="6" ci="0" mb="0" cb="0"/>
+      <line nr="119" mi="13" ci="0" mb="0" cb="0"/>
+      <line nr="120" mi="1" ci="0" mb="0" cb="0"/>
+      <counter type="INSTRUCTION" missed="183" covered="0"/>
+      <counter type="BRANCH" missed="4" covered="0"/>
+      <counter type="LINE" missed="27" covered="0"/>
+      <counter type="COMPLEXITY" missed="17" covered="0"/>
+      <counter type="METHOD" missed="15" covered="0"/>
+      <counter type="CLASS" missed="3" covered="0"/>
+    </sourcefile>
+  </package>
+</report>

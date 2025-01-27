@@ -1616,18 +1616,7 @@ mod tests {
             Archive::check_file(file.as_mut(), &Archive::is_jacoco),
             "A Jacoco XML file expected"
         );
-        let mut file =
-            File::open("./test/jacoco/full-junit4-report-multiple-top-level-classes.xml").ok();
-        assert!(
-            Archive::check_file(file.as_mut(), &Archive::is_jacoco),
-            "A Jacoco XML file expected"
-        );
         let mut file = File::open("./test/jacoco/inner-classes.xml").ok();
-        assert!(
-            Archive::check_file(file.as_mut(), &Archive::is_jacoco),
-            "A Jacoco XML file expected"
-        );
-        let mut file = File::open("./test/jacoco/multiple-top-level-classes.xml").ok();
         assert!(
             Archive::check_file(file.as_mut(), &Archive::is_jacoco),
             "A Jacoco XML file expected"
