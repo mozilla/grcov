@@ -186,7 +186,7 @@ fn map_partial_path(file_to_paths: &FxHashMap<String, Vec<PathBuf>>, path: PathB
     let mut result: Option<&PathBuf> = None;
     for option in options {
         if option.ends_with(&path) {
-            if !result.is_none() {
+            if result.is_some() {
                 error!("Only one file in the repository should end with {} ({} and {} both end with that).",
                 path.display(),
                 result.unwrap().display(),
