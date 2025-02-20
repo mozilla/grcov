@@ -60,6 +60,7 @@ impl Archive {
         profraws: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         infos: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         xmls: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        gocovs: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         linked_files_maps: &RefCell<FxHashMap<String, &'a Archive>>,
         is_llvm: bool,
     ) {
@@ -107,6 +108,12 @@ impl Archive {
                         linked_files_maps.borrow_mut().insert(filename, self);
                     }
                 }
+                "out" => {
+                    if Archive::check_file(file, &Archive::is_go_cov) {
+                        let filename = clean_path(path);
+                        self.insert_vec(filename, gocovs);
+                    }
+                }
                 _ => {}
             }
         }
@@ -128,6 +135,11 @@ impl Archive {
             };
         }
         false
+    }
+
+    fn is_go_cov(reader: &mut dyn Read) -> bool {
+        let mut bytes: [u8; 8] = [0; 8];
+        reader.read_exact(&mut bytes).is_ok() && &bytes[..5] == b"mode:"
     }
 
     fn is_info(reader: &mut dyn Read) -> bool {
@@ -152,6 +164,7 @@ impl Archive {
         profraws: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         infos: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         xmls: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        gocovs: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         linked_files_maps: &RefCell<FxHashMap<String, &'a Archive>>,
         is_llvm: bool,
     ) {
@@ -170,6 +183,7 @@ impl Archive {
                         profraws,
                         infos,
                         xmls,
+                        gocovs,
                         linked_files_maps,
                         is_llvm,
                     );
@@ -196,6 +210,7 @@ impl Archive {
                             profraws,
                             infos,
                             xmls,
+                            gocovs,
                             linked_files_maps,
                             is_llvm,
                         );
@@ -215,6 +230,7 @@ impl Archive {
                         profraws,
                         infos,
                         xmls,
+                        gocovs,
                         linked_files_maps,
                         is_llvm,
                     );
@@ -519,16 +535,17 @@ pub fn producer(
                     || ext == "xml"
                     || ext == "profraw"
                     || ext == "profdata"
+                    || ext == "out"
                 {
                     plain_files.push(full_path);
                 } else {
                     panic!(
-                        "Cannot load file '{:?}': it isn't a .info, a .json or a .xml file.",
+                        "Cannot load file '{:?}': it isn't a .info, a .json, a .out, or a .xml file.",
                         full_path
                     );
                 }
             } else {
-                panic!("Cannot load file '{:?}': it isn't a directory, a .info, a .json or a .xml file.", full_path);
+                panic!("Cannot load file '{:?}': it isn't a directory, a .info, a .json, a .out, or a .xml file.", full_path);
             }
         }
     }
@@ -548,6 +565,8 @@ pub fn producer(
     let profraws: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
     let infos: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
     let xmls: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
+    let gocovs: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
+
     let linked_files_maps: RefCell<FxHashMap<String, &Archive>> =
         RefCell::new(FxHashMap::default());
 
@@ -559,6 +578,7 @@ pub fn producer(
             &profraws,
             &infos,
             &xmls,
+            &gocovs,
             &linked_files_maps,
             is_llvm,
         );
@@ -569,12 +589,14 @@ pub fn producer(
             && profdatas.borrow().is_empty()
             && profraws.borrow().is_empty()
             && infos.borrow().is_empty()
+            && gocovs.borrow().is_empty()
             && xmls.borrow().is_empty()),
         "No input files found"
     );
 
     file_content_producer(&infos.into_inner(), sender, ItemFormat::Info);
     file_content_producer(&xmls.into_inner(), sender, ItemFormat::JacocoXml);
+    file_content_producer(&gocovs.into_inner(), sender, ItemFormat::Gocov);
     llvm_format_producer(
         tmp_dir,
         &profdatas.into_inner(),
@@ -789,6 +811,7 @@ mod tests {
                 "mozillavpn_serverconnection_1.gcno",
                 true,
             ),
+            (ItemFormat::Gocov, false, "go.out", false),
         ];
 
         check_produced(tmp_path, &receiver, expected);

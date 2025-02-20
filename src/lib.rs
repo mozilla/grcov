@@ -309,13 +309,16 @@ pub fn consumer(
                     continue;
                 }
             }
-            ItemFormat::Info | ItemFormat::JacocoXml => {
+            ItemFormat::Info | ItemFormat::JacocoXml | ItemFormat::Gocov => {
                 if let ItemType::Content(content) = work_item.item {
                     if work_item.format == ItemFormat::Info {
                         try_parse!(parse_lcov(content, branch_enabled), work_item.name)
-                    } else {
+                    } else if work_item.format == ItemFormat::JacocoXml {
                         let buffer = BufReader::new(Cursor::new(content));
                         try_parse!(parse_jacoco_xml_report(buffer), work_item.name)
+                    } else {
+                        let mut buffer = BufReader::new(Cursor::new(content));
+                        try_parse!(parse_gocov(&mut buffer), work_item.name)
                     }
                 } else {
                     error!("Invalid content type");
