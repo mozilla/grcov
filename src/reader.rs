@@ -261,7 +261,7 @@ impl<E: Endian> GcovReader<E> for GcovReaderBuf<E> {
         let lo = read_u!(u32, self)?;
         let hi = read_u!(u32, self)?;
 
-        Ok(u64::from(hi) << 32 | u64::from(lo))
+        Ok((u64::from(hi) << 32) | u64::from(lo))
     }
 
     fn get_version(&self, buf: &[u8]) -> u32 {
@@ -985,7 +985,7 @@ impl GcovFunction {
 
         for e in dsts {
             let w = fun_edges[*e].destination;
-            if w >= start && blocks.iter().any(|x| *x == w) {
+            if w >= start && blocks.contains(&w) {
                 path.push(*e);
                 if w == start {
                     count += GcovFunction::get_cycle_count(fun_edges, path);
@@ -1015,7 +1015,7 @@ impl GcovFunction {
         } else {
             for e in dsts {
                 let w = fun_edges[*e].destination;
-                if w >= start || blocks.iter().any(|x| *x == w) {
+                if w >= start || blocks.contains(&w) {
                     if let Some(i) = blocked.iter().position(|x| *x == w) {
                         let list = &mut block_lists[i];
                         if list.iter().all(|x| *x != v) {
@@ -1074,7 +1074,7 @@ impl GcovFunction {
                 for e in &block.source {
                     let e = &fun_edges[*e];
                     let w = e.source;
-                    if !blocks.iter().any(|x| *x == w) {
+                    if !blocks.contains(&w) {
                         count += e.counter;
                     }
                 }
@@ -1182,7 +1182,7 @@ impl GcovFunction {
         let mut negative_excess = 0;
         let block = &blocks[block_no];
         for edge_id in block.source.iter() {
-            if pred_arc.map_or(true, |x| *edge_id != x) {
+            if pred_arc != Some(*edge_id) {
                 let edge = &edges[*edge_id];
                 positive_excess += if edge.is_on_tree() {
                     let source = edge.source;
@@ -1193,7 +1193,7 @@ impl GcovFunction {
             }
         }
         for edge_id in block.destination.iter() {
-            if pred_arc.map_or(true, |x| *edge_id != x) {
+            if pred_arc != Some(*edge_id) {
                 let edge = &edges[*edge_id];
                 negative_excess += if edge.is_on_tree() {
                     let destination = edge.destination;

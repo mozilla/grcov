@@ -125,7 +125,7 @@ pub enum StringOrRef<'a> {
     R(&'a String),
 }
 
-impl<'a> Display for StringOrRef<'a> {
+impl Display for StringOrRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             StringOrRef::S(s) => write!(f, "{}", s),
@@ -134,7 +134,7 @@ impl<'a> Display for StringOrRef<'a> {
     }
 }
 
-impl<'a> Serialize for StringOrRef<'a> {
+impl Serialize for StringOrRef<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

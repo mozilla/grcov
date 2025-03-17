@@ -132,7 +132,7 @@ impl Archive {
     }
 
     fn check_file(file: Option<&mut impl Read>, checker: &dyn Fn(&mut dyn Read) -> bool) -> bool {
-        file.map_or(false, |f| checker(f))
+        file.is_some_and(|f| checker(f))
     }
 
     pub fn get_name(&self) -> &String {
