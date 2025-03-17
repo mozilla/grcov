@@ -740,7 +740,7 @@ fn parse_jacoco_report_package<T: BufRead>(
                         // Class name: "Person$Age"
                         let class = fq_class
                             .split('/')
-                            .last()
+                            .next_back()
                             .expect("Failed to parse class name");
                         // Class name "Person"
                         let top_class = class

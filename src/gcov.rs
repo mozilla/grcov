@@ -98,7 +98,7 @@ fn parse_version(gcov_output: &str) -> Version {
     let version = gcov_output
         .split([' ', '\n'])
         .filter_map(|value| Version::parse(value.trim()).ok())
-        .last();
+        .next_back();
     assert!(version.is_some(), "no version found for `gcov`.");
 
     version.unwrap()
