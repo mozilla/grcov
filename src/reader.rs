@@ -261,7 +261,7 @@ impl<E: Endian> GcovReader<E> for GcovReaderBuf<E> {
         let lo = read_u!(u32, self)?;
         let hi = read_u!(u32, self)?;
 
-        Ok(u64::from(hi) << 32 | u64::from(lo))
+        Ok((u64::from(hi) << 32) | u64::from(lo))
     }
 
     fn get_version(&self, buf: &[u8]) -> u32 {
