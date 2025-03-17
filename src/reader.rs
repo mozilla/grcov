@@ -985,7 +985,7 @@ impl GcovFunction {
 
         for e in dsts {
             let w = fun_edges[*e].destination;
-            if w >= start && blocks.iter().any(|x| *x == w) {
+            if w >= start && blocks.contains(&w) {
                 path.push(*e);
                 if w == start {
                     count += GcovFunction::get_cycle_count(fun_edges, path);
@@ -1015,7 +1015,7 @@ impl GcovFunction {
         } else {
             for e in dsts {
                 let w = fun_edges[*e].destination;
-                if w >= start || blocks.iter().any(|x| *x == w) {
+                if w >= start || blocks.contains(&w) {
                     if let Some(i) = blocked.iter().position(|x| *x == w) {
                         let list = &mut block_lists[i];
                         if list.iter().all(|x| *x != v) {
@@ -1074,7 +1074,7 @@ impl GcovFunction {
                 for e in &block.source {
                     let e = &fun_edges[*e];
                     let w = e.source;
-                    if !blocks.iter().any(|x| *x == w) {
+                    if !blocks.contains(&w) {
                         count += e.counter;
                     }
                 }
