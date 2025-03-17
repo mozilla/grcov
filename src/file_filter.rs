@@ -66,17 +66,12 @@ impl FileFilter {
                 let line = line.strip_suffix('\r').unwrap_or(line);
 
                 // End a branch ignore region. Region endings are exclusive.
-                if ignore_br
-                    && self
-                        .excl_br_stop
-                        .as_ref()
-                        .map_or(false, |f| f.is_match(line))
-                {
+                if ignore_br && self.excl_br_stop.as_ref().is_some_and(|f| f.is_match(line)) {
                     ignore_br = false
                 }
 
                 // End a line ignore region. Region endings are exclusive.
-                if ignore && self.excl_stop.as_ref().map_or(false, |f| f.is_match(line)) {
+                if ignore && self.excl_stop.as_ref().is_some_and(|f| f.is_match(line)) {
                     ignore = false
                 }
 
@@ -85,13 +80,13 @@ impl FileFilter {
                     && self
                         .excl_br_start
                         .as_ref()
-                        .map_or(false, |f| f.is_match(line))
+                        .is_some_and(|f| f.is_match(line))
                 {
                     ignore_br = true;
                 }
 
                 // Start a line ignore region. Region starts are inclusive.
-                if !ignore && self.excl_start.as_ref().map_or(false, |f| f.is_match(line)) {
+                if !ignore && self.excl_start.as_ref().is_some_and(|f| f.is_match(line)) {
                     ignore = true;
                 }
 
@@ -106,20 +101,16 @@ impl FileFilter {
                     }
                 } else if ignore {
                     Some(FilterType::Line(number))
-                } else if self
-                    .excl_br_line
-                    .as_ref()
-                    .map_or(false, |f| f.is_match(line))
-                {
+                } else if self.excl_br_line.as_ref().is_some_and(|f| f.is_match(line)) {
                     // Single line exclusion. If single line exclusions occur
                     // inside a region they are meaningless (would be applied
                     // anway), so they are lower priority.
-                    if self.excl_line.as_ref().map_or(false, |f| f.is_match(line)) {
+                    if self.excl_line.as_ref().is_some_and(|f| f.is_match(line)) {
                         Some(FilterType::Both(number))
                     } else {
                         Some(FilterType::Branch(number))
                     }
-                } else if self.excl_line.as_ref().map_or(false, |f| f.is_match(line)) {
+                } else if self.excl_line.as_ref().is_some_and(|f| f.is_match(line)) {
                     Some(FilterType::Line(number))
                 } else {
                     None

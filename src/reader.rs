@@ -1182,7 +1182,7 @@ impl GcovFunction {
         let mut negative_excess = 0;
         let block = &blocks[block_no];
         for edge_id in block.source.iter() {
-            if pred_arc.map_or(true, |x| *edge_id != x) {
+            if pred_arc != Some(*edge_id) {
                 let edge = &edges[*edge_id];
                 positive_excess += if edge.is_on_tree() {
                     let source = edge.source;
@@ -1193,7 +1193,7 @@ impl GcovFunction {
             }
         }
         for edge_id in block.destination.iter() {
-            if pred_arc.map_or(true, |x| *edge_id != x) {
+            if pred_arc != Some(*edge_id) {
                 let edge = &edges[*edge_id];
                 negative_excess += if edge.is_on_tree() {
                     let destination = edge.destination;
