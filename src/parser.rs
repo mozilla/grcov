@@ -1,4 +1,5 @@
 use flate2::read::GzDecoder;
+use regex::Regex;
 use serde::{Deserialize, Deserializer};
 use std::cmp::Ordering;
 use std::collections::{btree_map, hash_map, BTreeMap};
@@ -822,7 +823,92 @@ fn parse_jacoco_report_package<T: BufRead>(
         .collect())
 }
 
-pub fn parse_jacoco_xml_report<T: Read>(
+pub fn parse_pytest_file<T: BufRead>(
+    parser: &mut Reader<T>,
+    buf: &mut Vec<u8>,
+) -> Result<(BTreeMap<u32, u64>, BTreeMap<u32, Vec<bool>>), ParserError> {
+    let condition_re = Regex::new(r"(\d+)/(\d+)").unwrap();
+
+    let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
+    let mut branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();
+
+    loop {
+        match parser.read_event_into(buf) {
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"line" => {
+                let (mut lineno, mut hit, mut condition_coverage) = (None, None, None);
+                for a in e.attributes() {
+                    let a = a?;
+                    match a.key.into_inner() {
+                        b"number" => lineno = Some(Decoder {}.decode(&a.value)?.parse::<u32>()?),
+                        b"hits" => hit = Some(Decoder {}.decode(&a.value)?.parse::<u64>()?),
+                        b"condition-coverage" => {
+                            condition_coverage = String::from_utf8(a.value.to_vec()).ok()
+                        }
+                        _ => {}
+                    }
+                }
+
+                if let (Some(lineno), Some(hit)) = (lineno, hit) {
+                    lines.insert(lineno, hit);
+                }
+
+                if let (Some(lineno), Some(condition_coverage)) = (lineno, condition_coverage) {
+                    if let Some(captures) = condition_re.captures(&condition_coverage) {
+                        if let (Some(covered), Some(total)) = (captures.get(1), captures.get(2)) {
+                            if let (Ok(covered), Ok(total)) = (
+                                covered.as_str().parse::<u32>(),
+                                total.as_str().parse::<u32>(),
+                            ) {
+                                let mut brs: Vec<bool> = vec![false; total as usize];
+                                for i in 0..covered {
+                                    brs[i as usize] = true;
+                                }
+
+                                branches.insert(lineno, brs);
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"class" => break,
+            Err(e) => return Err(ParserError::Parse(e.to_string())),
+            _ => {}
+        }
+    }
+
+    Ok((lines, branches))
+}
+
+pub fn parse_pytest_report_packages<T: BufRead>(
+    parser: &mut Reader<T>,
+    buf: &mut Vec<u8>,
+) -> Result<Vec<(String, CovResult)>, ParserError> {
+    let mut results_map: FxHashMap<String, CovResult> = FxHashMap::default();
+    loop {
+        match parser.read_event_into(buf) {
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"class" => {
+                let file = get_xml_attribute(parser, e, "filename")?;
+                let lines_and_branches = parse_pytest_file(parser, buf)?;
+
+                results_map.insert(
+                    file.to_string(),
+                    CovResult {
+                        lines: lines_and_branches.0,
+                        branches: lines_and_branches.1,
+                        functions: FxHashMap::default(),
+                    },
+                );
+            }
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"packages" => break,
+            Err(e) => return Err(ParserError::Parse(e.to_string())),
+            _ => {}
+        }
+    }
+
+    Ok(results_map.into_iter().collect())
+}
+
+pub fn parse_xml_report<T: Read>(
     xml_reader: BufReader<T>,
 ) -> Result<Vec<(String, CovResult)>, ParserError> {
     let mut parser = Reader::from_reader(xml_reader);
@@ -835,6 +921,10 @@ pub fn parse_jacoco_xml_report<T: Read>(
 
     loop {
         match parser.read_event_into(&mut buf) {
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"packages" => {
+                let mut package_results = parse_pytest_report_packages(&mut parser, &mut buf)?;
+                results.append(&mut package_results);
+            }
             Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"package" => {
                 let package = get_xml_attribute(&parser, e, "name")?;
                 let mut package_results =
@@ -2032,7 +2122,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
 
         let f = File::open("./test/jacoco/basic-report.xml").expect("Failed to open xml file");
         let file = BufReader::new(&f);
-        let results = parse_jacoco_xml_report(file).unwrap();
+        let results = parse_xml_report(file).unwrap();
 
         assert_eq!(results, expected);
     }
@@ -2079,7 +2169,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
 
         let f = File::open("./test/jacoco/inner-classes.xml").expect("Failed to open xml file");
         let file = BufReader::new(&f);
-        let results = parse_jacoco_xml_report(file).unwrap();
+        let results = parse_xml_report(file).unwrap();
 
         assert_eq!(results, expected);
     }
@@ -2154,7 +2244,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
         let f =
             File::open("./test/jacoco/kotlin-jacoco-report.xml").expect("Failed to open xml file");
         let file = BufReader::new(&f);
-        let results = parse_jacoco_xml_report(file).unwrap();
+        let results = parse_xml_report(file).unwrap();
         assert_eq!(results, expected);
     }
 }
