@@ -74,8 +74,9 @@ pub fn run(cmd: impl AsRef<OsStr>, args: &[&OsStr]) -> Result<Vec<u8>, String> {
     Ok(output.stdout)
 }
 
-pub fn profraws_to_lcov(
-    profraw_paths: &[PathBuf],
+/// Turns multiple .profraw and/or .profdata files into an lcov file.
+pub fn llvm_profiles_to_lcov(
+    profile_paths: &[PathBuf],
     binary_path: &Path,
     working_dir: &Path,
 ) -> Result<Vec<Vec<u8>>, String> {
@@ -90,7 +91,7 @@ pub fn profraws_to_lcov(
         profdata_path.as_ref(),
     ];
 
-    let stdin_paths: String = profraw_paths.iter().fold("".into(), |mut a, x| {
+    let stdin_paths: String = profile_paths.iter().fold("".into(), |mut a, x| {
         a.push_str(x.to_string_lossy().as_ref());
         a.push('\n');
         a
@@ -238,7 +239,7 @@ mod tests {
             .expect("Failed to build");
         assert!(status.success());
 
-        let lcovs = profraws_to_lcov(
+        let lcovs = llvm_profiles_to_lcov(
             &[tmp_path.join("default.profraw")],
             &PathBuf::from("src"),
             &tmp_path,
@@ -258,7 +259,7 @@ mod tests {
             std::env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string())
         );
 
-        let lcovs = profraws_to_lcov(
+        let lcovs = llvm_profiles_to_lcov(
             &[tmp_path.join("default.profraw")],
             &tmp_path.join(binary_path),
             &tmp_path,
