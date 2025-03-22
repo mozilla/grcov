@@ -275,14 +275,14 @@ pub fn consumer(
                     }
                 }
             }
-            ItemFormat::Profraw => {
+            ItemFormat::Profdata | ItemFormat::Profraw => {
                 if binary_path.is_none() {
                     error!("The path to the compiled binary must be given as an argument when source-based coverage is used");
                     continue;
                 }
 
                 if let ItemType::Paths(profraw_paths) = work_item.item {
-                    match llvm_tools::profraws_to_lcov(
+                    match llvm_tools::llvm_profiles_to_lcov(
                         profraw_paths.as_slice(),
                         binary_path.as_ref().unwrap(),
                         working_dir,
