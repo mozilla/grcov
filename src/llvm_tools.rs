@@ -46,9 +46,10 @@ pub fn run_with_stdin(
     let output = child.wait_with_output().map_err(err_fn)?;
     if !output.status.success() {
         return Err(format!(
-            "Failure while running {:?}\n{}",
+            "Failure while running {:?}\n{}\n\nSTDIN:`{}`",
             command,
-            String::from_utf8_lossy(&output.stderr)
+            String::from_utf8_lossy(&output.stderr),
+            stdin.as_ref()
         ));
     }
 
@@ -207,14 +208,9 @@ fn get_cov_path() -> Result<PathBuf, String> {
 mod tests {
     use super::*;
     use std::fs;
+    use tempfile::TempDir;
 
-    #[test]
-    fn test_profraws_to_lcov() {
-        let output = Command::new("rustc").arg("--version").output().unwrap();
-        if !String::from_utf8_lossy(&output.stdout).contains("nightly") {
-            return;
-        }
-
+    fn setup_env_and_run_program() -> TempDir {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
         let tmp_path = tmp_dir.path().to_owned();
 
@@ -239,11 +235,74 @@ mod tests {
             .expect("Failed to build");
         assert!(status.success());
 
+        tmp_dir
+    }
+
+    fn check_lcov_output(lcov: &str) {
+        assert!(lcov
+            .lines()
+            .any(|line| line.contains("SF") && line.contains("src") && line.contains("main.rs")));
+        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
+            assert!(lcov.lines().any(|line| line.contains("FN:3")
+                && line.contains("rust_code_coverage_sample")
+                && line.contains("Ciao")));
+        }
+        assert!(lcov.lines().any(|line| line.contains("FN:8")
+            && line.contains("rust_code_coverage_sample")
+            && line.contains("main")));
+        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
+            assert!(lcov.lines().any(|line| line.contains("FNDA:0")
+                && line.contains("rust_code_coverage_sample")
+                && line.contains("Ciao")));
+        } else {
+            assert!(lcov.lines().any(|line| line.contains("FNDA:1")
+                && line.contains("rust_code_coverage_sample")
+                && line.contains("main")));
+        }
+        assert!(lcov.lines().any(|line| line.contains("FNDA:1")
+            && line.contains("rust_code_coverage_sample")
+            && line.contains("main")));
+        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
+            assert!(lcov.lines().any(|line| line == "FNF:2"));
+        }
+        assert!(lcov.lines().any(|line| line == "FNH:1"));
+        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
+            assert!(lcov.lines().any(|line| line == "DA:3,0"));
+        }
+        assert!(lcov.lines().any(|line| line == "DA:8,1"));
+        assert!(lcov.lines().any(|line| line == "DA:9,1"));
+        assert!(lcov.lines().any(|line| line == "DA:10,1"));
+        assert!(lcov.lines().any(|line| line == "DA:11,1"));
+        assert!(lcov.lines().any(|line| line == "DA:12,1"));
+        assert!(lcov.lines().any(|line| line == "BRF:0"));
+        assert!(lcov.lines().any(|line| line == "BRH:0"));
+        if rustc_version::version_meta().unwrap().channel == rustc_version::Channel::Nightly {
+            assert!(lcov.lines().any(|line| line == "LF:5"));
+            assert!(lcov.lines().any(|line| line == "LH:5"));
+        } else {
+            assert!(lcov.lines().any(|line| line == "LF:6"));
+            assert!(lcov.lines().any(|line| line == "LH:5"));
+        }
+        assert!(lcov.lines().any(|line| line == "end_of_record"));
+    }
+
+    #[test]
+    fn test_profraws_to_lcov() {
+        let output = Command::new("rustc").arg("--version").output().unwrap();
+        if !String::from_utf8_lossy(&output.stdout).contains("nightly") {
+            return;
+        }
+
+        let tmp_dir = setup_env_and_run_program();
+        let tmp_path = tmp_dir.path();
+
+        // There is no binary file in src
         let lcovs = llvm_profiles_to_lcov(
             &[tmp_path.join("default.profraw")],
             &PathBuf::from("src"),
-            &tmp_path,
+            tmp_path,
         );
+        eprintln!("{lcovs:?}");
         assert!(lcovs.is_ok());
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 0);
@@ -262,57 +321,62 @@ mod tests {
         let lcovs = llvm_profiles_to_lcov(
             &[tmp_path.join("default.profraw")],
             &tmp_path.join(binary_path),
-            &tmp_path,
+            tmp_path,
         );
-        assert!(lcovs.is_ok());
+        assert!(lcovs.is_ok(), "Error: {}", lcovs.unwrap_err());
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 1);
         let output_lcov = String::from_utf8_lossy(&lcovs[0]);
         println!("{}", output_lcov);
-        assert!(output_lcov
-            .lines()
-            .any(|line| line.contains("SF") && line.contains("src") && line.contains("main.rs")));
-        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
-            assert!(output_lcov.lines().any(|line| line.contains("FN:3")
-                && line.contains("rust_code_coverage_sample")
-                && line.contains("Ciao")));
+
+        check_lcov_output(&output_lcov);
+    }
+
+    #[test]
+    fn test_profdatas_to_lcov() {
+        let output = Command::new("rustc").arg("--version").output().unwrap();
+        if !String::from_utf8_lossy(&output.stdout).contains("nightly") {
+            return;
         }
-        assert!(output_lcov.lines().any(|line| line.contains("FN:8")
-            && line.contains("rust_code_coverage_sample")
-            && line.contains("main")));
-        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
-            assert!(output_lcov.lines().any(|line| line.contains("FNDA:0")
-                && line.contains("rust_code_coverage_sample")
-                && line.contains("Ciao")));
-        } else {
-            assert!(output_lcov.lines().any(|line| line.contains("FNDA:1")
-                && line.contains("rust_code_coverage_sample")
-                && line.contains("main")));
-        }
-        assert!(output_lcov.lines().any(|line| line.contains("FNDA:1")
-            && line.contains("rust_code_coverage_sample")
-            && line.contains("main")));
-        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
-            assert!(output_lcov.lines().any(|line| line == "FNF:2"));
-        }
-        assert!(output_lcov.lines().any(|line| line == "FNH:1"));
-        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
-            assert!(output_lcov.lines().any(|line| line == "DA:3,0"));
-        }
-        assert!(output_lcov.lines().any(|line| line == "DA:8,1"));
-        assert!(output_lcov.lines().any(|line| line == "DA:9,1"));
-        assert!(output_lcov.lines().any(|line| line == "DA:10,1"));
-        assert!(output_lcov.lines().any(|line| line == "DA:11,1"));
-        assert!(output_lcov.lines().any(|line| line == "DA:12,1"));
-        assert!(output_lcov.lines().any(|line| line == "BRF:0"));
-        assert!(output_lcov.lines().any(|line| line == "BRH:0"));
-        if rustc_version::version_meta().unwrap().channel == rustc_version::Channel::Nightly {
-            assert!(output_lcov.lines().any(|line| line == "LF:5"));
-            assert!(output_lcov.lines().any(|line| line == "LH:5"));
-        } else {
-            assert!(output_lcov.lines().any(|line| line == "LF:6"));
-            assert!(output_lcov.lines().any(|line| line == "LH:5"));
-        }
-        assert!(output_lcov.lines().any(|line| line == "end_of_record"));
+
+        let tmp_dir = setup_env_and_run_program();
+        let tmp_path = tmp_dir.path();
+
+        #[cfg(unix)]
+        let binary_path = format!(
+            "{}/debug/rust-code-coverage-sample",
+            std::env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string())
+        );
+        #[cfg(windows)]
+        let binary_path = format!(
+            "{}/debug/rust-code-coverage-sample.exe",
+            std::env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string())
+        );
+
+        // Manually transform the profraw into a profdata
+        let profdata_dir = tempfile::tempdir().expect("tempdir error");
+        let profdata_dir_path = profdata_dir.path();
+        let profdata_path = profdata_dir_path.join("default.profdata");
+        let status = Command::new(get_profdata_path().unwrap())
+            .args([
+                "merge",
+                "-sparse",
+                tmp_path.join("default.profraw").to_str().unwrap(),
+                "-o",
+                profdata_path.to_str().unwrap(),
+            ])
+            .status();
+
+        assert_eq!(status.unwrap().code().unwrap(), 0);
+
+        let lcovs = llvm_profiles_to_lcov(&[profdata_path], &tmp_path.join(binary_path), tmp_path);
+
+        assert!(lcovs.is_ok(), "Error: {}", lcovs.unwrap_err());
+        let lcovs = lcovs.unwrap();
+        assert_eq!(lcovs.len(), 1);
+        let output_lcov = String::from_utf8_lossy(&lcovs[0]);
+        println!("{}", output_lcov);
+
+        check_lcov_output(&output_lcov);
     }
 }
