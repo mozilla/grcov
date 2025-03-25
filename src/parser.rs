@@ -13,6 +13,7 @@ use std::sync::Arc;
 use log::error;
 
 use quick_xml::encoding::Decoder;
+use quick_xml::encoding::EncodingError;
 use quick_xml::events::attributes::AttrError;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
@@ -41,6 +42,12 @@ impl From<quick_xml::Error> for ParserError {
             quick_xml::Error::Io(e) => ParserError::Io(Arc::try_unwrap(e).unwrap()),
             _ => ParserError::Parse(format!("{:?}", err)),
         }
+    }
+}
+
+impl From<EncodingError> for ParserError {
+    fn from(err: EncodingError) -> ParserError {
+        ParserError::Parse(format!("{:?}", err))
     }
 }
 
