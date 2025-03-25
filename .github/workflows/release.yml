@@ -107,7 +107,7 @@ jobs:
           cd target/${{ matrix.target }}/release
           7z a ../../dist/grcov-${{ matrix.target }}.zip grcov.exe
       - name: Upload archive
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: artifact-${{ matrix.target }}
           path: target/dist/*
