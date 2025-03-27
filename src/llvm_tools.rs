@@ -206,31 +206,82 @@ fn get_cov_path() -> Result<PathBuf, String> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::VecDeque;
+
     use super::*;
-    use std::fs;
     use tempfile::TempDir;
+    use walkdir::WalkDir;
 
-    fn setup_env_and_run_program() -> TempDir {
+    const FIXTURES_BASE: &str = "tests/rust/";
+
+    fn check_nightly_rust() -> bool {
+        rustc_version::version_meta().unwrap().channel == rustc_version::Channel::Nightly
+    }
+
+    fn get_binary_path(name: &str) -> String {
+        #[cfg(unix)]
+        let binary_path = format!(
+            "{}/debug/{}",
+            std::env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string()),
+            name
+        );
+        #[cfg(windows)]
+        let binary_path = format!(
+            "{}/debug/{}.exe",
+            std::env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string()),
+            name
+        );
+
+        binary_path
+    }
+
+    /// Create a temp dir and copy the fixture project in it.
+    fn copy_fixture(fixture: &str) -> TempDir {
         let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
-        let tmp_path = tmp_dir.path().to_owned();
+        let tmp_path = tmp_dir.path();
+        let fixture_path = Path::new(FIXTURES_BASE).join(fixture);
 
-        fs::copy(
-            PathBuf::from("tests/rust/Cargo.toml"),
-            tmp_path.join("Cargo.toml"),
-        )
-        .expect("Failed to copy file");
-        fs::create_dir(tmp_path.join("src")).expect("Failed to create dir");
-        fs::copy(
-            PathBuf::from("tests/rust/src/main.rs"),
-            tmp_path.join("src/main.rs"),
-        )
-        .expect("Failed to copy file");
+        let mut entries = VecDeque::new();
+        entries.push_front(fixture_path.clone());
+
+        while let Some(entry) = entries.pop_back() {
+            for item in WalkDir::new(&entry) {
+                let Ok(item) = item else {
+                    continue;
+                };
+                if item.path() == entry {
+                    continue;
+                }
+
+                let new_tmp = tmp_path.join(
+                    item.path()
+                        .strip_prefix(fixture_path.clone())
+                        .expect("prefix should be fixture path"),
+                );
+
+                if item.path().is_file() {
+                    // regular file
+                    fs::copy(item.path(), new_tmp).expect("Failed to copy file to tmp dir");
+                } else {
+                    // directory
+                    fs::create_dir_all(new_tmp).expect("Failed to create dir");
+                    entries.push_front(item.path().to_path_buf());
+                }
+            }
+        }
+
+        tmp_dir
+    }
+
+    fn setup_env_and_run_program(fixture: &str) -> TempDir {
+        let tmp_dir = copy_fixture(fixture);
+        let tmp_path = tmp_dir.path();
 
         let status = Command::new("cargo")
             .arg("run")
             .env("RUSTFLAGS", "-Cinstrument-coverage")
             .env("LLVM_PROFILE_FILE", tmp_path.join("default.profraw"))
-            .current_dir(&tmp_path)
+            .current_dir(tmp_path)
             .status()
             .expect("Failed to build");
         assert!(status.success());
@@ -238,35 +289,37 @@ mod tests {
         tmp_dir
     }
 
-    fn check_lcov_output(lcov: &str) {
+    fn check_basic_lcov_output(lcov: &str) {
+        let nightly = check_nightly_rust();
+
         assert!(lcov
             .lines()
             .any(|line| line.contains("SF") && line.contains("src") && line.contains("main.rs")));
-        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
+        if !nightly {
             assert!(lcov.lines().any(|line| line.contains("FN:3")
-                && line.contains("rust_code_coverage_sample")
+                && line.contains("basic")
                 && line.contains("Ciao")));
         }
-        assert!(lcov.lines().any(|line| line.contains("FN:8")
-            && line.contains("rust_code_coverage_sample")
-            && line.contains("main")));
-        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
+        assert!(lcov
+            .lines()
+            .any(|line| line.contains("FN:8") && line.contains("basic") && line.contains("main")));
+        if !nightly {
             assert!(lcov.lines().any(|line| line.contains("FNDA:0")
-                && line.contains("rust_code_coverage_sample")
+                && line.contains("basic")
                 && line.contains("Ciao")));
         } else {
             assert!(lcov.lines().any(|line| line.contains("FNDA:1")
-                && line.contains("rust_code_coverage_sample")
+                && line.contains("basic")
                 && line.contains("main")));
         }
         assert!(lcov.lines().any(|line| line.contains("FNDA:1")
-            && line.contains("rust_code_coverage_sample")
+            && line.contains("basic")
             && line.contains("main")));
-        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
+        if !nightly {
             assert!(lcov.lines().any(|line| line == "FNF:2"));
         }
         assert!(lcov.lines().any(|line| line == "FNH:1"));
-        if rustc_version::version_meta().unwrap().channel != rustc_version::Channel::Nightly {
+        if !nightly {
             assert!(lcov.lines().any(|line| line == "DA:3,0"));
         }
         assert!(lcov.lines().any(|line| line == "DA:8,1"));
@@ -276,7 +329,7 @@ mod tests {
         assert!(lcov.lines().any(|line| line == "DA:12,1"));
         assert!(lcov.lines().any(|line| line == "BRF:0"));
         assert!(lcov.lines().any(|line| line == "BRH:0"));
-        if rustc_version::version_meta().unwrap().channel == rustc_version::Channel::Nightly {
+        if nightly {
             assert!(lcov.lines().any(|line| line == "LF:5"));
             assert!(lcov.lines().any(|line| line == "LH:5"));
         } else {
@@ -287,36 +340,33 @@ mod tests {
     }
 
     #[test]
-    fn test_profraws_to_lcov() {
-        let output = Command::new("rustc").arg("--version").output().unwrap();
-        if !String::from_utf8_lossy(&output.stdout).contains("nightly") {
+    fn test_wrong_binary_file() {
+        if !check_nightly_rust() {
             return;
         }
 
-        let tmp_dir = setup_env_and_run_program();
+        let tmp_dir = setup_env_and_run_program("basic");
         let tmp_path = tmp_dir.path();
 
-        // There is no binary file in src
         let lcovs = llvm_profiles_to_lcov(
             &[tmp_path.join("default.profraw")],
-            &PathBuf::from("src"),
+            &PathBuf::from("src"), // There is no binary file in src
             tmp_path,
         );
-        eprintln!("{lcovs:?}");
         assert!(lcovs.is_ok());
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 0);
+    }
 
-        #[cfg(unix)]
-        let binary_path = format!(
-            "{}/debug/rust-code-coverage-sample",
-            std::env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string())
-        );
-        #[cfg(windows)]
-        let binary_path = format!(
-            "{}/debug/rust-code-coverage-sample.exe",
-            std::env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string())
-        );
+    #[test]
+    fn test_profraws_to_lcov() {
+        if !check_nightly_rust() {
+            return;
+        }
+
+        let tmp_dir = setup_env_and_run_program("basic");
+        let tmp_path = tmp_dir.path();
+        let binary_path = get_binary_path("basic");
 
         let lcovs = llvm_profiles_to_lcov(
             &[tmp_path.join("default.profraw")],
@@ -329,29 +379,18 @@ mod tests {
         let output_lcov = String::from_utf8_lossy(&lcovs[0]);
         println!("{}", output_lcov);
 
-        check_lcov_output(&output_lcov);
+        check_basic_lcov_output(&output_lcov);
     }
 
     #[test]
     fn test_profdatas_to_lcov() {
-        let output = Command::new("rustc").arg("--version").output().unwrap();
-        if !String::from_utf8_lossy(&output.stdout).contains("nightly") {
+        if !check_nightly_rust() {
             return;
         }
 
-        let tmp_dir = setup_env_and_run_program();
+        let tmp_dir = setup_env_and_run_program("basic");
         let tmp_path = tmp_dir.path();
-
-        #[cfg(unix)]
-        let binary_path = format!(
-            "{}/debug/rust-code-coverage-sample",
-            std::env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string())
-        );
-        #[cfg(windows)]
-        let binary_path = format!(
-            "{}/debug/rust-code-coverage-sample.exe",
-            std::env::var("CARGO_TARGET_DIR").unwrap_or("target".to_string())
-        );
+        let binary_path = get_binary_path("basic");
 
         // Manually transform the profraw into a profdata
         let profdata_dir = tempfile::tempdir().expect("tempdir error");
@@ -377,6 +416,88 @@ mod tests {
         let output_lcov = String::from_utf8_lossy(&lcovs[0]);
         println!("{}", output_lcov);
 
-        check_lcov_output(&output_lcov);
+        check_basic_lcov_output(&output_lcov);
+    }
+
+    #[test]
+    fn test_llvm_aggregate_profraws() {
+        if !check_nightly_rust() {
+            return;
+        }
+
+        let tmp_dir = copy_fixture("hello_name");
+        let tmp_path = tmp_dir.path();
+        let bin_path = get_binary_path("hello_name");
+
+        let path_without = tmp_path.join("without-arg.profraw");
+        let path_with = tmp_path.join("with-arg.profraw");
+
+        // Run the program twice:
+        // - Once without arguments,
+        // - Once with a simple argument to enter the other side of the if.
+        let status = Command::new("cargo")
+            .arg("run")
+            .env("RUSTFLAGS", "-Cinstrument-coverage")
+            .env("LLVM_PROFILE_FILE", &path_without)
+            .current_dir(tmp_path)
+            .status()
+            .expect("Failed to build");
+        assert!(status.success(), "Error when running `cargo run`");
+
+        let status = Command::new("cargo")
+            .arg("run")
+            .arg("--")
+            .arg("John")
+            .env("RUSTFLAGS", "-Cinstrument-coverage")
+            .env("LLVM_PROFILE_FILE", &path_with)
+            .current_dir(tmp_path)
+            .status()
+            .expect("Failed to build");
+        assert!(status.success(), "Error when running `cargo run`");
+
+        let lcovs = llvm_profiles_to_lcov(
+            &[path_with, path_without],
+            &tmp_path.join(bin_path),
+            tmp_path,
+        );
+
+        assert!(lcovs.is_ok(), "Error: {}", lcovs.unwrap_err());
+        let lcovs = lcovs.unwrap();
+        assert_eq!(lcovs.len(), 1);
+        let output_lcov = String::from_utf8_lossy(&lcovs[0]);
+        println!("{}", output_lcov);
+
+        let lcov = String::from_utf8_lossy(&lcovs[0]);
+
+        let lcov_entries = [
+            "FNF:1",  // # of function found
+            "FNH:1",  // # of function hit
+            "DA:1,2", // Line 1 hit 2 times
+            "DA:2,2", // Line 2 hit 2 times
+            "DA:3,1", // Line 3 hit 1 time
+            "DA:4,1", // Line 4 hit 1 time
+            "DA:5,1", // Line 5 hit 1 time
+            "DA:6,1", // Line 6 hit 1 time
+            "DA:7,2", // Line 7 hit 2 time
+            "BRF:0",  // # of branch found
+            "BRH:0",  // # of branch hit
+            "LF:7",   // # of line found
+            "LH:7",   // # of line hit
+        ];
+
+        for entry in lcov_entries {
+            assert!(lcov.contains(&format!("{entry}\n")));
+        }
+
+        let main_path = tmp_path
+            .join("src")
+            .join("main.rs")
+            .to_string_lossy()
+            .into_owned();
+        assert!(
+            lcov.lines()
+                .any(|line| line.contains("SF:") && line.contains(&main_path)),
+            "Missing source file declaration (SF) in lcov report",
+        );
     }
 }
