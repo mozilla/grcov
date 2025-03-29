@@ -547,12 +547,11 @@ pub fn output_html(
     let (sender, receiver) = unbounded();
 
     let global_stats = HtmlGlobalStats {
-        abs_prefix:
-          match abs_link_prefix {
+        abs_prefix: match abs_link_prefix {
             Some(prefix) => prefix,
             None => "".to_string(),
-          },
-          ..Default::default()
+        },
+        ..Default::default()
     };
     let stats = Arc::new(Mutex::new(global_stats));
     let mut threads = Vec::with_capacity(num_threads);
