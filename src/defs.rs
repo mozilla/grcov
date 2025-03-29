@@ -25,6 +25,7 @@ pub struct CovResult {
 pub enum ItemFormat {
     Gcno,
     Profraw,
+    Profdata,
     Info,
     JacocoXml,
 }
