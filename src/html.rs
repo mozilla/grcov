@@ -235,10 +235,12 @@ fn get_base(rel_path: &Path) -> String {
 fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &Path, stats: &HtmlStats) {
     let parent = rel_path.parent().unwrap().to_str().unwrap().to_string();
     let file_name = rel_path.file_name().unwrap().to_str().unwrap().to_string();
+    let mut global = global.lock().unwrap();
+    let prefix = global.abs_prefix.clone();
     let fs = HtmlFileStats {
         stats: stats.clone(),
+        abs_prefix: format!("{}{}/", prefix.clone(), parent),
     };
-    let mut global = global.lock().unwrap();
     global.stats.add(stats);
     let entry = global.dirs.entry(parent);
     match entry {
@@ -253,6 +255,7 @@ fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &Path, stats: 
             v.insert(HtmlDirStats {
                 files,
                 stats: stats.clone(),
+                abs_prefix: prefix,
             });
         }
     };

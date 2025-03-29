@@ -297,6 +297,9 @@ struct Opt {
     /// No symbol demangling.
     #[arg(long)]
     no_demangle: bool,
+    /// Generate absolute HTML links with the given prefix.
+    #[arg(long, value_name = "LINK PREFIX")]
+    abs_link_prefix: Option<String>,
 }
 
 fn main() {
@@ -562,6 +565,7 @@ fn main() {
                 opt.branch,
                 opt.output_config_file.as_deref(),
                 opt.precision,
+                opt.abs_link_prefix.clone(),
             ),
             OutputType::Cobertura => output_cobertura(
                 source_root.as_deref(),

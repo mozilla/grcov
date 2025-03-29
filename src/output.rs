@@ -526,6 +526,7 @@ pub fn output_html(
     branch_enabled: bool,
     output_config_file: Option<&Path>,
     precision: usize,
+    abs_link_prefix: Option<String>,
 ) {
     let output = if let Some(output_dir) = output_dir {
         PathBuf::from(output_dir)
@@ -545,7 +546,12 @@ pub fn output_html(
 
     let (sender, receiver) = unbounded();
 
-    let stats = Arc::new(Mutex::new(HtmlGlobalStats::default()));
+    let mut global_stats = HtmlGlobalStats::default();
+    global_stats.abs_prefix = match abs_link_prefix {
+        Some(prefix) => prefix,
+        None => "".to_string(),
+    };
+    let stats = Arc::new(Mutex::new(global_stats));
     let mut threads = Vec::with_capacity(num_threads);
     let (tera, config) = html::get_config(output_config_file);
     for i in 0..num_threads {
