@@ -565,7 +565,7 @@ fn main() {
                 opt.branch,
                 opt.output_config_file.as_deref(),
                 opt.precision,
-                opt.abs_link_prefix.clone(),
+                &opt.abs_link_prefix.clone(),
             ),
             OutputType::Cobertura => output_cobertura(
                 source_root.as_deref(),

@@ -346,7 +346,12 @@ pub fn gen_dir_index(
     ctx.insert("date", &conf.date);
     ctx.insert("bulma_version", BULMA_VERSION);
     ctx.insert("current", dir_name);
-    ctx.insert("parents", &[(prefix, "top_level")]);
+    let parent_link = if dir_stats.abs_prefix.is_empty() {
+        prefix
+    } else {
+        dir_stats.abs_prefix.clone()
+    };
+    ctx.insert("parents", &[(parent_link, "top_level")]);
     ctx.insert("stats", &dir_stats.stats);
     ctx.insert("items", &dir_stats.files);
     ctx.insert("kind", "File");
@@ -370,6 +375,7 @@ fn gen_html(
     global: Arc<Mutex<HtmlGlobalStats>>,
     branch_enabled: bool,
     precision: usize,
+    abs_link_prefix: &Option<String>,
 ) {
     if !rel_path.is_relative() {
         return;
@@ -405,11 +411,19 @@ fn gen_html(
     ctx.insert("date", &conf.date);
     ctx.insert("bulma_version", BULMA_VERSION);
     ctx.insert("current", filename);
+
+    let (top_level_link, parent_link) = match abs_link_prefix {
+        Some(prefix) => {
+            let abs_parent = format!("{}/{}", prefix, parent);
+            (prefix.to_string(), abs_parent)
+        },
+        None => (index_url.to_string(), "./index.html".to_string()),
+    };
     ctx.insert(
         "parents",
         &[
-            (index_url.as_str(), "top_level"),
-            ("./index.html", parent.as_str()),
+            (top_level_link, "top_level"),
+            (parent_link, parent.as_str()),
         ],
     );
     ctx.insert("stats", &stats);
@@ -463,6 +477,7 @@ pub fn consumer_html(
     conf: Config,
     branch_enabled: bool,
     precision: usize,
+    abs_link_prefix: &Option<String>,
 ) {
     while let Ok(job) = receiver.recv() {
         if job.is_none() {
@@ -479,6 +494,7 @@ pub fn consumer_html(
             global.clone(),
             branch_enabled,
             precision,
+            abs_link_prefix,
         );
     }
 }
