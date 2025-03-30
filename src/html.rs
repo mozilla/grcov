@@ -238,10 +238,7 @@ fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &Path, stats: 
     let mut global = global.lock().unwrap();
     let fs = HtmlFileStats {
         stats: stats.clone(),
-        abs_prefix: match &global.abs_prefix {
-            Some(p) => Some(format!("{}{}/", p, parent)),
-            None => None,
-        }
+        abs_prefix: global.abs_prefix.as_ref().map(|p| format!("{}{}/", p, parent))
     };
     global.stats.add(stats);
     let p = global.abs_prefix.clone();
