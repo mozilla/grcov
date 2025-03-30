@@ -415,7 +415,7 @@ fn gen_html(
         Some(prefix) => {
             let abs_parent = format!("{}/{}", prefix, parent);
             (prefix.to_string(), abs_parent)
-        },
+        }
         None => (index_url.to_string(), "./index.html".to_string()),
     };
     ctx.insert(
