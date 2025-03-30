@@ -103,21 +103,21 @@ pub struct HtmlStats {
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct HtmlFileStats {
     pub stats: HtmlStats,
-    pub abs_prefix: String,
+    pub abs_prefix: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct HtmlDirStats {
     pub files: BTreeMap<String, HtmlFileStats>,
     pub stats: HtmlStats,
-    pub abs_prefix: String,
+    pub abs_prefix: Option<String>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
 pub struct HtmlGlobalStats {
     pub dirs: BTreeMap<String, HtmlDirStats>,
     pub stats: HtmlStats,
-    pub abs_prefix: String,
+    pub abs_prefix: Option<String>,
 }
 
 pub type HtmlJobReceiver = Receiver<Option<HtmlItem>>;

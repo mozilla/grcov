@@ -236,12 +236,15 @@ fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &Path, stats: 
     let parent = rel_path.parent().unwrap().to_str().unwrap().to_string();
     let file_name = rel_path.file_name().unwrap().to_str().unwrap().to_string();
     let mut global = global.lock().unwrap();
-    let prefix = global.abs_prefix.clone();
     let fs = HtmlFileStats {
         stats: stats.clone(),
-        abs_prefix: format!("{}{}/", prefix.clone(), parent),
+        abs_prefix: match &global.abs_prefix {
+            Some(p) => Some(format!("{}{}/", p, parent)),
+            None => None,
+        }
     };
     global.stats.add(stats);
+    let p = global.abs_prefix.clone();
     let entry = global.dirs.entry(parent);
     match entry {
         btree_map::Entry::Occupied(ds) => {
@@ -255,7 +258,7 @@ fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &Path, stats: 
             v.insert(HtmlDirStats {
                 files,
                 stats: stats.clone(),
-                abs_prefix: prefix,
+                abs_prefix: p,
             });
         }
     };
@@ -346,10 +349,9 @@ pub fn gen_dir_index(
     ctx.insert("date", &conf.date);
     ctx.insert("bulma_version", BULMA_VERSION);
     ctx.insert("current", dir_name);
-    let parent_link = if dir_stats.abs_prefix.is_empty() {
-        prefix
-    } else {
-        dir_stats.abs_prefix.clone()
+    let parent_link = match &dir_stats.abs_prefix {
+        Some(p) => p,
+        None => &prefix,
     };
     ctx.insert("parents", &[(parent_link, "top_level")]);
     ctx.insert("stats", &dir_stats.stats);
