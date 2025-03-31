@@ -417,7 +417,7 @@ fn gen_html(
     let (top_level_link, parent_link) = match abs_link_prefix {
         Some(prefix) => {
             let abs_parent = format!("{}{}/index.html", prefix, parent);
-            (format!("{}index.html", prefix.to_string()), abs_parent)
+            (format!("{}index.html", prefix), abs_parent)
         }
         None => (index_url.to_string(), "./index.html".to_string()),
     };
