@@ -350,8 +350,8 @@ pub fn gen_dir_index(
     ctx.insert("bulma_version", BULMA_VERSION);
     ctx.insert("current", dir_name);
     let parent_link = match &dir_stats.abs_prefix {
-        Some(p) => p,
-        None => &prefix,
+        Some(p) => format!("{}index.html", p),
+        None => prefix,
     };
     ctx.insert("parents", &[(parent_link, "top_level")]);
     ctx.insert("stats", &dir_stats.stats);
@@ -416,8 +416,8 @@ fn gen_html(
 
     let (top_level_link, parent_link) = match abs_link_prefix {
         Some(prefix) => {
-            let abs_parent = format!("{}/{}", prefix, parent);
-            (prefix.to_string(), abs_parent)
+            let abs_parent = format!("{}{}/index.html", prefix, parent);
+            (format!("{}index.html", prefix.to_string()), abs_parent)
         }
         None => (index_url.to_string(), "./index.html".to_string()),
     };
