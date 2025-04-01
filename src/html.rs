@@ -241,7 +241,7 @@ fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &Path, stats: 
         abs_prefix: global
             .abs_prefix
             .as_ref()
-            .map(|p| format!("{}{}/", p, parent)),
+            .map(|p| Path::new(p).join(&parent)),
     };
     global.stats.add(stats);
     let p = global.abs_prefix.clone();
@@ -350,8 +350,8 @@ pub fn gen_dir_index(
     ctx.insert("bulma_version", BULMA_VERSION);
     ctx.insert("current", dir_name);
     let parent_link = match &dir_stats.abs_prefix {
-        Some(p) => format!("{}index.html", p),
-        None => prefix,
+        Some(p) => p.join(PathBuf::from("index.html")),
+        None => prefix.into(),
     };
     ctx.insert("parents", &[(parent_link, "top_level")]);
     ctx.insert("stats", &dir_stats.stats);
@@ -416,8 +416,16 @@ fn gen_html(
 
     let (top_level_link, parent_link) = match abs_link_prefix {
         Some(prefix) => {
-            let abs_parent = format!("{}{}/index.html", prefix, parent);
-            (format!("{}index.html", prefix), abs_parent)
+            let prefix_buf = PathBuf::from(prefix);
+            let mut top_level = prefix_buf.clone();
+            top_level.push("index.html");
+            let parent_buf = PathBuf::from(parent.clone());
+            let mut abs_parent = prefix_buf.join(parent_buf);
+            abs_parent.push(PathBuf::from("index.html"));
+            (
+                top_level.display().to_string(),
+                abs_parent.display().to_string(),
+            )
         }
         None => (index_url.to_string(), "./index.html".to_string()),
     };

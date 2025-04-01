@@ -35,6 +35,12 @@ pub fn canonicalize_path<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
     Ok(path)
 }
 
+//pub fn append_paths(p1: &String, p2: &String) -> io::Result<PathBuf> {
+//    let pb1 = PathBuf::from(p1);
+//    let pb2 = PathBuf::from(p2);
+//    Path::new(p1).join(p2)
+//}
+
 pub fn has_no_parent(path: &str) -> bool {
     PathBuf::from(path).parent() == Some(&PathBuf::from(""))
 }

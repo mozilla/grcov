@@ -547,7 +547,7 @@ pub fn output_html(
     let (sender, receiver) = unbounded();
 
     let global_stats = HtmlGlobalStats {
-        abs_prefix: abs_link_prefix.clone(),
+        abs_prefix: abs_link_prefix.clone().map(PathBuf::from),
         ..Default::default()
     };
     let stats = Arc::new(Mutex::new(global_stats));
