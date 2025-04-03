@@ -253,12 +253,11 @@ pub fn rewrite_paths(
             let entry = entry
                 .unwrap_or_else(|_| panic!("Failed to open directory '{}'.", source_dir.display()));
 
-            let full_path = entry.path();
-            if !full_path.is_file() {
+            if !entry.file_type().is_file() {
                 continue;
             }
 
-            let path = full_path.strip_prefix(source_dir).unwrap().to_path_buf();
+            let path = entry.path().strip_prefix(source_dir).unwrap().to_path_buf();
             if to_ignore_globset.is_match(&path) {
                 continue;
             }
