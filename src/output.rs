@@ -526,6 +526,7 @@ pub fn output_html(
     branch_enabled: bool,
     output_config_file: Option<&Path>,
     precision: usize,
+    abs_link_prefix: &Option<String>,
     no_date: bool,
 ) {
     let output = if let Some(output_dir) = output_dir {
@@ -546,19 +547,32 @@ pub fn output_html(
 
     let (sender, receiver) = unbounded();
 
-    let stats = Arc::new(Mutex::new(HtmlGlobalStats::default()));
+    let global_stats = HtmlGlobalStats {
+        abs_prefix: abs_link_prefix.clone().map(PathBuf::from),
+        ..Default::default()
+    };
+    let stats = Arc::new(Mutex::new(global_stats));
     let mut threads = Vec::with_capacity(num_threads);
     let (tera, config) = html::get_config(output_config_file, branch_enabled, precision, no_date);
+    let abs_link_prefix_owned = abs_link_prefix.clone();
     for i in 0..num_threads {
         let receiver = receiver.clone();
         let output = output.clone();
         let config = config.clone();
         let stats = stats.clone();
         let tera = tera.clone();
+        let abs_link_prefix_thread = abs_link_prefix_owned.clone();
         let t = thread::Builder::new()
             .name(format!("Consumer HTML {}", i))
             .spawn(move || {
-                html::consumer_html(&tera, receiver, stats, &output, config);
+                html::consumer_html(
+                    &tera,
+                    receiver,
+                    stats,
+                    &output,
+                    config,
+                    &abs_link_prefix_thread,
+                );
             })
             .unwrap();
 

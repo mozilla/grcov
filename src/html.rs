@@ -244,11 +244,16 @@ fn get_base(rel_path: &Path) -> String {
 fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &Path, stats: &HtmlStats) {
     let parent = rel_path.parent().unwrap().to_str().unwrap().to_string();
     let file_name = rel_path.file_name().unwrap().to_str().unwrap().to_string();
+    let mut global = global.lock().unwrap();
     let fs = HtmlFileStats {
         stats: stats.clone(),
+        abs_prefix: global
+            .abs_prefix
+            .as_ref()
+            .map(|p| Path::new(p).join(&parent)),
     };
-    let mut global = global.lock().unwrap();
     global.stats.add(stats);
+    let p = global.abs_prefix.clone();
     let entry = global.dirs.entry(parent);
     match entry {
         btree_map::Entry::Occupied(ds) => {
@@ -262,6 +267,7 @@ fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &Path, stats: 
             v.insert(HtmlDirStats {
                 files,
                 stats: stats.clone(),
+                abs_prefix: p,
             });
         }
     };
@@ -335,7 +341,11 @@ pub fn gen_dir_index(
 
     let mut ctx = make_context(conf);
     ctx.insert("current", dir_name);
-    ctx.insert("parents", &[(prefix, "top_level")]);
+    let parent_link = match &dir_stats.abs_prefix {
+        Some(p) => p.join(PathBuf::from("index.html")),
+        None => prefix.into(),
+    };
+    ctx.insert("parents", &[(parent_link, "top_level")]);
     ctx.insert("stats", &dir_stats.stats);
     ctx.insert("items", &dir_stats.files);
     ctx.insert("kind", "File");
@@ -355,6 +365,7 @@ fn gen_html(
     output: &Path,
     rel_path: &Path,
     global: Arc<Mutex<HtmlGlobalStats>>,
+    abs_link_prefix: &Option<String>,
 ) {
     if !rel_path.is_relative() {
         return;
@@ -388,11 +399,27 @@ fn gen_html(
 
     let mut ctx = make_context(conf);
     ctx.insert("current", filename);
+
+    let (top_level_link, parent_link) = match abs_link_prefix {
+        Some(prefix) => {
+            let prefix_buf = PathBuf::from(prefix);
+            let mut top_level = prefix_buf.clone();
+            top_level.push("index.html");
+            let parent_buf = PathBuf::from(parent.clone());
+            let mut abs_parent = prefix_buf.join(parent_buf);
+            abs_parent.push(PathBuf::from("index.html"));
+            (
+                top_level.display().to_string(),
+                abs_parent.display().to_string(),
+            )
+        }
+        None => (index_url.to_string(), "./index.html".to_string()),
+    };
     ctx.insert(
         "parents",
         &[
-            (index_url.as_str(), "top_level"),
-            ("./index.html", parent.as_str()),
+            (top_level_link, "top_level"),
+            (parent_link, parent.as_str()),
         ],
     );
     ctx.insert("stats", &stats);
@@ -442,6 +469,7 @@ pub fn consumer_html(
     global: Arc<Mutex<HtmlGlobalStats>>,
     output: &Path,
     conf: Config,
+    abs_link_prefix: &Option<String>,
 ) {
     while let Ok(job) = receiver.recv() {
         if job.is_none() {
@@ -456,6 +484,7 @@ pub fn consumer_html(
             output,
             &job.rel_path,
             global.clone(),
+            abs_link_prefix,
         );
     }
 }
