@@ -32,11 +32,13 @@ pub struct Config {
     fn_med_limit: f64,
     branch_hi_limit: f64,
     branch_med_limit: f64,
-    date: DateTime<Utc>,
+    date: Option<DateTime<Utc>>,
+    branch_enabled: bool,
+    precision: usize,
 }
 
 impl Config {
-    fn new(cfg: &ConfigFile) -> Config {
+    fn new(cfg: &ConfigFile, branch_enabled: bool, precision: usize, no_date: bool) -> Config {
         Config {
             hi_limit: cfg.hi_limit.unwrap_or(90.),
             med_limit: cfg.med_limit.unwrap_or(75.),
@@ -44,7 +46,9 @@ impl Config {
             fn_med_limit: cfg.fn_med_limit.unwrap_or(75.),
             branch_hi_limit: cfg.branch_hi_limit.unwrap_or(90.),
             branch_med_limit: cfg.branch_med_limit.unwrap_or(75.),
-            date: Utc::now(),
+            date: if no_date { None } else { Some(Utc::now()) },
+            branch_enabled,
+            precision,
         }
     }
 }
@@ -118,9 +122,14 @@ fn get_templates(user_templates: &Option<HashMap<String, String>>) -> HashMap<St
     result
 }
 
-pub fn get_config(output_config_file: Option<&Path>) -> (Tera, Config) {
+pub fn get_config(
+    output_config_file: Option<&Path>,
+    branch_enabled: bool,
+    precision: usize,
+    no_date: bool,
+) -> (Tera, Config) {
     let user_conf = ConfigFile::load(output_config_file);
-    let conf = Config::new(&user_conf);
+    let conf = Config::new(&user_conf, branch_enabled, precision, no_date);
 
     let mut tera = Tera::default();
 
@@ -266,22 +275,20 @@ fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &Path, stats: 
 
 use tera::{Context, Tera};
 
-fn make_context() -> Context {
+fn make_context(conf: &Config) -> Context {
     let mut ctx = Context::new();
+
     let ver = std::env::var("BULMA_VERSION").map_or(BULMA_VERSION.into(), |v| v);
     ctx.insert("bulma_version", &ver);
+
+    ctx.insert("date", &conf.date);
+    ctx.insert("precision", &conf.precision);
+    ctx.insert("branch_enabled", &conf.branch_enabled);
 
     ctx
 }
 
-pub fn gen_index(
-    tera: &Tera,
-    global: &HtmlGlobalStats,
-    conf: &Config,
-    output: &Path,
-    branch_enabled: bool,
-    precision: usize,
-) {
+pub fn gen_index(tera: &Tera, global: &HtmlGlobalStats, conf: &Config, output: &Path) {
     let output_file = output.join("index.html");
     create_parent(&output_file);
     let mut output_stream = match File::create(&output_file) {
@@ -292,16 +299,13 @@ pub fn gen_index(
         Ok(f) => f,
     };
 
-    let mut ctx = make_context();
+    let mut ctx = make_context(conf);
     let empty: &[&str] = &[];
-    ctx.insert("date", &conf.date);
     ctx.insert("current", "top_level");
     ctx.insert("parents", empty);
     ctx.insert("stats", &global.stats);
-    ctx.insert("precision", &precision);
     ctx.insert("items", &global.dirs);
     ctx.insert("kind", "Directory");
-    ctx.insert("branch_enabled", &branch_enabled);
 
     let out = tera.render("index.html", &ctx).unwrap();
 
@@ -311,15 +315,7 @@ pub fn gen_index(
     }
 
     for (dir_name, dir_stats) in global.dirs.iter() {
-        gen_dir_index(
-            tera,
-            dir_name,
-            dir_stats,
-            conf,
-            output,
-            branch_enabled,
-            precision,
-        );
+        gen_dir_index(tera, dir_name, dir_stats, conf, output);
     }
 }
 
@@ -329,8 +325,6 @@ pub fn gen_dir_index(
     dir_stats: &HtmlDirStats,
     conf: &Config,
     output: &Path,
-    branch_enabled: bool,
-    precision: usize,
 ) {
     let index = Path::new(dir_name).join("index.html");
     let layers = index.components().count() - 1;
@@ -345,9 +339,7 @@ pub fn gen_dir_index(
         Ok(f) => f,
     };
 
-    let mut ctx = make_context();
-    ctx.insert("date", &conf.date);
-    ctx.insert("bulma_version", BULMA_VERSION);
+    let mut ctx = make_context(conf);
     ctx.insert("current", dir_name);
     let parent_link = match &dir_stats.abs_prefix {
         Some(p) => p.join(PathBuf::from("index.html")),
@@ -357,8 +349,6 @@ pub fn gen_dir_index(
     ctx.insert("stats", &dir_stats.stats);
     ctx.insert("items", &dir_stats.files);
     ctx.insert("kind", "File");
-    ctx.insert("branch_enabled", &branch_enabled);
-    ctx.insert("precision", &precision);
 
     let out = tera.render("index.html", &ctx).unwrap();
 
@@ -375,8 +365,6 @@ fn gen_html(
     output: &Path,
     rel_path: &Path,
     global: Arc<Mutex<HtmlGlobalStats>>,
-    branch_enabled: bool,
-    precision: usize,
     abs_link_prefix: &Option<String>,
 ) {
     if !rel_path.is_relative() {
@@ -409,9 +397,7 @@ fn gen_html(
     let mut index_url = base_url;
     index_url.push_str("index.html");
 
-    let mut ctx = make_context();
-    ctx.insert("date", &conf.date);
-    ctx.insert("bulma_version", BULMA_VERSION);
+    let mut ctx = make_context(conf);
     ctx.insert("current", filename);
 
     let (top_level_link, parent_link) = match abs_link_prefix {
@@ -437,8 +423,6 @@ fn gen_html(
         ],
     );
     ctx.insert("stats", &stats);
-    ctx.insert("branch_enabled", &branch_enabled);
-    ctx.insert("precision", &precision);
 
     let mut file_buf = Vec::new();
     if let Err(e) = f.read_to_end(&mut file_buf) {
@@ -485,8 +469,6 @@ pub fn consumer_html(
     global: Arc<Mutex<HtmlGlobalStats>>,
     output: &Path,
     conf: Config,
-    branch_enabled: bool,
-    precision: usize,
     abs_link_prefix: &Option<String>,
 ) {
     while let Ok(job) = receiver.recv() {
@@ -502,8 +484,6 @@ pub fn consumer_html(
             output,
             &job.rel_path,
             global.clone(),
-            branch_enabled,
-            precision,
             abs_link_prefix,
         );
     }
@@ -569,7 +549,7 @@ pub fn gen_badge(tera: &Tera, stats: &HtmlStats, conf: &Config, output: &Path, s
         Ok(f) => f,
     };
 
-    let mut ctx = make_context();
+    let mut ctx = make_context(conf);
     ctx.insert(
         "current",
         &(get_percentage_of_covered_lines(stats.covered_lines, stats.total_lines) as usize),

@@ -527,6 +527,7 @@ pub fn output_html(
     output_config_file: Option<&Path>,
     precision: usize,
     abs_link_prefix: &Option<String>,
+    no_date: bool,
 ) {
     let output = if let Some(output_dir) = output_dir {
         PathBuf::from(output_dir)
@@ -552,7 +553,7 @@ pub fn output_html(
     };
     let stats = Arc::new(Mutex::new(global_stats));
     let mut threads = Vec::with_capacity(num_threads);
-    let (tera, config) = html::get_config(output_config_file);
+    let (tera, config) = html::get_config(output_config_file, branch_enabled, precision, no_date);
     let abs_link_prefix_owned = abs_link_prefix.clone();
     for i in 0..num_threads {
         let receiver = receiver.clone();
@@ -570,8 +571,6 @@ pub fn output_html(
                     stats,
                     &output,
                     config,
-                    branch_enabled,
-                    precision,
                     &abs_link_prefix_thread,
                 );
             })
@@ -602,7 +601,7 @@ pub fn output_html(
 
     let global = Arc::try_unwrap(stats).unwrap().into_inner().unwrap();
 
-    html::gen_index(&tera, &global, &config, &output, branch_enabled, precision);
+    html::gen_index(&tera, &global, &config, &output);
 
     for style in html::BadgeStyle::iter() {
         html::gen_badge(&tera, &global.stats, &config, &output, style);
