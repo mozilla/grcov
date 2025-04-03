@@ -40,6 +40,9 @@ pub mod html;
 mod file_filter;
 pub use crate::file_filter::*;
 
+mod summary;
+pub use crate::summary::*;
+
 use log::{error, warn};
 use std::fs;
 use std::io::{BufReader, Cursor};
