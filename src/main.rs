@@ -297,6 +297,9 @@ struct Opt {
     /// No symbol demangling.
     #[arg(long)]
     no_demangle: bool,
+    /// Do not include the current date in the HTML report.
+    #[arg(long)]
+    no_date: bool,
 }
 
 fn main() {
@@ -562,6 +565,7 @@ fn main() {
                 opt.branch,
                 opt.output_config_file.as_deref(),
                 opt.precision,
+                opt.no_date,
             ),
             OutputType::Cobertura => output_cobertura(
                 source_root.as_deref(),
