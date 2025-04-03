@@ -75,6 +75,28 @@ pub fn run(cmd: impl AsRef<OsStr>, args: &[&OsStr]) -> Result<Vec<u8>, String> {
     Ok(output.stdout)
 }
 
+pub fn find_binaries(binary_path: &Path) -> Vec<PathBuf> {
+    let metadata = fs::metadata(binary_path)
+        .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {:?}.", binary_path, e));
+
+    if metadata.is_file() {
+        vec![binary_path.to_owned()]
+    } else {
+        let mut paths = vec![];
+
+        for entry in WalkDir::new(binary_path).follow_links(true) {
+            let entry = entry
+                .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {}", binary_path, e));
+
+            if is_binary(entry.path()) && entry.metadata().unwrap().len() > 0 {
+                paths.push(entry.into_path());
+            }
+        }
+
+        paths
+    }
+}
+
 /// Turns multiple .profraw and/or .profdata files into an lcov file.
 pub fn llvm_profiles_to_lcov(
     profile_paths: &[PathBuf],
@@ -100,25 +122,7 @@ pub fn llvm_profiles_to_lcov(
 
     get_profdata_path().and_then(|p| run_with_stdin(p, &stdin_paths, &args))?;
 
-    let metadata = fs::metadata(binary_path)
-        .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {:?}.", binary_path, e));
-
-    let binaries = if metadata.is_file() {
-        vec![binary_path.to_owned()]
-    } else {
-        let mut paths = vec![];
-
-        for entry in WalkDir::new(binary_path).follow_links(true) {
-            let entry = entry
-                .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {}", binary_path, e));
-
-            if is_binary(entry.path()) && entry.metadata().unwrap().len() > 0 {
-                paths.push(entry.into_path());
-            }
-        }
-
-        paths
-    };
+    let binaries = find_binaries(binary_path);
 
     let cov_tool_path = get_cov_path()?;
     let results = binaries
