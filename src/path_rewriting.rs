@@ -10,6 +10,8 @@ use walkdir::{DirEntry, WalkDir};
 
 use crate::defs::*;
 use crate::filter::*;
+use std::collections::HashSet;
+use std::ffi::OsStr;
 
 fn to_lowercase_first(s: &str) -> String {
     let mut c = s.chars();
@@ -243,9 +245,22 @@ pub fn rewrite_paths(
         assert!(p.is_absolute());
     }
 
-    // Traverse source dir and store all paths, reversed.
+    // Traverse source dir and store covered paths, reversed.
     let mut file_to_paths: FxHashMap<String, Vec<PathBuf>> = FxHashMap::default();
     if let Some(ref source_dir) = source_dir {
+        // When --source-dir points to very large directories (for example, a Rust compiler
+        // checkout with submodules and build artifacts) walking through every file will take a
+        // considerable amount of time. We should skip paths not part of the coverage map.
+        let covered_names = result_map
+            .keys()
+            .map(|path| {
+                path.rsplit_once(['\\', '/'])
+                    .map(|(_dir, file)| file)
+                    .unwrap_or(path.as_str())
+            })
+            .map(OsStr::new)
+            .collect::<HashSet<_>>();
+
         for entry in WalkDir::new(source_dir)
             .into_iter()
             .filter_entry(|e| !is_hidden(e) && !is_symbolic_link(e))
@@ -254,6 +269,10 @@ pub fn rewrite_paths(
                 .unwrap_or_else(|_| panic!("Failed to open directory '{}'.", source_dir.display()));
 
             if !entry.file_type().is_file() {
+                continue;
+            }
+
+            if !covered_names.contains(entry.file_name()) {
                 continue;
             }
 
