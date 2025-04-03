@@ -4,7 +4,7 @@ use std::env::consts::EXE_SUFFIX;
 use std::error::Error;
 use std::ffi::OsStr;
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::OnceLock;
@@ -15,12 +15,16 @@ use walkdir::WalkDir;
 pub static LLVM_PATH: OnceLock<PathBuf> = OnceLock::new();
 
 pub fn is_binary(path: impl AsRef<Path>) -> bool {
-    if let Ok(oty) = infer::get_from_path(path) {
-        if let Some("dll" | "exe" | "elf" | "mach") = oty.map(|x| x.extension()) {
-            return true;
-        }
-    }
-    false
+    let file = fs::File::open(path).unwrap();
+
+    let limit = file
+        .metadata()
+        .map(|m| std::cmp::min(m.len(), 8192) as usize + 1)
+        .unwrap_or(0);
+    let mut bytes = Vec::with_capacity(limit);
+    file.take(8192).read_to_end(&mut bytes).unwrap();
+
+    infer::is_app(&bytes)
 }
 
 pub fn run_with_stdin(
@@ -87,6 +91,10 @@ pub fn find_binaries(binary_path: &Path) -> Vec<PathBuf> {
         for entry in WalkDir::new(binary_path).follow_links(true) {
             let entry = entry
                 .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {}", binary_path, e));
+
+            if !entry.file_type().is_file() {
+                continue;
+            }
 
             if is_binary(entry.path()) && entry.metadata().unwrap().len() > 0 {
                 paths.push(entry.into_path());
