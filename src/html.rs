@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_json::value::{from_value, to_value, Value};
 use std::borrow::Cow;
@@ -8,7 +9,7 @@ use std::fs::{self, File};
 use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use tera::try_get_value;
+use tera::{try_get_value, Context, Tera};
 
 use crate::defs::*;
 
@@ -24,6 +25,12 @@ impl HtmlStats {
     }
 }
 
+#[derive(Debug, clap::ValueEnum, Clone, Copy)]
+pub enum HtmlResources {
+    Bundled,
+    Cdn,
+}
+
 #[derive(Clone, Debug)]
 pub struct Config {
     hi_limit: f64,
@@ -35,10 +42,17 @@ pub struct Config {
     date: Option<DateTime<Utc>>,
     branch_enabled: bool,
     precision: usize,
+    html_resources: HtmlResources,
 }
 
 impl Config {
-    fn new(cfg: &ConfigFile, branch_enabled: bool, precision: usize, no_date: bool) -> Config {
+    fn new(
+        cfg: &ConfigFile,
+        branch_enabled: bool,
+        precision: usize,
+        no_date: bool,
+        html_resources: HtmlResources,
+    ) -> Config {
         Config {
             hi_limit: cfg.hi_limit.unwrap_or(90.),
             med_limit: cfg.med_limit.unwrap_or(75.),
@@ -49,6 +63,7 @@ impl Config {
             date: if no_date { None } else { Some(Utc::now()) },
             branch_enabled,
             precision,
+            html_resources,
         }
     }
 }
@@ -76,7 +91,8 @@ impl ConfigFile {
     }
 }
 
-static BULMA_VERSION: &str = "0.9.1";
+static BULMA_CDN_VERSION: &str = "0.9.1";
+static BULMA_BUNDLED: &[u8] = include_bytes!("bulma/bulma-0.9.1.min.css");
 
 fn load_template(path: &str) -> String {
     fs::read_to_string(path).unwrap()
@@ -127,9 +143,16 @@ pub fn get_config(
     branch_enabled: bool,
     precision: usize,
     no_date: bool,
+    html_resources: HtmlResources,
 ) -> (Tera, Config) {
     let user_conf = ConfigFile::load(output_config_file);
-    let conf = Config::new(&user_conf, branch_enabled, precision, no_date);
+    let conf = Config::new(
+        &user_conf,
+        branch_enabled,
+        precision,
+        no_date,
+        html_resources,
+    );
 
     let mut tera = Tera::default();
 
@@ -273,13 +296,23 @@ fn get_dirs_result(global: Arc<Mutex<HtmlGlobalStats>>, rel_path: &Path, stats: 
     };
 }
 
-use tera::{Context, Tera};
-
-fn make_context(conf: &Config) -> Context {
+fn make_context(conf: &Config, path_to_root: &str) -> Context {
     let mut ctx = Context::new();
 
-    let ver = std::env::var("BULMA_VERSION").map_or(BULMA_VERSION.into(), |v| v);
-    ctx.insert("bulma_version", &ver);
+    let overridden_bulma = std::env::var("BULMA_VERSION").ok();
+    let bulma_url = match conf.html_resources {
+        HtmlResources::Bundled => {
+            if overridden_bulma.is_some() {
+                warn!("BULMA_VERSION env var is incompatible with --html-resources=bundled");
+            }
+            format!("{}/bulma.min.css", path_to_root.trim_end_matches('/'))
+        }
+        HtmlResources::Cdn => {
+            let version = overridden_bulma.as_deref().unwrap_or(BULMA_CDN_VERSION);
+            format!("https://cdn.jsdelivr.net/npm/bulma@{version}/css/bulma.min.css")
+        }
+    };
+    ctx.insert("bulma_url", &bulma_url);
 
     ctx.insert("date", &conf.date);
     ctx.insert("precision", &conf.precision);
@@ -299,7 +332,7 @@ pub fn gen_index(tera: &Tera, global: &HtmlGlobalStats, conf: &Config, output: &
         Ok(f) => f,
     };
 
-    let mut ctx = make_context(conf);
+    let mut ctx = make_context(conf, ".");
     let empty: &[&str] = &[];
     ctx.insert("current", "top_level");
     ctx.insert("parents", empty);
@@ -339,7 +372,7 @@ pub fn gen_dir_index(
         Ok(f) => f,
     };
 
-    let mut ctx = make_context(conf);
+    let mut ctx = make_context(conf, &"../".repeat(layers));
     ctx.insert("current", dir_name);
     let parent_link = match &dir_stats.abs_prefix {
         Some(p) => p.join(PathBuf::from("index.html")),
@@ -397,7 +430,7 @@ fn gen_html(
     let mut index_url = base_url;
     index_url.push_str("index.html");
 
-    let mut ctx = make_context(conf);
+    let mut ctx = make_context(conf, &get_base(rel_path));
     ctx.insert("current", filename);
 
     let (top_level_link, parent_link) = match abs_link_prefix {
@@ -549,7 +582,7 @@ pub fn gen_badge(tera: &Tera, stats: &HtmlStats, conf: &Config, output: &Path, s
         Ok(f) => f,
     };
 
-    let mut ctx = make_context(conf);
+    let mut ctx = make_context(conf, ".");
     ctx.insert(
         "current",
         &(get_percentage_of_covered_lines(stats.covered_lines, stats.total_lines) as usize),
@@ -617,6 +650,17 @@ pub fn gen_coverage_json(stats: &HtmlStats, conf: &Config, output: &Path, precis
 
     if res.is_err() {
         eprintln!("cannot write the file {:?}", output_file);
+    }
+}
+
+pub fn gen_bundled_resources(conf: &Config, output: &Path) {
+    if !matches!(conf.html_resources, HtmlResources::Bundled) {
+        return;
+    }
+
+    let bulma = output.join("bulma.min.css");
+    if let Err(err) = std::fs::write(&bulma, BULMA_BUNDLED) {
+        eprintln!("cannot write {}: {err:?}", bulma.display());
     }
 }
 

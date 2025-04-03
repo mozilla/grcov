@@ -17,6 +17,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::{process, thread};
 
+use grcov::html::HtmlResources;
 use grcov::*;
 
 #[derive(Clone, PartialEq)]
@@ -303,6 +304,9 @@ struct Opt {
     /// Do not include the current date in the HTML report.
     #[arg(long)]
     no_date: bool,
+    /// Where to retrieve the CSS files used to style the HTML reports.
+    #[arg(long, value_name = "SOURCE", default_value = "bundled")]
+    html_resources: HtmlResources,
 }
 
 fn main() {
@@ -570,6 +574,7 @@ fn main() {
                 opt.precision,
                 &opt.abs_link_prefix.clone(),
                 opt.no_date,
+                opt.html_resources,
             ),
             OutputType::Cobertura => output_cobertura(
                 source_root.as_deref(),
