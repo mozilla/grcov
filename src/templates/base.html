@@ -13,9 +13,11 @@
             {%- block content -%}{%- endblock content -%}
         </div>
         <footer class="footer">
-            <div class="content has-text-centered">
-                <p class="heading">Date: {{ date | date(format="%Y-%m-%d %H:%M") }}</p>
-            </div>
+            {% if date %}
+                <div class="content has-text-centered">
+                    <p class="heading">Date: {{ date | date(format="%Y-%m-%d %H:%M") }}</p>
+                </div>
+            {% endif %}
         </footer>
     </body>
 </html>

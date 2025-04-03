@@ -32,13 +32,13 @@ pub struct Config {
     fn_med_limit: f64,
     branch_hi_limit: f64,
     branch_med_limit: f64,
-    date: DateTime<Utc>,
+    date: Option<DateTime<Utc>>,
     branch_enabled: bool,
     precision: usize,
 }
 
 impl Config {
-    fn new(cfg: &ConfigFile, branch_enabled: bool, precision: usize) -> Config {
+    fn new(cfg: &ConfigFile, branch_enabled: bool, precision: usize, no_date: bool) -> Config {
         Config {
             hi_limit: cfg.hi_limit.unwrap_or(90.),
             med_limit: cfg.med_limit.unwrap_or(75.),
@@ -46,7 +46,7 @@ impl Config {
             fn_med_limit: cfg.fn_med_limit.unwrap_or(75.),
             branch_hi_limit: cfg.branch_hi_limit.unwrap_or(90.),
             branch_med_limit: cfg.branch_med_limit.unwrap_or(75.),
-            date: Utc::now(),
+            date: if no_date { None } else { Some(Utc::now()) },
             branch_enabled,
             precision,
         }
@@ -126,9 +126,10 @@ pub fn get_config(
     output_config_file: Option<&Path>,
     branch_enabled: bool,
     precision: usize,
+    no_date: bool,
 ) -> (Tera, Config) {
     let user_conf = ConfigFile::load(output_config_file);
-    let conf = Config::new(&user_conf, branch_enabled, precision);
+    let conf = Config::new(&user_conf, branch_enabled, precision, no_date);
 
     let mut tera = Tera::default();
 
