@@ -21,7 +21,7 @@ use tabled::{Table, Tabled};
 use uuid::Uuid;
 
 use crate::defs::*;
-use crate::html;
+use crate::html::{self, HtmlResources};
 
 macro_rules! demangle {
     ($name: expr, $demangle: expr, $options: expr) => {{
@@ -528,6 +528,7 @@ pub fn output_html(
     precision: usize,
     abs_link_prefix: &Option<String>,
     no_date: bool,
+    html_resources: HtmlResources,
 ) {
     let output = if let Some(output_dir) = output_dir {
         PathBuf::from(output_dir)
@@ -553,7 +554,13 @@ pub fn output_html(
     };
     let stats = Arc::new(Mutex::new(global_stats));
     let mut threads = Vec::with_capacity(num_threads);
-    let (tera, config) = html::get_config(output_config_file, branch_enabled, precision, no_date);
+    let (tera, config) = html::get_config(
+        output_config_file,
+        branch_enabled,
+        precision,
+        no_date,
+        html_resources,
+    );
     let abs_link_prefix_owned = abs_link_prefix.clone();
     for i in 0..num_threads {
         let receiver = receiver.clone();
@@ -608,6 +615,7 @@ pub fn output_html(
     }
 
     html::gen_coverage_json(&global.stats, &config, &output, precision);
+    html::gen_bundled_resources(&config, &output);
 }
 
 pub fn output_markdown(results: &[ResultTuple], output_file: Option<&Path>, precision: usize) {
