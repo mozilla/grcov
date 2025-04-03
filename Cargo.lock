@@ -481,7 +481,7 @@ dependencies = [
 
 [[package]]
 name = "grcov"
-version = "0.8.23"
+version = "0.8.24"
 dependencies = [
  "chrono",
  "clap",
