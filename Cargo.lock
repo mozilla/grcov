@@ -488,6 +488,7 @@ dependencies = [
  "crossbeam-channel",
  "flate2",
  "globset",
+ "ignore",
  "infer",
  "lazy_static",
  "log",

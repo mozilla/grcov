@@ -1,3 +1,4 @@
+use crossbeam_channel::unbounded;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use std::env;
 use std::env::consts::EXE_SUFFIX;
@@ -9,8 +10,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 
+use ignore::WalkBuilder;
+use ignore::WalkState::Continue;
 use log::warn;
-use walkdir::WalkDir;
 
 pub static LLVM_PATH: OnceLock<PathBuf> = OnceLock::new();
 
@@ -74,28 +76,38 @@ pub fn find_binaries(binary_path: &Path) -> Vec<PathBuf> {
         vec![binary_path.to_owned()]
     } else {
         let mut paths = vec![];
-        let mut bytes = vec![0u8; 128];
 
-        for entry in WalkDir::new(binary_path).follow_links(true) {
-            let entry = entry
-                .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {}", binary_path, e));
+        let (sender, receiver) = unbounded();
+        let walker = WalkBuilder::new(binary_path)
+            .threads(num_cpus::get() - 1)
+            .build_parallel();
+        walker.run(|| {
+            let sender = sender.clone();
+            let mut bytes = vec![0u8; 128];
 
-            if !entry.file_type().is_file() {
-                continue;
-            }
+            Box::new(move |result| {
+                let entry = result.unwrap();
 
-            let size = entry.metadata().unwrap().len();
-            if size == 0 {
-                continue;
-            }
+                if !entry.file_type().unwrap().is_file() {
+                    return Continue;
+                }
 
-            let file = fs::File::open(entry.path()).unwrap();
+                let file = fs::File::open(entry.path()).unwrap();
+                let read = file.take(128).read(&mut bytes).unwrap();
+                if read == 0 {
+                    return Continue;
+                }
 
-            file.take(128).read_exact(&mut bytes).unwrap();
+                if infer::is_app(&bytes) {
+                    sender.send(entry.into_path()).unwrap();
+                }
 
-            if infer::is_app(&bytes) {
-                paths.push(entry.into_path());
-            }
+                Continue
+            })
+        });
+
+        while let Ok(path) = receiver.try_recv() {
+            paths.push(path);
         }
 
         paths
