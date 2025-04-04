@@ -14,19 +14,6 @@ use walkdir::WalkDir;
 
 pub static LLVM_PATH: OnceLock<PathBuf> = OnceLock::new();
 
-pub fn is_binary(path: impl AsRef<Path>) -> bool {
-    let file = fs::File::open(path).unwrap();
-
-    let limit = file
-        .metadata()
-        .map(|m| std::cmp::min(m.len(), 8192) as usize + 1)
-        .unwrap_or(0);
-    let mut bytes = Vec::with_capacity(limit);
-    file.take(8192).read_to_end(&mut bytes).unwrap();
-
-    infer::is_app(&bytes)
-}
-
 pub fn run_with_stdin(
     cmd: impl AsRef<OsStr>,
     stdin: impl AsRef<str>,
@@ -87,6 +74,7 @@ pub fn find_binaries(binary_path: &Path) -> Vec<PathBuf> {
         vec![binary_path.to_owned()]
     } else {
         let mut paths = vec![];
+        let mut bytes = vec![0u8; 128];
 
         for entry in WalkDir::new(binary_path).follow_links(true) {
             let entry = entry
@@ -96,7 +84,16 @@ pub fn find_binaries(binary_path: &Path) -> Vec<PathBuf> {
                 continue;
             }
 
-            if is_binary(entry.path()) && entry.metadata().unwrap().len() > 0 {
+            let size = entry.metadata().unwrap().len();
+            if size == 0 {
+                continue;
+            }
+
+            let file = fs::File::open(entry.path()).unwrap();
+
+            file.take(128).read_exact(&mut bytes).unwrap();
+
+            if infer::is_app(&bytes) {
                 paths.push(entry.into_path());
             }
         }
