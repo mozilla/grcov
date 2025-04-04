@@ -43,6 +43,7 @@ clap = { version = "4.5", features = ["cargo", "derive", "deprecated", "wrap_hel
 crossbeam-channel = "0.5"
 flate2 = "1.1"
 globset = "0.4"
+ignore = "0.4.23"
 infer = "0.19.0"
 lazy_static = "1.5"
 log = "0.4"
