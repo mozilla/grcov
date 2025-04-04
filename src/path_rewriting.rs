@@ -276,10 +276,11 @@ pub fn rewrite_paths(
                 continue;
             }
 
-            let path = entry.path().strip_prefix(source_dir).unwrap().to_path_buf();
-            if to_ignore_globset.is_match(&path) {
+            let path = entry.path().strip_prefix(source_dir).unwrap();
+            if to_ignore_globset.is_match(path) {
                 continue;
             }
+            let path = path.to_path_buf();
 
             let name = entry.file_name().to_str().unwrap().to_string();
             match file_to_paths.entry(name) {
