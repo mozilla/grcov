@@ -1,3 +1,4 @@
+use crossbeam_channel::unbounded;
 use once_cell::sync::OnceCell;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use std::env;
@@ -5,23 +6,15 @@ use std::env::consts::EXE_SUFFIX;
 use std::error::Error;
 use std::ffi::OsStr;
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+use ignore::WalkBuilder;
+use ignore::WalkState::Continue;
 use log::warn;
-use walkdir::WalkDir;
 
 pub static LLVM_PATH: OnceCell<PathBuf> = OnceCell::new();
-
-pub fn is_binary(path: impl AsRef<Path>) -> bool {
-    if let Ok(oty) = infer::get_from_path(path) {
-        if let Some("dll" | "exe" | "elf" | "mach") = oty.map(|x| x.extension()) {
-            return true;
-        }
-    }
-    false
-}
 
 pub fn run_with_stdin(
     cmd: impl AsRef<OsStr>,
@@ -75,6 +68,52 @@ pub fn run(cmd: impl AsRef<OsStr>, args: &[&OsStr]) -> Result<Vec<u8>, String> {
     Ok(output.stdout)
 }
 
+pub fn find_binaries(binary_path: &Path) -> Vec<PathBuf> {
+    let metadata = fs::metadata(binary_path)
+        .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {:?}.", binary_path, e));
+
+    if metadata.is_file() {
+        vec![binary_path.to_owned()]
+    } else {
+        let mut paths = vec![];
+
+        let (sender, receiver) = unbounded();
+        let walker = WalkBuilder::new(binary_path)
+            .threads(num_cpus::get() - 1)
+            .build_parallel();
+        walker.run(|| {
+            let sender = sender.clone();
+            let mut bytes = vec![0u8; 128];
+
+            Box::new(move |result| {
+                let entry = result.unwrap();
+
+                if !entry.file_type().unwrap().is_file() {
+                    return Continue;
+                }
+
+                let file = fs::File::open(entry.path()).unwrap();
+                let read = file.take(128).read(&mut bytes).unwrap();
+                if read == 0 {
+                    return Continue;
+                }
+
+                if infer::is_app(&bytes) {
+                    sender.send(entry.into_path()).unwrap();
+                }
+
+                Continue
+            })
+        });
+
+        while let Ok(path) = receiver.try_recv() {
+            paths.push(path);
+        }
+
+        paths
+    }
+}
+
 /// Turns multiple .profraw and/or .profdata files into an lcov file.
 pub fn llvm_profiles_to_lcov(
     profile_paths: &[PathBuf],
@@ -100,25 +139,7 @@ pub fn llvm_profiles_to_lcov(
 
     get_profdata_path().and_then(|p| run_with_stdin(p, &stdin_paths, &args))?;
 
-    let metadata = fs::metadata(binary_path)
-        .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {:?}.", binary_path, e));
-
-    let binaries = if metadata.is_file() {
-        vec![binary_path.to_owned()]
-    } else {
-        let mut paths = vec![];
-
-        for entry in WalkDir::new(binary_path).follow_links(true) {
-            let entry = entry
-                .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {}", binary_path, e));
-
-            if is_binary(entry.path()) && entry.metadata().unwrap().len() > 0 {
-                paths.push(entry.into_path());
-            }
-        }
-
-        paths
-    };
+    let binaries = find_binaries(binary_path);
 
     let cov_tool_path = get_cov_path()?;
     let results = binaries
