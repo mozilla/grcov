@@ -246,48 +246,70 @@ pub fn rewrite_paths(
     }
 
     // Traverse source dir and store covered paths, reversed.
+    //
+    // This is a pre-requisite of the `map_partial_path` function, which is needed for Java.
     let mut file_to_paths: FxHashMap<String, Vec<PathBuf>> = FxHashMap::default();
     if let Some(ref source_dir) = source_dir {
-        // When --source-dir points to very large directories (for example, a Rust compiler
-        // checkout with submodules and build artifacts) walking through every file will take a
-        // considerable amount of time. We should skip paths not part of the coverage map.
-        let covered_names = result_map
-            .keys()
-            .map(|path| {
-                path.rsplit_once(['\\', '/'])
-                    .map(|(_dir, file)| file)
-                    .unwrap_or(path.as_str())
-            })
-            .map(OsStr::new)
-            .collect::<HashSet<_>>();
-
-        for entry in WalkDir::new(source_dir)
-            .into_iter()
-            .filter_entry(|e| !is_hidden(e) && !is_symbolic_link(e))
-        {
-            let entry = entry
-                .unwrap_or_else(|_| panic!("Failed to open directory '{}'.", source_dir.display()));
-
-            if !entry.file_type().is_file() {
-                continue;
+        // Calling walkdir over a large directory tree can take a significant time, so we want to
+        // execute this only when `map_partial_path` is actually needed.
+        //
+        // The function's purpose is to figure out whether a covered path is inside a subdirectory.
+        // If all covered paths are direct childs of the source directory, then that function will
+        // do nothing, and we don't have to do its pre-requisite data gathering.
+        let mut map_partial_path_needed = false;
+        for path in result_map.keys() {
+            let mut path = Path::new(path);
+            if let Some(prefix) = &prefix_dir {
+                path = path.strip_prefix(prefix).unwrap_or(path);
             }
-
-            if !covered_names.contains(entry.file_name()) {
-                continue;
+            if !source_dir.join(path).exists() {
+                map_partial_path_needed = true;
             }
+        }
 
-            let path = entry.path().strip_prefix(source_dir).unwrap().to_path_buf();
-            if to_ignore_globset.is_match(&path) {
-                continue;
-            }
+        if map_partial_path_needed {
+            // `map_partial_path` looks up paths based on the file name, so we only need to process
+            // files whose name is in the coverage map. This filtering provides significant speed
+            // increases when most files in the source directory are not in the coverage map.
+            let covered_names = result_map
+                .keys()
+                .map(|path| {
+                    path.rsplit_once(['\\', '/'])
+                        .map(|(_dir, file)| file)
+                        .unwrap_or(path.as_str())
+                })
+                .map(OsStr::new)
+                .collect::<HashSet<_>>();
 
-            let name = entry.file_name().to_str().unwrap().to_string();
-            match file_to_paths.entry(name) {
-                hash_map::Entry::Occupied(f) => f.into_mut().push(path),
-                hash_map::Entry::Vacant(v) => {
-                    v.insert(vec![path]);
+            for entry in WalkDir::new(source_dir)
+                .into_iter()
+                .filter_entry(|e| !is_hidden(e) && !is_symbolic_link(e))
+            {
+                let entry = entry.unwrap_or_else(|_| {
+                    panic!("Failed to open directory '{}'.", source_dir.display())
+                });
+
+                if !entry.file_type().is_file() {
+                    continue;
                 }
-            };
+
+                if !covered_names.contains(entry.file_name()) {
+                    continue;
+                }
+
+                let path = entry.path().strip_prefix(source_dir).unwrap().to_path_buf();
+                if to_ignore_globset.is_match(&path) {
+                    continue;
+                }
+
+                let name = entry.file_name().to_str().unwrap().to_string();
+                match file_to_paths.entry(name) {
+                    hash_map::Entry::Occupied(f) => f.into_mut().push(path),
+                    hash_map::Entry::Vacant(v) => {
+                        v.insert(vec![path]);
+                    }
+                }
+            }
         }
     }
 
