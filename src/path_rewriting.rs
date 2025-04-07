@@ -251,21 +251,29 @@ pub fn rewrite_paths(
     //
     // This is a pre-requisite of the `map_partial_path` function, which is needed for Java.
     let mut file_to_paths: FxHashMap<String, Vec<PathBuf>> = FxHashMap::default();
+    let mut map_partial_path_needed = false;
     if let Some(ref source_dir) = source_dir {
         // Calling walkdir over a large directory tree can take a significant time, so we want to
         // execute this only when `map_partial_path` is actually needed.
         //
         // The function's purpose is to figure out whether a covered path is inside a subdirectory.
+
+        // This only happens for Java, so if there are no Java files, we don't need to do it.
+        let has_java = result_map
+            .keys()
+            .any(|path| check_extension(Path::new(&path), PARTIAL_PATH_EXTENSION));
+
         // If all covered paths are direct childs of the source directory, then that function will
         // do nothing, and we don't have to do its pre-requisite data gathering.
-        let mut map_partial_path_needed = false;
-        for path in result_map.keys() {
-            let mut path = Path::new(path);
-            if let Some(prefix) = &prefix_dir {
-                path = path.strip_prefix(prefix).unwrap_or(path);
-            }
-            if !source_dir.join(path).exists() {
-                map_partial_path_needed = true;
+        if has_java {
+            for path in result_map.keys() {
+                let mut path = Path::new(path);
+                if let Some(prefix) = &prefix_dir {
+                    path = path.strip_prefix(prefix).unwrap_or(path);
+                }
+                if !source_dir.join(path).exists() {
+                    map_partial_path_needed = true;
+                }
             }
         }
 
@@ -331,11 +339,12 @@ pub fn rewrite_paths(
             let rel_path = remove_prefix(prefix_dir, rel_path);
 
             // Try mapping a partial path to a full path.
-            let rel_path = if check_extension(&rel_path, PARTIAL_PATH_EXTENSION) {
-                map_partial_path(&file_to_paths, rel_path)
-            } else {
-                rel_path
-            };
+            let rel_path =
+                if map_partial_path_needed && check_extension(&rel_path, PARTIAL_PATH_EXTENSION) {
+                    map_partial_path(&file_to_paths, rel_path)
+                } else {
+                    rel_path
+                };
 
             // Get absolute path to the source file.
             let (abs_path, rel_path) = get_abs_path(source_dir, rel_path)?;
