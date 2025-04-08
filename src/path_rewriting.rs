@@ -266,15 +266,13 @@ pub fn rewrite_paths(
         // If all covered paths are direct childs of the source directory, then that function will
         // do nothing, and we don't have to do its pre-requisite data gathering.
         if has_java {
-            for path in result_map.keys() {
+            map_partial_path_needed = result_map.keys().any(|path| {
                 let mut path = Path::new(path);
                 if let Some(prefix) = &prefix_dir {
                     path = path.strip_prefix(prefix).unwrap_or(path);
                 }
-                if !source_dir.join(path).exists() {
-                    map_partial_path_needed = true;
-                }
-            }
+                !source_dir.join(path).exists()
+            })
         }
 
         if map_partial_path_needed {
