@@ -1,4 +1,3 @@
-use once_cell::sync::OnceCell;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use std::env;
 use std::env::consts::EXE_SUFFIX;
@@ -8,11 +7,12 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::OnceLock;
 
 use log::warn;
 use walkdir::WalkDir;
 
-pub static LLVM_PATH: OnceCell<PathBuf> = OnceCell::new();
+pub static LLVM_PATH: OnceLock<PathBuf> = OnceLock::new();
 
 pub fn is_binary(path: impl AsRef<Path>) -> bool {
     if let Ok(oty) = infer::get_from_path(path) {
