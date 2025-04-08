@@ -30,7 +30,7 @@ jobs:
         run: cargo test --lib
   test-coverage:
     name: Test coverage (gcc-${{ matrix.gcc }}, clang-${{ matrix.clang }})
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         include:
