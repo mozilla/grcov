@@ -227,6 +227,8 @@ fn to_globset(dirs: &[impl AsRef<str>]) -> GlobSet {
     glob_builder.build().unwrap()
 }
 
+const PARTIAL_PATH_EXTENSION: &str = "java";
+
 pub fn rewrite_paths(
     result_map: CovResultMap,
     path_mapping: Option<Value>,
@@ -289,6 +291,10 @@ pub fn rewrite_paths(
                     panic!("Failed to open directory '{}'.", source_dir.display())
                 });
 
+                if !check_extension(entry.path(), PARTIAL_PATH_EXTENSION) {
+                    continue;
+                }
+
                 if !entry.file_type().is_file() {
                     continue;
                 }
@@ -325,7 +331,7 @@ pub fn rewrite_paths(
             let rel_path = remove_prefix(prefix_dir, rel_path);
 
             // Try mapping a partial path to a full path.
-            let rel_path = if check_extension(&rel_path, "java") {
+            let rel_path = if check_extension(&rel_path, PARTIAL_PATH_EXTENSION) {
                 map_partial_path(&file_to_paths, rel_path)
             } else {
                 rel_path
