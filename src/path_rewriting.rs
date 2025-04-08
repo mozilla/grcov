@@ -2,7 +2,6 @@ use globset::{Glob, GlobSet, GlobSetBuilder};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
-use std::collections::hash_map;
 use std::fs;
 use std::io;
 use std::path::{Component, Path, PathBuf};
@@ -309,17 +308,17 @@ pub fn rewrite_paths(
                     continue;
                 }
 
-                let path = entry.path().strip_prefix(source_dir).unwrap().to_path_buf();
-                if to_ignore_globset.is_match(&path) {
+                let path = entry.path().strip_prefix(source_dir).unwrap();
+                if to_ignore_globset.is_match(path) {
                     continue;
                 }
+                let path = path.to_path_buf();
 
-                let name = entry.file_name().to_str().unwrap().to_string();
-                match file_to_paths.entry(name) {
-                    hash_map::Entry::Occupied(f) => f.into_mut().push(path),
-                    hash_map::Entry::Vacant(v) => {
-                        v.insert(vec![path]);
-                    }
+                let name = entry.file_name().to_str().unwrap();
+                if let Some(paths) = file_to_paths.get_mut(name) {
+                    paths.push(path);
+                } else {
+                    file_to_paths.insert(name.to_string(), vec![path]);
                 }
             }
         }
