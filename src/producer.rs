@@ -776,6 +776,12 @@ mod tests {
                 "jacoco/full-junit4-report-multiple-top-level-classes.xml",
                 false,
             ),
+            (
+                ItemFormat::JacocoXml,
+                false,
+                "jacoco/kotlin-jacoco-report.xml",
+                false,
+            ),
             (ItemFormat::Profraw, true, "default_1.profraw", false),
             (
                 ItemFormat::Gcno,

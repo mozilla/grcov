@@ -2138,7 +2138,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
         }
 
         let mut branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();
-        branches.insert(26, vec![false, false, false]);
+        branches.insert(26, vec![false, false, false, false]);
 
         let expected = vec![(
             String::from("BreakpointValue.kt"),
