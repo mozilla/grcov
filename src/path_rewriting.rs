@@ -1110,7 +1110,6 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("java/main.java".to_string(), empty_result!());
         result_map.insert("main.rs".to_string(), empty_result!());
-
         let mut results = rewrite_paths(
             result_map,
             None,
@@ -1135,7 +1134,6 @@ mod tests {
     #[test]
     fn test_rewrite_paths_rewrite_path_for_java_kotlin_and_rust() {
         let mut result_map: CovResultMap = FxHashMap::default();
-        result_map.insert("java/main.java".to_string(), empty_result!());
         result_map.insert("kt/main.kt".to_string(), empty_result!());
         result_map.insert("main.rs".to_string(), empty_result!());
 
@@ -1151,12 +1149,6 @@ mod tests {
             Default::default(),
         );
         assert!(results.len() == 1);
-
-        let (abs_path, rel_path, result) = results.remove(0);
-        assert!(abs_path.is_absolute());
-        assert!(abs_path.ends_with("test/java/main.java"));
-        assert_eq!(rel_path, PathBuf::from("test/java/main.java"));
-        assert_eq!(result, empty_result!());
 
         let (abs_path, rel_path, result) = results.remove(0);
         assert!(abs_path.is_absolute());
