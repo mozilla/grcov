@@ -227,7 +227,7 @@ fn to_globset(dirs: &[impl AsRef<str>]) -> GlobSet {
     glob_builder.build().unwrap()
 }
 
-const PARTIAL_PATH_EXTENSION: &str = "java";
+const PARTIAL_PATH_EXTENSION: &[&str] = &["java", "kt"];
 
 pub fn rewrite_paths(
     result_map: CovResultMap,
@@ -261,7 +261,11 @@ pub fn rewrite_paths(
         // This only happens for Java, so if there are no Java files, we don't need to do it.
         let has_java = result_map
             .keys()
-            .any(|path| check_extension(Path::new(&path), PARTIAL_PATH_EXTENSION));
+            .any(|path| {
+                PARTIAL_PATH_EXTENSIONS.iter().any(|&ext| {
+                    check_extension(Path::new(&path), ext)
+                })
+            });
 
         // If all covered paths are direct childs of the source directory, then that function will
         // do nothing, and we don't have to do its pre-requisite data gathering.
@@ -297,7 +301,9 @@ pub fn rewrite_paths(
                     panic!("Failed to open directory '{}'.", source_dir.display())
                 });
 
-                if !check_extension(entry.path(), PARTIAL_PATH_EXTENSION) {
+                if !PARTIAL_PATH_EXTENSIONS
+                    .iter()
+                    .any(|&ext| check_extension(entry.path(), ext))
                     continue;
                 }
 
@@ -338,7 +344,9 @@ pub fn rewrite_paths(
 
             // Try mapping a partial path to a full path.
             let rel_path =
-                if map_partial_path_needed && (check_extension(&rel_path, PARTIAL_PATH_EXTENSION) || check_extension(&rel_path, "kt")) {
+                if map_partial_path_needed && PARTIAL_PATH_EXTENSIONS
+                    .iter()
+                    .any(|&ext| check_extension(&rel_path, ext)) {
                     map_partial_path(&file_to_paths, rel_path)
                 } else {
                     rel_path

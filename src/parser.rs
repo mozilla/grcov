@@ -806,12 +806,14 @@ fn parse_jacoco_report_package<T: BufRead>(
         }
     }
 
-    // Change all the keys to use relative paths.
+    // Change all keys from the class name to the file name and turn the result into a Vec.
+    // If package is the empty string, we have to trim the leading '/' in order to obtain a
+    // relative path.
     Ok(results_map
         .into_iter()
         .map(|(class, result)| {
             (
-                format!("{}/{}", package, class.trim_start_matches('/')).to_string(),
+                format!("{}/{}", package, class).trim_start_matches('/').to_string(),
                 result,
             )
         })
