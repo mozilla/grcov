@@ -262,7 +262,7 @@ pub fn rewrite_paths(
         let has_java = result_map
             .keys()
             .any(|path| {
-                PARTIAL_PATH_EXTENSIONS.iter().any(|&ext| {
+                PARTIAL_PATH_EXTENSION.iter().any(|&ext| {
                     check_extension(Path::new(&path), ext)
                 })
             });
@@ -301,9 +301,9 @@ pub fn rewrite_paths(
                     panic!("Failed to open directory '{}'.", source_dir.display())
                 });
 
-                if !PARTIAL_PATH_EXTENSIONS
+                if !PARTIAL_PATH_EXTENSION
                     .iter()
-                    .any(|&ext| check_extension(entry.path(), ext))
+                    .any(|&ext| check_extension(entry.path(), ext)) {
                     continue;
                 }
 
@@ -344,7 +344,7 @@ pub fn rewrite_paths(
 
             // Try mapping a partial path to a full path.
             let rel_path =
-                if map_partial_path_needed && PARTIAL_PATH_EXTENSIONS
+                if map_partial_path_needed && PARTIAL_PATH_EXTENSION
                     .iter()
                     .any(|&ext| check_extension(&rel_path, ext)) {
                     map_partial_path(&file_to_paths, rel_path)
