@@ -6,6 +6,7 @@ use std::fs;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
+use log::error;
 
 use crate::defs::*;
 use crate::filter::*;
@@ -186,14 +187,14 @@ fn map_partial_path(file_to_paths: &FxHashMap<String, Vec<PathBuf>>, path: PathB
     let mut result: Option<&PathBuf> = None;
     for option in options {
         if option.ends_with(&path) {
-            assert!(
-                result.is_none(),
-                "Only one file in the repository should end with {} ({} and {} both end with that)",
+            if !result.is_none() {
+                error!("Only one file in the repository should end with {} ({} and {} both end with that).",
                 path.display(),
                 result.unwrap().display(),
-                option.display()
-            );
-            result = Some(option)
+                option.display());
+            } else {
+                result = Some(option)
+            }
         }
     }
 
@@ -337,7 +338,7 @@ pub fn rewrite_paths(
 
             // Try mapping a partial path to a full path.
             let rel_path =
-                if map_partial_path_needed && check_extension(&rel_path, PARTIAL_PATH_EXTENSION) {
+                if map_partial_path_needed && (check_extension(&rel_path, PARTIAL_PATH_EXTENSION) || check_extension(&rel_path, "kt")) {
                     map_partial_path(&file_to_paths, rel_path)
                 } else {
                     rel_path
@@ -1101,6 +1102,7 @@ mod tests {
         let mut result_map: CovResultMap = FxHashMap::default();
         result_map.insert("java/main.java".to_string(), empty_result!());
         result_map.insert("main.rs".to_string(), empty_result!());
+
         let mut results = rewrite_paths(
             result_map,
             None,
@@ -1118,6 +1120,40 @@ mod tests {
         assert!(abs_path.is_absolute());
         assert!(abs_path.ends_with("test/java/main.java"));
         assert_eq!(rel_path, PathBuf::from("test/java/main.java"));
+        assert_eq!(result, empty_result!());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_rewrite_paths_rewrite_path_for_java_kotlin_and_rust() {
+        let mut result_map: CovResultMap = FxHashMap::default();
+        result_map.insert("java/main.java".to_string(), empty_result!());
+        result_map.insert("kt/main.kt".to_string(), empty_result!());
+        result_map.insert("main.rs".to_string(), empty_result!());
+
+        let mut results = rewrite_paths(
+            result_map,
+            None,
+            Some(&canonicalize_path(".").unwrap()),
+            None,
+            true,
+            &[""; 0],
+            &[""; 0],
+            None,
+            Default::default(),
+        );
+        assert!(results.len() == 1);
+
+        let (abs_path, rel_path, result) = results.remove(0);
+        assert!(abs_path.is_absolute());
+        assert!(abs_path.ends_with("test/java/main.java"));
+        assert_eq!(rel_path, PathBuf::from("test/java/main.java"));
+        assert_eq!(result, empty_result!());
+
+        let (abs_path, rel_path, result) = results.remove(0);
+        assert!(abs_path.is_absolute());
+        assert!(abs_path.ends_with("test/kotlin/main.kt"));
+        assert_eq!(rel_path, PathBuf::from("test/kotlin/main.kt"));
         assert_eq!(result, empty_result!());
     }
 
