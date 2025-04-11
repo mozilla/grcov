@@ -813,7 +813,9 @@ fn parse_jacoco_report_package<T: BufRead>(
         .into_iter()
         .map(|(class, result)| {
             (
-                format!("{}/{}", package, class).trim_start_matches('/').to_string(),
+                format!("{}/{}", package, class)
+                    .trim_start_matches('/')
+                    .to_string(),
                 result,
             )
         })

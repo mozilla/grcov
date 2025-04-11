@@ -1,4 +1,5 @@
 use globset::{Glob, GlobSet, GlobSetBuilder};
+use log::error;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -6,7 +7,6 @@ use std::fs;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
-use log::error;
 
 use crate::defs::*;
 use crate::filter::*;
@@ -259,13 +259,11 @@ pub fn rewrite_paths(
         // The function's purpose is to figure out whether a covered path is inside a subdirectory.
 
         // This only happens for Java, so if there are no Java files, we don't need to do it.
-        let has_java = result_map
-            .keys()
-            .any(|path| {
-                PARTIAL_PATH_EXTENSION.iter().any(|&ext| {
-                    check_extension(Path::new(&path), ext)
-                })
-            });
+        let has_java = result_map.keys().any(|path| {
+            PARTIAL_PATH_EXTENSION
+                .iter()
+                .any(|&ext| check_extension(Path::new(&path), ext))
+        });
 
         // If all covered paths are direct childs of the source directory, then that function will
         // do nothing, and we don't have to do its pre-requisite data gathering.
@@ -303,7 +301,8 @@ pub fn rewrite_paths(
 
                 if !PARTIAL_PATH_EXTENSION
                     .iter()
-                    .any(|&ext| check_extension(entry.path(), ext)) {
+                    .any(|&ext| check_extension(entry.path(), ext))
+                {
                     continue;
                 }
 
@@ -343,14 +342,15 @@ pub fn rewrite_paths(
             let rel_path = remove_prefix(prefix_dir, rel_path);
 
             // Try mapping a partial path to a full path.
-            let rel_path =
-                if map_partial_path_needed && PARTIAL_PATH_EXTENSION
+            let rel_path = if map_partial_path_needed
+                && PARTIAL_PATH_EXTENSION
                     .iter()
-                    .any(|&ext| check_extension(&rel_path, ext)) {
-                    map_partial_path(&file_to_paths, rel_path)
-                } else {
-                    rel_path
-                };
+                    .any(|&ext| check_extension(&rel_path, ext))
+            {
+                map_partial_path(&file_to_paths, rel_path)
+            } else {
+                rel_path
+            };
 
             // Get absolute path to the source file.
             let (abs_path, rel_path) = get_abs_path(source_dir, rel_path)?;
