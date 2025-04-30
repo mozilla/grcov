@@ -1,0 +1,34 @@
+<scoverage 
+statement-count="5" statements-invoked="3" statement-rate="60.00" branch-rate="50.00" version="1.0" timestamp="1744131635857">
+    <packages>
+        <package name="example2" statement-count="5" statements-invoked="3" statement-rate="60.00">
+            <classes>
+                <class 
+                name="example2.Example2" filename="Example2.scala" statement-count="5" statements-invoked="3" statement-rate="60.00" branch-rate="50.00">
+                    <methods>
+                        <method 
+                        name="example2/Example2/z" statement-count="5" statements-invoked="3" statement-rate="60.00" branch-rate="50.00">
+                            <statements>
+                                <statement 
+                                package="example2" class="Example2" class-type="Object" full-class-name="example2.Example2" source="/Users/jgilanfa/src/sample-scala/src/main/scala/Example2.scala" method="z" start="109" end="114" line="8" branch="true" invocation-count="0" ignored="false">
+</statement>
+                                <statement 
+                                package="example2" class="Example2" class-type="Object" full-class-name="example2.Example2" source="/Users/jgilanfa/src/sample-scala/src/main/scala/Example2.scala" method="z" start="84" end="89" line="6" branch="true" invocation-count="1" ignored="false">
+</statement>
+                                <statement 
+                                package="example2" class="Example2" class-type="Object" full-class-name="example2.Example2" source="/Users/jgilanfa/src/sample-scala/src/main/scala/Example2.scala" method="z" start="69" end="74" line="5" branch="false" invocation-count="1" ignored="false">
+</statement>
+                                <statement 
+                                package="example2" class="Example2" class-type="Object" full-class-name="example2.Example2" source="/Users/jgilanfa/src/sample-scala/src/main/scala/Example2.scala" method="z" start="84" end="89" line="6" branch="false" invocation-count="1" ignored="false">
+</statement>
+                                <statement 
+                                package="example2" class="Example2" class-type="Object" full-class-name="example2.Example2" source="/Users/jgilanfa/src/sample-scala/src/main/scala/Example2.scala" method="z" start="109" end="114" line="8" branch="false" invocation-count="0" ignored="false">
+</statement>
+                            </statements>
+</method>
+                    </methods>
+</class>
+            </classes>
+        </package>
+    </packages>
+</scoverage>

@@ -227,7 +227,7 @@ fn to_globset(dirs: &[impl AsRef<str>]) -> GlobSet {
     glob_builder.build().unwrap()
 }
 
-const PARTIAL_PATH_EXTENSION: &[&str] = &["java", "kt"];
+const PARTIAL_PATH_EXTENSION: &[&str] = &["java", "kt", "scala"];
 
 pub fn rewrite_paths(
     result_map: CovResultMap,
