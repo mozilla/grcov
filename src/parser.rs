@@ -826,7 +826,7 @@ fn parse_jacoco_report_package<T: BufRead>(
 pub fn parse_pytest_file<T: BufRead>(
     parser: &mut Reader<T>,
     buf: &mut Vec<u8>,
-) -> Result<(BTreeMap<u32, u64>, BTreeMap<u32, Vec<bool>>), ParserError> {
+) -> Result<CovResult, ParserError> {
     let condition_re = Regex::new(r"(\d+)/(\d+)").unwrap();
 
     let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
@@ -876,7 +876,7 @@ pub fn parse_pytest_file<T: BufRead>(
         }
     }
 
-    Ok((lines, branches))
+    Ok(CovResult { lines, branches, functions: FxHashMap::default() })
 }
 
 pub fn parse_pytest_report_packages<T: BufRead>(
@@ -888,15 +888,11 @@ pub fn parse_pytest_report_packages<T: BufRead>(
         match parser.read_event_into(buf) {
             Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"class" => {
                 let file = get_xml_attribute(parser, e, "filename")?;
-                let lines_and_branches = parse_pytest_file(parser, buf)?;
+                let result = parse_pytest_file(parser, buf)?;
 
                 results_map.insert(
                     file.to_string(),
-                    CovResult {
-                        lines: lines_and_branches.0,
-                        branches: lines_and_branches.1,
-                        functions: FxHashMap::default(),
-                    },
+                    result,
                 );
             }
             Ok(Event::End(ref e)) if e.local_name().into_inner() == b"packages" => break,
