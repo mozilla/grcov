@@ -2234,7 +2234,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
         branches.insert(8, vec![false]);
 
         let expected = vec![
-            (String::from("Example2.scala"), CovResult { lines: lines, branches: branches, functions: FxHashMap::default() })
+            (String::from("Example2.scala"), CovResult { lines, branches, functions: FxHashMap::default() })
         ];
 
         let f = File::open("./test/scoverage.xml").expect("Failed to open scoverage coverage file");
