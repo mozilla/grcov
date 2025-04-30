@@ -865,7 +865,7 @@ pub fn parse_gocov<T: Read>(
 
         match reader.read_line(&mut line) {
             Ok(0) => {
-                if current_file != "" {
+                if !current_file.is_empty() {
                     results.insert(current_file.to_string(), lines.clone());
                 }
                 return Ok(results
@@ -893,7 +893,7 @@ pub fn parse_gocov<T: Read>(
                         .map(|c| c.as_str())
                         .ok_or(ParserError::InvalidData(line.clone()))?;
                     if file != current_file {
-                        if current_file != "" {
+                        if !current_file.is_empty() {
                             results.insert(current_file.to_string(), lines.clone());
                             lines.clear();
                         }
