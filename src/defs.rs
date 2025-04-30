@@ -28,6 +28,7 @@ pub enum ItemFormat {
     Profdata,
     Info,
     JacocoXml,
+    Gocov,
 }
 
 #[derive(Debug)]
