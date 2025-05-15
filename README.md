@@ -6,7 +6,7 @@
 
 grcov collects and aggregates code coverage information for multiple source files.
 grcov processes .profraw and .gcda files which can be generated from llvm/clang or gcc.
-grcov also processes lcov files (for JS coverage) and JaCoCo files (for Java coverage).
+grcov also processes lcov files (for JS coverage), out files (for Go coverage), and JaCoCo files (for Java and Kotlin coverage).
 Linux, macOS and Windows are supported.
 
 This is a project initiated by Mozilla to gather code coverage results on Firefox.
