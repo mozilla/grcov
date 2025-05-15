@@ -27,7 +27,7 @@ edition = "2018"
 default = ["deflate-zlib", "demangle-no-swift"]
 tc = ["tcmalloc"]
 deflate = ["zip/deflate"]
-deflate-zlib = ["zip/deflate-flate2-zlib"]
+deflate-zlib = ["zip/deflate-flate2"]
 demangle-no-swift = ["symbolic-demangle/cpp", "symbolic-demangle/msvc", "symbolic-demangle/rust"]
 demangle-with-swift = [
     "symbolic-demangle/cpp",
