@@ -24,10 +24,11 @@ exclude = [
 edition = "2018"
 
 [features]
-default = ["deflate-zlib", "demangle-no-swift"]
+default = ["deflate-zlib-rs", "demangle-no-swift"]
 tc = ["tcmalloc"]
 deflate = ["zip/deflate"]
-deflate-zlib = ["zip/deflate-flate2"]
+deflate-zlib-rs = ["zip/deflate-flate2-zlib-rs"]
+deflate-zlib = ["zip/deflate-flate2-zlib"]
 demangle-no-swift = ["symbolic-demangle/cpp", "symbolic-demangle/msvc", "symbolic-demangle/rust"]
 demangle-with-swift = [
     "symbolic-demangle/cpp",
