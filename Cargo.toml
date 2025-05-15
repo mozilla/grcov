@@ -27,8 +27,7 @@ edition = "2018"
 default = ["deflate-zlib", "demangle-no-swift"]
 tc = ["tcmalloc"]
 deflate = ["zip/deflate"]
-deflate-miniz = ["zip/deflate-miniz"]
-deflate-zlib = ["zip/deflate-zlib"]
+deflate-zlib = ["zip/deflate-flate2-zlib"]
 demangle-no-swift = ["symbolic-demangle/cpp", "symbolic-demangle/msvc", "symbolic-demangle/rust"]
 demangle-with-swift = [
     "symbolic-demangle/cpp",
@@ -66,7 +65,7 @@ tempfile = "3.19"
 tera = "1.20"
 uuid = { version = "1.16", features = ["v4"] }
 walkdir = "2.5"
-zip = { version = "2.6", default-features = false }
+zip = { version = "3.0", default-features = false }
 
 [dev-dependencies]
 pretty_assertions = "1.4"
