@@ -621,7 +621,68 @@ fn get_xml_attribute<R: BufRead>(
     )))
 }
 
-fn parse_jacoco_report_sourcefile<T: BufRead>(
+pub fn parse_scoverage_class<T: BufRead>(
+    reader: &mut Reader<T>,
+    buf: &mut Vec<u8>,
+) -> Result<CovResult, ParserError> {
+    let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
+    let mut branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();
+
+    loop {
+        match reader.read_event_into(buf) {
+            Ok(Event::Start(ref event)) if event.local_name().into_inner() == b"statement" => {
+                let line = get_xml_attribute(reader, event, "line")?.parse::<u32>()?;
+                let branch = get_xml_attribute(reader, event, "branch")? == "true";
+                let invoked = get_xml_attribute(reader, event, "invocation-count")?.parse::<u64>()?;
+
+                lines.entry(line).and_modify(|v| *v = invoked).or_insert(invoked);
+                if branch {
+                    branches.entry(line).and_modify(|v| {
+                            v.push(invoked > 0);
+                    }).or_insert(vec![invoked > 0]);
+                }
+            }
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"class" => {
+                return Ok(CovResult {
+                    lines,
+                    branches,
+                    functions: FxHashMap::default(),
+                });
+            }
+            Err(e) => return Err(ParserError::Parse(e.to_string())),
+            _ => {}
+        }
+    }
+}
+
+pub fn parse_scoverage_report_packages<T: BufRead>(
+    parser: &mut Reader<T>,
+    buf: &mut Vec<u8>,
+) -> Result<Vec<(String, CovResult)>, ParserError> {
+    let mut results_map: FxHashMap<String, CovResult> = FxHashMap::default();
+    loop {
+
+        match parser.read_event_into(buf) {
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"class" => {
+                let file = get_xml_attribute(parser, e, "filename")?.replace('.', "/").replace("/scala", ".scala");
+                let results = parse_scoverage_class(parser, buf)?;
+
+                results_map.entry(file.to_string()).and_modify(|v| {
+                    v.lines.extend(results.lines.clone());
+                    v.branches.extend(results.branches.clone());
+                }).or_insert(results);
+            }
+            Err(e) => return Err(ParserError::Parse(e.to_string())),
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"scoverage" => {
+                return Ok(results_map.into_iter().collect());
+            }
+            _ => {}
+        }
+    }
+}
+
+
+fn parse_report_sourcefile<T: BufRead>(
     parser: &mut Reader<T>,
     buf: &mut Vec<u8>,
 ) -> Result<JacocoReport, ParserError> {
@@ -679,7 +740,7 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
     Ok(JacocoReport { lines, branches })
 }
 
-fn parse_jacoco_report_method<T: BufRead>(
+fn parse_report_method<T: BufRead>(
     parser: &mut Reader<T>,
     buf: &mut Vec<u8>,
     start: u32,
@@ -703,7 +764,7 @@ fn parse_jacoco_report_method<T: BufRead>(
     Ok(Function { start, executed })
 }
 
-fn parse_jacoco_report_class<T: BufRead>(
+fn parse_report_class<T: BufRead>(
     parser: &mut Reader<T>,
     buf: &mut Vec<u8>,
     class_name: &str,
@@ -717,7 +778,7 @@ fn parse_jacoco_report_class<T: BufRead>(
                 let full_name = format!("{}#{}", class_name, name);
 
                 let start_line = get_xml_attribute(parser, e, "line")?.parse::<u32>()?;
-                let function = parse_jacoco_report_method(parser, buf, start_line)?;
+                let function = parse_report_method(parser, buf, start_line)?;
                 functions.insert(full_name, function);
             }
             Ok(Event::End(ref e)) if e.local_name().into_inner() == b"class" => break,
@@ -730,7 +791,7 @@ fn parse_jacoco_report_class<T: BufRead>(
     Ok(functions)
 }
 
-fn parse_jacoco_report_package<T: BufRead>(
+fn parse_report_package<T: BufRead>(
     parser: &mut Reader<T>,
     buf: &mut Vec<u8>,
     package: &str,
@@ -760,7 +821,7 @@ fn parse_jacoco_report_package<T: BufRead>(
                             .unwrap_or(format!("{}.java", top_class));
 
                         // Process all <method /> and <counter /> for this class
-                        let functions = parse_jacoco_report_class(parser, buf, class)?;
+                        let functions = parse_report_class(parser, buf, class)?;
 
                         match results_map.entry(file.to_string()) {
                             hash_map::Entry::Occupied(obj) => {
@@ -780,7 +841,7 @@ fn parse_jacoco_report_package<T: BufRead>(
                         let file = get_xml_attribute(parser, e, "name")?;
 
                         let JacocoReport { lines, branches } =
-                            parse_jacoco_report_sourcefile(parser, buf)?;
+                            parse_report_sourcefile(parser, buf)?;
 
                         match results_map.entry(file.to_string()) {
                             hash_map::Entry::Occupied(obj) => {
@@ -822,7 +883,7 @@ fn parse_jacoco_report_package<T: BufRead>(
         .collect())
 }
 
-pub fn parse_jacoco_xml_report<T: Read>(
+pub fn parse_xml_report<T: Read>(
     xml_reader: BufReader<T>,
 ) -> Result<Vec<(String, CovResult)>, ParserError> {
     let mut parser = Reader::from_reader(xml_reader);
@@ -835,10 +896,14 @@ pub fn parse_jacoco_xml_report<T: Read>(
 
     loop {
         match parser.read_event_into(&mut buf) {
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"scoverage" => {
+                let mut package_results = parse_scoverage_report_packages(&mut parser, &mut buf)?;
+                results.append(&mut package_results);
+            }
             Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"package" => {
                 let package = get_xml_attribute(&parser, e, "name")?;
                 let mut package_results =
-                    parse_jacoco_report_package(&mut parser, &mut buf, &package)?;
+                    parse_report_package(&mut parser, &mut buf, &package)?;
                 results.append(&mut package_results);
             }
             Ok(Event::Eof) => break,
@@ -2032,7 +2097,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
 
         let f = File::open("./test/jacoco/basic-report.xml").expect("Failed to open xml file");
         let file = BufReader::new(&f);
-        let results = parse_jacoco_xml_report(file).unwrap();
+        let results = parse_xml_report(file).unwrap();
 
         assert_eq!(results, expected);
     }
@@ -2079,7 +2144,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
 
         let f = File::open("./test/jacoco/inner-classes.xml").expect("Failed to open xml file");
         let file = BufReader::new(&f);
-        let results = parse_jacoco_xml_report(file).unwrap();
+        let results = parse_xml_report(file).unwrap();
 
         assert_eq!(results, expected);
     }
@@ -2154,7 +2219,27 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
         let f =
             File::open("./test/jacoco/kotlin-jacoco-report.xml").expect("Failed to open xml file");
         let file = BufReader::new(&f);
-        let results = parse_jacoco_xml_report(file).unwrap();
+        let results = parse_xml_report(file).unwrap();
+        assert_eq!(results, expected);
+    }
+
+    #[test]
+    fn parse_scoverage() {
+        let mut lines = BTreeMap::new();
+        lines.insert(5, 1);
+        lines.insert(6, 1);
+        lines.insert(8, 0);
+        let mut branches = BTreeMap::new();
+        branches.insert(6, vec![true]);
+        branches.insert(8, vec![false]);
+
+        let expected = vec![
+            (String::from("Example2.scala"), CovResult { lines, branches, functions: FxHashMap::default() })
+        ];
+
+        let f = File::open("./test/scoverage.xml").expect("Failed to open scoverage coverage file");
+        let file = BufReader::new(&f);
+        let results = parse_xml_report(file).unwrap();
         assert_eq!(results, expected);
     }
 }
