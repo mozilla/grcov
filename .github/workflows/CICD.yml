@@ -107,6 +107,7 @@ jobs:
       - name: Setup Rust
         run: |
           rustup update stable
+          rustup toolchain add stable --component llvm-tools
           rustup override set stable
       - name: Install pre-commit
         run: pip install --no-cache-dir pre-commit
