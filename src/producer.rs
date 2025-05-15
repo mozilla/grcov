@@ -95,7 +95,7 @@ impl Archive {
                     }
                 }
                 "xml" => {
-                    if Archive::check_file(file, &Archive::is_jacoco) {
+                    if Archive::check_file(file, &Archive::is_jacoco_or_pytest_cov) {
                         let filename = clean_path(path);
                         self.insert_vec(filename, xmls);
                     }
@@ -119,11 +119,11 @@ impl Archive {
             && (&bytes[5..] == b"204" || &bytes[5..] == b"804")
     }
 
-    fn is_jacoco(reader: &mut dyn Read) -> bool {
+    fn is_jacoco_or_pytest_cov(reader: &mut dyn Read) -> bool {
         let mut bytes: [u8; 256] = [0; 256];
         if reader.read_exact(&mut bytes).is_ok() {
             return match String::from_utf8(bytes.to_vec()) {
-                Ok(s) => s.contains("-//JACOCO//DTD"),
+                Ok(s) => s.contains("-//JACOCO//DTD") || s.contains("<coverage"),
                 Err(_) => false,
             };
         }
@@ -574,7 +574,7 @@ pub fn producer(
     );
 
     file_content_producer(&infos.into_inner(), sender, ItemFormat::Info);
-    file_content_producer(&xmls.into_inner(), sender, ItemFormat::JacocoXml);
+    file_content_producer(&xmls.into_inner(), sender, ItemFormat::Xml);
     llvm_format_producer(
         tmp_dir,
         &profdatas.into_inner(),
@@ -753,31 +753,31 @@ mod tests {
             (ItemFormat::Gcno, false, "llvm/file_branch", true),
             (ItemFormat::Gcno, false, "llvm/reader", true),
             (
-                ItemFormat::JacocoXml,
+                ItemFormat::Xml,
                 false,
                 "jacoco/basic-jacoco.xml",
                 false,
             ),
             (
-                ItemFormat::JacocoXml,
+                ItemFormat::Xml,
                 false,
                 "jacoco/inner-classes.xml",
                 false,
             ),
             (
-                ItemFormat::JacocoXml,
+                ItemFormat::Xml,
                 false,
                 "jacoco/multiple-top-level-classes.xml",
                 false,
             ),
             (
-                ItemFormat::JacocoXml,
+                ItemFormat::Xml,
                 false,
                 "jacoco/full-junit4-report-multiple-top-level-classes.xml",
                 false,
             ),
             (
-                ItemFormat::JacocoXml,
+                ItemFormat::Xml,
                 false,
                 "jacoco/kotlin-jacoco-report.xml",
                 false,
@@ -789,6 +789,9 @@ mod tests {
                 "mozillavpn_serverconnection_1.gcno",
                 true,
             ),
+            (
+                ItemFormat::Xml, false, "pycov/report.xml", false,
+            )
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -1169,12 +1172,12 @@ mod tests {
 
         let expected = vec![
             (
-                ItemFormat::JacocoXml,
+                ItemFormat::Xml,
                 false,
                 "jacoco/basic-jacoco.xml",
                 true,
             ),
-            (ItemFormat::JacocoXml, false, "inner-classes.xml", true),
+            (ItemFormat::Xml, false, "inner-classes.xml", true),
         ];
 
         check_produced(tmp_path, &receiver, expected);
@@ -1202,12 +1205,12 @@ mod tests {
 
         let expected = vec![
             (
-                ItemFormat::JacocoXml,
+                ItemFormat::Xml,
                 false,
                 "jacoco/basic-jacoco.xml",
                 true,
             ),
-            (ItemFormat::JacocoXml, false, "inner-classes.xml", true),
+            (ItemFormat::Xml, false, "inner-classes.xml", true),
             (ItemFormat::Info, false, "1494603967-2977-2_0.info", true),
             (ItemFormat::Info, false, "1494603967-2977-3_0.info", true),
             (ItemFormat::Info, false, "1494603967-2977-4_0.info", true),
@@ -1649,28 +1652,28 @@ mod tests {
     fn test_jacoco_files() {
         let mut file = File::open("./test/jacoco/basic-report.xml").ok();
         assert!(
-            Archive::check_file(file.as_mut(), &Archive::is_jacoco),
+            Archive::check_file(file.as_mut(), &Archive::is_jacoco_or_pytest_cov),
             "A Jacoco XML file expected"
         );
         let mut file =
             File::open("./test/jacoco/full-junit4-report-multiple-top-level-classes.xml").ok();
         assert!(
-            Archive::check_file(file.as_mut(), &Archive::is_jacoco),
+            Archive::check_file(file.as_mut(), &Archive::is_jacoco_or_pytest_cov),
             "A Jacoco XML file expected"
         );
         let mut file = File::open("./test/jacoco/inner-classes.xml").ok();
         assert!(
-            Archive::check_file(file.as_mut(), &Archive::is_jacoco),
+            Archive::check_file(file.as_mut(), &Archive::is_jacoco_or_pytest_cov),
             "A Jacoco XML file expected"
         );
         let mut file = File::open("./test/jacoco/multiple-top-level-classes.xml").ok();
         assert!(
-            Archive::check_file(file.as_mut(), &Archive::is_jacoco),
+            Archive::check_file(file.as_mut(), &Archive::is_jacoco_or_pytest_cov),
             "A Jacoco XML file expected"
         );
         let mut file = File::open("./test/jacoco/not_jacoco_file.xml").ok();
         assert!(
-            !Archive::check_file(file.as_mut(), &Archive::is_jacoco),
+            !Archive::check_file(file.as_mut(), &Archive::is_jacoco_or_pytest_cov),
             "Not a Jacoco XML file expected"
         );
     }

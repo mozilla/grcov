@@ -186,7 +186,7 @@ fn map_partial_path(file_to_paths: &FxHashMap<String, Vec<PathBuf>>, path: PathB
 
     let mut result: Option<&PathBuf> = None;
     for option in options {
-        if option.ends_with(&path) {
+        if option.ends_with(&path) && !option.ends_with("__init__.py") {
             if result.is_some() {
                 error!("Only one file in the repository should end with {} ({} and {} both end with that).",
                 path.display(),
@@ -227,7 +227,7 @@ fn to_globset(dirs: &[impl AsRef<str>]) -> GlobSet {
     glob_builder.build().unwrap()
 }
 
-const PARTIAL_PATH_EXTENSION: &[&str] = &["java", "kt"];
+const PARTIAL_PATH_EXTENSION: &[&str] = &["java", "kt", "py"];
 
 pub fn rewrite_paths(
     result_map: CovResultMap,

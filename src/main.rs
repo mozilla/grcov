@@ -565,7 +565,8 @@ fn main() {
             ),
             OutputType::Files => output_files(results, output_path.as_deref()),
             OutputType::Covdir => output_covdir(results, output_path.as_deref(), opt.precision),
-            OutputType::Html => output_html(
+            OutputType::Html =>
+                output_html(
                 results,
                 output_path.as_deref(),
                 num_threads,
@@ -575,7 +576,7 @@ fn main() {
                 &opt.abs_link_prefix.clone(),
                 opt.no_date,
                 opt.html_resources,
-            ),
+                ),
             OutputType::Cobertura => output_cobertura(
                 source_root.as_deref(),
                 results,
