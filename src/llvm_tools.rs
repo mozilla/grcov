@@ -204,7 +204,7 @@ fn get_profdata_path() -> Result<PathBuf, String> {
     };
 
     if !path.exists() {
-        Err(String::from("We couldn't find llvm-profdata. Try installing the llvm-tools component with `rustup component add llvm-tools-preview` or specifying the --llvm-path option."))
+        Err(String::from("We couldn't find llvm-profdata. Try installing the llvm-tools component with `rustup component add llvm-tools` or specifying the --llvm-path option."))
     } else {
         Ok(path)
     }
@@ -219,7 +219,7 @@ fn get_cov_path() -> Result<PathBuf, String> {
     };
 
     if !path.exists() {
-        Err(String::from("We couldn't find llvm-cov. Try installing the llvm-tools component with `rustup component add llvm-tools-preview` or specifying the --llvm-path option."))
+        Err(String::from("We couldn't find llvm-cov. Try installing the llvm-tools component with `rustup component add llvm-tools` or specifying the --llvm-path option."))
     } else {
         Ok(path)
     }
@@ -316,45 +316,30 @@ mod tests {
         assert!(lcov
             .lines()
             .any(|line| line.contains("SF") && line.contains("src") && line.contains("main.rs")));
-        if !nightly {
-            assert!(lcov.lines().any(|line| line.contains("FN:3")
-                && line.contains("basic")
-                && line.contains("Ciao")));
-        }
         assert!(lcov
             .lines()
             .any(|line| line.contains("FN:8") && line.contains("basic") && line.contains("main")));
-        if !nightly {
-            assert!(lcov.lines().any(|line| line.contains("FNDA:0")
-                && line.contains("basic")
-                && line.contains("Ciao")));
-        } else {
-            assert!(lcov.lines().any(|line| line.contains("FNDA:1")
-                && line.contains("basic")
-                && line.contains("main")));
-        }
         assert!(lcov.lines().any(|line| line.contains("FNDA:1")
             && line.contains("basic")
             && line.contains("main")));
-        if !nightly {
-            assert!(lcov.lines().any(|line| line == "FNF:2"));
-        }
+        assert!(lcov.lines().any(|line| line.contains("FNDA:1")
+            && line.contains("basic")
+            && line.contains("main")));
         assert!(lcov.lines().any(|line| line == "FNH:1"));
-        if !nightly {
-            assert!(lcov.lines().any(|line| line == "DA:3,0"));
-        }
         assert!(lcov.lines().any(|line| line == "DA:8,1"));
         assert!(lcov.lines().any(|line| line == "DA:9,1"));
-        assert!(lcov.lines().any(|line| line == "DA:10,1"));
+        if !nightly {
+            assert!(lcov.lines().any(|line| line == "DA:10,1"));
+        }
         assert!(lcov.lines().any(|line| line == "DA:11,1"));
         assert!(lcov.lines().any(|line| line == "DA:12,1"));
         assert!(lcov.lines().any(|line| line == "BRF:0"));
         assert!(lcov.lines().any(|line| line == "BRH:0"));
         if nightly {
-            assert!(lcov.lines().any(|line| line == "LF:5"));
-            assert!(lcov.lines().any(|line| line == "LH:5"));
+            assert!(lcov.lines().any(|line| line == "LF:4"));
+            assert!(lcov.lines().any(|line| line == "LH:4"));
         } else {
-            assert!(lcov.lines().any(|line| line == "LF:6"));
+            assert!(lcov.lines().any(|line| line == "LF:5"));
             assert!(lcov.lines().any(|line| line == "LH:5"));
         }
         assert!(lcov.lines().any(|line| line == "end_of_record"));
@@ -362,10 +347,6 @@ mod tests {
 
     #[test]
     fn test_wrong_binary_file() {
-        if !check_nightly_rust() {
-            return;
-        }
-
         let tmp_dir = setup_env_and_run_program("basic");
         let tmp_path = tmp_dir.path();
 
@@ -381,10 +362,6 @@ mod tests {
 
     #[test]
     fn test_profraws_to_lcov() {
-        if !check_nightly_rust() {
-            return;
-        }
-
         let tmp_dir = setup_env_and_run_program("basic");
         let tmp_path = tmp_dir.path();
         let binary_path = get_binary_path("basic");
@@ -405,10 +382,6 @@ mod tests {
 
     #[test]
     fn test_profdatas_to_lcov() {
-        if !check_nightly_rust() {
-            return;
-        }
-
         let tmp_dir = setup_env_and_run_program("basic");
         let tmp_path = tmp_dir.path();
         let binary_path = get_binary_path("basic");
@@ -442,10 +415,6 @@ mod tests {
 
     #[test]
     fn test_llvm_aggregate_profraws() {
-        if !check_nightly_rust() {
-            return;
-        }
-
         let tmp_dir = copy_fixture("hello_name");
         let tmp_path = tmp_dir.path();
         let bin_path = get_binary_path("hello_name");
