@@ -204,7 +204,7 @@ fn get_profdata_path() -> Result<PathBuf, String> {
     };
 
     if !path.exists() {
-        Err(String::from("We couldn't find llvm-profdata. Try installing the llvm-tools component with `rustup component add llvm-tools-preview` or specifying the --llvm-path option."))
+        Err(String::from("We couldn't find llvm-profdata. Try installing the llvm-tools component with `rustup component add llvm-tools` or specifying the --llvm-path option."))
     } else {
         Ok(path)
     }
@@ -219,7 +219,7 @@ fn get_cov_path() -> Result<PathBuf, String> {
     };
 
     if !path.exists() {
-        Err(String::from("We couldn't find llvm-cov. Try installing the llvm-tools component with `rustup component add llvm-tools-preview` or specifying the --llvm-path option."))
+        Err(String::from("We couldn't find llvm-cov. Try installing the llvm-tools component with `rustup component add llvm-tools` or specifying the --llvm-path option."))
     } else {
         Ok(path)
     }
