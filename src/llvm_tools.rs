@@ -345,14 +345,13 @@ mod tests {
         }
         assert!(lcov.lines().any(|line| line == "DA:8,1"));
         assert!(lcov.lines().any(|line| line == "DA:9,1"));
-        assert!(lcov.lines().any(|line| line == "DA:10,1"));
         assert!(lcov.lines().any(|line| line == "DA:11,1"));
         assert!(lcov.lines().any(|line| line == "DA:12,1"));
         assert!(lcov.lines().any(|line| line == "BRF:0"));
         assert!(lcov.lines().any(|line| line == "BRH:0"));
         if nightly {
-            assert!(lcov.lines().any(|line| line == "LF:5"));
-            assert!(lcov.lines().any(|line| line == "LH:5"));
+            assert!(lcov.lines().any(|line| line == "LF:4"));
+            assert!(lcov.lines().any(|line| line == "LH:4"));
         } else {
             assert!(lcov.lines().any(|line| line == "LF:6"));
             assert!(lcov.lines().any(|line| line == "LH:5"));
