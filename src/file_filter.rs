@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub enum FilterType {
     Line(u32),
@@ -15,6 +15,7 @@ pub struct FileFilter {
     excl_br_line: Option<Regex>,
     excl_br_start: Option<Regex>,
     excl_br_stop: Option<Regex>,
+    pub(crate) incl_explicit: Option<PathBuf>,
 }
 
 impl FileFilter {
@@ -25,6 +26,7 @@ impl FileFilter {
         excl_br_line: Option<Regex>,
         excl_br_start: Option<Regex>,
         excl_br_stop: Option<Regex>,
+        incl_explicit: Option<PathBuf>,
     ) -> Self {
         Self {
             excl_line,
@@ -33,6 +35,7 @@ impl FileFilter {
             excl_br_line,
             excl_br_start,
             excl_br_stop,
+            incl_explicit,
         }
     }
 

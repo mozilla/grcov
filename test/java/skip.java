@@ -9,12 +9,18 @@ class Test {
 
         // included branch
         // excluded branch
-        
+
         // skip branch start
         // skipped branch
         // skip branch end
 
         // skip line start
         // skip branch start
+    }
+}
+
+// skip line end skip branch end
+class ExcludedViaJson {
+    void Bar() {
     }
 }
