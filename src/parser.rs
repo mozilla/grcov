@@ -616,10 +616,7 @@ fn get_xml_attribute<R: BufRead>(
             return Ok(a.decode_and_unescape_value(reader.decoder())?.into_owned());
         }
     }
-    Err(ParserError::InvalidRecord(format!(
-        "Attribute {} not found",
-        name
-    )))
+    return Ok(String::new());
 }
 
 fn parse_jacoco_report_sourcefile<T: BufRead>(
@@ -717,7 +714,11 @@ fn parse_jacoco_report_class<T: BufRead>(
                 let name = get_xml_attribute(parser, e, "name")?;
                 let full_name = format!("{}#{}", class_name, name);
 
-                let start_line = get_xml_attribute(parser, e, "line")?.parse::<u32>()?;
+                let line = get_xml_attribute(parser, e, "line")?;
+                if line.is_empty() {
+                    break;
+                }
+                let start_line = line.parse::<u32>()?;
                 let function = parse_jacoco_report_method(parser, buf, start_line)?;
                 functions.insert(full_name, function);
             }
