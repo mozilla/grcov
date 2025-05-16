@@ -189,8 +189,7 @@ pub fn consumer(
                     ItemType::Path((stem, gcno_path)) => {
                         // GCC
                         if let Err(e) = run_gcov(&gcno_path, branch_enabled, working_dir) {
-                            error!("Error when running gcov: {}", e);
-                            continue;
+                            panic!("Error when running gcov: {}", e);
                         };
                         let gcov_ext = get_gcov_output_ext();
                         let gcov_path =
@@ -266,19 +265,16 @@ pub fn consumer(
                         }
                     }
                     ItemType::Content(_) => {
-                        error!("Invalid content type");
-                        continue;
+                        panic!("Invalid content type");
                     }
                     ItemType::Paths(_) => {
-                        error!("Invalid content type");
-                        continue;
+                        panic!("Invalid content type");
                     }
                 }
             }
             ItemFormat::Profdata | ItemFormat::Profraw => {
                 if binary_path.is_none() {
-                    error!("The path to the compiled binary must be given as an argument when source-based coverage is used");
-                    continue;
+                    panic!("The path to the compiled binary must be given as an argument when source-based coverage is used");
                 }
 
                 if let ItemType::Paths(profraw_paths) = work_item.item {
@@ -300,13 +296,11 @@ pub fn consumer(
                             new_results
                         }
                         Err(e) => {
-                            error!("Error while executing llvm tools: {}", e);
-                            continue;
+                            panic!("Error while executing llvm tools: {}", e);
                         }
                     }
                 } else {
-                    error!("Invalid content type");
-                    continue;
+                    panic!("Invalid content type");
                 }
             }
             ItemFormat::Info | ItemFormat::JacocoXml | ItemFormat::Gocov => {
@@ -321,8 +315,7 @@ pub fn consumer(
                         try_parse!(parse_gocov(&mut buffer), work_item.name)
                     }
                 } else {
-                    error!("Invalid content type");
-                    continue;
+                    panic!("Invalid content type");
                 }
             }
         };
