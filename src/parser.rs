@@ -11,7 +11,7 @@ use std::path::Path;
 use std::str;
 use std::sync::Arc;
 
-use log::error;
+use log::{error, warn};
 
 use quick_xml::encoding::Decoder;
 use quick_xml::encoding::EncodingError;
@@ -68,7 +68,7 @@ impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             ParserError::Io(ref err) => write!(f, "IO error: {}", err),
-            ParserError::Parse(ref s) => write!(f, "Record containing invalid integer: '{}'", s),
+            ParserError::Parse(ref s) => write!(f, "Parsing error: '{}'", s),
             ParserError::InvalidRecord(ref s) => write!(f, "Invalid record: '{}'", s),
             ParserError::InvalidData(ref s) => write!(f, "Invalid data: '{}'", s),
         }
@@ -274,7 +274,7 @@ pub fn parse_lcov(
                             .map(|&c| c as char)
                             .collect();
                         if !duplicated_error_logged && cur_functions.contains_key(&f_name) {
-                            error!(
+                            warn!(
                                 "FN '{}' duplicated for '{}' in a lcov file",
                                 f_name,
                                 cur_file.as_ref().unwrap()
