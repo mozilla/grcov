@@ -1,17 +1,14 @@
-use crossbeam_channel::unbounded;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use std::env;
 use std::env::consts::EXE_SUFFIX;
 use std::error::Error;
 use std::ffi::OsStr;
 use std::fs;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 
-use ignore::WalkBuilder;
-use ignore::WalkState::Continue;
 use log::warn;
 
 pub static LLVM_PATH: OnceLock<PathBuf> = OnceLock::new();
@@ -75,42 +72,7 @@ pub fn find_binaries(binary_path: &Path) -> Vec<PathBuf> {
     if metadata.is_file() {
         vec![binary_path.to_owned()]
     } else {
-        let mut paths = vec![];
-
-        let (sender, receiver) = unbounded();
-        let walker = WalkBuilder::new(binary_path)
-            .threads(num_cpus::get() - 1)
-            .build_parallel();
-        walker.run(|| {
-            let sender = sender.clone();
-            let mut bytes = vec![0u8; 128];
-
-            Box::new(move |result| {
-                let entry = result.unwrap();
-
-                if !entry.file_type().unwrap().is_file() {
-                    return Continue;
-                }
-
-                let file = fs::File::open(entry.path()).unwrap();
-                let read = file.take(128).read(&mut bytes).unwrap();
-                if read == 0 {
-                    return Continue;
-                }
-
-                if infer::is_app(&bytes) {
-                    sender.send(entry.into_path()).unwrap();
-                }
-
-                Continue
-            })
-        });
-
-        while let Ok(path) = receiver.try_recv() {
-            paths.push(path);
-        }
-
-        paths
+        crate::file_walker::find_binaries(binary_path)
     }
 }
 
