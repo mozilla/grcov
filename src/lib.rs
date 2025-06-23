@@ -175,6 +175,7 @@ pub fn consumer(
     branch_enabled: bool,
     guess_directory: bool,
     binary_path: Option<&Path>,
+    ignore_parsing_error: bool,
 ) {
     let mut gcov_type = GcovType::Unknown;
 
