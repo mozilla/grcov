@@ -11,7 +11,7 @@ use std::path::Path;
 use std::str;
 use std::sync::Arc;
 
-use log::error;
+use log::{error, warn};
 
 use quick_xml::encoding::Decoder;
 use quick_xml::encoding::EncodingError;
@@ -100,6 +100,16 @@ macro_rules! try_parse_next {
     };
 }
 
+macro_rules! manage_parsing_error {
+    ($i:expr, $l:expr) => {
+        if $i {
+            warn!("{}, ignore this record", $l.to_string());
+        } else {
+            return Err(ParserError::InvalidRecord($l.to_string()));
+        }
+    };
+}
+
 fn remove_newline(l: &mut Vec<u8>) {
     loop {
         let last = {
@@ -143,6 +153,7 @@ pub fn add_branch(branches: &mut BTreeMap<u32, Vec<bool>>, line_no: u32, no: u32
 pub fn parse_lcov(
     buffer: Vec<u8>,
     branch_enabled: bool,
+    ignore_parsing_error: bool,
 ) -> Result<Vec<(String, CovResult)>, ParserError> {
     let mut cur_file = None;
     let mut cur_lines = BTreeMap::new();
@@ -168,11 +179,16 @@ pub fn parse_lcov(
         + (b'A' as u32);
 
     let mut line = 0;
+    let mut parsing_error_occurs = false;
 
     while let Some(c) = iter.next() {
         line += 1;
         match *c {
             b'e' => {
+                if ignore_parsing_error && parsing_error_occurs {
+                    continue;
+                }
+
                 // we've a end_of_record
                 results.push((
                     cur_file.unwrap(),
@@ -205,9 +221,11 @@ pub fn parse_lcov(
                     });
 
                 if key.is_none() {
-                    return Err(ParserError::InvalidRecord(format!(
-                        "Invalid key at line {line}"
-                    )));
+                    manage_parsing_error!(
+                        ignore_parsing_error,
+                        format!("Invalid key at line {line}")
+                    );
+                    parsing_error_occurs = true;
                 }
 
                 match key.unwrap() {
@@ -218,14 +236,21 @@ pub fn parse_lcov(
                                 .map(|&c| c as char)
                                 .collect(),
                         );
+                        parsing_error_occurs = false;
                     }
                     DA => {
+                        if ignore_parsing_error && parsing_error_occurs {
+                            continue;
+                        }
+
                         // DA:uint,int
                         if let Some(c) = iter.peek() {
                             if !c.is_ascii_digit() {
-                                return Err(ParserError::InvalidRecord(format!(
-                                    "DA at line {line}"
-                                )));
+                                manage_parsing_error!(
+                                    ignore_parsing_error,
+                                    format!("DA at line {line}")
+                                );
+                                parsing_error_occurs = true;
                             }
                         }
 
@@ -234,7 +259,11 @@ pub fn parse_lcov(
                             .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
 
                         if iter.peek().is_none() {
-                            return Err(ParserError::InvalidRecord(format!("DA at line {line}")));
+                            manage_parsing_error!(
+                                ignore_parsing_error,
+                                format!("DA at line {line}")
+                            );
+                            parsing_error_occurs = true;
                         }
                         let execution_count = if let Some(c) = iter.next() {
                             if *c == b'-' {
@@ -252,19 +281,29 @@ pub fn parse_lcov(
                         *cur_lines.entry(line_no).or_insert(0) += execution_count;
                     }
                     FN => {
+                        if ignore_parsing_error && parsing_error_occurs {
+                            continue;
+                        }
+
                         // FN:int,string
                         if let Some(c) = iter.peek() {
                             if !c.is_ascii_digit() {
-                                return Err(ParserError::InvalidRecord(format!(
-                                    "FN at line {line}"
-                                )));
+                                manage_parsing_error!(
+                                    ignore_parsing_error,
+                                    format!("FN at line {line}")
+                                );
+                                parsing_error_occurs = true;
                             }
                         }
                         let start = iter
                             .take_while(|&&c| c.is_ascii_digit())
                             .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
                         if iter.peek().is_none() {
-                            return Err(ParserError::InvalidRecord(format!("FN at line {line}")));
+                            manage_parsing_error!(
+                                ignore_parsing_error,
+                                format!("FN at line {line}")
+                            );
+                            parsing_error_occurs = true;
                         }
                         let f_name: String = iter
                             .take_while(|&&c| c != b'\n' && c != b'\r')
@@ -287,19 +326,29 @@ pub fn parse_lcov(
                         );
                     }
                     FNDA => {
+                        if ignore_parsing_error && parsing_error_occurs {
+                            continue;
+                        }
+
                         // FNDA:int,string
                         if let Some(c) = iter.peek() {
                             if !c.is_ascii_digit() {
-                                return Err(ParserError::InvalidRecord(format!(
-                                    "FNDA at line {line}"
-                                )));
+                                manage_parsing_error!(
+                                    ignore_parsing_error,
+                                    format!("FNDA at line {line}")
+                                );
+                                parsing_error_occurs = true;
                             }
                         }
                         let executed = iter
                             .take_while(|&&c| c.is_ascii_digit())
                             .fold(0, |r, &x| r * 10 + u64::from(x - b'0'));
                         if iter.peek().is_none() {
-                            return Err(ParserError::InvalidRecord(format!("FNDA at line {line}")));
+                            manage_parsing_error!(
+                                ignore_parsing_error,
+                                format!("FNDA at line {line}")
+                            );
+                            parsing_error_occurs = true;
                         }
                         let f_name: String = iter
                             .take_while(|&&c| c != b'\n' && c != b'\r')
@@ -308,44 +357,58 @@ pub fn parse_lcov(
                         if let Some(f) = cur_functions.get_mut(&f_name) {
                             f.executed |= executed != 0;
                         } else {
-                            return Err(ParserError::Parse(format!(
-                                "FN record missing for function {f_name}"
-                            )));
+                            manage_parsing_error!(
+                                ignore_parsing_error,
+                                format!("FN record missing for function {f_name}")
+                            );
+                            parsing_error_occurs = true;
                         }
                     }
                     BRDA => {
+                        if ignore_parsing_error && parsing_error_occurs {
+                            continue;
+                        }
+
                         // BRDA:int,int,int,int or -
                         if branch_enabled {
                             if let Some(c) = iter.peek() {
                                 if !c.is_ascii_digit() {
-                                    return Err(ParserError::InvalidRecord(format!(
-                                        "BRDA at line {line}"
-                                    )));
+                                    manage_parsing_error!(
+                                        ignore_parsing_error,
+                                        format!("BRDA at line {line}")
+                                    );
+                                    parsing_error_occurs = true;
                                 }
                             }
                             let line_no = iter
                                 .take_while(|&&c| c.is_ascii_digit())
                                 .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
                             if iter.peek().is_none() {
-                                return Err(ParserError::InvalidRecord(format!(
-                                    "BRDA at line {line}"
-                                )));
+                                manage_parsing_error!(
+                                    ignore_parsing_error,
+                                    format!("BRDA at line {line}")
+                                );
+                                parsing_error_occurs = true;
                             }
                             let _block_number = iter
                                 .take_while(|&&c| c.is_ascii_digit())
                                 .fold(0, |r, &x| r * 10 + u64::from(x - b'0'));
                             if iter.peek().is_none() {
-                                return Err(ParserError::InvalidRecord(format!(
-                                    "BRDA at line {line}"
-                                )));
+                                manage_parsing_error!(
+                                    ignore_parsing_error,
+                                    format!("BRDA at line {line}")
+                                );
+                                parsing_error_occurs = true;
                             }
                             let branch_number = iter
                                 .take_while(|&&c| c.is_ascii_digit())
                                 .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
                             if iter.peek().is_none() {
-                                return Err(ParserError::InvalidRecord(format!(
-                                    "BRDA at line {line}"
-                                )));
+                                manage_parsing_error!(
+                                    ignore_parsing_error,
+                                    format!("BRDA at line {line}")
+                                );
+                                parsing_error_occurs = true;
                             }
                             let taken = iter
                                 .take_while(|&&c| c != b'\n' && c != b'\r')
@@ -959,7 +1022,7 @@ mod tests {
         let mut f = File::open("./test/prova.info").expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let results = parse_lcov(buf, false).unwrap();
+        let results = parse_lcov(buf, false, false).unwrap();
 
         assert_eq!(results.len(), 603);
 
@@ -1045,7 +1108,7 @@ mod tests {
         let mut f = File::open("./test/prova.info").expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let results = parse_lcov(buf, true).unwrap();
+        let results = parse_lcov(buf, true, false).unwrap();
 
         assert_eq!(results.len(), 603);
 
@@ -1144,7 +1207,7 @@ mod tests {
             File::open("./test/prova_fn_with_commas.info").expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let results = parse_lcov(buf, true).unwrap();
+        let results = parse_lcov(buf, true, false).unwrap();
 
         assert_eq!(results.len(), 1);
 
@@ -1235,7 +1298,7 @@ mod tests {
         let mut f = File::open("./test/empty_line.info").expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let results = parse_lcov(buf, true).unwrap();
+        let results = parse_lcov(buf, true, false).unwrap();
 
         assert_eq!(results.len(), 1);
 
@@ -1327,8 +1390,61 @@ mod tests {
         let mut f = File::open("./test/invalid_DA_record.info").expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let result = parse_lcov(buf, true);
+        let result = parse_lcov(buf, true, false);
         assert!(result.is_err());
+    }
+
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_lcov_parser_ignoring_invalid_DA_record() {
+        let mut f = File::open("./test/invalid_DA_record.info").expect("Failed to open lcov file");
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf).unwrap();
+        let results = parse_lcov(buf, true, true).unwrap();
+        assert_eq!(results.len(), 1);
+
+        let (ref source_name, ref result) = results[0];
+        assert!(source_name.ends_with("/socks_client_subprocess.js"));
+        assert_eq!(
+            result.lines,
+            [
+                (1, 1),
+                (2, 1),
+                (3, 1),
+                (5, 2),
+                (6, 1),
+                (7, 1),
+                (8, 2),
+                (9, 1),
+                (10, 2),
+                (11, 1),
+                (15, 6),
+                (16, 6),
+                (17, 2),
+                (19, 6),
+                (20, 12),
+                (21, 6),
+                (22, 6),
+                (23, 6),
+                (24, 6),
+                (25, 6),
+                (26, 6),
+                (27, 6),
+                (28, 6),
+                (29, 6),
+                (31, 0),
+                (32, 0),
+                (34, 6),
+                (37, 8),
+                (38, 6),
+                (39, 6),
+                (40, 12),
+                (41, 6),
+            ]
+            .iter()
+            .cloned()
+            .collect()
+        );
     }
 
     #[allow(non_snake_case)]
@@ -1341,7 +1457,7 @@ DA:156,12
 DA
 TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_2dinherit_2emeta_2funset_2fiframe_2dtag_2ehttp_2ehtml_2c_20about_3ablank"
         .as_bytes().to_vec();
-        let result = parse_lcov(buf, true);
+        let result = parse_lcov(buf, true, false);
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.to_string(), "Invalid record: 'DA at line 5'");
