@@ -341,13 +341,13 @@ fn gcno_gcda_producer(
         let stem = &gcno_stem.stem;
         if let Some(gcda_archives) = gcda_stem_archives.get(stem) {
             let gcno_archive = *gcno_archive;
-            let gcno = format!("{}.gcno", stem).to_string();
+            let gcno = format!("{stem}.gcno").to_string();
             let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
             if gcno_stem.llvm {
                 let mut gcda_buffers: Vec<Vec<u8>> = Vec::with_capacity(gcda_archives.len());
                 if let Some(gcno_buffer) = gcno_archive.read(&gcno) {
                     for gcda_archive in gcda_archives {
-                        let gcda = format!("{}.gcda", stem).to_string();
+                        let gcda = format!("{stem}.gcda").to_string();
                         if let Some(gcda_buf) = gcda_archive.read(&gcda) {
                             gcda_buffers.push(gcda_buf);
                         }
@@ -365,7 +365,7 @@ fn gcno_gcda_producer(
                 gcno_archive.extract(&gcno, &physical_gcno_path);
                 for (num, &gcda_archive) in gcda_archives.iter().enumerate() {
                     let gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, num + 1));
-                    let gcda = format!("{}.gcda", stem).to_string();
+                    let gcda = format!("{stem}.gcda").to_string();
 
                     // Create symlinks.
                     if num != 0 {
@@ -386,7 +386,7 @@ fn gcno_gcda_producer(
             }
         } else if !ignore_orphan_gcno {
             let gcno_archive = *gcno_archive;
-            let gcno = format!("{}.gcno", stem).to_string();
+            let gcno = format!("{stem}.gcno").to_string();
             if gcno_stem.llvm {
                 if let Some(gcno_buf) = gcno_archive.read(&gcno) {
                     send_job(

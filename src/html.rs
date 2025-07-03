@@ -326,7 +326,7 @@ pub fn gen_index(tera: &Tera, global: &HtmlGlobalStats, conf: &Config, output: &
     create_parent(&output_file);
     let mut output_stream = match File::create(&output_file) {
         Err(_) => {
-            eprintln!("Cannot create file {:?}", output_file);
+            eprintln!("Cannot create file {output_file:?}");
             return;
         }
         Ok(f) => f,
@@ -343,7 +343,7 @@ pub fn gen_index(tera: &Tera, global: &HtmlGlobalStats, conf: &Config, output: &
     let out = tera.render("index.html", &ctx).unwrap();
 
     if output_stream.write_all(out.as_bytes()).is_err() {
-        eprintln!("Cannot write the file {:?}", output_file);
+        eprintln!("Cannot write the file {output_file:?}");
         return;
     }
 
@@ -366,7 +366,7 @@ pub fn gen_dir_index(
     create_parent(&output_file);
     let mut output = match File::create(&output_file) {
         Err(_) => {
-            eprintln!("Cannot create file {:?}", output_file);
+            eprintln!("Cannot create file {output_file:?}");
             return;
         }
         Ok(f) => f,
@@ -386,7 +386,7 @@ pub fn gen_dir_index(
     let out = tera.render("index.html", &ctx).unwrap();
 
     if output.write_all(out.as_bytes()).is_err() {
-        eprintln!("Cannot write the file {:?}", output_file);
+        eprintln!("Cannot write the file {output_file:?}");
     }
 }
 
@@ -419,7 +419,7 @@ fn gen_html(
     create_parent(&output_file);
     let mut output = match File::create(&output_file) {
         Err(_) => {
-            eprintln!("Cannot create file {:?}", output_file);
+            eprintln!("Cannot create file {output_file:?}");
             return;
         }
         Ok(f) => f,
@@ -492,7 +492,7 @@ fn gen_html(
     let out = tera.render("file.html", &ctx).unwrap();
 
     if output.write_all(out.as_bytes()).is_err() {
-        eprintln!("Cannot write the file {:?}", output_file);
+        eprintln!("Cannot write the file {output_file:?}");
     }
 }
 
@@ -576,7 +576,7 @@ pub fn gen_badge(tera: &Tera, stats: &HtmlStats, conf: &Config, output: &Path, s
     create_parent(&output_file);
     let mut output_stream = match File::create(&output_file) {
         Err(_) => {
-            eprintln!("Cannot create file {:?}", output_file);
+            eprintln!("Cannot create file {output_file:?}");
             return;
         }
         Ok(f) => f,
@@ -593,7 +593,7 @@ pub fn gen_badge(tera: &Tera, stats: &HtmlStats, conf: &Config, output: &Path, s
     let out = tera.render(style.template_name(), &ctx).unwrap();
 
     if output_stream.write_all(out.as_bytes()).is_err() {
-        eprintln!("Cannot write the file {:?}", output_file);
+        eprintln!("Cannot write the file {output_file:?}");
     }
 }
 
@@ -624,7 +624,7 @@ pub fn gen_coverage_json(stats: &HtmlStats, conf: &Config, output: &Path, precis
     create_parent(&output_file);
     let mut output_stream = match File::create(&output_file) {
         Err(_) => {
-            eprintln!("Cannot create file {:?}", output_file);
+            eprintln!("Cannot create file {output_file:?}");
             return;
         }
         Ok(f) => f,
@@ -637,7 +637,7 @@ pub fn gen_coverage_json(stats: &HtmlStats, conf: &Config, output: &Path, precis
         &CoverageData {
             schema_version: 1,
             label: "coverage",
-            message: format!("{:.precision$}%", coverage),
+            message: format!("{coverage:.precision$}%"),
             color: if coverage >= conf.hi_limit {
                 "green"
             } else if coverage >= conf.med_limit {
@@ -649,7 +649,7 @@ pub fn gen_coverage_json(stats: &HtmlStats, conf: &Config, output: &Path, precis
     );
 
     if res.is_err() {
-        eprintln!("cannot write the file {:?}", output_file);
+        eprintln!("cannot write the file {output_file:?}");
     }
 }
 

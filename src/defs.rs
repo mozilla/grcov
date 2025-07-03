@@ -133,8 +133,8 @@ pub enum StringOrRef<'a> {
 impl Display for StringOrRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            StringOrRef::S(s) => write!(f, "{}", s),
-            StringOrRef::R(s) => write!(f, "{}", s),
+            StringOrRef::S(s) => write!(f, "{s}"),
+            StringOrRef::R(s) => write!(f, "{s}"),
         }
     }
 }

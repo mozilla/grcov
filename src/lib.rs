@@ -189,7 +189,7 @@ pub fn consumer(
                     ItemType::Path((stem, gcno_path)) => {
                         // GCC
                         if let Err(e) = run_gcov(&gcno_path, branch_enabled, working_dir) {
-                            error!("Error when running gcov: {}", e);
+                            error!("Error when running gcov: {e}");
                             continue;
                         };
                         let gcov_ext = get_gcov_output_ext();
@@ -260,7 +260,7 @@ pub fn consumer(
                             }
                             Err(e) => {
                                 // Just print the error, don't panic and continue
-                                error!("Error in computing counters: {}", e);
+                                error!("Error in computing counters: {e}");
                                 Vec::new()
                             }
                         }
@@ -300,7 +300,7 @@ pub fn consumer(
                             new_results
                         }
                         Err(e) => {
-                            error!("Error while executing llvm tools: {}", e);
+                            error!("Error while executing llvm tools: {e}");
                             continue;
                         }
                     }

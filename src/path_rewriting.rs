@@ -1261,7 +1261,7 @@ mod tests {
             count += 1;
             assert!(abs_path.is_absolute());
             assert!(abs_path.ends_with("tests/class/main.cpp"));
-            eprintln!("{:?}", rel_path);
+            eprintln!("{rel_path:?}");
             assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
             assert_eq!(result, empty_result!());
         }

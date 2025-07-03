@@ -55,7 +55,7 @@ pub fn run(cmd: impl AsRef<OsStr>, args: &[&OsStr]) -> Result<Vec<u8>, String> {
 
     let output = command
         .output()
-        .map_err(|e| format!("Failed to execute {:?}\n{}", command, e))?;
+        .map_err(|e| format!("Failed to execute {command:?}\n{e}"))?;
 
     if !output.status.success() {
         return Err(format!(
@@ -158,8 +158,7 @@ pub fn llvm_profiles_to_lcov(
                 Ok(result) => Some(result),
                 Err(err_str) => {
                     warn!(
-                        "Suppressing error returned by llvm-cov tool for binary {:?}\n{}",
-                        binary, err_str
+                        "Suppressing error returned by llvm-cov tool for binary {binary:?}\n{err_str}"
                     );
                     None
                 }
@@ -191,13 +190,13 @@ fn rustlib() -> Result<PathBuf, Box<dyn Error>> {
 
 fn llvm_tool_path(name: &str) -> Result<PathBuf, Box<dyn Error>> {
     let mut path = rustlib()?;
-    path.push(format!("llvm-{}{}", name, EXE_SUFFIX));
+    path.push(format!("llvm-{name}{EXE_SUFFIX}"));
     Ok(path)
 }
 
 fn get_profdata_path() -> Result<PathBuf, String> {
     let path = if let Some(mut path) = LLVM_PATH.get().cloned() {
-        path.push(format!("llvm-profdata{}", EXE_SUFFIX));
+        path.push(format!("llvm-profdata{EXE_SUFFIX}"));
         path
     } else {
         llvm_tool_path("profdata").map_err(|x| x.to_string())?
@@ -212,7 +211,7 @@ fn get_profdata_path() -> Result<PathBuf, String> {
 
 fn get_cov_path() -> Result<PathBuf, String> {
     let path = if let Some(mut path) = LLVM_PATH.get().cloned() {
-        path.push(format!("llvm-cov{}", EXE_SUFFIX));
+        path.push(format!("llvm-cov{EXE_SUFFIX}"));
         path
     } else {
         llvm_tool_path("cov").map_err(|x| x.to_string())?
@@ -375,7 +374,7 @@ mod tests {
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 1);
         let output_lcov = String::from_utf8_lossy(&lcovs[0]);
-        println!("{}", output_lcov);
+        println!("{output_lcov}");
 
         check_basic_lcov_output(&output_lcov);
     }
@@ -408,7 +407,7 @@ mod tests {
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 1);
         let output_lcov = String::from_utf8_lossy(&lcovs[0]);
-        println!("{}", output_lcov);
+        println!("{output_lcov}");
 
         check_basic_lcov_output(&output_lcov);
     }
@@ -455,7 +454,7 @@ mod tests {
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 1);
         let output_lcov = String::from_utf8_lossy(&lcovs[0]);
-        println!("{}", output_lcov);
+        println!("{output_lcov}");
 
         let lcov = String::from_utf8_lossy(&lcovs[0]);
 

@@ -41,20 +41,20 @@ impl From<quick_xml::Error> for ParserError {
     fn from(err: quick_xml::Error) -> ParserError {
         match err {
             quick_xml::Error::Io(e) => ParserError::Io(Arc::try_unwrap(e).unwrap()),
-            _ => ParserError::Parse(format!("{:?}", err)),
+            _ => ParserError::Parse(format!("{err:?}")),
         }
     }
 }
 
 impl From<EncodingError> for ParserError {
     fn from(err: EncodingError) -> ParserError {
-        ParserError::Parse(format!("{:?}", err))
+        ParserError::Parse(format!("{err:?}"))
     }
 }
 
 impl From<AttrError> for ParserError {
     fn from(err: AttrError) -> ParserError {
-        ParserError::Parse(format!("{:?}", err))
+        ParserError::Parse(format!("{err:?}"))
     }
 }
 
@@ -67,10 +67,10 @@ impl From<ParseIntError> for ParserError {
 impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            ParserError::Io(ref err) => write!(f, "IO error: {}", err),
-            ParserError::Parse(ref s) => write!(f, "Record containing invalid integer: '{}'", s),
-            ParserError::InvalidRecord(ref s) => write!(f, "Invalid record: '{}'", s),
-            ParserError::InvalidData(ref s) => write!(f, "Invalid data: '{}'", s),
+            ParserError::Io(ref err) => write!(f, "IO error: {err}"),
+            ParserError::Parse(ref s) => write!(f, "Record containing invalid integer: '{s}'"),
+            ParserError::InvalidRecord(ref s) => write!(f, "Invalid record: '{s}'"),
+            ParserError::InvalidData(ref s) => write!(f, "Invalid data: '{s}'"),
         }
     }
 }
@@ -206,8 +206,7 @@ pub fn parse_lcov(
 
                 if key.is_none() {
                     return Err(ParserError::InvalidRecord(format!(
-                        "Invalid key at line {}",
-                        line
+                        "Invalid key at line {line}"
                     )));
                 }
 
@@ -225,8 +224,7 @@ pub fn parse_lcov(
                         if let Some(c) = iter.peek() {
                             if !c.is_ascii_digit() {
                                 return Err(ParserError::InvalidRecord(format!(
-                                    "DA at line {}",
-                                    line
+                                    "DA at line {line}"
                                 )));
                             }
                         }
@@ -236,7 +234,7 @@ pub fn parse_lcov(
                             .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
 
                         if iter.peek().is_none() {
-                            return Err(ParserError::InvalidRecord(format!("DA at line {}", line)));
+                            return Err(ParserError::InvalidRecord(format!("DA at line {line}")));
                         }
                         let execution_count = if let Some(c) = iter.next() {
                             if *c == b'-' {
@@ -258,8 +256,7 @@ pub fn parse_lcov(
                         if let Some(c) = iter.peek() {
                             if !c.is_ascii_digit() {
                                 return Err(ParserError::InvalidRecord(format!(
-                                    "FN at line {}",
-                                    line
+                                    "FN at line {line}"
                                 )));
                             }
                         }
@@ -267,7 +264,7 @@ pub fn parse_lcov(
                             .take_while(|&&c| c.is_ascii_digit())
                             .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
                         if iter.peek().is_none() {
-                            return Err(ParserError::InvalidRecord(format!("FN at line {}", line)));
+                            return Err(ParserError::InvalidRecord(format!("FN at line {line}")));
                         }
                         let f_name: String = iter
                             .take_while(|&&c| c != b'\n' && c != b'\r')
@@ -294,8 +291,7 @@ pub fn parse_lcov(
                         if let Some(c) = iter.peek() {
                             if !c.is_ascii_digit() {
                                 return Err(ParserError::InvalidRecord(format!(
-                                    "FNDA at line {}",
-                                    line
+                                    "FNDA at line {line}"
                                 )));
                             }
                         }
@@ -303,10 +299,7 @@ pub fn parse_lcov(
                             .take_while(|&&c| c.is_ascii_digit())
                             .fold(0, |r, &x| r * 10 + u64::from(x - b'0'));
                         if iter.peek().is_none() {
-                            return Err(ParserError::InvalidRecord(format!(
-                                "FNDA at line {}",
-                                line
-                            )));
+                            return Err(ParserError::InvalidRecord(format!("FNDA at line {line}")));
                         }
                         let f_name: String = iter
                             .take_while(|&&c| c != b'\n' && c != b'\r')
@@ -316,8 +309,7 @@ pub fn parse_lcov(
                             f.executed |= executed != 0;
                         } else {
                             return Err(ParserError::Parse(format!(
-                                "FN record missing for function {}",
-                                f_name
+                                "FN record missing for function {f_name}"
                             )));
                         }
                     }
@@ -327,8 +319,7 @@ pub fn parse_lcov(
                             if let Some(c) = iter.peek() {
                                 if !c.is_ascii_digit() {
                                     return Err(ParserError::InvalidRecord(format!(
-                                        "BRDA at line {}",
-                                        line
+                                        "BRDA at line {line}"
                                     )));
                                 }
                             }
@@ -337,8 +328,7 @@ pub fn parse_lcov(
                                 .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
                             if iter.peek().is_none() {
                                 return Err(ParserError::InvalidRecord(format!(
-                                    "BRDA at line {}",
-                                    line
+                                    "BRDA at line {line}"
                                 )));
                             }
                             let _block_number = iter
@@ -346,8 +336,7 @@ pub fn parse_lcov(
                                 .fold(0, |r, &x| r * 10 + u64::from(x - b'0'));
                             if iter.peek().is_none() {
                                 return Err(ParserError::InvalidRecord(format!(
-                                    "BRDA at line {}",
-                                    line
+                                    "BRDA at line {line}"
                                 )));
                             }
                             let branch_number = iter
@@ -355,8 +344,7 @@ pub fn parse_lcov(
                                 .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
                             if iter.peek().is_none() {
                                 return Err(ParserError::InvalidRecord(format!(
-                                    "BRDA at line {}",
-                                    line
+                                    "BRDA at line {line}"
                                 )));
                             }
                             let taken = iter
@@ -449,8 +437,7 @@ where
     match n.as_u64() {
         Some(value) => Ok(value),
         None => Err(serde::de::Error::custom(format!(
-            "Unable to parse u64 from {}",
-            n
+            "Unable to parse u64 from {n}"
         ))),
     }
 }
@@ -617,8 +604,7 @@ fn get_xml_attribute<R: BufRead>(
         }
     }
     Err(ParserError::InvalidRecord(format!(
-        "Attribute {} not found",
-        name
+        "Attribute {name} not found"
     )))
 }
 
@@ -646,7 +632,7 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
 
                 fn try_att<T>(opt: Option<T>, name: &str) -> Result<T, ParserError> {
                     opt.ok_or_else(|| {
-                        ParserError::InvalidRecord(format!("Attribute {} not found", name))
+                        ParserError::InvalidRecord(format!("Attribute {name} not found"))
                     })
                 }
 
@@ -715,7 +701,7 @@ fn parse_jacoco_report_class<T: BufRead>(
         match parser.read_event_into(buf) {
             Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"method" => {
                 let name = get_xml_attribute(parser, e, "name")?;
-                let full_name = format!("{}#{}", class_name, name);
+                let full_name = format!("{class_name}#{name}");
 
                 let start_line = get_xml_attribute(parser, e, "line")?.parse::<u32>()?;
                 let function = parse_jacoco_report_method(parser, buf, start_line)?;
@@ -758,7 +744,7 @@ fn parse_jacoco_report_package<T: BufRead>(
                         // Generally, we will use the filename if its present,
                         // but if it isn't, fallback to the top level class name
                         let file = get_xml_attribute(parser, e, "sourcefilename")
-                            .unwrap_or(format!("{}.java", top_class));
+                            .unwrap_or(format!("{top_class}.java"));
 
                         // Process all <method /> and <counter /> for this class
                         let functions = parse_jacoco_report_class(parser, buf, class)?;
@@ -814,7 +800,7 @@ fn parse_jacoco_report_package<T: BufRead>(
         .into_iter()
         .map(|(class, result)| {
             (
-                format!("{}/{}", package, class)
+                format!("{package}/{class}")
                     .trim_start_matches('/')
                     .to_string(),
                 result,
@@ -933,7 +919,7 @@ pub fn parse_gocov<T: Read>(
                         };
                     }
                 } else {
-                    error!("`{}` Line didn't match expected format, ignoring", line);
+                    error!("`{line}` Line didn't match expected format, ignoring");
                 }
             }
             Err(e) => return Err(ParserError::Io(e)),

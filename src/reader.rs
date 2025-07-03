@@ -32,7 +32,7 @@ pub enum GcovReaderError {
 
 impl From<Error> for GcovReaderError {
     fn from(err: Error) -> GcovReaderError {
-        GcovReaderError::Str(format!("Reader error: {}", err))
+        GcovReaderError::Str(format!("Reader error: {err}"))
     }
 }
 
@@ -308,8 +308,8 @@ impl<E: Endian> GcovReader<E> for GcovReaderBuf<E> {
 impl Display for GcovReaderError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            GcovReaderError::Io(e) => write!(f, "{}", e),
-            GcovReaderError::Str(e) => write!(f, "{}", e),
+            GcovReaderError::Io(e) => write!(f, "{e}"),
+            GcovReaderError::Str(e) => write!(f, "{e}"),
         }
     }
 }
@@ -355,9 +355,9 @@ impl Debug for Gcno {
                 if let Some((last, elmts)) = block.lines.split_last() {
                     write!(f, "\tLines : ")?;
                     for i in elmts {
-                        write!(f, "{},", i)?;
+                        write!(f, "{i},")?;
                     }
-                    writeln!(f, "{},", last)?;
+                    writeln!(f, "{last},")?;
                 }
             }
         }
@@ -404,8 +404,7 @@ impl Gcno {
             }
         } else {
             Err(GcovReaderError::Str(format!(
-                "Not enough data in buffer: Cannot compare types in {}",
-                stem
+                "Not enough data in buffer: Cannot compare types in {stem}"
             )))
         }
     }
@@ -1203,11 +1202,7 @@ impl GcovFunction {
                 };
             }
         }
-        let excess = if positive_excess >= negative_excess {
-            positive_excess - negative_excess
-        } else {
-            negative_excess - positive_excess
-        };
+        let excess = positive_excess.abs_diff(negative_excess);
         if let Some(id) = pred_arc {
             let edge = &mut edges[id];
             edge.counter = excess;
@@ -1251,7 +1246,7 @@ mod tests {
     fn test_reader_gcno() {
         let mut gcno = Gcno::new();
         from_path(&mut gcno, FileType::Gcno, "test/llvm/reader.gcno");
-        let output = format!("{:?}", gcno);
+        let output = format!("{gcno:?}");
         let input = get_input_string("test/llvm/reader.gcno.0.dump");
 
         assert_eq!(output, input);
@@ -1263,7 +1258,7 @@ mod tests {
         from_path(&mut gcno, FileType::Gcno, "test/llvm/reader.gcno");
         from_path(&mut gcno, FileType::Gcda, "test/llvm/reader.gcda");
         gcno.stop();
-        let output = format!("{:?}", gcno);
+        let output = format!("{gcno:?}");
         let input = get_input_string("test/llvm/reader.gcno.1.dump");
 
         assert_eq!(output, input);
@@ -1275,7 +1270,7 @@ mod tests {
         from_path(&mut gcno, FileType::Gcno, "test/reader_gcc-6.gcno");
         from_path(&mut gcno, FileType::Gcda, "test/reader_gcc-6.gcda");
         gcno.stop();
-        let output = format!("{:?}", gcno);
+        let output = format!("{gcno:?}");
         let input = get_input_string("test/reader_gcc-6.gcno.1.dump");
 
         assert_eq!(output, input);
@@ -1287,7 +1282,7 @@ mod tests {
         from_path(&mut gcno, FileType::Gcno, "test/reader_gcc-7.gcno");
         from_path(&mut gcno, FileType::Gcda, "test/reader_gcc-7.gcda");
         gcno.stop();
-        let output = format!("{:?}", gcno);
+        let output = format!("{gcno:?}");
         let input = get_input_string("test/reader_gcc-7.gcno.1.dump");
 
         assert_eq!(output, input);
@@ -1299,7 +1294,7 @@ mod tests {
         from_path(&mut gcno, FileType::Gcno, "test/reader_gcc-8.gcno");
         from_path(&mut gcno, FileType::Gcda, "test/reader_gcc-8.gcda");
         gcno.stop();
-        let output = format!("{:?}", gcno);
+        let output = format!("{gcno:?}");
         let input = get_input_string("test/reader_gcc-8.gcno.1.dump");
 
         assert_eq!(output, input);
@@ -1311,7 +1306,7 @@ mod tests {
         from_path(&mut gcno, FileType::Gcno, "test/reader_gcc-9.gcno");
         from_path(&mut gcno, FileType::Gcda, "test/reader_gcc-9.gcda");
         gcno.stop();
-        let output = format!("{:?}", gcno);
+        let output = format!("{gcno:?}");
         let input = get_input_string("test/reader_gcc-9.gcno.1.dump");
 
         assert_eq!(output, input);
@@ -1323,7 +1318,7 @@ mod tests {
         from_path(&mut gcno, FileType::Gcno, "test/reader_gcc-10.gcno");
         from_path(&mut gcno, FileType::Gcda, "test/reader_gcc-10.gcda");
         gcno.stop();
-        let output = format!("{:?}", gcno);
+        let output = format!("{gcno:?}");
         let input = get_input_string("test/reader_gcc-10.gcno.1.dump");
 
         assert_eq!(output, input);
@@ -1337,7 +1332,7 @@ mod tests {
             from_path(&mut gcno, FileType::Gcda, "test/llvm/reader.gcda");
         }
         gcno.stop();
-        let output = format!("{:?}", gcno);
+        let output = format!("{gcno:?}");
         let input = get_input_string("test/llvm/reader.gcno.2.dump");
 
         assert_eq!(output, input);
