@@ -65,7 +65,7 @@ fn run(path: &Path) {
 }
 
 fn read_file(path: &Path) -> String {
-    println!("Read file: {:?}", path);
+    println!("Read file: {path:?}");
     let mut f =
         File::open(path).unwrap_or_else(|_| panic!("{:?} file not found", path.file_name()));
     let mut s = String::new();
@@ -90,23 +90,20 @@ fn read_expected(
 
     let base_name = format!("expected{}", additional.unwrap_or_default());
 
-    let name_with_ver_and_os = format!(
-        "{}_{}_{}_{}.{}",
-        base_name, compiler, compiler_ver, os_name, format
-    );
+    let name_with_ver_and_os = format!("{base_name}_{compiler}_{compiler_ver}_{os_name}.{format}");
 
     let name = if path.join(&name_with_ver_and_os).exists() {
         name_with_ver_and_os
     } else {
-        let name_with_ver = format!("{}_{}_{}.{}", base_name, compiler, compiler_ver, format);
+        let name_with_ver = format!("{base_name}_{compiler}_{compiler_ver}.{format}");
         if path.join(&name_with_ver).exists() {
             name_with_ver
         } else {
-            let name_with_os = format!("{}_{}_{}.{}", base_name, compiler, os_name, format);
+            let name_with_os = format!("{base_name}_{compiler}_{os_name}.{format}");
             if path.join(&name_with_os).exists() {
                 name_with_os
             } else {
-                format!("{}_{}.{}", base_name, compiler, format)
+                format!("{base_name}_{compiler}.{format}")
             }
         }
     };
@@ -166,7 +163,7 @@ fn run_grcov(paths: Vec<&Path>, source_root: &Path, output_format: &str) -> Stri
         .output()
         .expect("Failed to run grcov");
     let err = String::from_utf8(output.stderr).unwrap();
-    eprintln!("{}", err);
+    eprintln!("{err}");
     String::from_utf8(output.stdout).unwrap()
 }
 
@@ -219,7 +216,7 @@ fn check_equal_ade(expected_output: &str, output: &str) {
     let mut actual: Vec<Value> = Vec::new();
     for line in output.lines() {
         let parsed = serde_json::from_str(line).unwrap();
-        println!("{}", parsed);
+        println!("{parsed}");
         actual.push(parsed);
     }
 
@@ -476,7 +473,7 @@ fn test_integration() {
             do_clean(path);
 
             if cfg!(target_os = "linux") {
-                println!("\nGCC: {:?}", path);
+                println!("\nGCC: {path:?}");
                 let gpp = &get_tool("GCC_CXX", "g++");
                 let gcc_version = get_version(gpp);
                 make(path, gpp);
@@ -497,7 +494,7 @@ fn test_integration() {
                 do_clean(path);
             }
 
-            println!("\nLLVM: {:?}", path);
+            println!("\nLLVM: {path:?}");
             let clangpp = &get_tool("CLANG_CXX", "clang++");
             let clang_version = get_version(clangpp);
             make(path, clangpp);

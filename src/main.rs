@@ -49,7 +49,7 @@ impl FromStr for OutputType {
             "cobertura" => Self::Cobertura,
             "cobertura-pretty" => Self::CoberturaPretty,
             "markdown" => Self::Markdown,
-            _ => return Err(format!("{} is not a supported output type", s)),
+            _ => return Err(format!("{s} is not a supported output type")),
         })
     }
 }
@@ -91,7 +91,7 @@ impl FromStr for Filter {
         Ok(match s {
             "covered" => Self::Covered,
             "uncovered" => Self::Uncovered,
-            _ => return Err(format!("{} is not a supported filter", s)),
+            _ => return Err(format!("{s} is not a supported filter")),
         })
     }
 }
@@ -275,6 +275,11 @@ struct Opt {
     /// Set the log level.
     #[arg(long, value_name = "LEVEL", default_value = "ERROR", value_enum)]
     log_level: LevelFilterArg,
+    /// Provides a json file with explicit list of files and lines to include into the report.
+    /// The json format is `{ "path": [[1, 2], ...], ... }`, where the numbers are inclusive
+    /// and 1-based line ranges.
+    #[arg(long, value_name = "PATH")]
+    incl_explicit: Option<PathBuf>,
     /// Lines in covered files containing this marker will be excluded.
     #[arg(long, value_name = "regex")]
     excl_line: Option<Regex>,
@@ -359,6 +364,7 @@ fn main() {
         opt.excl_br_line,
         opt.excl_br_start,
         opt.excl_br_stop,
+        opt.incl_explicit,
     );
     let demangle = !opt.no_demangle;
 
@@ -378,7 +384,7 @@ fn main() {
                 .copied()
                 .unwrap_or("<cause unknown>")
         });
-        error!("A panic occurred at {}:{}: {}", filename, line, cause);
+        error!("A panic occurred at {filename}:{line}: {cause}");
     }));
 
     let num_threads: usize = opt.threads.unwrap_or_else(|| 1.max(num_cpus::get() - 1));
@@ -436,14 +442,14 @@ fn main() {
     for i in 0..num_threads {
         let receiver = receiver.clone();
         let result_map = Arc::clone(&result_map);
-        let working_dir = tmp_path.join(format!("{}", i));
+        let working_dir = tmp_path.join(format!("{i}"));
         let source_root = source_root.clone();
         let binary_path = opt.binary_path.clone();
         let branch_enabled = opt.branch;
         let guess_directory = opt.guess_directory;
 
         let t = thread::Builder::new()
-            .name(format!("Consumer {}", i))
+            .name(format!("Consumer {i}"))
             .spawn(move || {
                 fs::create_dir(&working_dir).expect("Failed to create working directory");
                 consumer(

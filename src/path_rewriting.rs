@@ -330,6 +330,22 @@ pub fn rewrite_paths(
         }
     }
 
+    let incl_explicit = file_filter.incl_explicit.as_ref().map(|incl_explicit| {
+        let json_str = fs::read_to_string(incl_explicit).unwrap();
+        let entries: FxHashMap<PathBuf, Vec<(u32, u32)>> = serde_json::from_str(&json_str).unwrap();
+        entries
+            .into_iter()
+            .map(|(mut path, ranges)| {
+                if let Some(source_dir) = source_dir {
+                    if let Ok(abs_path) = canonicalize_path(source_dir.join(&path)) {
+                        path = abs_path;
+                    }
+                }
+                (path, ranges)
+            })
+            .collect::<FxHashMap<_, _>>()
+    });
+
     let results = result_map
         .into_par_iter()
         .filter_map(move |(path, mut result)| {
@@ -365,6 +381,21 @@ pub fn rewrite_paths(
 
             if ignore_not_existing && !abs_path.exists() {
                 return None;
+            }
+
+            if let Some(incl_explicit) = &incl_explicit {
+                match incl_explicit.get(&abs_path) {
+                    Some(ranges) => {
+                        let included = |line| {
+                            ranges
+                                .iter()
+                                .any(|&(start, end)| line >= start && line <= end)
+                        };
+                        result.lines.retain(|&line, _| included(line));
+                        result.branches.retain(|&line, _| included(line));
+                    }
+                    None => return None,
+                }
             }
 
             // Always return results with '/'.
@@ -468,7 +499,7 @@ mod tests {
     macro_rules! skipping_result {
         () => {{
             let mut result = empty_result!();
-            for i in 1..20 {
+            for i in 1..27 {
                 result.lines.insert(i, 1);
                 result.branches.insert(i, vec![true]);
             }
@@ -1261,7 +1292,7 @@ mod tests {
             count += 1;
             assert!(abs_path.is_absolute());
             assert!(abs_path.ends_with("tests/class/main.cpp"));
-            eprintln!("{:?}", rel_path);
+            eprintln!("{rel_path:?}");
             assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
             assert_eq!(result, empty_result!());
         }
@@ -1728,22 +1759,23 @@ mod tests {
                 Some(regex::Regex::new("excluded branch").unwrap()),
                 Some(regex::Regex::new("skip branch start").unwrap()),
                 Some(regex::Regex::new("skip branch end").unwrap()),
+                Some(PathBuf::from("test/java/skip.json")),
             ),
         );
         let mut count = 0;
         for (_, _, result) in results {
             count += 1;
-            for inc in [1, 2, 3, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16].iter() {
+            for inc in [1, 2, 3, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16, 26].iter() {
                 assert!(result.lines.contains_key(inc));
             }
-            for inc in [4, 6, 7, 17, 18, 19, 20].iter() {
+            for inc in [4, 6, 7, 17, 18, 19, 20, 21, 22, 23, 24, 25].iter() {
                 assert!(!result.lines.contains_key(inc));
             }
 
-            for inc in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 16, 17].iter() {
+            for inc in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 16, 17, 26].iter() {
                 assert!(result.branches.contains_key(inc));
             }
-            for inc in [11, 13, 14, 18, 19, 20].iter() {
+            for inc in [11, 13, 14, 18, 19, 20, 21, 22, 23, 24, 25].iter() {
                 assert!(!result.branches.contains_key(inc));
             }
         }
@@ -1771,22 +1803,23 @@ mod tests {
                 Some(regex::Regex::new("excluded branch").unwrap()),
                 Some(regex::Regex::new("skip branch start").unwrap()),
                 Some(regex::Regex::new("skip branch end").unwrap()),
+                Some(PathBuf::from("test\\java\\skip.json")),
             ),
         );
         let mut count = 0;
         for (_, _, result) in results {
             count += 1;
-            for inc in [1, 2, 3, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16].iter() {
+            for inc in [1, 2, 3, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16, 26].iter() {
                 assert!(result.lines.contains_key(inc));
             }
-            for inc in [4, 6, 7, 17, 18, 19, 20].iter() {
+            for inc in [4, 6, 7, 17, 18, 19, 20, 21, 22, 23, 24, 25].iter() {
                 assert!(!result.lines.contains_key(inc));
             }
 
-            for inc in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 16, 17].iter() {
+            for inc in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 16, 17, 26].iter() {
                 assert!(result.branches.contains_key(inc));
             }
-            for inc in [11, 13, 14, 18, 19, 20].iter() {
+            for inc in [11, 13, 14, 18, 19, 20, 21, 22, 23, 24, 25].iter() {
                 assert!(!result.branches.contains_key(inc));
             }
         }
