@@ -1,8 +1,8 @@
 use globset::{Glob, GlobSet, GlobSetBuilder};
+use log::error;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
-use std::collections::hash_map;
 use std::fs;
 use std::io;
 use std::path::{Component, Path, PathBuf};
@@ -187,14 +187,14 @@ fn map_partial_path(file_to_paths: &FxHashMap<String, Vec<PathBuf>>, path: PathB
     let mut result: Option<&PathBuf> = None;
     for option in options {
         if option.ends_with(&path) {
-            assert!(
-                result.is_none(),
-                "Only one file in the repository should end with {} ({} and {} both end with that)",
+            if result.is_some() {
+                error!("Only one file in the repository should end with {} ({} and {} both end with that).",
                 path.display(),
                 result.unwrap().display(),
-                option.display()
-            );
-            result = Some(option)
+                option.display());
+            } else {
+                result = Some(option)
+            }
         }
     }
 
@@ -227,6 +227,8 @@ fn to_globset(dirs: &[impl AsRef<str>]) -> GlobSet {
     glob_builder.build().unwrap()
 }
 
+const PARTIAL_PATH_EXTENSION: &[&str] = &["java", "kt"];
+
 pub fn rewrite_paths(
     result_map: CovResultMap,
     path_mapping: Option<Value>,
@@ -246,48 +248,85 @@ pub fn rewrite_paths(
     }
 
     // Traverse source dir and store covered paths, reversed.
+    //
+    // This is a pre-requisite of the `map_partial_path` function, which is needed for Java.
     let mut file_to_paths: FxHashMap<String, Vec<PathBuf>> = FxHashMap::default();
+    let mut map_partial_path_needed = false;
     if let Some(ref source_dir) = source_dir {
-        // When --source-dir points to very large directories (for example, a Rust compiler
-        // checkout with submodules and build artifacts) walking through every file will take a
-        // considerable amount of time. We should skip paths not part of the coverage map.
-        let covered_names = result_map
-            .keys()
-            .map(|path| {
-                path.rsplit_once(['\\', '/'])
-                    .map(|(_dir, file)| file)
-                    .unwrap_or(path.as_str())
-            })
-            .map(OsStr::new)
-            .collect::<HashSet<_>>();
+        // Calling walkdir over a large directory tree can take a significant time, so we want to
+        // execute this only when `map_partial_path` is actually needed.
+        //
+        // The function's purpose is to figure out whether a covered path is inside a subdirectory.
 
-        for entry in WalkDir::new(source_dir)
-            .into_iter()
-            .filter_entry(|e| !is_hidden(e) && !is_symbolic_link(e))
-        {
-            let entry = entry
-                .unwrap_or_else(|_| panic!("Failed to open directory '{}'.", source_dir.display()));
+        // This only happens for Java, so if there are no Java files, we don't need to do it.
+        let has_java = result_map.keys().any(|path| {
+            PARTIAL_PATH_EXTENSION
+                .iter()
+                .any(|&ext| check_extension(Path::new(&path), ext))
+        });
 
-            if !entry.file_type().is_file() {
-                continue;
-            }
-
-            if !covered_names.contains(entry.file_name()) {
-                continue;
-            }
-
-            let path = entry.path().strip_prefix(source_dir).unwrap().to_path_buf();
-            if to_ignore_globset.is_match(&path) {
-                continue;
-            }
-
-            let name = entry.file_name().to_str().unwrap().to_string();
-            match file_to_paths.entry(name) {
-                hash_map::Entry::Occupied(f) => f.into_mut().push(path),
-                hash_map::Entry::Vacant(v) => {
-                    v.insert(vec![path]);
+        // If all covered paths are direct childs of the source directory, then that function will
+        // do nothing, and we don't have to do its pre-requisite data gathering.
+        if has_java {
+            map_partial_path_needed = result_map.par_iter().any(|(path, _result)| {
+                let mut path = Path::new(path);
+                if let Some(prefix) = &prefix_dir {
+                    path = path.strip_prefix(prefix).unwrap_or(path);
                 }
-            };
+                !source_dir.join(path).exists()
+            })
+        }
+
+        if map_partial_path_needed {
+            // `map_partial_path` looks up paths based on the file name, so we only need to process
+            // files whose name is in the coverage map. This filtering provides significant speed
+            // increases when most files in the source directory are not in the coverage map.
+            let covered_names = result_map
+                .keys()
+                .map(|path| {
+                    path.rsplit_once(['\\', '/'])
+                        .map(|(_dir, file)| file)
+                        .unwrap_or(path.as_str())
+                })
+                .map(OsStr::new)
+                .collect::<HashSet<_>>();
+
+            for entry in WalkDir::new(source_dir)
+                .into_iter()
+                .filter_entry(|e| !is_hidden(e) && !is_symbolic_link(e))
+            {
+                let entry = entry.unwrap_or_else(|_| {
+                    panic!("Failed to open directory '{}'.", source_dir.display())
+                });
+
+                if !PARTIAL_PATH_EXTENSION
+                    .iter()
+                    .any(|&ext| check_extension(entry.path(), ext))
+                {
+                    continue;
+                }
+
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+
+                if !covered_names.contains(entry.file_name()) {
+                    continue;
+                }
+
+                let path = entry.path().strip_prefix(source_dir).unwrap();
+                if to_ignore_globset.is_match(path) {
+                    continue;
+                }
+                let path = path.to_path_buf();
+
+                let name = entry.file_name().to_str().unwrap();
+                if let Some(paths) = file_to_paths.get_mut(name) {
+                    paths.push(path);
+                } else {
+                    file_to_paths.insert(name.to_string(), vec![path]);
+                }
+            }
         }
     }
 
@@ -319,7 +358,11 @@ pub fn rewrite_paths(
             let rel_path = remove_prefix(prefix_dir, rel_path);
 
             // Try mapping a partial path to a full path.
-            let rel_path = if check_extension(&rel_path, "java") {
+            let rel_path = if map_partial_path_needed
+                && PARTIAL_PATH_EXTENSION
+                    .iter()
+                    .any(|&ext| check_extension(&rel_path, ext))
+            {
                 map_partial_path(&file_to_paths, rel_path)
             } else {
                 rel_path
@@ -1118,6 +1161,33 @@ mod tests {
         assert_eq!(result, empty_result!());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn test_rewrite_paths_rewrite_path_for_java_kotlin_and_rust() {
+        let mut result_map: CovResultMap = FxHashMap::default();
+        result_map.insert("kt/main.kt".to_string(), empty_result!());
+        result_map.insert("main.rs".to_string(), empty_result!());
+
+        let mut results = rewrite_paths(
+            result_map,
+            None,
+            Some(&canonicalize_path(".").unwrap()),
+            None,
+            true,
+            &[""; 0],
+            &[""; 0],
+            None,
+            Default::default(),
+        );
+        assert!(results.len() == 1);
+
+        let (abs_path, rel_path, result) = results.remove(0);
+        assert!(abs_path.is_absolute());
+        assert!(abs_path.ends_with("test/kotlin/main.kt"));
+        assert_eq!(rel_path, PathBuf::from("test/kotlin/main.kt"));
+        assert_eq!(result, empty_result!());
+    }
+
     #[cfg(windows)]
     #[test]
     fn test_rewrite_paths_rewrite_path_for_java_and_rust() {
@@ -1222,7 +1292,7 @@ mod tests {
             count += 1;
             assert!(abs_path.is_absolute());
             assert!(abs_path.ends_with("tests/class/main.cpp"));
-            eprintln!("{:?}", rel_path);
+            eprintln!("{rel_path:?}");
             assert_eq!(rel_path, PathBuf::from("class/main.cpp"));
             assert_eq!(result, empty_result!());
         }

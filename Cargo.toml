@@ -1,6 +1,6 @@
 [package]
 name = "grcov"
-version = "0.8.24"
+version = "0.10.0"
 authors = ["Marco Castelluccio <mcastelluccio@mozilla.com>"]
 description = "Rust tool to collect and aggregate code coverage data for multiple source files"
 license = "MPL-2.0"
@@ -24,11 +24,11 @@ exclude = [
 edition = "2018"
 
 [features]
-default = ["deflate-zlib", "demangle-no-swift"]
+default = ["deflate-zlib-rs", "demangle-no-swift"]
 tc = ["tcmalloc"]
 deflate = ["zip/deflate"]
-deflate-miniz = ["zip/deflate-miniz"]
-deflate-zlib = ["zip/deflate-zlib"]
+deflate-zlib-rs = ["zip/deflate-flate2-zlib-rs"]
+deflate-zlib = ["zip/deflate-flate2-zlib"]
 demangle-no-swift = ["symbolic-demangle/cpp", "symbolic-demangle/msvc", "symbolic-demangle/rust"]
 demangle-with-swift = [
     "symbolic-demangle/cpp",
@@ -43,12 +43,12 @@ clap = { version = "4.5", features = ["cargo", "derive", "deprecated", "wrap_hel
 crossbeam-channel = "0.5"
 flate2 = "1.1"
 globset = "0.4"
+ignore = "0.4.23"
 infer = "0.19.0"
 lazy_static = "1.5"
 log = "0.4"
 md-5 = "0.10"
-num_cpus = "1.15"
-once_cell = "1.21"
+num_cpus = "1.17"
 quick-xml = "0.37"
 rayon = "1.10"
 regex = "1.11"
@@ -58,15 +58,15 @@ semver = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 simplelog = "0.12"
-smallvec = "1.14"
+smallvec = "1.15"
 symbolic-common = "12.14"
-symbolic-demangle = { version = "12.14", default-features = false }
-tabled = "0.18"
-tempfile = "3.19"
+symbolic-demangle = { version = "12.15", default-features = false }
+tabled = "0.20"
+tempfile = "3.20"
 tera = "1.20"
-uuid = { version = "1.16", features = ["v4"] }
+uuid = { version = "1.17", features = ["v4"] }
 walkdir = "2.5"
-zip = { version = "2.5", default-features = false }
+zip = { version = "4.2", default-features = false }
 
 [dev-dependencies]
 pretty_assertions = "1.4"

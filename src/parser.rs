@@ -1,6 +1,7 @@
 use flate2::read::GzDecoder;
+use regex::Regex;
 use serde::{Deserialize, Deserializer};
-use std::cmp::Ordering;
+use std::cmp::{max, Ordering};
 use std::collections::{btree_map, hash_map, BTreeMap};
 use std::fmt;
 use std::fs::File;
@@ -40,20 +41,20 @@ impl From<quick_xml::Error> for ParserError {
     fn from(err: quick_xml::Error) -> ParserError {
         match err {
             quick_xml::Error::Io(e) => ParserError::Io(Arc::try_unwrap(e).unwrap()),
-            _ => ParserError::Parse(format!("{:?}", err)),
+            _ => ParserError::Parse(format!("{err:?}")),
         }
     }
 }
 
 impl From<EncodingError> for ParserError {
     fn from(err: EncodingError) -> ParserError {
-        ParserError::Parse(format!("{:?}", err))
+        ParserError::Parse(format!("{err:?}"))
     }
 }
 
 impl From<AttrError> for ParserError {
     fn from(err: AttrError) -> ParserError {
-        ParserError::Parse(format!("{:?}", err))
+        ParserError::Parse(format!("{err:?}"))
     }
 }
 
@@ -66,10 +67,10 @@ impl From<ParseIntError> for ParserError {
 impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            ParserError::Io(ref err) => write!(f, "IO error: {}", err),
-            ParserError::Parse(ref s) => write!(f, "Record containing invalid integer: '{}'", s),
-            ParserError::InvalidRecord(ref s) => write!(f, "Invalid record: '{}'", s),
-            ParserError::InvalidData(ref s) => write!(f, "Invalid data: '{}'", s),
+            ParserError::Io(ref err) => write!(f, "IO error: {err}"),
+            ParserError::Parse(ref s) => write!(f, "Record containing invalid integer: '{s}'"),
+            ParserError::InvalidRecord(ref s) => write!(f, "Invalid record: '{s}'"),
+            ParserError::InvalidData(ref s) => write!(f, "Invalid data: '{s}'"),
         }
     }
 }
@@ -205,8 +206,7 @@ pub fn parse_lcov(
 
                 if key.is_none() {
                     return Err(ParserError::InvalidRecord(format!(
-                        "Invalid key at line {}",
-                        line
+                        "Invalid key at line {line}"
                     )));
                 }
 
@@ -224,8 +224,7 @@ pub fn parse_lcov(
                         if let Some(c) = iter.peek() {
                             if !c.is_ascii_digit() {
                                 return Err(ParserError::InvalidRecord(format!(
-                                    "DA at line {}",
-                                    line
+                                    "DA at line {line}"
                                 )));
                             }
                         }
@@ -235,7 +234,7 @@ pub fn parse_lcov(
                             .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
 
                         if iter.peek().is_none() {
-                            return Err(ParserError::InvalidRecord(format!("DA at line {}", line)));
+                            return Err(ParserError::InvalidRecord(format!("DA at line {line}")));
                         }
                         let execution_count = if let Some(c) = iter.next() {
                             if *c == b'-' {
@@ -257,8 +256,7 @@ pub fn parse_lcov(
                         if let Some(c) = iter.peek() {
                             if !c.is_ascii_digit() {
                                 return Err(ParserError::InvalidRecord(format!(
-                                    "FN at line {}",
-                                    line
+                                    "FN at line {line}"
                                 )));
                             }
                         }
@@ -266,7 +264,7 @@ pub fn parse_lcov(
                             .take_while(|&&c| c.is_ascii_digit())
                             .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
                         if iter.peek().is_none() {
-                            return Err(ParserError::InvalidRecord(format!("FN at line {}", line)));
+                            return Err(ParserError::InvalidRecord(format!("FN at line {line}")));
                         }
                         let f_name: String = iter
                             .take_while(|&&c| c != b'\n' && c != b'\r')
@@ -293,8 +291,7 @@ pub fn parse_lcov(
                         if let Some(c) = iter.peek() {
                             if !c.is_ascii_digit() {
                                 return Err(ParserError::InvalidRecord(format!(
-                                    "FNDA at line {}",
-                                    line
+                                    "FNDA at line {line}"
                                 )));
                             }
                         }
@@ -302,10 +299,7 @@ pub fn parse_lcov(
                             .take_while(|&&c| c.is_ascii_digit())
                             .fold(0, |r, &x| r * 10 + u64::from(x - b'0'));
                         if iter.peek().is_none() {
-                            return Err(ParserError::InvalidRecord(format!(
-                                "FNDA at line {}",
-                                line
-                            )));
+                            return Err(ParserError::InvalidRecord(format!("FNDA at line {line}")));
                         }
                         let f_name: String = iter
                             .take_while(|&&c| c != b'\n' && c != b'\r')
@@ -315,8 +309,7 @@ pub fn parse_lcov(
                             f.executed |= executed != 0;
                         } else {
                             return Err(ParserError::Parse(format!(
-                                "FN record missing for function {}",
-                                f_name
+                                "FN record missing for function {f_name}"
                             )));
                         }
                     }
@@ -326,8 +319,7 @@ pub fn parse_lcov(
                             if let Some(c) = iter.peek() {
                                 if !c.is_ascii_digit() {
                                     return Err(ParserError::InvalidRecord(format!(
-                                        "BRDA at line {}",
-                                        line
+                                        "BRDA at line {line}"
                                     )));
                                 }
                             }
@@ -336,8 +328,7 @@ pub fn parse_lcov(
                                 .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
                             if iter.peek().is_none() {
                                 return Err(ParserError::InvalidRecord(format!(
-                                    "BRDA at line {}",
-                                    line
+                                    "BRDA at line {line}"
                                 )));
                             }
                             let _block_number = iter
@@ -345,8 +336,7 @@ pub fn parse_lcov(
                                 .fold(0, |r, &x| r * 10 + u64::from(x - b'0'));
                             if iter.peek().is_none() {
                                 return Err(ParserError::InvalidRecord(format!(
-                                    "BRDA at line {}",
-                                    line
+                                    "BRDA at line {line}"
                                 )));
                             }
                             let branch_number = iter
@@ -354,8 +344,7 @@ pub fn parse_lcov(
                                 .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
                             if iter.peek().is_none() {
                                 return Err(ParserError::InvalidRecord(format!(
-                                    "BRDA at line {}",
-                                    line
+                                    "BRDA at line {line}"
                                 )));
                             }
                             let taken = iter
@@ -448,8 +437,7 @@ where
     match n.as_u64() {
         Some(value) => Ok(value),
         None => Err(serde::de::Error::custom(format!(
-            "Unable to parse u64 from {}",
-            n
+            "Unable to parse u64 from {n}"
         ))),
     }
 }
@@ -616,8 +604,7 @@ fn get_xml_attribute<R: BufRead>(
         }
     }
     Err(ParserError::InvalidRecord(format!(
-        "Attribute {} not found",
-        name
+        "Attribute {name} not found"
     )))
 }
 
@@ -645,7 +632,7 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
 
                 fn try_att<T>(opt: Option<T>, name: &str) -> Result<T, ParserError> {
                     opt.ok_or_else(|| {
-                        ParserError::InvalidRecord(format!("Attribute {} not found", name))
+                        ParserError::InvalidRecord(format!("Attribute {name} not found"))
                     })
                 }
 
@@ -714,7 +701,7 @@ fn parse_jacoco_report_class<T: BufRead>(
         match parser.read_event_into(buf) {
             Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"method" => {
                 let name = get_xml_attribute(parser, e, "name")?;
-                let full_name = format!("{}#{}", class_name, name);
+                let full_name = format!("{class_name}#{name}");
 
                 let start_line = get_xml_attribute(parser, e, "line")?.parse::<u32>()?;
                 let function = parse_jacoco_report_method(parser, buf, start_line)?;
@@ -742,7 +729,6 @@ fn parse_jacoco_report_package<T: BufRead>(
             Ok(Event::Start(ref e)) => {
                 match e.local_name().into_inner() {
                     b"class" => {
-                        // Fully qualified class name: "org/example/Person$Age"
                         let fq_class = get_xml_attribute(parser, e, "name")?;
                         // Class name: "Person$Age"
                         let class = fq_class
@@ -754,11 +740,16 @@ fn parse_jacoco_report_package<T: BufRead>(
                             .split('$')
                             .next()
                             .expect("Failed to parse top class name");
+                        // Fully qualified class name: "org/example/Person$Age"
+                        // Generally, we will use the filename if its present,
+                        // but if it isn't, fallback to the top level class name
+                        let file = get_xml_attribute(parser, e, "sourcefilename")
+                            .unwrap_or(format!("{top_class}.java"));
 
                         // Process all <method /> and <counter /> for this class
                         let functions = parse_jacoco_report_class(parser, buf, class)?;
 
-                        match results_map.entry(top_class.to_string()) {
+                        match results_map.entry(file.to_string()) {
                             hash_map::Entry::Occupied(obj) => {
                                 obj.into_mut().functions.extend(functions);
                             }
@@ -772,12 +763,13 @@ fn parse_jacoco_report_package<T: BufRead>(
                         };
                     }
                     b"sourcefile" => {
-                        let sourcefile = get_xml_attribute(parser, e, "name")?;
-                        let class = sourcefile.trim_end_matches(".java");
+                        // Fully qualified class name: "org/example/Person$Age"
+                        let file = get_xml_attribute(parser, e, "name")?;
+
                         let JacocoReport { lines, branches } =
                             parse_jacoco_report_sourcefile(parser, buf)?;
 
-                        match results_map.entry(class.to_string()) {
+                        match results_map.entry(file.to_string()) {
                             hash_map::Entry::Occupied(obj) => {
                                 let obj = obj.into_mut();
                                 obj.lines = lines;
@@ -801,15 +793,6 @@ fn parse_jacoco_report_package<T: BufRead>(
         }
     }
 
-    for (class, result) in &results_map {
-        if result.lines.is_empty() && result.branches.is_empty() {
-            return Err(ParserError::InvalidData(format!(
-                "Class {}/{} is not the top class in its file.",
-                package, class
-            )));
-        }
-    }
-
     // Change all keys from the class name to the file name and turn the result into a Vec.
     // If package is the empty string, we have to trim the leading '/' in order to obtain a
     // relative path.
@@ -817,7 +800,7 @@ fn parse_jacoco_report_package<T: BufRead>(
         .into_iter()
         .map(|(class, result)| {
             (
-                format!("{}/{}.java", package, class)
+                format!("{package}/{class}")
                     .trim_start_matches('/')
                     .to_string(),
                 result,
@@ -853,6 +836,95 @@ pub fn parse_jacoco_xml_report<T: Read>(
     }
 
     Ok(results)
+}
+
+pub fn parse_gocov<T: Read>(
+    reader: &mut BufReader<T>,
+) -> Result<Vec<(String, CovResult)>, ParserError> {
+    let re = Regex::new(r"([^:]+):(\d+)\.\d+,(\d+)\.\d+ (\d+) (\d+)").unwrap();
+    let mut results = FxHashMap::<String, BTreeMap<u32, u64>>::default();
+    let mut lines = BTreeMap::new();
+    let mut current_file = "".to_string();
+
+    loop {
+        let mut line = String::new();
+
+        match reader.read_line(&mut line) {
+            Ok(0) => {
+                if !current_file.is_empty() {
+                    results.insert(current_file.to_string(), lines.clone());
+                }
+                return Ok(results
+                    .into_iter()
+                    .map(|(file, lines)| {
+                        (
+                            file,
+                            CovResult {
+                                lines,
+                                branches: BTreeMap::new(),
+                                functions: FxHashMap::default(),
+                            },
+                        )
+                    })
+                    .collect());
+            }
+            Ok(_) => {
+                if line.starts_with("mode:") {
+                    continue;
+                }
+
+                if let Some(caps) = re.captures(&line) {
+                    let file = caps
+                        .get(1)
+                        .map(|c| c.as_str())
+                        .ok_or(ParserError::InvalidData(line.clone()))?;
+                    if file != current_file {
+                        if !current_file.is_empty() {
+                            results.insert(current_file.to_string(), lines.clone());
+                            lines.clear();
+                        }
+                        current_file = file.to_owned();
+                    }
+                    let start = caps
+                        .get(2)
+                        .and_then(|s| s.as_str().parse::<u32>().ok())
+                        .ok_or(ParserError::InvalidData(line.clone()))?;
+                    let end = caps
+                        .get(3)
+                        .and_then(|s| s.as_str().parse::<u32>().ok())
+                        .ok_or(ParserError::InvalidData(line.clone()))?;
+                    // unsure what this is actually for
+                    let _number_of_statements = caps
+                        .get(4)
+                        .and_then(|s| s.as_str().parse::<u64>().ok())
+                        .ok_or(ParserError::InvalidData(line.clone()))?;
+                    let number_of_covered_statements = caps
+                        .get(5)
+                        .and_then(|s| s.as_str().parse::<u64>().ok())
+                        .ok_or(ParserError::InvalidData(line.clone()))?;
+                    let is_covered = if number_of_covered_statements > 0 {
+                        1
+                    } else {
+                        0
+                    };
+
+                    for i in start..=end {
+                        match lines.entry(i) {
+                            btree_map::Entry::Occupied(mut e) => {
+                                *e.get_mut() = max(*e.get(), is_covered);
+                            }
+                            btree_map::Entry::Vacant(e) => {
+                                e.insert(is_covered);
+                            }
+                        };
+                    }
+                } else {
+                    error!("`{line}` Line didn't match expected format, ignoring");
+                }
+            }
+            Err(e) => return Err(ParserError::Io(e)),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -2089,20 +2161,621 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
     }
 
     #[test]
-    #[should_panic]
-    fn test_parser_jacoco_xml_non_top_level_classes_panics() {
-        let f = File::open("./test/jacoco/multiple-top-level-classes.xml")
-            .expect("Failed to open xml file");
+    fn test_parser_jacoco_kotlin() {
+        let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
+        for i in &[
+            (5, 0),
+            (9, 0),
+            (14, 0),
+            (27, 0),
+            (30, 0),
+            (32, 0),
+            (41, 0),
+            (49, 0),
+            (57, 0),
+            (65, 0),
+            (73, 0),
+            (81, 0),
+            (89, 0),
+            (97, 0),
+            (104, 0),
+            (105, 0),
+            (106, 0),
+            (107, 0),
+            (108, 0),
+            (109, 0),
+            (110, 0),
+            (111, 0),
+            (112, 0),
+            (118, 0),
+            (119, 0),
+            (120, 0),
+        ] {
+            lines.insert(i.0, i.1);
+        }
+
+        let mut functions: FunctionMap = FxHashMap::default();
+        for (name, start, executed) in vec![
+            ("Breakpoint#getEntries", 112, false),
+            ("BreakpointValue#xxsmall", 49, false),
+            ("Breakpoint#<clinit>", 104, false),
+            ("BreakpointValue#xxlarge", 97, false),
+            ("BreakpointValue#none", 41, false),
+            ("BreakpointValue#xlarge", 89, false),
+            ("BreakpointValue#setValue", 26, false),
+            ("BreakpointValue#<init>", 5, false),
+            ("BreakpointValue#getBreakpointValueMap", 14, false),
+            ("BreakpointDirection#getEntries", 120, false),
+            ("BreakpointValue#small", 65, false),
+            ("BreakpointDirection#<clinit>", 118, false),
+            ("BreakpointValue#xsmall", 57, false),
+            ("BreakpointValue#large", 81, false),
+            ("BreakpointValue#medium", 73, false),
+        ] {
+            functions.insert(String::from(name), Function { start, executed });
+        }
+
+        let mut branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();
+        branches.insert(26, vec![false, false, false, false]);
+
+        let expected = vec![(
+            String::from("BreakpointValue.kt"),
+            CovResult {
+                lines,
+                branches,
+                functions,
+            },
+        )];
+
+        let f =
+            File::open("./test/jacoco/kotlin-jacoco-report.xml").expect("Failed to open xml file");
         let file = BufReader::new(&f);
-        let _results = parse_jacoco_xml_report(file).unwrap();
+        let results = parse_jacoco_xml_report(file).unwrap();
+        assert_eq!(results, expected);
     }
 
     #[test]
-    #[should_panic]
-    fn test_parser_jacoco_xml_full_report_with_non_top_level_classes_panics() {
-        let f = File::open("./test/jacoco/full-junit4-report-multiple-top-level-classes.xml")
-            .expect("Failed to open xml file");
-        let file = BufReader::new(&f);
-        let _results = parse_jacoco_xml_report(file).unwrap();
+    fn parse_go() {
+        let mut aggregator_lines: BTreeMap<u32, u64> = BTreeMap::new();
+        let mut decoder_lines: BTreeMap<u32, u64> = BTreeMap::new();
+        let no_branches = BTreeMap::<u32, Vec<bool>>::new();
+        let no_functions: FxHashMap<String, Function> = FxHashMap::default();
+
+        for i in &[
+            (29, 1),
+            (30, 1),
+            (31, 1),
+            (32, 1),
+            (33, 1),
+            (34, 1),
+            (35, 0),
+            (36, 0),
+            (37, 0),
+            (39, 1),
+            (41, 1),
+            (42, 1),
+            (43, 1),
+            (44, 1),
+            (45, 1),
+            (46, 1),
+            (47, 1),
+            (48, 1),
+            (49, 1),
+            (50, 1),
+            (94, 1),
+            (95, 1),
+            (96, 1),
+            (97, 1),
+            (98, 1),
+            (99, 1),
+            (100, 1),
+            (101, 1),
+            (103, 0),
+            (104, 0),
+            (105, 0),
+            (107, 0),
+            (108, 0),
+            (109, 0),
+            (112, 1),
+            (113, 1),
+            (114, 1),
+            (115, 1),
+            (116, 1),
+            (117, 1),
+            (118, 1),
+            (120, 1),
+            (121, 1),
+            (122, 1),
+            (123, 1),
+            (124, 1),
+            (125, 1),
+            (126, 1),
+            (127, 1),
+            (128, 1),
+            (129, 1),
+            (130, 1),
+            (133, 1),
+            (136, 1),
+            (137, 0),
+            (138, 0),
+            (139, 0),
+            (142, 1),
+            (143, 1),
+            (144, 1),
+            (145, 1),
+            (146, 1),
+            (147, 1),
+            (148, 1),
+            (149, 1),
+            (150, 1),
+            (153, 1),
+            (157, 1),
+            (158, 1),
+            (159, 1),
+            (160, 1),
+            (161, 1),
+            (162, 1),
+            (163, 1),
+            (164, 1),
+            (165, 1),
+            (166, 0),
+            (167, 0),
+            (168, 0),
+            (169, 0),
+            (170, 0),
+            (174, 1),
+            (175, 1),
+            (176, 1),
+            (177, 1),
+            (178, 1),
+            (179, 1),
+            (181, 1),
+            (185, 1),
+            (186, 1),
+            (187, 1),
+            (188, 1),
+            (190, 1),
+            (191, 1),
+            (192, 1),
+            (193, 0),
+            (194, 0),
+            (195, 0),
+            (198, 1),
+            (199, 1),
+            (200, 1),
+            (201, 1),
+            (202, 1),
+            (203, 1),
+            (204, 1),
+            (205, 1),
+            (206, 1),
+            (208, 1),
+            (209, 1),
+            (210, 1),
+            (211, 1),
+            (212, 1),
+            (213, 1),
+            (214, 1),
+            (215, 1),
+            (216, 1),
+            (217, 1),
+            (218, 1),
+            (219, 1),
+            (220, 1),
+            (221, 1),
+            (222, 1),
+            (223, 1),
+            (224, 1),
+            (225, 1),
+            (226, 1),
+            (227, 1),
+            (228, 1),
+            (229, 1),
+            (231, 1),
+            (234, 1),
+            (235, 1),
+            (236, 1),
+            (239, 1),
+            (240, 1),
+            (241, 1),
+            (242, 1),
+            (246, 1),
+            (247, 1),
+            (248, 1),
+            (249, 1),
+            (250, 1),
+            (251, 1),
+            (252, 1),
+            (253, 1),
+            (254, 1),
+            (255, 1),
+            (256, 1),
+            (259, 1),
+            (260, 1),
+            (261, 1),
+            (262, 1),
+            (263, 1),
+            (267, 1),
+            (268, 1),
+            (269, 1),
+            (270, 1),
+            (271, 1),
+            (272, 1),
+            (273, 1),
+            (274, 1),
+            (275, 1),
+            (276, 1),
+            (277, 1),
+            (278, 1),
+            (279, 1),
+            (280, 1),
+            (281, 1),
+            (282, 1),
+            (283, 1),
+            (284, 1),
+            (285, 1),
+            (287, 1),
+            (288, 1),
+            (289, 1),
+            (290, 1),
+            (291, 1),
+            (292, 1),
+            (293, 1),
+            (297, 1),
+            (302, 1),
+            (303, 1),
+            (304, 1),
+            (305, 1),
+            (306, 0),
+            (307, 0),
+            (311, 1),
+            (312, 1),
+            (313, 1),
+            (314, 1),
+            (315, 1),
+            (317, 1),
+            (318, 1),
+            (319, 1),
+            (320, 1),
+            (321, 1),
+            (322, 1),
+            (323, 1),
+            (324, 1),
+            (327, 1),
+            (339, 1),
+            (340, 1),
+            (341, 1),
+            (342, 1),
+            (343, 1),
+            (344, 1),
+            (345, 1),
+            (346, 1),
+            (349, 1),
+            (350, 1),
+            (351, 1),
+            (352, 1),
+            (353, 1),
+            (354, 1),
+            (357, 1),
+            (358, 1),
+            (359, 1),
+            (360, 1),
+            (361, 1),
+            (362, 1),
+            (365, 1),
+            (369, 1),
+            (370, 1),
+            (371, 1),
+            (372, 1),
+            (373, 1),
+            (374, 1),
+            (383, 1),
+            (384, 1),
+            (385, 1),
+            (386, 1),
+            (387, 1),
+            (388, 1),
+            (396, 1),
+            (397, 1),
+            (398, 1),
+            (401, 1),
+            (402, 1),
+            (403, 1),
+            (406, 1),
+            (407, 1),
+            (408, 1),
+            (411, 1),
+            (416, 1),
+            (417, 1),
+            (418, 1),
+            (419, 1),
+            (420, 1),
+            (421, 1),
+            (422, 1),
+            (423, 1),
+            (424, 1),
+            (425, 1),
+            (426, 1),
+            (427, 0),
+            (428, 0),
+            (429, 0),
+            (430, 0),
+            (434, 1),
+            (435, 1),
+            (436, 1),
+            (437, 1),
+            (440, 1),
+            (441, 1),
+            (442, 1),
+            (443, 1),
+            (444, 1),
+            (445, 1),
+            (447, 1),
+            (448, 1),
+            (449, 1),
+            (450, 1),
+            (452, 1),
+            (455, 1),
+            (456, 1),
+            (457, 1),
+            (458, 1),
+            (459, 1),
+            (460, 1),
+            (461, 1),
+            (462, 1),
+            (463, 1),
+            (464, 1),
+            (465, 1),
+            (466, 1),
+            (468, 1),
+            (469, 1),
+            (470, 1),
+            (471, 1),
+            (472, 1),
+            (473, 1),
+            (474, 1),
+            (475, 1),
+            (478, 1),
+            (479, 1),
+            (480, 1),
+            (481, 1),
+            (482, 1),
+            (483, 1),
+            (484, 1),
+            (485, 1),
+            (486, 1),
+            (487, 1),
+            (490, 1),
+            (491, 1),
+            (492, 1),
+            (493, 1),
+            (497, 1),
+            (501, 1),
+            (502, 1),
+            (503, 1),
+            (504, 1),
+            (505, 1),
+            (508, 1),
+            (509, 1),
+            (510, 1),
+            (511, 0),
+            (512, 0),
+            (513, 0),
+            (517, 1),
+            (518, 1),
+            (519, 1),
+            (520, 1),
+            (521, 1),
+            (522, 1),
+            (523, 1),
+            (524, 1),
+            (525, 1),
+            (526, 1),
+            (527, 1),
+            (528, 1),
+            (529, 1),
+            (530, 1),
+            (531, 1),
+            (532, 1),
+            (533, 1),
+            (534, 1),
+            (535, 1),
+            (536, 1),
+            (538, 1),
+            (540, 1),
+            (543, 1),
+            (544, 1),
+            (545, 1),
+            (546, 1),
+            (547, 1),
+            (548, 1),
+            (549, 1),
+            (550, 1),
+            (551, 1),
+            (552, 1),
+            (553, 1),
+            (554, 1),
+            (555, 1),
+            (556, 1),
+            (557, 1),
+            (558, 1),
+            (559, 1),
+            (560, 0),
+            (561, 0),
+            (562, 0),
+            (565, 1),
+            (566, 1),
+            (567, 1),
+            (568, 1),
+            (569, 1),
+            (570, 1),
+            (571, 1),
+            (574, 1),
+            (575, 1),
+            (576, 1),
+            (577, 1),
+            (578, 1),
+            (579, 1),
+            (580, 1),
+            (581, 1),
+            (582, 1),
+            (583, 1),
+            (584, 1),
+            (585, 1),
+            (586, 1),
+            (587, 1),
+            (588, 1),
+            (589, 1),
+            (590, 1),
+            (591, 1),
+            (592, 1),
+            (593, 1),
+            (594, 1),
+            (595, 1),
+            (596, 1),
+            (597, 1),
+            (599, 1),
+            (600, 1),
+            (601, 1),
+            (602, 1),
+            (603, 1),
+            (606, 1),
+            (609, 1),
+            (610, 1),
+            (611, 1),
+            (612, 1),
+            (613, 1),
+            (625, 1),
+            (626, 1),
+            (627, 1),
+            (628, 1),
+            (629, 1),
+            (630, 1),
+            (631, 1),
+            (634, 1),
+            (635, 1),
+            (636, 1),
+            (639, 1),
+            (640, 1),
+            (641, 1),
+            (642, 1),
+            (643, 1),
+            (644, 1),
+            (646, 1),
+            (651, 1),
+            (652, 1),
+            (653, 1),
+            (654, 1),
+            (655, 1),
+            (656, 1),
+            (657, 1),
+            (658, 1),
+            (659, 1),
+            (660, 1),
+            (661, 1),
+            (663, 1),
+            (664, 1),
+            (665, 1),
+            (666, 1),
+            (669, 1),
+            (670, 1),
+            (671, 1),
+            (672, 1),
+            (673, 1),
+            (674, 1),
+            (675, 1),
+            (676, 1),
+            (677, 1),
+            (678, 1),
+            (679, 1),
+            (680, 1),
+            (681, 1),
+            (682, 1),
+            (683, 1),
+            (684, 1),
+        ] {
+            aggregator_lines.insert(i.0, i.1);
+        }
+
+        for i in &[
+            (14, 1),
+            (15, 1),
+            (16, 1),
+            (17, 1),
+            (18, 1),
+            (19, 1),
+            (20, 1),
+            (21, 1),
+            (22, 1),
+            (23, 1),
+            (24, 1),
+            (25, 1),
+            (26, 1),
+            (27, 1),
+            (28, 0),
+            (29, 0),
+            (30, 0),
+            (33, 1),
+            (34, 1),
+            (35, 0),
+            (36, 0),
+            (37, 0),
+            (40, 1),
+            (41, 1),
+            (42, 0),
+            (43, 0),
+            (47, 1),
+            (48, 0),
+            (49, 0),
+            (50, 0),
+            (51, 0),
+            (52, 0),
+            (55, 0),
+            (56, 0),
+            (57, 0),
+            (58, 0),
+            (59, 0),
+            (62, 0),
+            (63, 0),
+            (64, 0),
+            (68, 1),
+            (69, 1),
+            (70, 1),
+            (71, 1),
+            (72, 1),
+            (73, 1),
+            (74, 1),
+            (76, 1),
+            (77, 0),
+            (78, 0),
+            (79, 0),
+            (80, 0),
+        ] {
+            decoder_lines.insert(i.0, i.1);
+        }
+
+        let expected = vec![
+            (
+                String::from("package/folder/aggregator.go"),
+                CovResult {
+                    lines: aggregator_lines,
+                    branches: no_branches.clone(),
+                    functions: no_functions.clone(),
+                },
+            ),
+            (
+                String::from("package/folder/decoder.go"),
+                CovResult {
+                    lines: decoder_lines,
+                    branches: no_branches.clone(),
+                    functions: no_functions.clone(),
+                },
+            ),
+        ];
+
+        let f = File::open("./test/go/go.out").expect("Failed to open go coverage file");
+        let mut file = BufReader::new(&f);
+        let results = parse_gocov(&mut file).unwrap();
+        assert_eq!(results, expected);
     }
 }

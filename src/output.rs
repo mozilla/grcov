@@ -296,11 +296,11 @@ pub fn output_lcov(results: &[ResultTuple], output_file: Option<&Path>, demangle
             }
         }
 
-        writeln!(writer, "BRF:{}", branch_count).unwrap();
-        writeln!(writer, "BRH:{}", branch_hit).unwrap();
+        writeln!(writer, "BRF:{branch_count}").unwrap();
+        writeln!(writer, "BRH:{branch_hit}").unwrap();
 
         for (line, execution_count) in &result.lines {
-            writeln!(writer, "DA:{},{}", line, execution_count).unwrap();
+            writeln!(writer, "DA:{line},{execution_count}").unwrap();
         }
         writeln!(writer, "LF:{}", result.lines.len()).unwrap();
         writeln!(
@@ -374,7 +374,7 @@ fn get_coveralls_git_info(commit_sha: &str, vcs_branch: &str) -> Value {
         get_git_output([
             "log",
             "--max-count=1",
-            &format!("--pretty=format:{}", format),
+            &format!("--pretty=format:{format}"),
             commit_sha,
         ])
     };
@@ -570,7 +570,7 @@ pub fn output_html(
         let tera = tera.clone();
         let abs_link_prefix_thread = abs_link_prefix_owned.clone();
         let t = thread::Builder::new()
-            .name(format!("Consumer HTML {}", i))
+            .name(format!("Consumer HTML {i}"))
             .spawn(move || {
                 html::consumer_html(
                     &tera,
@@ -631,7 +631,7 @@ pub fn output_markdown(results: &[ResultTuple], output_file: Option<&Path>, prec
         if start == end {
             start.to_string()
         } else {
-            format!("{}-{}", start, end)
+            format!("{start}-{end}")
         }
     }
 

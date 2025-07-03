@@ -60,6 +60,7 @@ impl Archive {
         profraws: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         infos: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         xmls: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        gocovs: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         linked_files_maps: &RefCell<FxHashMap<String, &'a Archive>>,
         is_llvm: bool,
     ) {
@@ -107,6 +108,12 @@ impl Archive {
                         linked_files_maps.borrow_mut().insert(filename, self);
                     }
                 }
+                "out" => {
+                    if Archive::check_file(file, &Archive::is_go_cov) {
+                        let filename = clean_path(path);
+                        self.insert_vec(filename, gocovs);
+                    }
+                }
                 _ => {}
             }
         }
@@ -128,6 +135,11 @@ impl Archive {
             };
         }
         false
+    }
+
+    fn is_go_cov(reader: &mut dyn Read) -> bool {
+        let mut bytes: [u8; 8] = [0; 8];
+        reader.read_exact(&mut bytes).is_ok() && &bytes[..5] == b"mode:"
     }
 
     fn is_info(reader: &mut dyn Read) -> bool {
@@ -152,6 +164,7 @@ impl Archive {
         profraws: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         infos: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         xmls: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        gocovs: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         linked_files_maps: &RefCell<FxHashMap<String, &'a Archive>>,
         is_llvm: bool,
     ) {
@@ -170,6 +183,7 @@ impl Archive {
                         profraws,
                         infos,
                         xmls,
+                        gocovs,
                         linked_files_maps,
                         is_llvm,
                     );
@@ -196,6 +210,7 @@ impl Archive {
                             profraws,
                             infos,
                             xmls,
+                            gocovs,
                             linked_files_maps,
                             is_llvm,
                         );
@@ -215,6 +230,7 @@ impl Archive {
                         profraws,
                         infos,
                         xmls,
+                        gocovs,
                         linked_files_maps,
                         is_llvm,
                     );
@@ -325,13 +341,13 @@ fn gcno_gcda_producer(
         let stem = &gcno_stem.stem;
         if let Some(gcda_archives) = gcda_stem_archives.get(stem) {
             let gcno_archive = *gcno_archive;
-            let gcno = format!("{}.gcno", stem).to_string();
+            let gcno = format!("{stem}.gcno").to_string();
             let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
             if gcno_stem.llvm {
                 let mut gcda_buffers: Vec<Vec<u8>> = Vec::with_capacity(gcda_archives.len());
                 if let Some(gcno_buffer) = gcno_archive.read(&gcno) {
                     for gcda_archive in gcda_archives {
-                        let gcda = format!("{}.gcda", stem).to_string();
+                        let gcda = format!("{stem}.gcda").to_string();
                         if let Some(gcda_buf) = gcda_archive.read(&gcda) {
                             gcda_buffers.push(gcda_buf);
                         }
@@ -349,7 +365,7 @@ fn gcno_gcda_producer(
                 gcno_archive.extract(&gcno, &physical_gcno_path);
                 for (num, &gcda_archive) in gcda_archives.iter().enumerate() {
                     let gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, num + 1));
-                    let gcda = format!("{}.gcda", stem).to_string();
+                    let gcda = format!("{stem}.gcda").to_string();
 
                     // Create symlinks.
                     if num != 0 {
@@ -370,7 +386,7 @@ fn gcno_gcda_producer(
             }
         } else if !ignore_orphan_gcno {
             let gcno_archive = *gcno_archive;
-            let gcno = format!("{}.gcno", stem).to_string();
+            let gcno = format!("{stem}.gcno").to_string();
             if gcno_stem.llvm {
                 if let Some(gcno_buf) = gcno_archive.read(&gcno) {
                     send_job(
@@ -519,16 +535,17 @@ pub fn producer(
                     || ext == "xml"
                     || ext == "profraw"
                     || ext == "profdata"
+                    || ext == "out"
                 {
                     plain_files.push(full_path);
                 } else {
                     panic!(
-                        "Cannot load file '{:?}': it isn't a .info, a .json or a .xml file.",
+                        "Cannot load file '{:?}': it isn't a .info, a .json, a .out, or a .xml file.",
                         full_path
                     );
                 }
             } else {
-                panic!("Cannot load file '{:?}': it isn't a directory, a .info, a .json or a .xml file.", full_path);
+                panic!("Cannot load file '{:?}': it isn't a directory, a .info, a .json, a .out, or a .xml file.", full_path);
             }
         }
     }
@@ -548,6 +565,8 @@ pub fn producer(
     let profraws: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
     let infos: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
     let xmls: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
+    let gocovs: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
+
     let linked_files_maps: RefCell<FxHashMap<String, &Archive>> =
         RefCell::new(FxHashMap::default());
 
@@ -559,6 +578,7 @@ pub fn producer(
             &profraws,
             &infos,
             &xmls,
+            &gocovs,
             &linked_files_maps,
             is_llvm,
         );
@@ -569,12 +589,14 @@ pub fn producer(
             && profdatas.borrow().is_empty()
             && profraws.borrow().is_empty()
             && infos.borrow().is_empty()
+            && gocovs.borrow().is_empty()
             && xmls.borrow().is_empty()),
         "No input files found"
     );
 
     file_content_producer(&infos.into_inner(), sender, ItemFormat::Info);
     file_content_producer(&xmls.into_inner(), sender, ItemFormat::JacocoXml);
+    file_content_producer(&gocovs.into_inner(), sender, ItemFormat::Gocov);
     llvm_format_producer(
         tmp_dir,
         &profdatas.into_inner(),
@@ -776,6 +798,12 @@ mod tests {
                 "jacoco/full-junit4-report-multiple-top-level-classes.xml",
                 false,
             ),
+            (
+                ItemFormat::JacocoXml,
+                false,
+                "jacoco/kotlin-jacoco-report.xml",
+                false,
+            ),
             (ItemFormat::Profraw, true, "default_1.profraw", false),
             (
                 ItemFormat::Gcno,
@@ -783,6 +811,7 @@ mod tests {
                 "mozillavpn_serverconnection_1.gcno",
                 true,
             ),
+            (ItemFormat::Gocov, false, "go.out", false),
         ];
 
         check_produced(tmp_path, &receiver, expected);

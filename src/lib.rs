@@ -189,7 +189,7 @@ pub fn consumer(
                     ItemType::Path((stem, gcno_path)) => {
                         // GCC
                         if let Err(e) = run_gcov(&gcno_path, branch_enabled, working_dir) {
-                            error!("Error when running gcov: {}", e);
+                            error!("Error when running gcov: {e}");
                             continue;
                         };
                         let gcov_ext = get_gcov_output_ext();
@@ -260,7 +260,7 @@ pub fn consumer(
                             }
                             Err(e) => {
                                 // Just print the error, don't panic and continue
-                                error!("Error in computing counters: {}", e);
+                                error!("Error in computing counters: {e}");
                                 Vec::new()
                             }
                         }
@@ -300,7 +300,7 @@ pub fn consumer(
                             new_results
                         }
                         Err(e) => {
-                            error!("Error while executing llvm tools: {}", e);
+                            error!("Error while executing llvm tools: {e}");
                             continue;
                         }
                     }
@@ -309,13 +309,16 @@ pub fn consumer(
                     continue;
                 }
             }
-            ItemFormat::Info | ItemFormat::JacocoXml => {
+            ItemFormat::Info | ItemFormat::JacocoXml | ItemFormat::Gocov => {
                 if let ItemType::Content(content) = work_item.item {
                     if work_item.format == ItemFormat::Info {
                         try_parse!(parse_lcov(content, branch_enabled), work_item.name)
-                    } else {
+                    } else if work_item.format == ItemFormat::JacocoXml {
                         let buffer = BufReader::new(Cursor::new(content));
                         try_parse!(parse_jacoco_xml_report(buffer), work_item.name)
+                    } else {
+                        let mut buffer = BufReader::new(Cursor::new(content));
+                        try_parse!(parse_gocov(&mut buffer), work_item.name)
                     }
                 } else {
                     error!("Invalid content type");

@@ -16,9 +16,9 @@ impl fmt::Display for GcovToolError {
         match *self {
             GcovToolError::ProcessFailure => write!(f, "Failed to execute gcov process"),
             GcovToolError::Failure((ref path, ref stdout, ref stderr)) => {
-                writeln!(f, "gcov execution failed on {}", path)?;
-                writeln!(f, "gcov stdout: {}", stdout)?;
-                writeln!(f, "gcov stderr: {}", stderr)
+                writeln!(f, "gcov execution failed on {path}")?;
+                writeln!(f, "gcov stdout: {stdout}")?;
+                writeln!(f, "gcov stderr: {stderr}")
             }
         }
     }

@@ -6,7 +6,7 @@
 
 grcov collects and aggregates code coverage information for multiple source files.
 grcov processes .profraw and .gcda files which can be generated from llvm/clang or gcc.
-grcov also processes lcov files (for JS coverage) and JaCoCo files (for Java coverage).
+grcov also processes lcov files (for JS coverage), out files (for Go coverage), and JaCoCo files (for Java and Kotlin coverage).
 Linux, macOS and Windows are supported.
 
 This is a project initiated by Mozilla to gather code coverage results on Firefox.
@@ -195,10 +195,10 @@ you can run `cargo install grcov`.
 
 ### Example: How to generate source-based coverage for a Rust project
 
-1. Install the llvm-tools or llvm-tools-preview component:
+1. Install the llvm-tools or llvm-tools component:
 
    ```sh
-   rustup component add llvm-tools-preview
+   rustup component add llvm-tools
    ```
 
 2. Ensure that the following environment variable is set up:
@@ -302,7 +302,7 @@ matrix:
       rust: stable
 
 script:
-    - rustup component add llvm-tools-preview
+    - rustup component add llvm-tools
     - export RUSTFLAGS="-Cinstrument-coverage"
     - cargo build --verbose
     - LLVM_PROFILE_FILE="your_name-%p-%m.profraw" cargo test --verbose

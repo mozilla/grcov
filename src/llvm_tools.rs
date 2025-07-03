@@ -1,27 +1,20 @@
-use once_cell::sync::OnceCell;
+use crossbeam_channel::unbounded;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use std::env;
 use std::env::consts::EXE_SUFFIX;
 use std::error::Error;
 use std::ffi::OsStr;
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::OnceLock;
 
+use ignore::WalkBuilder;
+use ignore::WalkState::Continue;
 use log::warn;
-use walkdir::WalkDir;
 
-pub static LLVM_PATH: OnceCell<PathBuf> = OnceCell::new();
-
-pub fn is_binary(path: impl AsRef<Path>) -> bool {
-    if let Ok(oty) = infer::get_from_path(path) {
-        if let Some("dll" | "exe" | "elf" | "mach") = oty.map(|x| x.extension()) {
-            return true;
-        }
-    }
-    false
-}
+pub static LLVM_PATH: OnceLock<PathBuf> = OnceLock::new();
 
 pub fn run_with_stdin(
     cmd: impl AsRef<OsStr>,
@@ -62,7 +55,7 @@ pub fn run(cmd: impl AsRef<OsStr>, args: &[&OsStr]) -> Result<Vec<u8>, String> {
 
     let output = command
         .output()
-        .map_err(|e| format!("Failed to execute {:?}\n{}", command, e))?;
+        .map_err(|e| format!("Failed to execute {command:?}\n{e}"))?;
 
     if !output.status.success() {
         return Err(format!(
@@ -73,6 +66,52 @@ pub fn run(cmd: impl AsRef<OsStr>, args: &[&OsStr]) -> Result<Vec<u8>, String> {
     }
 
     Ok(output.stdout)
+}
+
+pub fn find_binaries(binary_path: &Path) -> Vec<PathBuf> {
+    let metadata = fs::metadata(binary_path)
+        .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {:?}.", binary_path, e));
+
+    if metadata.is_file() {
+        vec![binary_path.to_owned()]
+    } else {
+        let mut paths = vec![];
+
+        let (sender, receiver) = unbounded();
+        let walker = WalkBuilder::new(binary_path)
+            .threads(num_cpus::get() - 1)
+            .build_parallel();
+        walker.run(|| {
+            let sender = sender.clone();
+            let mut bytes = vec![0u8; 128];
+
+            Box::new(move |result| {
+                let entry = result.unwrap();
+
+                if !entry.file_type().unwrap().is_file() {
+                    return Continue;
+                }
+
+                let file = fs::File::open(entry.path()).unwrap();
+                let read = file.take(128).read(&mut bytes).unwrap();
+                if read == 0 {
+                    return Continue;
+                }
+
+                if infer::is_app(&bytes) {
+                    sender.send(entry.into_path()).unwrap();
+                }
+
+                Continue
+            })
+        });
+
+        while let Ok(path) = receiver.try_recv() {
+            paths.push(path);
+        }
+
+        paths
+    }
 }
 
 /// Turns multiple .profraw and/or .profdata files into an lcov file.
@@ -100,25 +139,7 @@ pub fn llvm_profiles_to_lcov(
 
     get_profdata_path().and_then(|p| run_with_stdin(p, &stdin_paths, &args))?;
 
-    let metadata = fs::metadata(binary_path)
-        .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {:?}.", binary_path, e));
-
-    let binaries = if metadata.is_file() {
-        vec![binary_path.to_owned()]
-    } else {
-        let mut paths = vec![];
-
-        for entry in WalkDir::new(binary_path).follow_links(true) {
-            let entry = entry
-                .unwrap_or_else(|e| panic!("Failed to open directory '{:?}': {}", binary_path, e));
-
-            if is_binary(entry.path()) && entry.metadata().unwrap().len() > 0 {
-                paths.push(entry.into_path());
-            }
-        }
-
-        paths
-    };
+    let binaries = find_binaries(binary_path);
 
     let cov_tool_path = get_cov_path()?;
     let results = binaries
@@ -137,8 +158,7 @@ pub fn llvm_profiles_to_lcov(
                 Ok(result) => Some(result),
                 Err(err_str) => {
                     warn!(
-                        "Suppressing error returned by llvm-cov tool for binary {:?}\n{}",
-                        binary, err_str
+                        "Suppressing error returned by llvm-cov tool for binary {binary:?}\n{err_str}"
                     );
                     None
                 }
@@ -170,20 +190,20 @@ fn rustlib() -> Result<PathBuf, Box<dyn Error>> {
 
 fn llvm_tool_path(name: &str) -> Result<PathBuf, Box<dyn Error>> {
     let mut path = rustlib()?;
-    path.push(format!("llvm-{}{}", name, EXE_SUFFIX));
+    path.push(format!("llvm-{name}{EXE_SUFFIX}"));
     Ok(path)
 }
 
 fn get_profdata_path() -> Result<PathBuf, String> {
     let path = if let Some(mut path) = LLVM_PATH.get().cloned() {
-        path.push(format!("llvm-profdata{}", EXE_SUFFIX));
+        path.push(format!("llvm-profdata{EXE_SUFFIX}"));
         path
     } else {
         llvm_tool_path("profdata").map_err(|x| x.to_string())?
     };
 
     if !path.exists() {
-        Err(String::from("We couldn't find llvm-profdata. Try installing the llvm-tools component with `rustup component add llvm-tools-preview` or specifying the --llvm-path option."))
+        Err(String::from("We couldn't find llvm-profdata. Try installing the llvm-tools component with `rustup component add llvm-tools` or specifying the --llvm-path option."))
     } else {
         Ok(path)
     }
@@ -191,14 +211,14 @@ fn get_profdata_path() -> Result<PathBuf, String> {
 
 fn get_cov_path() -> Result<PathBuf, String> {
     let path = if let Some(mut path) = LLVM_PATH.get().cloned() {
-        path.push(format!("llvm-cov{}", EXE_SUFFIX));
+        path.push(format!("llvm-cov{EXE_SUFFIX}"));
         path
     } else {
         llvm_tool_path("cov").map_err(|x| x.to_string())?
     };
 
     if !path.exists() {
-        Err(String::from("We couldn't find llvm-cov. Try installing the llvm-tools component with `rustup component add llvm-tools-preview` or specifying the --llvm-path option."))
+        Err(String::from("We couldn't find llvm-cov. Try installing the llvm-tools component with `rustup component add llvm-tools` or specifying the --llvm-path option."))
     } else {
         Ok(path)
     }
@@ -213,10 +233,6 @@ mod tests {
     use walkdir::WalkDir;
 
     const FIXTURES_BASE: &str = "tests/rust/";
-
-    fn check_nightly_rust() -> bool {
-        rustc_version::version_meta().unwrap().channel == rustc_version::Channel::Nightly
-    }
 
     fn get_binary_path(name: &str) -> String {
         #[cfg(unix)]
@@ -290,61 +306,32 @@ mod tests {
     }
 
     fn check_basic_lcov_output(lcov: &str) {
-        let nightly = check_nightly_rust();
-
         assert!(lcov
             .lines()
             .any(|line| line.contains("SF") && line.contains("src") && line.contains("main.rs")));
-        if !nightly {
-            assert!(lcov.lines().any(|line| line.contains("FN:3")
-                && line.contains("basic")
-                && line.contains("Ciao")));
-        }
         assert!(lcov
             .lines()
             .any(|line| line.contains("FN:8") && line.contains("basic") && line.contains("main")));
-        if !nightly {
-            assert!(lcov.lines().any(|line| line.contains("FNDA:0")
-                && line.contains("basic")
-                && line.contains("Ciao")));
-        } else {
-            assert!(lcov.lines().any(|line| line.contains("FNDA:1")
-                && line.contains("basic")
-                && line.contains("main")));
-        }
         assert!(lcov.lines().any(|line| line.contains("FNDA:1")
             && line.contains("basic")
             && line.contains("main")));
-        if !nightly {
-            assert!(lcov.lines().any(|line| line == "FNF:2"));
-        }
+        assert!(lcov.lines().any(|line| line.contains("FNDA:1")
+            && line.contains("basic")
+            && line.contains("main")));
         assert!(lcov.lines().any(|line| line == "FNH:1"));
-        if !nightly {
-            assert!(lcov.lines().any(|line| line == "DA:3,0"));
-        }
         assert!(lcov.lines().any(|line| line == "DA:8,1"));
         assert!(lcov.lines().any(|line| line == "DA:9,1"));
-        assert!(lcov.lines().any(|line| line == "DA:10,1"));
         assert!(lcov.lines().any(|line| line == "DA:11,1"));
         assert!(lcov.lines().any(|line| line == "DA:12,1"));
         assert!(lcov.lines().any(|line| line == "BRF:0"));
         assert!(lcov.lines().any(|line| line == "BRH:0"));
-        if nightly {
-            assert!(lcov.lines().any(|line| line == "LF:5"));
-            assert!(lcov.lines().any(|line| line == "LH:5"));
-        } else {
-            assert!(lcov.lines().any(|line| line == "LF:6"));
-            assert!(lcov.lines().any(|line| line == "LH:5"));
-        }
+        assert!(lcov.lines().any(|line| line == "LF:4"));
+        assert!(lcov.lines().any(|line| line == "LH:4"));
         assert!(lcov.lines().any(|line| line == "end_of_record"));
     }
 
     #[test]
     fn test_wrong_binary_file() {
-        if !check_nightly_rust() {
-            return;
-        }
-
         let tmp_dir = setup_env_and_run_program("basic");
         let tmp_path = tmp_dir.path();
 
@@ -360,10 +347,6 @@ mod tests {
 
     #[test]
     fn test_profraws_to_lcov() {
-        if !check_nightly_rust() {
-            return;
-        }
-
         let tmp_dir = setup_env_and_run_program("basic");
         let tmp_path = tmp_dir.path();
         let binary_path = get_binary_path("basic");
@@ -377,17 +360,13 @@ mod tests {
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 1);
         let output_lcov = String::from_utf8_lossy(&lcovs[0]);
-        println!("{}", output_lcov);
+        println!("{output_lcov}");
 
         check_basic_lcov_output(&output_lcov);
     }
 
     #[test]
     fn test_profdatas_to_lcov() {
-        if !check_nightly_rust() {
-            return;
-        }
-
         let tmp_dir = setup_env_and_run_program("basic");
         let tmp_path = tmp_dir.path();
         let binary_path = get_binary_path("basic");
@@ -414,17 +393,13 @@ mod tests {
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 1);
         let output_lcov = String::from_utf8_lossy(&lcovs[0]);
-        println!("{}", output_lcov);
+        println!("{output_lcov}");
 
         check_basic_lcov_output(&output_lcov);
     }
 
     #[test]
     fn test_llvm_aggregate_profraws() {
-        if !check_nightly_rust() {
-            return;
-        }
-
         let tmp_dir = copy_fixture("hello_name");
         let tmp_path = tmp_dir.path();
         let bin_path = get_binary_path("hello_name");
@@ -465,7 +440,7 @@ mod tests {
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 1);
         let output_lcov = String::from_utf8_lossy(&lcovs[0]);
-        println!("{}", output_lcov);
+        println!("{output_lcov}");
 
         let lcov = String::from_utf8_lossy(&lcovs[0]);
 
