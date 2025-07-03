@@ -234,10 +234,6 @@ mod tests {
 
     const FIXTURES_BASE: &str = "tests/rust/";
 
-    fn check_nightly_rust() -> bool {
-        rustc_version::version_meta().unwrap().channel == rustc_version::Channel::Nightly
-    }
-
     fn get_binary_path(name: &str) -> String {
         #[cfg(unix)]
         let binary_path = format!(
@@ -310,8 +306,6 @@ mod tests {
     }
 
     fn check_basic_lcov_output(lcov: &str) {
-        let nightly = check_nightly_rust();
-
         assert!(lcov
             .lines()
             .any(|line| line.contains("SF") && line.contains("src") && line.contains("main.rs")));
@@ -327,20 +321,12 @@ mod tests {
         assert!(lcov.lines().any(|line| line == "FNH:1"));
         assert!(lcov.lines().any(|line| line == "DA:8,1"));
         assert!(lcov.lines().any(|line| line == "DA:9,1"));
-        if !nightly {
-            assert!(lcov.lines().any(|line| line == "DA:10,1"));
-        }
         assert!(lcov.lines().any(|line| line == "DA:11,1"));
         assert!(lcov.lines().any(|line| line == "DA:12,1"));
         assert!(lcov.lines().any(|line| line == "BRF:0"));
         assert!(lcov.lines().any(|line| line == "BRH:0"));
-        if nightly {
-            assert!(lcov.lines().any(|line| line == "LF:4"));
-            assert!(lcov.lines().any(|line| line == "LH:4"));
-        } else {
-            assert!(lcov.lines().any(|line| line == "LF:5"));
-            assert!(lcov.lines().any(|line| line == "LH:5"));
-        }
+        assert!(lcov.lines().any(|line| line == "LF:4"));
+        assert!(lcov.lines().any(|line| line == "LH:4"));
         assert!(lcov.lines().any(|line| line == "end_of_record"));
     }
 
