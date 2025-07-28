@@ -201,6 +201,9 @@ struct Opt {
     /// Ignore source files that can't be found on the disk.
     #[arg(long)]
     ignore_not_existing: bool,
+    /// Ignore error when parsing the coverage files.
+    #[arg(long)]
+    ignore_parsing_error: bool,
     /// Ignore files/directories specified as globs.
     #[arg(long = "ignore", value_name = "PATH", num_args = 1)]
     ignore_dir: Vec<String>,
@@ -447,6 +450,7 @@ fn main() {
         let binary_path = opt.binary_path.clone();
         let branch_enabled = opt.branch;
         let guess_directory = opt.guess_directory;
+        let ignore_parsing_error = opt.ignore_parsing_error;
 
         let t = thread::Builder::new()
             .name(format!("Consumer {i}"))
@@ -460,6 +464,7 @@ fn main() {
                     branch_enabled,
                     guess_directory,
                     binary_path.as_deref(),
+                    ignore_parsing_error,
                 );
             })
             .unwrap();

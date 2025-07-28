@@ -175,6 +175,7 @@ pub fn consumer(
     branch_enabled: bool,
     guess_directory: bool,
     binary_path: Option<&Path>,
+    ignore_parsing_error: bool,
 ) {
     let mut gcov_type = GcovType::Unknown;
 
@@ -292,7 +293,7 @@ pub fn consumer(
 
                             for lcov in lcovs {
                                 new_results.append(&mut try_parse!(
-                                    parse_lcov(lcov, branch_enabled),
+                                    parse_lcov(lcov, branch_enabled, ignore_parsing_error),
                                     work_item.name
                                 ));
                             }
@@ -312,7 +313,10 @@ pub fn consumer(
             ItemFormat::Info | ItemFormat::JacocoXml | ItemFormat::Gocov => {
                 if let ItemType::Content(content) = work_item.item {
                     if work_item.format == ItemFormat::Info {
-                        try_parse!(parse_lcov(content, branch_enabled), work_item.name)
+                        try_parse!(
+                            parse_lcov(content, branch_enabled, ignore_parsing_error),
+                            work_item.name
+                        )
                     } else if work_item.format == ItemFormat::JacocoXml {
                         let buffer = BufReader::new(Cursor::new(content));
                         try_parse!(parse_jacoco_xml_report(buffer), work_item.name)
@@ -435,7 +439,7 @@ mod tests {
             .expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let results = parse_lcov(buf, false).unwrap();
+        let results = parse_lcov(buf, false, false).unwrap();
         let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
             FxHashMap::with_capacity_and_hasher(1, Default::default()),
         ));
@@ -469,7 +473,7 @@ mod tests {
             .expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let results = parse_lcov(buf, false).unwrap();
+        let results = parse_lcov(buf, false, false).unwrap();
         let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
             FxHashMap::with_capacity_and_hasher(3, Default::default()),
         ));
