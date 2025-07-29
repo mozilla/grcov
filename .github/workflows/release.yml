@@ -72,6 +72,9 @@ jobs:
               echo 'linker = "aarch64-linux-musl-gcc"' >> .cargo/config
               ;;
           esac
+      - name: Install TCMalloc
+        if: contains(matrix.features, 'tc') && matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y libtcmalloc-minimal4
       - name: Configure cache
         uses: actions/cache@v3
         with:
