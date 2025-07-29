@@ -63,7 +63,7 @@ jobs:
             aarch64-unknown-linux-musl)
               mkdir -p $HOME/.local
 
-              curl -o /tmp/musl.tgz https://musl.cc/aarch64-linux-musl-cross.tgz
+              curl -L -o /tmp/musl.tgz https://github.com/marco-c/aarch64-linux-musl-cross/raw/refs/heads/main/aarch64-linux-musl-cross.tgz
               tar -xzf /tmp/musl.tgz -C $HOME/.local
               echo "$HOME/.local/aarch64-linux-musl-cross/bin" >> $GITHUB_PATH
 
