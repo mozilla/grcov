@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - v*.*.*
+  pull_request:
 jobs:
   release:
     name: Build release artifacts
@@ -18,6 +19,8 @@ jobs:
             target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl-with-tcmalloc
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
           - os: ubuntu-latest
@@ -39,6 +42,10 @@ jobs:
             x86_64-unknown-linux-gnu)
               ;;
             x86_64-unknown-linux-musl)
+              sudo apt-get update
+              sudo apt-get install -y musl-tools
+              ;;
+            x86_64-unknown-linux-musl-with-tcmalloc)
               sudo apt-get update
               sudo apt-get install -y musl-tools
               ;;
@@ -71,7 +78,12 @@ jobs:
             target/
           key: release-${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
       - name: Build
-        run: cargo build --release --locked --target ${{ matrix.target }}
+        run: |
+          if [[ "${{ matrix.target }}" == *with-tcmalloc* ]]; then
+            cargo build --release --locked --target ${{ matrix.target }} --features tc
+          else
+            cargo build --release --locked --target ${{ matrix.target }}
+          fi
       - name: Strip binary
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
@@ -111,61 +123,3 @@ jobs:
         with:
           name: artifact-${{ matrix.target }}
           path: target/dist/*
-  publish:
-    name: Publish release
-    runs-on: ubuntu-latest
-    needs: [release]
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-      - name: Create checksums
-        run: |
-          set -x
-          for dir in $(pwd)/artifact-*; do
-            cd $dir
-            sha256sum -b * >> ~/checksums.sha256
-          done
-      - name: Create release
-        id: release
-        run: |
-          set -x
-          curl --request POST \
-            --url https://api.github.com/repos/${{ github.repository }}/releases \
-            --header "Accept: application/vnd.github.v3+json" \
-            --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            --header "Content-Type: application/json" \
-            --data '{
-              "tag_name": "${{ github.ref_name }}",
-              "name": "Release ${{ github.ref_name }}",
-              "body": "Release ${{ github.ref_name }}",
-              "draft": true
-            }' \
-            --fail > release.json
-
-          id=$(jq .id release.json)
-          echo "id=$id" >> $GITHUB_OUTPUT
-      - name: Upload artifacts
-        run: |
-          set -x
-          for file in $(ls artifact-*/*.{tar.bz2,zip}) ~/checksums.sha256; do
-            filename=$(basename -- "$file")
-            extension="${filename#*.}"
-
-            type="text/plain"
-            case $extension in
-              zip)
-                type="application/zip"
-                ;;
-              tar.bz2)
-                type="application/x-bzip2"
-                ;;
-            esac
-
-            curl --request POST \
-              --url https://uploads.github.com/repos/${{ github.repository }}/releases/${{ steps.release.outputs.id }}/assets?name=${filename} \
-              --header "Accept: application/vnd.github.v3+json" \
-              --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              --header "Content-Type: ${type}" \
-              --data-binary "@${file}" \
-              --fail
-          done
