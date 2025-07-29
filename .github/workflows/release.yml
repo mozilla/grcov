@@ -33,7 +33,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
       - name: Setup Rust
-        run: rustup target add ${{ matrix.target }}
+        run: |
+          TARGET="${{ matrix.target }}"
+          CLEAN_TARGET="${TARGET/-with-tcmalloc/}"
+          echo "CLEAN_TARGET=$CLEAN_TARGET" >> $GITHUB_ENV
+          rustup target add "$CLEAN_TARGET"
       - name: Install additional toolchains
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
@@ -80,9 +84,9 @@ jobs:
       - name: Build
         run: |
           if [[ "${{ matrix.target }}" == *with-tcmalloc* ]]; then
-            cargo build --release --locked --target ${{ matrix.target }} --features tc
+            cargo build --release --locked --target "$CLEAN_TARGET" --features tc
           else
-            cargo build --release --locked --target ${{ matrix.target }}
+            cargo build --release --locked --target "$CLEAN_TARGET"
           fi
       - name: Strip binary
         if: ${{ matrix.os != 'windows-latest' }}
