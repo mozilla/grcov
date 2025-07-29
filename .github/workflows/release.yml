@@ -13,31 +13,31 @@ jobs:
         include:
           - os: macos-latest
             target: x86_64-apple-darwin
-            tcmalloc: false
+            features: []
           - os: macos-latest
             target: aarch64-apple-darwin
-            tcmalloc: false
+            features: []
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            tcmalloc: false
+            features: []
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            tcmalloc: false
+            features: []
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            tcmalloc: true
+            features: ["tc"]
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            tcmalloc: false
+            features: []
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
-            tcmalloc: false
+            features: []
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            tcmalloc: false
+            features: []
           - os: windows-latest
             target: aarch64-pc-windows-msvc
-            tcmalloc: false
+            features: []
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -83,12 +83,7 @@ jobs:
             target/
           key: release-${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
       - name: Build
-        run: |
-          if [[ "${{ matrix.tcmalloc }}" == "true" ]]; then
-            cargo build --release --locked --target ${{ matrix.target }} --features tc
-          else
-            cargo build --release --locked --target ${{ matrix.target }}
-          fi
+        run: cargo build --release --locked --target ${{ matrix.target }}${{ matrix.features && format(' --features {0}', join(matrix.features, ",")) || '' }}
       - name: Strip binary
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
@@ -115,16 +110,16 @@ jobs:
           rm -rf target/dist
           mkdir target/dist
           cd target/${{ matrix.target }}/release
-          tar cjf ../../dist/grcov-${{ matrix.target }}.tar.bz2 grcov
+          tar cjf ../../dist/grcov-${{ matrix.target }}${{ matrix.features && format('-{0}', join(matrix.features, "-")) || '' }}.tar.bz2 grcov
       - name: Package (windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
           if (Test-Path target/dist) { rm -Recurse -Force target/dist }
           mkdir target/dist
           cd target/${{ matrix.target }}/release
-          7z a ../../dist/grcov-${{ matrix.target }}.zip grcov.exe
+          7z a ../../dist/grcov-${{ matrix.target }}${{ matrix.features && format('-{0}', join(matrix.features, "-")) || '' }}.zip grcov.exe
       - name: Upload archive
         uses: actions/upload-artifact@v4
         with:
-          name: artifact-${{ matrix.target }}
+          name: artifact-${{ matrix.target }}${{ matrix.features && format('-{0}', join(matrix.features, "-")) || '' }}
           path: target/dist/*
