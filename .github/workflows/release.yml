@@ -16,19 +16,19 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             features: []
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             features: []
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             target: x86_64-unknown-linux-musl
             features: []
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             features: ["tc"]
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             target: aarch64-unknown-linux-gnu
             features: []
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             target: aarch64-unknown-linux-musl
             features: []
           - os: windows-latest
@@ -43,7 +43,7 @@ jobs:
       - name: Setup Rust
         run: rustup target add ${{ matrix.target }}
       - name: Install additional toolchains
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.os == 'ubuntu-22.04' }}
         run: |
           set -x
           case "${{ matrix.target }}" in
@@ -72,7 +72,7 @@ jobs:
               ;;
           esac
       - name: Install TCMalloc
-        if: contains(matrix.features, 'tc') && matrix.os == 'ubuntu-latest'
+        if: contains(matrix.features, 'tc') && matrix.os == 'ubuntu-22.04'
         run: sudo apt-get update && sudo apt-get install -y libgoogle-perftools-dev
       - name: Configure cache
         uses: actions/cache@v3
