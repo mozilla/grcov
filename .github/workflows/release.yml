@@ -54,10 +54,6 @@ jobs:
               sudo apt-get update
               sudo apt-get install -y musl-tools
               ;;
-            x86_64-unknown-linux-musl-with-tcmalloc)
-              sudo apt-get update
-              sudo apt-get install -y musl-tools
-              ;;
             aarch64-unknown-linux-gnu)
               sudo apt-get update
               sudo apt-get install -y gcc-aarch64-linux-gnu
