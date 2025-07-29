@@ -74,7 +74,7 @@ jobs:
           esac
       - name: Install TCMalloc
         if: contains(matrix.features, 'tc') && matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libtcmalloc-minimal4
+        run: sudo apt-get update && sudo apt-get install -y libgoogle-perftools-dev
       - name: Configure cache
         uses: actions/cache@v3
         with:
