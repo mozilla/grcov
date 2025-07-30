@@ -12,27 +12,35 @@ Linux, macOS and Windows are supported.
 This is a project initiated by Mozilla to gather code coverage results on Firefox.
 
 <!-- omit in toc -->
+
 ## Table of Contents
 
-- [man grcov](#man-grcov)
-- [How to get grcov](#how-to-get-grcov)
-- [Usage](#usage)
-  - [Example: How to generate source-based coverage for a Rust project](#example-how-to-generate-source-based-coverage-for-a-rust-project)
-  - [Example: How to generate .gcda files for C/C++](#example-how-to-generate-gcda-files-for-cc)
-  - [Example: How to generate .gcda files for a Rust project](#example-how-to-generate-gcda-files-for-a-rust-project)
-  - [Generate a coverage report from coverage artifacts](#generate-a-coverage-report-from-coverage-artifacts)
-    - [LCOV output](#lcov-output)
-    - [Coveralls output](#coveralls-output)
-    - [grcov with Travis](#grcov-with-travis)
-    - [grcov with Gitlab](#grcov-with-gitlab)
-  - [Alternative reports](#alternative-reports)
-  - [Hosting HTML reports and using coverage badges](#hosting-html-reports-and-using-coverage-badges)
-    - [Example](#example)
-  - [Enabling symlinks on Windows](#enabling-symlinks-on-windows)
-- [Auto-formatting](#auto-formatting)
-- [Build & Test](#build--test)
-- [Minimum requirements](#minimum-requirements)
-- [License](#license)
+- [grcov](#grcov)
+  - [Table of Contents](#table-of-contents)
+  - [man grcov](#man-grcov)
+  - [How to get grcov](#how-to-get-grcov)
+  - [Usage](#usage)
+    - [Example: How to generate source-based coverage for a Rust project](#example-how-to-generate-source-based-coverage-for-a-rust-project)
+    - [Example: How to generate .gcda files for C/C++](#example-how-to-generate-gcda-files-for-cc)
+    - [Example: How to generate .gcda files for a Rust project](#example-how-to-generate-gcda-files-for-a-rust-project)
+    - [Generate a coverage report from coverage artifacts](#generate-a-coverage-report-from-coverage-artifacts)
+    - [HTML output](#html-output)
+      - [Features](#features)
+      - [Generated files](#generated-files)
+      - [Configuration options](#configuration-options)
+      - [Example usage](#example-usage)
+      - [LCOV output](#lcov-output)
+      - [Coveralls output](#coveralls-output)
+      - [grcov with Travis](#grcov-with-travis)
+      - [grcov with Gitlab](#grcov-with-gitlab)
+    - [Alternative reports](#alternative-reports)
+    - [Hosting HTML reports and using coverage badges](#hosting-html-reports-and-using-coverage-badges)
+    - [Enabling symlinks on Windows](#enabling-symlinks-on-windows)
+      - [Example](#example)
+  - [Auto-formatting](#auto-formatting)
+  - [Build \& Test](#build--test)
+  - [Minimum requirements](#minimum-requirements)
+  - [License](#license)
 
 ## man grcov
 
@@ -268,6 +276,58 @@ You can see the report in `target/debug/coverage/index.html`.
 
 (or alternatively with `-t lcov` grcov will output a lcov compatible coverage report that you could then feed into lcov's `genhtml` command).
 
+### HTML output
+
+The HTML output format (`-t html`) generates a comprehensive web-based coverage report that includes:
+
+#### Features
+
+- **Interactive file browser**: Navigate through your project's directory structure with coverage statistics for each folder and file
+- **Line-by-line coverage**: View source code with color-coded coverage indicators showing which lines were executed
+- **Branch coverage**: When enabled with `--branch`, displays branch coverage information alongside line coverage
+- **Function coverage**: Shows coverage statistics for individual functions in your codebase
+- **Coverage badges**: Automatically generates SVG badges in multiple styles for use in README files
+- **Responsive design**: Built with Bulma CSS framework for a modern, mobile-friendly interface
+
+#### Generated files
+
+The HTML output creates the following structure in your output directory:
+
+```
+coverage/
+├── index.html              # Main coverage summary
+├── coverage.json           # Coverage data for shields.io integration
+├── bulma.min.css          # CSS framework (when using bundled resources)
+├── badges/                # Coverage badges in multiple styles
+│   ├── flat.svg
+│   ├── flat_square.svg
+│   ├── for_the_badge.svg
+│   ├── plastic.svg
+│   └── social.svg
+└── [source files].html    # Individual file coverage reports
+```
+
+#### Configuration options
+
+You can customize the HTML output using command-line options:
+
+- `--precision <NUMBER>`: Set decimal precision for coverage percentages (default: 2)
+- `--branch`: Enable branch coverage reporting
+- Output directory structure follows your source code organization
+
+#### Example usage
+
+```sh
+# Generate HTML report with branch coverage
+grcov . -s . --binary-path ./target/debug/ -t html --branch --ignore-not-existing -o ./coverage/
+
+# Generate HTML report with custom precision
+grcov . -s . -t html --precision 1 -o ./coverage/
+
+# Generate multiple output formats including HTML
+grcov . -s . -t html,lcov --branch -o ./coverage/
+```
+
 #### LCOV output
 
 By passing `-t lcov` you could generate an lcov.info file and pass it to genhtml:
@@ -302,12 +362,12 @@ matrix:
       rust: stable
 
 script:
-    - rustup component add llvm-tools
-    - export RUSTFLAGS="-Cinstrument-coverage"
-    - cargo build --verbose
-    - LLVM_PROFILE_FILE="your_name-%p-%m.profraw" cargo test --verbose
-    - ./grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
-    - bash <(curl -s https://codecov.io/bash) -f lcov.info
+  - rustup component add llvm-tools
+  - export RUSTFLAGS="-Cinstrument-coverage"
+  - cargo build --verbose
+  - LLVM_PROFILE_FILE="your_name-%p-%m.profraw" cargo test --verbose
+  - ./grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
+  - bash <(curl -s https://codecov.io/bash) -f lcov.info
 ```
 
 Here is an example of .travis.yml file:
@@ -324,15 +384,15 @@ matrix:
       rust: stable
 
 script:
-    - export CARGO_INCREMENTAL=0
-    - export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
-    - export RUSTDOCFLAGS="-Cpanic=abort"
-    - cargo build --verbose $CARGO_OPTIONS
-    - cargo test --verbose $CARGO_OPTIONS
-    - |
-      zip -0 ccov.zip `find . \( -name "YOUR_PROJECT_NAME*.gc*" \) -print`;
-      ./grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o lcov.info;
-      bash <(curl -s https://codecov.io/bash) -f lcov.info;
+  - export CARGO_INCREMENTAL=0
+  - export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
+  - export RUSTDOCFLAGS="-Cpanic=abort"
+  - cargo build --verbose $CARGO_OPTIONS
+  - cargo test --verbose $CARGO_OPTIONS
+  - |
+    zip -0 ccov.zip `find . \( -name "YOUR_PROJECT_NAME*.gc*" \) -print`;
+    ./grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o lcov.info;
+    bash <(curl -s https://codecov.io/bash) -f lcov.info;
 ```
 
 #### grcov with Gitlab
