@@ -180,20 +180,45 @@ impl ParallelWalker {
 
 /// Detect known binaries for different platforms
 fn is_known_binary(bytes: &[u8]) -> bool {
-    let is_elf = bytes.starts_with(&[0x7F, b'E', b'L', b'F']);
-    let is_pe = bytes.starts_with(&[0x4D, 0x5A]); // 'MZ'
-    let is_macho = bytes.starts_with(&[0xFE, 0xED, 0xFA, 0xCE])
-        || bytes.starts_with(&[0xFE, 0xED, 0xFA, 0xCF])
-        || bytes.starts_with(&[0xCA, 0xFE, 0xBA, 0xBE])
-        || bytes.starts_with(&[0xCE, 0xFA, 0xED, 0xFE])
-        || bytes.starts_with(&[0xCF, 0xFA, 0xED, 0xFE]);
+    let len = bytes.len();
 
-    let is_coff = bytes.len() >= 2 && matches!(
-        u16::from_le_bytes([bytes[0], bytes[1]]),
-        0x014C | 0x8664 | 0x01C0 | 0xAA64
+    // ELF (Unix/Linux)
+    let is_elf = len >= 4 && bytes.starts_with(&[0x7F, b'E', b'L', b'F']);
+
+    // PE (Windows executables/DLLs) - "MZ"
+    let is_pe = len >= 2 && bytes.starts_with(&[0x4D, 0x5A]);
+
+    // Mach-O formats (macOS)
+    let is_macho = len >= 4 && (
+        bytes.starts_with(&[0xFE, 0xED, 0xFA, 0xCE]) || // 32-bit
+        bytes.starts_with(&[0xFE, 0xED, 0xFA, 0xCF]) || // 64-bit
+        bytes.starts_with(&[0xCA, 0xFE, 0xBA, 0xBE]) || // FAT
+        bytes.starts_with(&[0xCE, 0xFA, 0xED, 0xFE]) || // Reverse 32-bit
+        bytes.starts_with(&[0xCF, 0xFA, 0xED, 0xFE])    // Reverse 64-bit
     );
 
-    is_elf || is_pe || is_macho || is_coff
+    // COFF object files (.obj, .o)
+    let is_coff = len >= 2 && matches!(
+        u16::from_le_bytes([bytes[0], bytes[1]]),
+        0x014C | // Intel 386
+        0x8664 | // x86-64
+        0x01C0 | // ARM
+        0xAA64   // ARM64
+    );
+
+    // WebAssembly binary
+    let is_wasm = len >= 4 && bytes.starts_with(&[0x00, 0x61, 0x73, 0x6D]); // "\0asm"
+
+    // LLVM Bitcode (.bc files)
+    let is_llvm_bitcode = len >= 4 && bytes.starts_with(&[0x42, 0x43, 0xC0, 0xDE]); // "BC" + 0xC0DE
+
+    // Detect .NET assemblies (PE with embedded "BSJB" or "CLR")
+    let is_dotnet = len >= 0x40 && is_pe && (
+        bytes.windows(4).any(|w| w == b"BSJB") || // .NET metadata identifier
+        bytes.windows(3).any(|w| w == b"CLR")     // .NET CLR header
+    );
+
+    is_elf || is_pe || is_macho || is_coff || is_wasm || is_llvm_bitcode || is_dotnet
 }
 
 /// Helper function to find binary files using the ParallelWalker
