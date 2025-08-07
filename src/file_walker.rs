@@ -193,7 +193,7 @@ pub fn find_binaries<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
             use std::io::Read;
             let mut bytes = [0u8; 128];
             if let Ok(read) = file.take(128).read(&mut bytes) {
-                if read > 0 && infer::is_app(&bytes[..read]) {
+                if read > 0 && bytes.starts_with(&[0x7F, 0x45, 0x4C, 0x46]) {
                     return true;
                 }
             }
