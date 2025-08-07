@@ -212,6 +212,10 @@ fn is_known_binary(bytes: &[u8]) -> bool {
         return true;
     }
 
+    // COFF, WebAssembly, and LLVM Bitcode detection:
+    // Unsure if those formats are required for llvm-cov export (context where we use them)
+    // but we include them here for completeness and future-proofing.
+
     // COFF object files (.obj, .o)
     if len >= 2 {
         let coff_magic = u16::from_le_bytes([bytes[0], bytes[1]]);
