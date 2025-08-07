@@ -178,6 +178,15 @@ impl ParallelWalker {
     }
 }
 
+/// Detect known binaries for different platforms
+fn is_known_binary(bytes: &[u8]) -> bool {
+    bytes.starts_with(&[0x7F, 0x45, 0x4C, 0x46]) || // ELF
+    bytes.starts_with(&[0x4D, 0x5A]) ||             // PE (Windows)
+    bytes.starts_with(&[0xFE, 0xED, 0xFA, 0xCE]) || // Mach-O (macOS 32-bit)
+    bytes.starts_with(&[0xFE, 0xED, 0xFA, 0xCF]) || // Mach-O (macOS 64-bit)
+    bytes.starts_with(&[0xCA, 0xFE, 0xBA, 0xBE]) // Mach-O FAT
+}
+
 /// Helper function to find binary files using the ParallelWalker
 pub fn find_binaries<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
     let walker = ParallelWalker::new(path);
@@ -193,7 +202,7 @@ pub fn find_binaries<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
             use std::io::Read;
             let mut bytes = [0u8; 128];
             if let Ok(read) = file.take(128).read(&mut bytes) {
-                if read > 0 && bytes.starts_with(&[0x7F, 0x45, 0x4C, 0x46]) {
+                if read > 0 && is_known_binary(&bytes[..read]) {
                     return true;
                 }
             }
