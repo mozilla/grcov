@@ -180,11 +180,20 @@ impl ParallelWalker {
 
 /// Detect known binaries for different platforms
 fn is_known_binary(bytes: &[u8]) -> bool {
-    bytes.starts_with(&[0x7F, 0x45, 0x4C, 0x46]) || // ELF
-    bytes.starts_with(&[0x4D, 0x5A]) ||             // PE (Windows)
-    bytes.starts_with(&[0xFE, 0xED, 0xFA, 0xCE]) || // Mach-O (macOS 32-bit)
-    bytes.starts_with(&[0xFE, 0xED, 0xFA, 0xCF]) || // Mach-O (macOS 64-bit)
-    bytes.starts_with(&[0xCA, 0xFE, 0xBA, 0xBE]) // Mach-O FAT
+    let is_elf = bytes.starts_with(&[0x7F, b'E', b'L', b'F']);
+    let is_pe = bytes.starts_with(&[0x4D, 0x5A]); // 'MZ'
+    let is_macho = bytes.starts_with(&[0xFE, 0xED, 0xFA, 0xCE])
+        || bytes.starts_with(&[0xFE, 0xED, 0xFA, 0xCF])
+        || bytes.starts_with(&[0xCA, 0xFE, 0xBA, 0xBE])
+        || bytes.starts_with(&[0xCE, 0xFA, 0xED, 0xFE])
+        || bytes.starts_with(&[0xCF, 0xFA, 0xED, 0xFE]);
+
+    let is_coff = bytes.len() >= 2 && matches!(
+        u16::from_le_bytes([bytes[0], bytes[1]]),
+        0x014C | 0x8664 | 0x01C0 | 0xAA64
+    );
+
+    is_elf || is_pe || is_macho || is_coff
 }
 
 /// Helper function to find binary files using the ParallelWalker
