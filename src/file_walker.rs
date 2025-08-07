@@ -178,6 +178,65 @@ impl ParallelWalker {
     }
 }
 
+/// Detect known binaries for different platforms
+fn is_known_binary(bytes: &[u8]) -> bool {
+    let len = bytes.len();
+
+    // ELF (Unix/Linux)
+    if len >= 4 && bytes.starts_with(&[0x7F, b'E', b'L', b'F']) {
+        return true;
+    }
+
+    // PE (Windows executables/DLLs) - "MZ"
+    if len >= 2 && bytes.starts_with(&[0x4D, 0x5A]) {
+        // Detect .NET assemblies (PE with embedded "BSJB" or "CLR")
+        if len >= 0x40
+            && (bytes.windows(4).any(|w| w == b"BSJB") || bytes.windows(3).any(|w| w == b"CLR"))
+        {
+            return true;
+        }
+        return true;
+    }
+
+    // Mach-O formats (macOS)
+    if len >= 4
+        && (
+            bytes.starts_with(&[0xFE, 0xED, 0xFA, 0xCE]) || // 32-bit
+        bytes.starts_with(&[0xFE, 0xED, 0xFA, 0xCF]) || // 64-bit
+        bytes.starts_with(&[0xCA, 0xFE, 0xBA, 0xBE]) || // FAT
+        bytes.starts_with(&[0xCE, 0xFA, 0xED, 0xFE]) || // Reverse 32-bit
+        bytes.starts_with(&[0xCF, 0xFA, 0xED, 0xFE])
+            // Reverse 64-bit
+        )
+    {
+        return true;
+    }
+
+    // COFF, WebAssembly, and LLVM Bitcode detection:
+    // Unsure if those formats are required for llvm-cov export (context where we use them)
+    // but we include them here for completeness and future-proofing.
+
+    // COFF object files (.obj, .o)
+    if len >= 2 {
+        let coff_magic = u16::from_le_bytes([bytes[0], bytes[1]]);
+        if matches!(coff_magic, 0x014C | 0x8664 | 0x01C0 | 0xAA64) {
+            return true;
+        }
+    }
+
+    // WebAssembly binary
+    if len >= 4 && bytes.starts_with(&[0x00, 0x61, 0x73, 0x6D]) {
+        return true;
+    }
+
+    // LLVM Bitcode (.bc files)
+    if len >= 4 && bytes.starts_with(&[0x42, 0x43, 0xC0, 0xDE]) {
+        return true;
+    }
+
+    false
+}
+
 /// Helper function to find binary files using the ParallelWalker
 pub fn find_binaries<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
     let walker = ParallelWalker::new(path);
@@ -193,7 +252,7 @@ pub fn find_binaries<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
             use std::io::Read;
             let mut bytes = [0u8; 128];
             if let Ok(read) = file.take(128).read(&mut bytes) {
-                if read > 0 && infer::is_app(&bytes[..read]) {
+                if read > 0 && is_known_binary(&bytes[..read]) {
                     return true;
                 }
             }
