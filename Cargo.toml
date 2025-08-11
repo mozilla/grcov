@@ -62,7 +62,7 @@ symbolic-demangle = { version = "12.16", default-features = false }
 tabled = "0.20"
 tempfile = "3.20"
 tera = "1.20"
-uuid = { version = "1.17", features = ["v4"] }
+uuid = { version = "1.18", features = ["v4"] }
 walkdir = "2.5"
 zip = { version = "4.3", default-features = false }
 
