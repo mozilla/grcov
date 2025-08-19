@@ -465,6 +465,7 @@ fn main() {
                     guess_directory,
                     binary_path.as_deref(),
                     ignore_parsing_error,
+                    num_threads,
                 );
             })
             .unwrap();
