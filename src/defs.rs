@@ -92,7 +92,7 @@ pub struct HtmlItem {
     pub result: CovResult,
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct HtmlStats {
     pub total_lines: usize,
     pub covered_lines: usize,
@@ -102,24 +102,78 @@ pub struct HtmlStats {
     pub covered_branches: usize,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct HtmlFileStats {
     pub stats: HtmlStats,
     pub abs_prefix: Option<PathBuf>,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct HtmlDirStats {
     pub files: BTreeMap<String, HtmlFileStats>,
     pub stats: HtmlStats,
     pub abs_prefix: Option<PathBuf>,
 }
 
-#[derive(Debug, Default, serde::Serialize)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct HtmlGlobalStats {
     pub dirs: BTreeMap<String, HtmlDirStats>,
     pub stats: HtmlStats,
     pub abs_prefix: Option<PathBuf>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum HtmlItemStats {
+    Directory(HtmlDirStats),
+    File(HtmlFileStats),
+}
+
+impl HtmlGlobalStats {
+    pub fn list(&self, dir: String) -> BTreeMap<String, HtmlItemStats> {
+        let mut result = BTreeMap::new();
+
+        // Add files from the specified directory
+        if let Some(dir_stats) = self.dirs.get(&dir) {
+            for (file_name, file_stats) in &dir_stats.files {
+                result.insert(file_name.clone(), HtmlItemStats::File(file_stats.clone()));
+            }
+        }
+
+        // Add subdirectories as entries
+        if dir.is_empty() {
+            // For root directory, add top-level directories
+            for (dir_path, dir_stats) in &self.dirs {
+                if !dir_path.is_empty() && !dir_path.contains('/') {
+                    result.insert(
+                        dir_path.clone(),
+                        HtmlItemStats::Directory(dir_stats.clone()),
+                    );
+                }
+            }
+        } else {
+            // For specific directory, add immediate subdirectories
+            let prefix = if dir.ends_with('/') {
+                dir
+            } else {
+                format!("{}/", dir)
+            };
+
+            for (dir_path, dir_stats) in &self.dirs {
+                if dir_path.starts_with(&prefix) {
+                    let suffix = &dir_path[prefix.len()..];
+                    if !suffix.is_empty() && !suffix.contains('/') {
+                        result.insert(
+                            suffix.to_string(),
+                            HtmlItemStats::Directory(dir_stats.clone()),
+                        );
+                    }
+                }
+            }
+        }
+
+        result
+    }
 }
 
 pub type HtmlJobReceiver = Receiver<Option<HtmlItem>>;
@@ -154,4 +208,83 @@ impl Serialize for StringOrRef<'_> {
 pub struct JacocoReport {
     pub lines: BTreeMap<u32, u64>,
     pub branches: BTreeMap<u32, Vec<bool>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_html_global_stats_list() {
+        let global_json = r#"
+        {
+            "dirs": {
+                "": {
+                    "files": {
+                        "build.rs": {
+                            "stats": {"total_lines": 30, "covered_lines": 25, "total_funs": 3, "covered_funs": 2, "total_branches": 6, "covered_branches": 5},
+                            "abs_prefix": null
+                        }
+                    },
+                    "stats": {"total_lines": 30, "covered_lines": 25, "total_funs": 3, "covered_funs": 2, "total_branches": 6, "covered_branches": 5},
+                    "abs_prefix": null
+                },
+                "src": {
+                    "files": {
+                        "lib.rs": {
+                            "stats": {"total_lines": 50, "covered_lines": 40, "total_funs": 5, "covered_funs": 4, "total_branches": 10, "covered_branches": 8},
+                            "abs_prefix": null
+                        }
+                    },
+                    "stats": {"total_lines": 100, "covered_lines": 80, "total_funs": 10, "covered_funs": 8, "total_branches": 20, "covered_branches": 16},
+                    "abs_prefix": null
+                },
+                "src/utils": {
+                    "files": {
+                        "mod.rs": {
+                            "stats": {"total_lines": 50, "covered_lines": 40, "total_funs": 5, "covered_funs": 4, "total_branches": 10, "covered_branches": 8},
+                            "abs_prefix": null
+                        }
+                    },
+                    "stats": {"total_lines": 50, "covered_lines": 40, "total_funs": 5, "covered_funs": 4, "total_branches": 10, "covered_branches": 8},
+                    "abs_prefix": null
+                }
+            },
+            "stats": {"total_lines": 130, "covered_lines": 105, "total_funs": 13, "covered_funs": 10, "total_branches": 26, "covered_branches": 21},
+            "abs_prefix": null
+        }
+        "#;
+
+        let global: HtmlGlobalStats = serde_json::from_str(global_json).unwrap();
+
+        let root_items = global.list("".to_string());
+        assert_eq!(root_items.len(), 2);
+        assert!(root_items.contains_key("build.rs"));
+        assert!(root_items.contains_key("src"));
+
+        // Check that build.rs is a file and src is a directory
+        match root_items.get("build.rs").unwrap() {
+            HtmlItemStats::File(_) => {}
+            HtmlItemStats::Directory(_) => panic!("build.rs should be a file"),
+        }
+        match root_items.get("src").unwrap() {
+            HtmlItemStats::Directory(_) => {}
+            HtmlItemStats::File(_) => panic!("src should be a directory"),
+        }
+
+        let src_items = global.list("src".to_string());
+        assert_eq!(src_items.len(), 2);
+        assert!(src_items.contains_key("lib.rs"));
+        assert!(src_items.contains_key("utils"));
+
+        // Check that utils is a directory
+        match src_items.get("utils").unwrap() {
+            HtmlItemStats::Directory(_) => {}
+            HtmlItemStats::File(_) => panic!("utils should be a directory"),
+        }
+
+        let utils_items = global.list("src/utils".to_string());
+        assert_eq!(utils_items.len(), 1);
+        assert!(utils_items.contains_key("mod.rs"));
+    }
 }
