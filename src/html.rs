@@ -334,11 +334,11 @@ pub fn gen_index(tera: &Tera, global: &HtmlGlobalStats, conf: &Config, output: &
 
     let mut ctx = make_context(conf, ".");
     let empty: &[&str] = &[];
+    let items = global.list("".to_string());
     ctx.insert("current", "top_level");
     ctx.insert("parents", empty);
     ctx.insert("stats", &global.stats);
-    ctx.insert("items", &global.dirs);
-    ctx.insert("kind", "Directory");
+    ctx.insert("items", &items);
 
     let out = tera.render("index.html", &ctx).unwrap();
 
@@ -347,14 +347,22 @@ pub fn gen_index(tera: &Tera, global: &HtmlGlobalStats, conf: &Config, output: &
         return;
     }
 
-    for (dir_name, dir_stats) in global.dirs.iter() {
-        gen_dir_index(tera, dir_name, dir_stats, conf, output);
+    for (dir_name, item_type) in items.iter() {
+        match item_type {
+            HtmlItemStats::Directory(dir_stats) => {
+                gen_dir_index(tera, dir_name, global, dir_stats, conf, output);
+            }
+            HtmlItemStats::File(_) => {
+                // Files don't generate directory indexes, skip
+            }
+        }
     }
 }
 
 pub fn gen_dir_index(
     tera: &Tera,
     dir_name: &str,
+    global: &HtmlGlobalStats,
     dir_stats: &HtmlDirStats,
     conf: &Config,
     output: &Path,
@@ -364,7 +372,7 @@ pub fn gen_dir_index(
     let prefix = "../".repeat(layers) + "index.html";
     let output_file = output.join(index);
     create_parent(&output_file);
-    let mut output = match File::create(&output_file) {
+    let mut output_file = match File::create(&output_file) {
         Err(_) => {
             eprintln!("Cannot create file {output_file:?}");
             return;
@@ -380,13 +388,30 @@ pub fn gen_dir_index(
     };
     ctx.insert("parents", &[(parent_link, "top_level")]);
     ctx.insert("stats", &dir_stats.stats);
-    ctx.insert("items", &dir_stats.files);
-    ctx.insert("kind", "File");
+    let items = global.list(dir_name.to_string());
+    ctx.insert("items", &items);
 
     let out = tera.render("index.html", &ctx).unwrap();
 
-    if output.write_all(out.as_bytes()).is_err() {
+    if output_file.write_all(out.as_bytes()).is_err() {
         eprintln!("Cannot write the file {output_file:?}");
+    }
+
+    let parent = if dir_name.is_empty() {
+        dir_name.to_string()
+    } else {
+        dir_name.to_string() + "/"
+    };
+    for (dir_name, item_type) in items.iter() {
+        match item_type {
+            HtmlItemStats::Directory(dir_stats) => {
+                let full_dir_name = parent.clone() + dir_name;
+                gen_dir_index(tera, &full_dir_name, global, dir_stats, conf, output);
+            }
+            HtmlItemStats::File(_) => {
+                // Files don't generate directory indexes, skip
+            }
+        }
     }
 }
 
