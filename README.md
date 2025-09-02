@@ -19,7 +19,6 @@ This is a project initiated by Mozilla to gather code coverage results on Firefo
 - [Usage](#usage)
   - [Example: How to generate source-based coverage for a Rust project](#example-how-to-generate-source-based-coverage-for-a-rust-project)
   - [Example: How to generate .gcda files for C/C++](#example-how-to-generate-gcda-files-for-cc)
-  - [Example: How to generate .gcda files for a Rust project](#example-how-to-generate-gcda-files-for-a-rust-project)
   - [Generate a coverage report from coverage artifacts](#generate-a-coverage-report-from-coverage-artifacts)
     - [LCOV output](#lcov-output)
     - [Coveralls output](#coveralls-output)
@@ -223,36 +222,11 @@ you can run `cargo install grcov`.
 
 In the CWD, you will see a `.profraw` file has been generated. This contains the profiling information that grcov will parse, alongside with your binaries.
 
+Note that gcov coverage using the `-Zprofile` flag is no longer supported in Rust (details here)[https://github.com/rust-lang/rust/pull/131829]. Use source based coverage and the `-Cinstrument-coverage` flag instead. 
+
 ### Example: How to generate .gcda files for C/C++
 
 Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-coverage` and `-fprofile-arcs` options (see [gcc docs](https://gcc.gnu.org/onlinedocs/gcc/Gcov-Data-Files.html)).
-
-### Example: How to generate .gcda files for a Rust project
-
-**Nightly Rust is required** to use grcov for Rust gcov-based coverage. Alternatively, you can `export
-RUSTC_BOOTSTRAP=1`, which basically turns your stable rustc into a Nightly one.
-
-1. Ensure that the following environment variables are set up:
-
-   ```sh
-   export CARGO_INCREMENTAL=0
-   export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
-   export RUSTDOCFLAGS="-Cpanic=abort"
-   ```
-
-   These will ensure that things like dead code elimination do not skew the coverage.
-
-2. Build your code:
-
-   `cargo build`
-
-   If you look in `target/debug/deps` dir you will see `.gcno` files have appeared. These are the locations that could be covered.
-
-3. Run your tests:
-
-   `cargo test`
-
-   In the `target/debug/deps/` dir you will now also see `.gcda` files. These contain the hit counts on which of those locations have been reached. Both sets of files are used as inputs to `grcov`.
 
 ### Generate a coverage report from coverage artifacts
 
@@ -325,7 +299,7 @@ matrix:
 
 script:
     - export CARGO_INCREMENTAL=0
-    - export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
+    - export RUSTFLAGS="-Cinstrument-coverage -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
     - export RUSTDOCFLAGS="-Cpanic=abort"
     - cargo build --verbose $CARGO_OPTIONS
     - cargo test --verbose $CARGO_OPTIONS
