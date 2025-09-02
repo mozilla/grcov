@@ -222,7 +222,7 @@ you can run `cargo install grcov`.
 
 In the CWD, you will see a `.profraw` file has been generated. This contains the profiling information that grcov will parse, alongside with your binaries.
 
-Note that gcov coverage using the `-Zprofile` flag is no longer supported in Rust [details here](https://github.com/rust-lang/rust/pull/131829). Use source based coverage and the `-Cinstrument-coverage` flag instead. 
+Note that gcov coverage using the `-Zprofile` flag is no longer supported in Rust (details [here](https://github.com/rust-lang/rust/pull/131829)). Use source based coverage and the `-Cinstrument-coverage` flag instead. 
 
 ### Example: How to generate .gcda files for C/C++
 
