@@ -334,7 +334,7 @@ pub fn gen_index(tera: &Tera, global: &HtmlGlobalStats, conf: &Config, output: &
 
     let mut ctx = make_context(conf, ".");
     let empty: &[&str] = &[];
-    let items = global.list("".to_string());
+    let items = global.list("");
     ctx.insert("current", "top_level");
     ctx.insert("parents", empty);
     ctx.insert("stats", &global.stats);
@@ -388,7 +388,7 @@ pub fn gen_dir_index(
     };
     ctx.insert("parents", &[(parent_link, "top_level")]);
     ctx.insert("stats", &dir_stats.stats);
-    let items = global.list(dir_name.to_string());
+    let items = global.list(dir_name);
     ctx.insert("items", &items);
 
     let out = tera.render("index.html", &ctx).unwrap();

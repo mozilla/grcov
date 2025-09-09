@@ -130,11 +130,11 @@ pub enum HtmlItemStats {
 }
 
 impl HtmlGlobalStats {
-    pub fn list(&self, dir: String) -> BTreeMap<String, HtmlItemStats> {
+    pub fn list(&self, dir: &str) -> BTreeMap<String, HtmlItemStats> {
         let mut result = BTreeMap::new();
 
         // Add files from the specified directory
-        if let Some(dir_stats) = self.dirs.get(&dir) {
+        if let Some(dir_stats) = self.dirs.get(dir) {
             for (file_name, file_stats) in &dir_stats.files {
                 result.insert(file_name.clone(), HtmlItemStats::File(file_stats.clone()));
             }
@@ -154,7 +154,7 @@ impl HtmlGlobalStats {
         } else {
             // For specific directory, add immediate subdirectories
             let prefix = if dir.ends_with('/') {
-                dir
+                dir.to_string()
             } else {
                 format!("{}/", dir)
             };
@@ -216,8 +216,7 @@ mod tests {
 
     #[test]
     fn test_html_global_stats_list() {
-        let global_json = r#"
-        {
+        let global_json = serde_json::json!({
             "dirs": {
                 "": {
                     "files": {
@@ -252,12 +251,11 @@ mod tests {
             },
             "stats": {"total_lines": 130, "covered_lines": 105, "total_funs": 13, "covered_funs": 10, "total_branches": 26, "covered_branches": 21},
             "abs_prefix": null
-        }
-        "#;
+        });
 
-        let global: HtmlGlobalStats = serde_json::from_str(global_json).unwrap();
+        let global: HtmlGlobalStats = serde_json::from_value(global_json).unwrap();
 
-        let root_items = global.list("".to_string());
+        let root_items = global.list("");
         assert_eq!(root_items.len(), 2);
         assert!(root_items.contains_key("build.rs"));
         assert!(root_items.contains_key("src"));
@@ -272,7 +270,7 @@ mod tests {
             HtmlItemStats::File(_) => panic!("src should be a directory"),
         }
 
-        let src_items = global.list("src".to_string());
+        let src_items = global.list("src");
         assert_eq!(src_items.len(), 2);
         assert!(src_items.contains_key("lib.rs"));
         assert!(src_items.contains_key("utils"));
@@ -283,7 +281,7 @@ mod tests {
             HtmlItemStats::File(_) => panic!("utils should be a directory"),
         }
 
-        let utils_items = global.list("src/utils".to_string());
+        let utils_items = global.list("src/utils");
         assert_eq!(utils_items.len(), 1);
         assert!(utils_items.contains_key("mod.rs"));
     }
