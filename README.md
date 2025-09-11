@@ -222,7 +222,7 @@ you can run `cargo install grcov`.
 
 In the CWD, you will see a `.profraw` file has been generated. This contains the profiling information that grcov will parse, alongside with your binaries.
 
-Note that gcov coverage using the `-Zprofile` flag is no longer supported in Rust (details [here](https://github.com/rust-lang/rust/pull/131829)). Use source based coverage and the `-Cinstrument-coverage` flag instead. 
+Note that gcov coverage using the `-Zprofile` flag is no longer supported in Rust (details [here](https://github.com/rust-lang/rust/pull/131829)). Use source based coverage and the `-Cinstrument-coverage` flag instead.
 
 ### Example: How to generate .gcda files for C/C++
 
@@ -282,31 +282,6 @@ script:
     - LLVM_PROFILE_FILE="your_name-%p-%m.profraw" cargo test --verbose
     - ./grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
     - bash <(curl -s https://codecov.io/bash) -f lcov.info
-```
-
-Here is an example of .travis.yml file:
-
-```yaml
-language: rust
-
-before_install:
-  - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf -
-
-matrix:
-  include:
-    - os: linux
-      rust: stable
-
-script:
-    - export CARGO_INCREMENTAL=0
-    - export RUSTFLAGS="-Cinstrument-coverage -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
-    - export RUSTDOCFLAGS="-Cpanic=abort"
-    - cargo build --verbose $CARGO_OPTIONS
-    - cargo test --verbose $CARGO_OPTIONS
-    - |
-      zip -0 ccov.zip `find . \( -name "YOUR_PROJECT_NAME*.gc*" \) -print`;
-      ./grcov ccov.zip -s . -t lcov --llvm --branch --ignore-not-existing --ignore "/*" -o lcov.info;
-      bash <(curl -s https://codecov.io/bash) -f lcov.info;
 ```
 
 #### grcov with Gitlab
