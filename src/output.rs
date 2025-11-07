@@ -210,7 +210,7 @@ pub fn output_covdir(results: &[ResultTuple], output_file: Option<&Path>, precis
                 hash_map::Entry::Occupied(s) => s.get().clone(),
                 hash_map::Entry::Vacant(p) => {
                     let mut prev_stats = prev_stats.borrow_mut();
-                    let path_tail = if ancestor == PathBuf::from("/") {
+                    let path_tail = if ancestor == "/" {
                         "/".to_string()
                     } else {
                         ancestor.file_name().unwrap().to_str().unwrap().to_string()
