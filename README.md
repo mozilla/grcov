@@ -323,15 +323,15 @@ build:
         --output-types html,cobertura
 
     # Extract just the top-level coverage number from the XML report.
-    - xmllint --xpath "concat('Coverage: ', 100 * string(//coverage/@line-rate), '%')" target/coverage/cobertura.xml
-  coverage: '/Coverage: \d+(?:\.\d+)?/'
+    - xmllint --xpath "concat('Coverage - ', 100 * string(//coverage/@line-rate), '%')" target/coverage/cobertura.xml
+  coverage: '/Coverage - \d+(?:\.\d+)?/'
   artifacts:
     paths:
       - target/coverage/
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: target/coverage.xml
+        path: target/coverage/cobertura.xml
 ```
 
 This also ties into Gitlab's coverage percentage collection, so in merge requests you'll be able to see:
