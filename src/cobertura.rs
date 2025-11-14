@@ -530,6 +530,11 @@ fn write_lines(writer: &mut Writer<Cursor<Vec<u8>>>, lines: &[Line]) {
                 l.push_attribute(("number", number.to_string().as_ref()));
                 l.push_attribute(("hits", hits.to_string().as_ref()));
                 l.push_attribute(("branch", "true"));
+                l.push_attribute((
+                    "condition-coverage",
+                    format_condition_coverage(conditions).as_ref(),
+                ));
+
                 writer.write_event(Event::Start(l)).unwrap();
 
                 let conditions_tag = "conditions";
@@ -560,6 +565,33 @@ fn write_lines(writer: &mut Writer<Cursor<Vec<u8>>>, lines: &[Line]) {
     writer
         .write_event(Event::End(BytesEnd::new(lines_tag)))
         .unwrap();
+}
+
+fn format_condition_coverage(conditions: &[Condition]) -> String {
+    let conditions_hit: f64 = conditions.iter().map(|c| c.coverage).sum();
+    let num_conditions = conditions.len();
+    if num_conditions > 0 {
+        format!(
+            "{:.0}% ({:.0}/{})",
+            100.0 * conditions_hit / num_conditions as f64,
+            conditions_hit,
+            num_conditions
+        )
+    } else {
+        // It's unclear what this should be, so we set it to 100% to avoid potentially affecting results
+        use std::sync::atomic::{AtomicBool, Ordering::SeqCst};
+
+        static HAVE_PRINTED_WARNING: AtomicBool = AtomicBool::new(false);
+        // Print a warning about branch without conditions, but only once per grcov run.
+        if HAVE_PRINTED_WARNING
+            .compare_exchange(false, true, SeqCst, SeqCst)
+            .is_ok()
+        {
+            eprintln!("Encountered a branch with zero conditions, returning 100% condition coverage as a precausion.");
+        }
+
+        "100% (0/0)".to_owned()
+    }
 }
 
 #[cfg(test)]
@@ -859,5 +891,27 @@ mod tests {
 
         assert!(results.contains(r#"<source>src</source>"#));
         assert!(results.contains(r#"package name="main.rs""#));
+    }
+
+    #[test]
+    fn test_condition_coverage() {
+        const HIT: Condition = Condition {
+            coverage: 1.0,
+            number: 0,
+            cond_type: ConditionType::Jump,
+        };
+        const MISS: Condition = Condition {
+            coverage: 0.0,
+            number: 0,
+            cond_type: ConditionType::Jump,
+        };
+
+        assert_eq!("100% (1/1)", format_condition_coverage(&[HIT]));
+        assert_eq!("0% (0/1)", format_condition_coverage(&[MISS]));
+        assert_eq!("50% (1/2)", format_condition_coverage(&[HIT, MISS]));
+        assert_eq!("33% (1/3)", format_condition_coverage(&[HIT, MISS, MISS]));
+        assert_eq!("67% (2/3)", format_condition_coverage(&[HIT, HIT, MISS]));
+
+        assert_eq!("100% (0/0)", format_condition_coverage(&[]));
     }
 }
