@@ -34,12 +34,15 @@ jobs:
     strategy:
       matrix:
         include:
+          # Debian LTS
           - gcc: 10
             clang: 11
-          - gcc: 11
-            clang: 12
-          - gcc: 11
-            clang: 13
+          # Next Debian LTS
+          - gcc: 12
+            clang: 14
+          # Current compiler versions
+          - gcc: 14
+            clang: 20
     env:
       CXX: clang++-${{ matrix.clang }}
       CLANG_CXX: clang++-${{ matrix.clang }}
@@ -55,8 +58,8 @@ jobs:
           # Add extra APT repos
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test
           sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main'
-          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-12 main'
-          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-13 main'
+          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-14 main'
+          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-20 main'
 
           # Install toolchains
           sudo apt-get update
