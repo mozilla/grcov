@@ -451,6 +451,7 @@ fn main() {
         let branch_enabled = opt.branch;
         let guess_directory = opt.guess_directory;
         let ignore_parsing_error = opt.ignore_parsing_error;
+        let llvm_threads = opt.threads;
 
         let t = thread::Builder::new()
             .name(format!("Consumer {i}"))
@@ -465,6 +466,7 @@ fn main() {
                     guess_directory,
                     binary_path.as_deref(),
                     ignore_parsing_error,
+                    llvm_threads,
                 );
             })
             .unwrap();
