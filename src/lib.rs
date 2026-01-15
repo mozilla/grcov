@@ -179,7 +179,7 @@ pub fn consumer(
     guess_directory: bool,
     binary_path: Option<&Path>,
     ignore_parsing_error: bool,
-    num_threads: usize,
+    llvm_threads: Option<usize>,
 ) {
     let mut gcov_type = GcovType::Unknown;
 
@@ -291,7 +291,7 @@ pub fn consumer(
                         profraw_paths.as_slice(),
                         binary_path.as_ref().unwrap(),
                         working_dir,
-                        num_threads,
+                        llvm_threads,
                     ) {
                         Ok(lcovs) => {
                             let mut new_results: Vec<(String, CovResult)> = Vec::new();
