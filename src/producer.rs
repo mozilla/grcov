@@ -61,6 +61,7 @@ impl Archive {
         infos: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         xmls: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         gocovs: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        dats: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         linked_files_maps: &RefCell<FxHashMap<String, &'a Archive>>,
         is_llvm: bool,
     ) {
@@ -114,6 +115,12 @@ impl Archive {
                         self.insert_vec(filename, gocovs);
                     }
                 }
+                "dat" => {
+                    if Archive::check_file(file, &Archive::is_info) {
+                        let filename = clean_path(path);
+                        self.insert_vec(filename, dats);
+                    }
+                }
                 _ => {}
             }
         }
@@ -165,6 +172,7 @@ impl Archive {
         infos: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         xmls: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         gocovs: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
+        dats: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         linked_files_maps: &RefCell<FxHashMap<String, &'a Archive>>,
         is_llvm: bool,
     ) {
@@ -184,6 +192,7 @@ impl Archive {
                         infos,
                         xmls,
                         gocovs,
+                        dats,
                         linked_files_maps,
                         is_llvm,
                     );
@@ -211,6 +220,7 @@ impl Archive {
                             infos,
                             xmls,
                             gocovs,
+                            dats,
                             linked_files_maps,
                             is_llvm,
                         );
@@ -231,6 +241,7 @@ impl Archive {
                         infos,
                         xmls,
                         gocovs,
+                        dats,
                         linked_files_maps,
                         is_llvm,
                     );
@@ -536,16 +547,17 @@ pub fn producer(
                     || ext == "profraw"
                     || ext == "profdata"
                     || ext == "out"
+                    || ext == "dat"
                 {
                     plain_files.push(full_path);
                 } else {
                     panic!(
-                        "Cannot load file '{:?}': it isn't a .info, a .json, a .out, or a .xml file.",
+                        "Cannot load file '{:?}': it isn't a .info, a .json, a .out, a .xml, or a .dat file.",
                         full_path
                     );
                 }
             } else {
-                panic!("Cannot load file '{:?}': it isn't a directory, a .info, a .json, a .out, or a .xml file.", full_path);
+                panic!("Cannot load file '{:?}': it isn't a directory, a .info, a .json, a .out, a .xml, or a .dat file.", full_path);
             }
         }
     }
@@ -566,6 +578,7 @@ pub fn producer(
     let infos: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
     let xmls: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
     let gocovs: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
+    let dats: RefCell<FxHashMap<String, Vec<&Archive>>> = RefCell::new(FxHashMap::default());
 
     let linked_files_maps: RefCell<FxHashMap<String, &Archive>> =
         RefCell::new(FxHashMap::default());
@@ -579,6 +592,7 @@ pub fn producer(
             &infos,
             &xmls,
             &gocovs,
+            &dats,
             &linked_files_maps,
             is_llvm,
         );
@@ -590,13 +604,15 @@ pub fn producer(
             && profraws.borrow().is_empty()
             && infos.borrow().is_empty()
             && gocovs.borrow().is_empty()
-            && xmls.borrow().is_empty()),
+            && xmls.borrow().is_empty()
+            && dats.borrow().is_empty()),
         "No input files found"
     );
 
     file_content_producer(&infos.into_inner(), sender, ItemFormat::Info);
     file_content_producer(&xmls.into_inner(), sender, ItemFormat::JacocoXml);
     file_content_producer(&gocovs.into_inner(), sender, ItemFormat::Gocov);
+    file_content_producer(&dats.into_inner(), sender, ItemFormat::Dat);
     llvm_format_producer(
         tmp_dir,
         &profdatas.into_inner(),
@@ -771,6 +787,7 @@ mod tests {
                 "relative_path/relative_path.info",
                 false,
             ),
+            (ItemFormat::Dat, false, "dat/simple.dat", false),
             (ItemFormat::Gcno, false, "llvm/file", true),
             (ItemFormat::Gcno, false, "llvm/file_branch", true),
             (ItemFormat::Gcno, false, "llvm/reader", true),
@@ -1666,6 +1683,25 @@ mod tests {
             true,
             false,
         );
+    }
+
+    #[test]
+    fn test_plain_producer_with_dat_file() {
+        let (sender, receiver) = unbounded();
+
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        producer(
+            &tmp_path,
+            &["test/dat/simple.dat".to_string()],
+            &sender,
+            false,
+            false,
+        );
+
+        let expected = vec![(ItemFormat::Dat, false, "simple.dat", true)];
+
+        check_produced(tmp_path, &receiver, expected);
     }
 
     #[test]

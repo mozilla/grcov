@@ -313,9 +313,9 @@ pub fn consumer(
                     continue;
                 }
             }
-            ItemFormat::Info | ItemFormat::JacocoXml | ItemFormat::Gocov => {
+            ItemFormat::Info | ItemFormat::Dat | ItemFormat::JacocoXml | ItemFormat::Gocov => {
                 if let ItemType::Content(content) = work_item.item {
-                    if work_item.format == ItemFormat::Info {
+                    if work_item.format == ItemFormat::Info || work_item.format == ItemFormat::Dat {
                         try_parse!(
                             parse_lcov(content, branch_enabled, ignore_parsing_error),
                             work_item.name
