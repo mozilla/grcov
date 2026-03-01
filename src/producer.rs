@@ -89,7 +89,7 @@ impl Archive {
                     let filename = clean_path(path);
                     self.insert_vec(filename, profraws);
                 }
-                "info" => {
+                "info" | "dat" => {
                     if Archive::check_file(file, &Archive::is_info) {
                         let filename = clean_path(path);
                         self.insert_vec(filename, infos);
@@ -536,16 +536,17 @@ pub fn producer(
                     || ext == "profraw"
                     || ext == "profdata"
                     || ext == "out"
+                    || ext == "dat"
                 {
                     plain_files.push(full_path);
                 } else {
                     panic!(
-                        "Cannot load file '{:?}': it isn't a .info, a .json, a .out, or a .xml file.",
+                        "Cannot load file '{:?}': it isn't a .info, a .json, a .out, a .xml, or a .dat file.",
                         full_path
                     );
                 }
             } else {
-                panic!("Cannot load file '{:?}': it isn't a directory, a .info, a .json, a .out, or a .xml file.", full_path);
+                panic!("Cannot load file '{:?}': it isn't a directory, a .info, a .json, a .out, a .xml, or a .dat file.", full_path);
             }
         }
     }
@@ -771,6 +772,7 @@ mod tests {
                 "relative_path/relative_path.info",
                 false,
             ),
+            (ItemFormat::Info, false, "dat/simple.dat", false),
             (ItemFormat::Gcno, false, "llvm/file", true),
             (ItemFormat::Gcno, false, "llvm/file_branch", true),
             (ItemFormat::Gcno, false, "llvm/reader", true),
@@ -1666,6 +1668,25 @@ mod tests {
             true,
             false,
         );
+    }
+
+    #[test]
+    fn test_plain_producer_with_dat_file() {
+        let (sender, receiver) = unbounded();
+
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        producer(
+            &tmp_path,
+            &["test/dat/simple.dat".to_string()],
+            &sender,
+            false,
+            false,
+        );
+
+        let expected = vec![(ItemFormat::Info, false, "simple.dat", true)];
+
+        check_produced(tmp_path, &receiver, expected);
     }
 
     #[test]
