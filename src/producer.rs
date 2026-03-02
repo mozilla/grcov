@@ -761,6 +761,7 @@ mod tests {
             (ItemFormat::Gcno, true, "reader_gcc-8_1.gcno", true),
             (ItemFormat::Gcno, true, "reader_gcc-9_1.gcno", true),
             (ItemFormat::Gcno, true, "reader_gcc-10_1.gcno", true),
+            (ItemFormat::Gcno, true, "reader_clang-22_1.gcno", true),
             (ItemFormat::Info, false, "1494603973-2977-7.info", false),
             (ItemFormat::Info, false, "prova.info", false),
             (ItemFormat::Info, false, "prova_fn_with_commas.info", false),
