@@ -81,10 +81,11 @@ pub fn llvm_profiles_to_lcov(
     profile_paths: &[PathBuf],
     binary_path: &Path,
     working_dir: &Path,
+    num_threads: Option<usize>,
 ) -> Result<Vec<Vec<u8>>, String> {
     let profdata_path = working_dir.join("grcov.profdata");
 
-    let args = vec![
+    let mut args = vec![
         "merge".as_ref(),
         "-f".as_ref(),
         "-".as_ref(),
@@ -92,6 +93,13 @@ pub fn llvm_profiles_to_lcov(
         "-o".as_ref(),
         profdata_path.as_ref(),
     ];
+    let num_threads_str: String;
+    // Only pass --num-threads if explicitly specified by the user
+    if let Some(num) = num_threads {
+        num_threads_str = num.to_string();
+        args.push("--num-threads".as_ref());
+        args.push(num_threads_str.as_ref());
+    }
 
     let stdin_paths: String = profile_paths.iter().fold("".into(), |mut a, x| {
         a.push_str(x.to_string_lossy().as_ref());
@@ -107,7 +115,7 @@ pub fn llvm_profiles_to_lcov(
     let results = binaries
         .into_par_iter()
         .filter_map(|binary| {
-            let args = [
+            let mut args = vec![
                 "export".as_ref(),
                 binary.as_ref(),
                 "--instr-profile".as_ref(),
@@ -115,6 +123,13 @@ pub fn llvm_profiles_to_lcov(
                 "--format".as_ref(),
                 "lcov".as_ref(),
             ];
+            let num_threads_str: String;
+            // Only pass --num-threads if explicitly specified by the user
+            if let Some(num) = num_threads {
+                num_threads_str = num.to_string();
+                args.push("--num-threads".as_ref());
+                args.push(num_threads_str.as_ref());
+            }
 
             match run(&cov_tool_path, &args) {
                 Ok(result) => Some(result),
@@ -301,6 +316,7 @@ mod tests {
             &[tmp_path.join("default.profraw")],
             &PathBuf::from("src"), // There is no binary file in src
             tmp_path,
+            None,
         );
         assert!(lcovs.is_ok());
         let lcovs = lcovs.unwrap();
@@ -317,6 +333,7 @@ mod tests {
             &[tmp_path.join("default.profraw")],
             &tmp_path.join(binary_path),
             tmp_path,
+            None,
         );
         assert!(lcovs.is_ok(), "Error: {}", lcovs.unwrap_err());
         let lcovs = lcovs.unwrap();
@@ -349,7 +366,12 @@ mod tests {
 
         assert_eq!(status.unwrap().code().unwrap(), 0);
 
-        let lcovs = llvm_profiles_to_lcov(&[profdata_path], &tmp_path.join(binary_path), tmp_path);
+        let lcovs = llvm_profiles_to_lcov(
+            &[profdata_path],
+            &tmp_path.join(binary_path),
+            tmp_path,
+            None,
+        );
 
         assert!(lcovs.is_ok(), "Error: {}", lcovs.unwrap_err());
         let lcovs = lcovs.unwrap();
@@ -396,6 +418,7 @@ mod tests {
             &[path_with, path_without],
             &tmp_path.join(bin_path),
             tmp_path,
+            None,
         );
 
         assert!(lcovs.is_ok(), "Error: {}", lcovs.unwrap_err());
