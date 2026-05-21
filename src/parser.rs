@@ -185,6 +185,13 @@ pub fn parse_lcov(
         line += 1;
         match *c {
             b'e' => {
+                // Verify this is actually "end_of_record" and not a
+                // stray 'e' (e.g. from an optional DA checksum field).
+                let rest: Vec<u8> = iter.take_while(|&&c| c != b'\n').copied().collect();
+                if rest != b"nd_of_record" {
+                    continue;
+                }
+
                 if ignore_parsing_error && parsing_error_occurs {
                     continue;
                 }
@@ -203,7 +210,6 @@ pub fn parse_lcov(
                 cur_lines = BTreeMap::new();
                 cur_branches = BTreeMap::new();
                 cur_functions = FxHashMap::default();
-                iter.take_while(|&&c| c != b'\n').last();
             }
             b'\n' => {
                 continue;
@@ -2893,5 +2899,58 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
         let mut file = BufReader::new(&f);
         let results = parse_gocov(&mut file).unwrap();
         assert_eq!(results, expected);
+    }
+
+    #[test]
+    fn test_lcov_parser_da_with_checksum() {
+        let buf = b"SF:test.py
+DA:1,5,abc123
+DA:2,0,e3ZBlmsTAEA3QwKvJLg9CA
+DA:3,3,EvEnMoreEdgeCases
+DA:4,1
+LH:3
+LF:4
+end_of_record
+"
+        .to_vec();
+
+        let results = parse_lcov(buf, false, false).unwrap();
+        assert_eq!(results.len(), 1);
+
+        let (ref source_name, ref result) = results[0];
+        assert_eq!(source_name, "test.py");
+        assert_eq!(
+            result.lines,
+            [(1, 5), (2, 0), (3, 3), (4, 1)].iter().cloned().collect()
+        );
+    }
+
+    #[test]
+    fn test_lcov_parser_da_with_checksum_and_branches() {
+        let buf = b"SF:test.py
+BRDA:2,0,0,-
+BRDA:2,0,1,3
+DA:1,5,abc123
+DA:2,0,e3ZBlmsTAEA3QwKvJLg9CA
+DA:3,3
+LH:2
+LF:3
+end_of_record
+"
+        .to_vec();
+
+        let results = parse_lcov(buf, true, false).unwrap();
+        assert_eq!(results.len(), 1);
+
+        let (ref source_name, ref result) = results[0];
+        assert_eq!(source_name, "test.py");
+        assert_eq!(
+            result.lines,
+            [(1, 5), (2, 0), (3, 3)].iter().cloned().collect()
+        );
+        assert_eq!(
+            result.branches,
+            [(2, vec![false, true])].iter().cloned().collect()
+        );
     }
 }
