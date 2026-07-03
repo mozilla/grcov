@@ -416,19 +416,11 @@ pub fn rewrite_paths(
                 }
             }
 
-            match filter_option {
-                Some(true) => {
-                    if !is_covered(&result) {
-                        return None;
-                    }
+            if let Some(want_covered) = filter_option {
+                if is_covered(&result) != want_covered {
+                    return None;
                 }
-                Some(false) => {
-                    if is_covered(&result) {
-                        return None;
-                    }
-                }
-                None => (),
-            };
+            }
 
             Some((abs_path, rel_path, result))
         });

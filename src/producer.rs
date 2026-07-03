@@ -108,11 +108,9 @@ impl Archive {
                         linked_files_maps.borrow_mut().insert(filename, self);
                     }
                 }
-                "out" => {
-                    if Archive::check_file(file, &Archive::is_go_cov) {
-                        let filename = clean_path(path);
-                        self.insert_vec(filename, gocovs);
-                    }
+                "out" if Archive::check_file(file, &Archive::is_go_cov) => {
+                    let filename = clean_path(path);
+                    self.insert_vec(filename, gocovs);
                 }
                 _ => {}
             }
