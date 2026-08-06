@@ -286,6 +286,14 @@ pub fn parse_lcov(
                         }
 
                         // FN:int,string
+                        // A negative line number marks a synthetic function
+                        // that has no location in the source file: keep the
+                        // record and report it at line 0 instead of discarding
+                        // the whole coverage file.
+                        let synthetic = iter.peek() == Some(&&b'-');
+                        if synthetic {
+                            iter.next();
+                        }
                         if let Some(c) = iter.peek() {
                             if !c.is_ascii_digit() {
                                 manage_parsing_error!(
@@ -298,6 +306,7 @@ pub fn parse_lcov(
                         let start = iter
                             .take_while(|&&c| c.is_ascii_digit())
                             .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
+                        let start = if synthetic { 0 } else { start };
                         if iter.peek().is_none() {
                             manage_parsing_error!(
                                 ignore_parsing_error,
@@ -1382,6 +1391,38 @@ mod tests {
             .unwrap();
         assert_eq!(func.start, 95);
         assert!(func.executed);
+    }
+
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_lcov_parser_FN_record_with_negative_line_number() {
+        // Some producers emit synthetic functions without a source line, e.g.
+        // JaCoCo for Scala's `.curried` / `.tupled`.
+        let buf = "TN:\nSF:foo.scala\nFN:-1,curried\nFNDA:0,curried\nDA:1,0\nend_of_record\n"
+            .as_bytes()
+            .to_vec();
+        let results = parse_lcov(buf, false, false).unwrap();
+        assert_eq!(results.len(), 1);
+
+        let (ref source_name, ref result) = results[0];
+        assert_eq!(source_name, "foo.scala");
+        assert_eq!(result.lines, [(1, 0)].iter().cloned().collect());
+        let func = result.functions.get("curried").unwrap();
+        assert_eq!(func.start, 0);
+        assert!(!func.executed);
+    }
+
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_lcov_parser_FN_record_without_line_number() {
+        // Control: a missing line number is still an invalid record.
+        let buf = "SF:foo.scala\nFN:,curried\nend_of_record\n"
+            .as_bytes()
+            .to_vec();
+        let result = parse_lcov(buf, false, false);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.to_string(), "Invalid record: 'FN at line 2'");
     }
 
     #[allow(non_snake_case)]
