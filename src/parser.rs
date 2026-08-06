@@ -189,21 +189,40 @@ pub fn parse_lcov(
                     continue;
                 }
 
-                // we've a end_of_record
-                results.push((
-                    cur_file.unwrap(),
-                    CovResult {
-                        lines: cur_lines,
-                        branches: cur_branches,
-                        functions: cur_functions,
-                    },
-                ));
+                // Only `end_of_record` closes a record: any other line starting
+                // with 'e' is an unknown record and has to be skipped like the
+                // ones handled by the catch-all arm below.
+                let mut rest: Vec<u8> = iter.take_while(|&&c| c != b'\n').copied().collect();
+                if rest.last() == Some(&b'\r') {
+                    rest.pop();
+                }
+                if rest != b"nd_of_record" {
+                    continue;
+                }
 
-                cur_file = None;
+                // we've a end_of_record
+                match cur_file.take() {
+                    Some(cur_file) => results.push((
+                        cur_file,
+                        CovResult {
+                            lines: cur_lines,
+                            branches: cur_branches,
+                            functions: cur_functions,
+                        },
+                    )),
+                    None => {
+                        manage_parsing_error!(
+                            ignore_parsing_error,
+                            format!("end_of_record without SF at line {line}")
+                        );
+                        parsing_error_occurs = true;
+                        continue;
+                    }
+                }
+
                 cur_lines = BTreeMap::new();
                 cur_branches = BTreeMap::new();
                 cur_functions = FxHashMap::default();
-                iter.take_while(|&&c| c != b'\n').last();
             }
             b'\n' => {
                 continue;
@@ -220,15 +239,20 @@ pub fn parse_lcov(
                         r.checked_mul(1 << 8)?.checked_add(u32::from(x))
                     });
 
-                if key.is_none() {
-                    manage_parsing_error!(
-                        ignore_parsing_error,
-                        format!("Invalid key at line {line}")
-                    );
-                    parsing_error_occurs = true;
-                }
+                let key = match key {
+                    Some(key) => key,
+                    None => {
+                        manage_parsing_error!(
+                            ignore_parsing_error,
+                            format!("Invalid key at line {line}")
+                        );
+                        parsing_error_occurs = true;
+                        iter.take_while(|&&c| c != b'\n').last();
+                        continue;
+                    }
+                };
 
-                match key.unwrap() {
+                match key {
                     SF => {
                         // SF:string
                         cur_file = Some(
@@ -1461,6 +1485,79 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.to_string(), "Invalid record: 'DA at line 5'");
+    }
+
+    #[test]
+    fn test_lcov_parser_end_of_record_without_source_file() {
+        let buf = "end_of_record\n".as_bytes().to_vec();
+        let result = parse_lcov(buf, true, false);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Invalid record: 'end_of_record without SF at line 1'"
+        );
+    }
+
+    #[test]
+    fn test_lcov_parser_ignoring_end_of_record_without_source_file() {
+        let buf = "end_of_record\nSF:f.rs\nDA:1,1\nend_of_record\n"
+            .as_bytes()
+            .to_vec();
+        let results = parse_lcov(buf, true, true).unwrap();
+        assert_eq!(results.len(), 1);
+        let (ref source_name, ref result) = results[0];
+        assert_eq!(source_name, "f.rs");
+        assert_eq!(result.lines, [(1, 1)].iter().cloned().collect());
+    }
+
+    #[test]
+    fn test_lcov_parser_line_starting_with_e_is_not_end_of_record() {
+        let buf = "SF:f.rs\nDA:1,1\nend_of_record\nexcluded_by_a_tool\n"
+            .as_bytes()
+            .to_vec();
+        let results = parse_lcov(buf, true, false).unwrap();
+        assert_eq!(results.len(), 1);
+        let (ref source_name, ref result) = results[0];
+        assert_eq!(source_name, "f.rs");
+        assert_eq!(result.lines, [(1, 1)].iter().cloned().collect());
+    }
+
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_lcov_parser_DA_record_with_checksum() {
+        // `DA:<line>,<count>,<checksum>` is valid lcov: the checksum used to be
+        // read back as the beginning of a new record.
+        let buf = "SF:f.rs\nDA:5,3,e4f2\nDA:6,1\nend_of_record\n"
+            .as_bytes()
+            .to_vec();
+        let results = parse_lcov(buf, true, false).unwrap();
+        assert_eq!(results.len(), 1);
+        let (ref source_name, ref result) = results[0];
+        assert_eq!(source_name, "f.rs");
+        assert_eq!(result.lines, [(5, 3), (6, 1)].iter().cloned().collect());
+    }
+
+    #[test]
+    fn test_lcov_parser_invalid_key() {
+        let buf = "SF:f.rs\nSFFFFF:x\nDA:1,1\nend_of_record\n"
+            .as_bytes()
+            .to_vec();
+        let result = parse_lcov(buf, true, false);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.to_string(), "Invalid record: 'Invalid key at line 2'");
+    }
+
+    #[test]
+    fn test_lcov_parser_ignoring_invalid_key() {
+        // As for any other ignored parsing error the rest of the record is
+        // dropped, but the parser must not panic.
+        let buf = "SF:f.rs\nSFFFFF:x\nDA:1,1\nend_of_record\n"
+            .as_bytes()
+            .to_vec();
+        let results = parse_lcov(buf, true, true).unwrap();
+        assert!(results.is_empty());
     }
 
     #[test]
