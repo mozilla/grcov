@@ -43,6 +43,10 @@ jobs:
             clang: 12
           - gcc: 11
             clang: 13
+          # GCC 12.1 changed the gcno and gcda format. It pairs with a clang the
+          # built-in reader handles, so gcov can't skew its results.
+          - gcc: 12
+            clang: 11
     env:
       CXX: clang++-${{ matrix.clang }}
       CLANG_CXX: clang++-${{ matrix.clang }}
