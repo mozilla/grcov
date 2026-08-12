@@ -511,7 +511,8 @@ pub fn parse_gcov_gz(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, Parse
 
     let file = BufReader::new(&f);
     let gz = GzDecoder::new(file);
-    let mut gcov: GcovJson = serde_json::from_reader(gz).unwrap();
+    let mut gcov: GcovJson =
+        serde_json::from_reader(gz).map_err(|e| ParserError::Parse(e.to_string()))?;
     let mut results = Vec::new();
 
     if gcov.format_version != "1" {

@@ -44,7 +44,6 @@ mod file_walker;
 pub use crate::file_walker::{find_binaries, ParallelWalker};
 
 use log::{error, warn};
-use std::fs;
 use std::io::{BufReader, Cursor};
 use std::{
     collections::{btree_map, hash_map},
@@ -204,14 +203,26 @@ pub fn consumer(
                 match work_item.item {
                     ItemType::Path((stem, gcno_path)) => {
                         // GCC
-                        if let Err(e) = run_gcov(&gcno_path, branch_enabled, working_dir) {
+                        // gcov writes its output before it bails out on a gcno it does not
+                        // support, so give each run a directory of its own: what a failed
+                        // one leaves behind goes with it, instead of being taken for the
+                        // output of the next gcno.
+                        let gcov_tmp_dir = match tempfile::tempdir_in(working_dir) {
+                            Ok(dir) => dir,
+                            Err(e) => {
+                                error!("Error when creating the gcov directory: {e}");
+                                continue;
+                            }
+                        };
+                        let gcov_dir = gcov_tmp_dir.path();
+                        if let Err(e) = run_gcov(&gcno_path, branch_enabled, gcov_dir) {
                             error!("Error when running gcov: {e}");
                             continue;
                         };
                         let gcov_ext = get_gcov_output_ext();
                         let gcov_path =
                             gcno_path.file_name().unwrap().to_str().unwrap().to_string() + gcov_ext;
-                        let gcov_path = working_dir.join(gcov_path);
+                        let gcov_path = gcov_dir.join(gcov_path);
                         if gcov_type == GcovType::Unknown {
                             gcov_type = if gcov_path.exists() {
                                 GcovType::SingleFile
@@ -231,12 +242,11 @@ pub fn consumer(
                                 },
                                 work_item.name
                             );
-                            fs::remove_file(gcov_path).unwrap();
                             new_results
                         } else {
                             let mut new_results: Vec<(String, CovResult)> = Vec::new();
 
-                            for entry in WalkDir::new(working_dir).min_depth(1) {
+                            for entry in WalkDir::new(gcov_dir).min_depth(1) {
                                 let gcov_path = entry.unwrap();
                                 let gcov_path = gcov_path.path();
 
@@ -248,8 +258,6 @@ pub fn consumer(
                                     },
                                     work_item.name
                                 ));
-
-                                fs::remove_file(gcov_path).unwrap();
                             }
 
                             new_results
