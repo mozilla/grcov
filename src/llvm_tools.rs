@@ -446,21 +446,32 @@ mod tests {
 
         let lcov = String::from_utf8_lossy(&lcovs[0]);
 
-        let lcov_entries = [
+        let mut lcov_entries = vec![
             "FNF:1",  // # of function found
             "FNH:1",  // # of function hit
             "DA:1,2", // Line 1 hit 2 times
             "DA:2,2", // Line 2 hit 2 times
             "DA:3,1", // Line 3 hit 1 time
-            "DA:4,1", // Line 4 hit 1 time
             "DA:5,1", // Line 5 hit 1 time
-            "DA:6,1", // Line 6 hit 1 time
             "DA:7,2", // Line 7 hit 2 time
             "BRF:0",  // # of branch found
             "BRH:0",  // # of branch hit
-            "LF:7",   // # of line found
-            "LH:7",   // # of line hit
         ];
+
+        // Starting with rustc nightly-2026-09-07, lines 4 and 6 are not counted as code lines anymore.
+        if lcov.contains("DA:4,1\n") {
+            lcov_entries.extend_from_slice(&[
+                "DA:4,1", // Line 4 hit 1 time
+                "DA:6,1", // Line 6 hit 1 time
+                "LF:7",   // # of line found
+                "LH:7",   // # of line hit
+            ]);
+        } else {
+            lcov_entries.extend_from_slice(&[
+                "LF:5", // # of line found
+                "LH:5", // # of line hit
+            ]);
+        };
 
         for entry in lcov_entries {
             assert!(lcov.contains(&format!("{entry}\n")));
