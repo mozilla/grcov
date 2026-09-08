@@ -136,6 +136,17 @@ fn add_results(
     }
 }
 
+/// Replace file paths which have more .. components than normalize_path can handle.
+fn rename_external_files(results: &mut [(String, CovResult)], full_path: Option<&Path>) {
+    if let Some(gcno_parent) = full_path.and_then(Path::parent) {
+        for (file, _) in results.iter_mut() {
+            if normalize_path(Path::new(file)).is_none() {
+                *file = gcno_parent.join(&file).to_str().unwrap().to_string();
+            }
+        }
+    }
+}
+
 fn rename_single_files(results: &mut [(String, CovResult)], stem: &str) {
     // sometimes the gcno just contains foo.c
     // so in such case (with option --guess-directory-when-missing)
@@ -244,6 +255,7 @@ pub fn consumer(
                             new_results
                         };
 
+                        rename_external_files(&mut new_results, Some(&gcno_path));
                         if guess_directory {
                             rename_single_files(&mut new_results, &stem);
                         }
@@ -258,6 +270,7 @@ pub fn consumer(
                             branch_enabled,
                         ) {
                             Ok(mut r) => {
+                                rename_external_files(&mut r, buffers.full_path.as_deref());
                                 if guess_directory {
                                     rename_single_files(&mut r, &buffers.stem);
                                 }
