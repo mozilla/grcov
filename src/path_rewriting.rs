@@ -417,10 +417,18 @@ pub fn rewrite_paths(
             }
 
             match filter_option {
-                Some(true) if !is_covered(&result) => return None,
-                Some(false) if is_covered(&result) => return None,
-                _ => (),
-            }
+                Some(true) => {
+                    if !is_covered(&result) {
+                        return None;
+                    }
+                }
+                Some(false) => {
+                    if is_covered(&result) {
+                        return None;
+                    }
+                }
+                None => (),
+            };
 
             Some((abs_path, rel_path, result))
         });
