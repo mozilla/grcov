@@ -581,7 +581,7 @@ fn test_integration_zip_zip() {
 
         // two gcdas
         std::fs::copy(&gcda_zip_path, &gcda1_zip_path)
-            .unwrap_or_else(|_| panic!("Failed to copy {:?}", &gcda_zip_path));
+            .unwrap_or_else(|_| panic!("Failed to copy {:?}", gcda_zip_path));
 
         println!("Two gcdas");
         check_equal_coveralls(

@@ -50,6 +50,11 @@ impl Archive {
             .push(self);
     }
 
+    // The three content checks below read from `file`, which is an
+    // `Option<&mut impl Read>` and so not `Copy`. Moving it in a match guard
+    // makes it moved for the whole match, and the arms stop compiling with
+    // E0382, so the checks have to stay inside the arm bodies.
+    #[allow(clippy::collapsible_match)]
     fn handle_file<'a>(
         &'a self,
         file: Option<&mut impl Read>,
@@ -144,8 +149,7 @@ impl Archive {
 
     fn is_info(reader: &mut dyn Read) -> bool {
         let mut bytes: [u8; 3] = [0; 3];
-        reader.read_exact(&mut bytes).is_ok()
-            && (bytes == [b'T', b'N', b':'] || bytes == [b'S', b'F', b':'])
+        reader.read_exact(&mut bytes).is_ok() && (bytes == *b"TN:" || bytes == *b"SF:")
     }
 
     fn check_file(file: Option<&mut impl Read>, checker: &dyn Fn(&mut dyn Read) -> bool) -> bool {
