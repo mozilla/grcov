@@ -262,6 +262,8 @@ struct Opt {
     /// Sets the build type to be parallel for 'coveralls' and 'coveralls+' formats.
     #[arg(long)]
     parallel: bool,
+    /// Number of threads used by grcov itself and, for LLVM source-based
+    /// coverage, by llvm-profdata and llvm-cov.
     #[arg(long, value_name = "NUMBER")]
     threads: Option<usize>,
     /// Sets coverage decimal point precision on output reports.
@@ -441,6 +443,7 @@ fn main() {
     };
 
     let mut parsers = Vec::new();
+    let llvm_threads = opt.threads;
 
     for i in 0..num_threads {
         let receiver = receiver.clone();
@@ -465,6 +468,7 @@ fn main() {
                     guess_directory,
                     binary_path.as_deref(),
                     ignore_parsing_error,
+                    llvm_threads,
                 );
             })
             .unwrap();
