@@ -65,8 +65,8 @@ impl CoverageStats {
         let lines_valid = lines.len() as f64;
 
         let branches: Vec<Vec<Condition>> = lines
-            .into_iter()
-            .filter_map(|(_, l)| match l {
+            .into_values()
+            .filter_map(|l| match l {
                 Line::Branch { conditions, .. } => Some(conditions),
                 Line::Plain { .. } => None,
             })
