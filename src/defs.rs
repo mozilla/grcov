@@ -34,6 +34,7 @@ pub enum ItemFormat {
 #[derive(Debug)]
 pub struct GcnoBuffers {
     pub stem: String,
+    pub full_path: Option<PathBuf>,
     pub gcno_buf: Vec<u8>,
     pub gcda_buf: Vec<Vec<u8>>,
 }

@@ -2,7 +2,7 @@ use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use std::env;
 use std::env::consts::EXE_SUFFIX;
 use std::error::Error;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -81,17 +81,19 @@ pub fn llvm_profiles_to_lcov(
     profile_paths: &[PathBuf],
     binary_path: &Path,
     working_dir: &Path,
+    num_threads: Option<usize>,
 ) -> Result<Vec<Vec<u8>>, String> {
     let profdata_path = working_dir.join("grcov.profdata");
 
-    let args = vec![
-        "merge".as_ref(),
-        "-f".as_ref(),
-        "-".as_ref(),
-        "-sparse".as_ref(),
-        "-o".as_ref(),
-        profdata_path.as_ref(),
+    let mut args: Vec<OsString> = vec![
+        "merge".into(),
+        "-f".into(),
+        "-".into(),
+        "-sparse".into(),
+        "-o".into(),
+        profdata_path.as_os_str().into(),
     ];
+    add_num_threads_arg(&mut args, num_threads);
 
     let stdin_paths: String = profile_paths.iter().fold("".into(), |mut a, x| {
         a.push_str(x.to_string_lossy().as_ref());
@@ -99,6 +101,7 @@ pub fn llvm_profiles_to_lcov(
         a
     });
 
+    let args: Vec<&OsStr> = args.iter().map(OsString::as_os_str).collect();
     get_profdata_path().and_then(|p| run_with_stdin(p, &stdin_paths, &args))?;
 
     let binaries = find_binaries(binary_path);
@@ -107,14 +110,16 @@ pub fn llvm_profiles_to_lcov(
     let results = binaries
         .into_par_iter()
         .filter_map(|binary| {
-            let args = [
-                "export".as_ref(),
-                binary.as_ref(),
-                "--instr-profile".as_ref(),
-                profdata_path.as_ref(),
-                "--format".as_ref(),
-                "lcov".as_ref(),
+            let mut args: Vec<OsString> = vec![
+                "export".into(),
+                binary.as_os_str().into(),
+                "--instr-profile".into(),
+                profdata_path.as_os_str().into(),
+                "--format".into(),
+                "lcov".into(),
             ];
+            add_num_threads_arg(&mut args, num_threads);
+            let args: Vec<&OsStr> = args.iter().map(OsString::as_os_str).collect();
 
             match run(&cov_tool_path, &args) {
                 Ok(result) => Some(result),
@@ -129,6 +134,15 @@ pub fn llvm_profiles_to_lcov(
         .collect::<Vec<_>>();
 
     Ok(results)
+}
+
+/// Appends `--num-threads` to `args` when explicitly requested; when unset,
+/// the LLVM tools detect the number of threads automatically.
+fn add_num_threads_arg(args: &mut Vec<OsString>, num_threads: Option<usize>) {
+    if let Some(num) = num_threads {
+        args.push("--num-threads".into());
+        args.push(num.to_string().into());
+    }
 }
 
 // The sysroot and rustlib functions are coming from https://github.com/rust-embedded/cargo-binutils/blob/a417523fa990c258509696507d1ce05f85dedbc4/src/rustc.rs.
@@ -301,10 +315,29 @@ mod tests {
             &[tmp_path.join("default.profraw")],
             &PathBuf::from("src"), // There is no binary file in src
             tmp_path,
+            None,
         );
         assert!(lcovs.is_ok());
         let lcovs = lcovs.unwrap();
         assert_eq!(lcovs.len(), 0);
+    }
+
+    #[test]
+    fn test_add_num_threads_arg() {
+        let mut args = vec![OsString::from("merge")];
+
+        add_num_threads_arg(&mut args, None);
+        assert_eq!(args, vec![OsString::from("merge")]);
+
+        add_num_threads_arg(&mut args, Some(4));
+        assert_eq!(
+            args,
+            vec![
+                OsString::from("merge"),
+                OsString::from("--num-threads"),
+                OsString::from("4"),
+            ]
+        );
     }
 
     #[test]
@@ -317,6 +350,7 @@ mod tests {
             &[tmp_path.join("default.profraw")],
             &tmp_path.join(binary_path),
             tmp_path,
+            Some(2),
         );
         assert!(lcovs.is_ok(), "Error: {}", lcovs.unwrap_err());
         let lcovs = lcovs.unwrap();
@@ -349,7 +383,12 @@ mod tests {
 
         assert_eq!(status.unwrap().code().unwrap(), 0);
 
-        let lcovs = llvm_profiles_to_lcov(&[profdata_path], &tmp_path.join(binary_path), tmp_path);
+        let lcovs = llvm_profiles_to_lcov(
+            &[profdata_path],
+            &tmp_path.join(binary_path),
+            tmp_path,
+            None,
+        );
 
         assert!(lcovs.is_ok(), "Error: {}", lcovs.unwrap_err());
         let lcovs = lcovs.unwrap();
@@ -396,6 +435,7 @@ mod tests {
             &[path_with, path_without],
             &tmp_path.join(bin_path),
             tmp_path,
+            None,
         );
 
         assert!(lcovs.is_ok(), "Error: {}", lcovs.unwrap_err());
@@ -406,21 +446,32 @@ mod tests {
 
         let lcov = String::from_utf8_lossy(&lcovs[0]);
 
-        let lcov_entries = [
+        let mut lcov_entries = vec![
             "FNF:1",  // # of function found
             "FNH:1",  // # of function hit
             "DA:1,2", // Line 1 hit 2 times
             "DA:2,2", // Line 2 hit 2 times
             "DA:3,1", // Line 3 hit 1 time
-            "DA:4,1", // Line 4 hit 1 time
             "DA:5,1", // Line 5 hit 1 time
-            "DA:6,1", // Line 6 hit 1 time
             "DA:7,2", // Line 7 hit 2 time
             "BRF:0",  // # of branch found
             "BRH:0",  // # of branch hit
-            "LF:7",   // # of line found
-            "LH:7",   // # of line hit
         ];
+
+        // Starting with rustc nightly-2026-09-07, lines 4 and 6 are not counted as code lines anymore.
+        if lcov.contains("DA:4,1\n") {
+            lcov_entries.extend_from_slice(&[
+                "DA:4,1", // Line 4 hit 1 time
+                "DA:6,1", // Line 6 hit 1 time
+                "LF:7",   // # of line found
+                "LH:7",   // # of line hit
+            ]);
+        } else {
+            lcov_entries.extend_from_slice(&[
+                "LF:5", // # of line found
+                "LH:5", // # of line hit
+            ]);
+        };
 
         for entry in lcov_entries {
             assert!(lcov.contains(&format!("{entry}\n")));

@@ -416,10 +416,10 @@ pub fn rewrite_paths(
                 }
             }
 
-            if let Some(want_covered) = filter_option {
-                if is_covered(&result) != want_covered {
-                    return None;
-                }
+            match filter_option {
+                Some(true) if !is_covered(&result) => return None,
+                Some(false) if is_covered(&result) => return None,
+                _ => (),
             }
 
             Some((abs_path, rel_path, result))
