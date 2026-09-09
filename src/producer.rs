@@ -132,7 +132,7 @@ impl Archive {
         let mut bytes: [u8; 8] = [0; 8];
         reader.read_exact(&mut bytes).is_ok()
             && &bytes[..5] == b"oncg*"
-            && (&bytes[5..] == b"204" || &bytes[5..] == b"804")
+            && (&bytes[5..] == b"204" || &bytes[5..] == b"804" || &bytes[5..] == b"11B")
     }
 
     fn is_jacoco(reader: &mut dyn Read) -> bool {
@@ -774,7 +774,7 @@ mod tests {
             (ItemFormat::Gcno, true, "reader_gcc-8_1.gcno", true),
             (ItemFormat::Gcno, true, "reader_gcc-9_1.gcno", true),
             (ItemFormat::Gcno, true, "reader_gcc-10_1.gcno", true),
-            (ItemFormat::Gcno, true, "reader_clang-22_1.gcno", true),
+            (ItemFormat::Gcno, false, "reader_clang-22", true),
             (ItemFormat::Info, false, "1494603973-2977-7.info", false),
             (ItemFormat::Info, false, "prova.info", false),
             (ItemFormat::Info, false, "prova_fn_with_commas.info", false),
