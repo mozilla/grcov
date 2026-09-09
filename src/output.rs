@@ -317,9 +317,10 @@ fn get_digest(path: PathBuf) -> String {
     if let Ok(mut f) = File::open(path) {
         let mut buffer = Vec::new();
         f.read_to_end(&mut buffer).unwrap();
-        let mut hasher = Md5::new();
-        hasher.update(buffer.as_slice());
-        format!("{:x}", hasher.finalize())
+        Md5::digest(&buffer)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>()
     } else {
         Uuid::new_v4().to_string()
     }
