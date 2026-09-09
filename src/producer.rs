@@ -118,7 +118,7 @@ impl Archive {
                     }
                 }
                 "out" => {
-                    if Archive::check_file(file, &Archive::is_go_cov) => {
+                    if Archive::check_file(file, &Archive::is_go_cov) {
                         let filename = clean_path(path);
                         self.insert_vec(filename, gocovs);
                     }
