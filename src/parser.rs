@@ -514,7 +514,7 @@ pub fn parse_gcov_gz(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, Parse
     let mut gcov: GcovJson = serde_json::from_reader(gz).unwrap();
     let mut results = Vec::new();
 
-    if gcov.format_version != "1" {
+    if gcov.format_version != "1" && gcov.format_version != "2" {
         error!(
             "Format version {} is not expected, please file a bug on https://github.com/mozilla/grcov",
             gcov.format_version
