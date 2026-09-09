@@ -50,6 +50,11 @@ impl Archive {
             .push(self);
     }
 
+    // The three content checks below read from `file`, which is an
+    // `Option<&mut impl Read>` and so not `Copy`. Moving it in a match guard
+    // makes it moved for the whole match, and the arms stop compiling with
+    // E0382, so the checks have to stay inside the arm bodies.
+    #[allow(clippy::collapsible_match)]
     fn handle_file<'a>(
         &'a self,
         file: Option<&mut impl Read>,
@@ -89,7 +94,7 @@ impl Archive {
                     let filename = clean_path(path);
                     self.insert_vec(filename, profraws);
                 }
-                "info" => {
+                "info" | "dat" => {
                     if Archive::check_file(file, &Archive::is_info) {
                         let filename = clean_path(path);
                         self.insert_vec(filename, infos);
@@ -144,8 +149,7 @@ impl Archive {
 
     fn is_info(reader: &mut dyn Read) -> bool {
         let mut bytes: [u8; 3] = [0; 3];
-        reader.read_exact(&mut bytes).is_ok()
-            && (bytes == [b'T', b'N', b':'] || bytes == [b'S', b'F', b':'])
+        reader.read_exact(&mut bytes).is_ok() && (bytes == *b"TN:" || bytes == *b"SF:")
     }
 
     fn check_file(file: Option<&mut impl Read>, checker: &dyn Fn(&mut dyn Read) -> bool) -> bool {
@@ -536,16 +540,17 @@ pub fn producer(
                     || ext == "profraw"
                     || ext == "profdata"
                     || ext == "out"
+                    || ext == "dat"
                 {
                     plain_files.push(full_path);
                 } else {
                     panic!(
-                        "Cannot load file '{:?}': it isn't a .info, a .json, a .out, or a .xml file.",
+                        "Cannot load file '{:?}': it isn't a .info, a .json, a .out, a .xml, or a .dat file.",
                         full_path
                     );
                 }
             } else {
-                panic!("Cannot load file '{:?}': it isn't a directory, a .info, a .json, a .out, or a .xml file.", full_path);
+                panic!("Cannot load file '{:?}': it isn't a directory, a .info, a .json, a .out, a .xml, or a .dat file.", full_path);
             }
         }
     }
@@ -760,6 +765,7 @@ mod tests {
             (ItemFormat::Gcno, true, "reader_gcc-8_1.gcno", true),
             (ItemFormat::Gcno, true, "reader_gcc-9_1.gcno", true),
             (ItemFormat::Gcno, true, "reader_gcc-10_1.gcno", true),
+            (ItemFormat::Gcno, true, "reader_clang-22_1.gcno", true),
             (ItemFormat::Info, false, "1494603973-2977-7.info", false),
             (ItemFormat::Info, false, "prova.info", false),
             (ItemFormat::Info, false, "prova_fn_with_commas.info", false),
@@ -771,6 +777,7 @@ mod tests {
                 "relative_path/relative_path.info",
                 false,
             ),
+            (ItemFormat::Info, false, "dat/simple.dat", false),
             (ItemFormat::Gcno, false, "llvm/file", true),
             (ItemFormat::Gcno, false, "llvm/file_branch", true),
             (ItemFormat::Gcno, false, "llvm/reader", true),
@@ -1666,6 +1673,25 @@ mod tests {
             true,
             false,
         );
+    }
+
+    #[test]
+    fn test_plain_producer_with_dat_file() {
+        let (sender, receiver) = unbounded();
+
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        producer(
+            &tmp_path,
+            &["test/dat/simple.dat".to_string()],
+            &sender,
+            false,
+            false,
+        );
+
+        let expected = vec![(ItemFormat::Info, false, "simple.dat", true)];
+
+        check_produced(tmp_path, &receiver, expected);
     }
 
     #[test]

@@ -92,6 +92,7 @@ struct GcovFunction {
     start_line: u32,
     #[allow(dead_code)]
     start_column: u32,
+    #[allow(dead_code)]
     end_line: u32,
     #[allow(dead_code)]
     end_column: u32,
@@ -528,9 +529,7 @@ impl Gcno {
             loop {
                 let line = reader.read_u32()?;
                 if line != 0 {
-                    if !must_take
-                        || (version >= 80 && (line < fun.start_line || line > fun.end_line))
-                    {
+                    if !must_take || (version >= 80 && line < fun.start_line) {
                         continue;
                     }
 
@@ -1320,6 +1319,18 @@ mod tests {
         gcno.stop();
         let output = format!("{gcno:?}");
         let input = get_input_string("test/reader_gcc-10.gcno.1.dump");
+
+        assert_eq!(output, input);
+    }
+
+    #[test]
+    fn test_reader_gcno_gcda_clang22() {
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/reader_clang-22.gcno");
+        from_path(&mut gcno, FileType::Gcda, "test/reader_clang-22.gcda");
+        gcno.stop();
+        let output = format!("{gcno:?}");
+        let input = get_input_string("test/reader_clang-22.gcno.1.dump");
 
         assert_eq!(output, input);
     }

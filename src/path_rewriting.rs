@@ -187,10 +187,10 @@ fn map_partial_path(file_to_paths: &FxHashMap<String, Vec<PathBuf>>, path: PathB
     let mut result: Option<&PathBuf> = None;
     for option in options {
         if option.ends_with(&path) {
-            if result.is_some() {
+            if let Some(value) = result {
                 error!("Only one file in the repository should end with {} ({} and {} both end with that).",
                 path.display(),
-                result.unwrap().display(),
+                value.display(),
                 option.display());
             } else {
                 result = Some(option)
@@ -417,18 +417,10 @@ pub fn rewrite_paths(
             }
 
             match filter_option {
-                Some(true) => {
-                    if !is_covered(&result) {
-                        return None;
-                    }
-                }
-                Some(false) => {
-                    if is_covered(&result) {
-                        return None;
-                    }
-                }
-                None => (),
-            };
+                Some(true) if !is_covered(&result) => return None,
+                Some(false) if is_covered(&result) => return None,
+                _ => (),
+            }
 
             Some((abs_path, rel_path, result))
         });
