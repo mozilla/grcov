@@ -23,8 +23,10 @@ pub struct Archive {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub struct GCNOStem {
+pub struct GCNOInfos {
     pub stem: String,
+    /// Full path to the GCNO file, unavailable when the file is in an archive.
+    pub full_path: Option<PathBuf>,
     pub llvm: bool,
 }
 
@@ -59,7 +61,8 @@ impl Archive {
         &'a self,
         file: Option<&mut impl Read>,
         path: &Path,
-        gcno_stem_archives: &RefCell<FxHashMap<GCNOStem, &'a Archive>>,
+        full_path: Option<&Path>,
+        gcno_stem_archives: &RefCell<FxHashMap<GCNOInfos, &'a Archive>>,
         gcda_stem_archives: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         profdatas: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         profraws: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
@@ -75,8 +78,9 @@ impl Archive {
                     let llvm = is_llvm || Archive::check_file(file, &Archive::is_gcno_llvm);
                     let filename = clean_path(&path.with_extension(""));
                     gcno_stem_archives.borrow_mut().insert(
-                        GCNOStem {
+                        GCNOInfos {
                             stem: filename,
+                            full_path: full_path.map(ToOwned::to_owned),
                             llvm,
                         },
                         self,
@@ -128,7 +132,7 @@ impl Archive {
         let mut bytes: [u8; 8] = [0; 8];
         reader.read_exact(&mut bytes).is_ok()
             && &bytes[..5] == b"oncg*"
-            && (&bytes[5..] == b"204" || &bytes[5..] == b"804")
+            && (&bytes[5..] == b"204" || &bytes[5..] == b"804" || &bytes[5..] == b"11B")
     }
 
     fn is_jacoco(reader: &mut dyn Read) -> bool {
@@ -162,7 +166,7 @@ impl Archive {
 
     pub fn explore<'a>(
         &'a mut self,
-        gcno_stem_archives: &RefCell<FxHashMap<GCNOStem, &'a Archive>>,
+        gcno_stem_archives: &RefCell<FxHashMap<GCNOInfos, &'a Archive>>,
         gcda_stem_archives: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         profdatas: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
         profraws: &RefCell<FxHashMap<String, Vec<&'a Archive>>>,
@@ -181,6 +185,7 @@ impl Archive {
                     self.handle_file(
                         Some(&mut file),
                         &path,
+                        None,
                         gcno_stem_archives,
                         gcda_stem_archives,
                         profdatas,
@@ -208,6 +213,7 @@ impl Archive {
                         self.handle_file(
                             file.as_mut(),
                             path,
+                            Some(full_path),
                             gcno_stem_archives,
                             gcda_stem_archives,
                             profdatas,
@@ -228,6 +234,7 @@ impl Archive {
                     self.handle_file(
                         file.as_mut(),
                         full_path,
+                        Some(full_path),
                         gcno_stem_archives,
                         gcda_stem_archives,
                         profdatas,
@@ -326,7 +333,7 @@ impl Archive {
 
 fn gcno_gcda_producer(
     tmp_dir: &Path,
-    gcno_stem_archives: &FxHashMap<GCNOStem, &Archive>,
+    gcno_stem_archives: &FxHashMap<GCNOInfos, &Archive>,
     gcda_stem_archives: &FxHashMap<String, Vec<&Archive>>,
     sender: &JobSender,
     ignore_orphan_gcno: bool,
@@ -341,13 +348,13 @@ fn gcno_gcda_producer(
             .unwrap()
     };
 
-    for (gcno_stem, gcno_archive) in gcno_stem_archives {
-        let stem = &gcno_stem.stem;
+    for (gcno_infos, gcno_archive) in gcno_stem_archives {
+        let stem = &gcno_infos.stem;
         if let Some(gcda_archives) = gcda_stem_archives.get(stem) {
             let gcno_archive = *gcno_archive;
             let gcno = format!("{stem}.gcno").to_string();
             let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
-            if gcno_stem.llvm {
+            if gcno_infos.llvm {
                 let mut gcda_buffers: Vec<Vec<u8>> = Vec::with_capacity(gcda_archives.len());
                 if let Some(gcno_buffer) = gcno_archive.read(&gcno) {
                     for gcda_archive in gcda_archives {
@@ -359,6 +366,7 @@ fn gcno_gcda_producer(
                     send_job(
                         ItemType::Buffers(GcnoBuffers {
                             stem: stem.clone(),
+                            full_path: gcno_infos.full_path.clone(),
                             gcno_buf: gcno_buffer,
                             gcda_buf: gcda_buffers,
                         }),
@@ -391,11 +399,12 @@ fn gcno_gcda_producer(
         } else if !ignore_orphan_gcno {
             let gcno_archive = *gcno_archive;
             let gcno = format!("{stem}.gcno").to_string();
-            if gcno_stem.llvm {
+            if gcno_infos.llvm {
                 if let Some(gcno_buf) = gcno_archive.read(&gcno) {
                     send_job(
                         ItemType::Buffers(GcnoBuffers {
                             stem: stem.clone(),
+                            full_path: gcno_infos.full_path.clone(),
                             gcno_buf,
                             gcda_buf: Vec::new(),
                         }),
@@ -562,7 +571,7 @@ pub fn producer(
         });
     }
 
-    let gcno_stems_archives: RefCell<FxHashMap<GCNOStem, &Archive>> =
+    let gcno_stems_archives: RefCell<FxHashMap<GCNOInfos, &Archive>> =
         RefCell::new(FxHashMap::default());
     let gcda_stems_archives: RefCell<FxHashMap<String, Vec<&Archive>>> =
         RefCell::new(FxHashMap::default());
@@ -765,7 +774,7 @@ mod tests {
             (ItemFormat::Gcno, true, "reader_gcc-8_1.gcno", true),
             (ItemFormat::Gcno, true, "reader_gcc-9_1.gcno", true),
             (ItemFormat::Gcno, true, "reader_gcc-10_1.gcno", true),
-            (ItemFormat::Gcno, true, "reader_clang-22_1.gcno", true),
+            (ItemFormat::Gcno, false, "reader_clang-22", true),
             (ItemFormat::Info, false, "1494603973-2977-7.info", false),
             (ItemFormat::Info, false, "prova.info", false),
             (ItemFormat::Info, false, "prova_fn_with_commas.info", false),
