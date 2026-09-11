@@ -5,7 +5,6 @@ authors = ["Marco Castelluccio <mcastelluccio@mozilla.com>"]
 description = "Rust tool to collect and aggregate code coverage data for multiple source files"
 license = "MPL-2.0"
 documentation = "https://github.com/mozilla/grcov"
-homepage = "https://github.com/mozilla/grcov"
 repository = "https://github.com/mozilla/grcov"
 keywords = ["coverage"]
 categories = ["command-line-utilities", "development-tools", "development-tools::testing"]
