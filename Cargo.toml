@@ -7,7 +7,6 @@ license = "MPL-2.0"
 documentation = "https://github.com/mozilla/grcov"
 homepage = "https://github.com/mozilla/grcov"
 repository = "https://github.com/mozilla/grcov"
-readme = "README.md"
 keywords = ["coverage"]
 categories = ["command-line-utilities", "development-tools", "development-tools::testing"]
 exclude = [
