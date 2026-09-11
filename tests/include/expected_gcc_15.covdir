@@ -1,0 +1,68 @@
+{
+  "children": {
+    "file.cpp": {
+      "coverage": [
+        -1,
+        -1,
+        1,
+        1,
+        1,
+        -1,
+        1,
+        1,
+        1
+      ],
+      "coveragePercent": 100.0,
+      "linesCovered": 6,
+      "linesMissed": 0,
+      "linesTotal": 6,
+      "name": "file.cpp"
+    },
+    "include.h": {
+      "coverage": [
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        1,
+        1,
+        1
+      ],
+      "coveragePercent": 100.0,
+      "linesCovered": 3,
+      "linesMissed": 0,
+      "linesTotal": 3,
+      "name": "include.h"
+    },
+    "main.cpp": {
+      "coverage": [
+        -1,
+        -1,
+        1,
+        -1,
+        1,
+        -1,
+        1,
+        1,
+        -1,
+        1,
+        1
+      ],
+      "coveragePercent": 100.0,
+      "linesCovered": 6,
+      "linesMissed": 0,
+      "linesTotal": 6,
+      "name": "main.cpp"
+    }
+  },
+  "coveragePercent": 100.0,
+  "linesCovered": 15,
+  "linesMissed": 0,
+  "linesTotal": 15,
+  "name": ""
+}
