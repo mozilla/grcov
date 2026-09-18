@@ -141,7 +141,9 @@ fn rename_external_files(results: &mut [(String, CovResult)], full_path: Option<
     if let Some(gcno_parent) = full_path.and_then(Path::parent) {
         for (file, _) in results.iter_mut() {
             if normalize_path(Path::new(file), false).is_none() {
-                *file = gcno_parent.join(&file).to_str().unwrap().to_string();
+                let path = gcno_parent.join(&file);
+                let normalized = normalize_path(&path, false).unwrap_or(path);
+                *file = normalized.to_str().unwrap().to_string();
             }
         }
     }
