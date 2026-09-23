@@ -233,7 +233,7 @@ Pass `--coverage` to `clang` or `gcc` (or for older gcc versions pass `-ftest-co
 Generate a html coverage report like this:
 
 ```sh
-grcov . -s . --binary-path ./target/debug/ -t html --branch --ignore-not-existing -o ./target/debug/coverage/
+grcov . -s . --binary-path ./target/debug/deps/ -t html --branch --ignore-not-existing -o ./target/debug/coverage/
 ```
 
 N.B.: The `--binary-path` argument is only necessary for source-based coverage.
@@ -257,7 +257,7 @@ LCOV output should be used when uploading to Codecov, with the `--branch` argume
 Coverage can also be generated in coveralls format:
 
 ```sh
-grcov . --binary-path ./target/debug/ -t coveralls -s . --token YOUR_COVERALLS_TOKEN > coveralls.json
+grcov . --binary-path ./target/debug/deps/ -t coveralls -s . --token YOUR_COVERALLS_TOKEN > coveralls.json
 ```
 
 #### grcov with Travis
@@ -280,7 +280,7 @@ script:
     - export RUSTFLAGS="-Cinstrument-coverage"
     - cargo build --verbose
     - LLVM_PROFILE_FILE="your_name-%p-%m.profraw" cargo test --verbose
-    - ./grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
+    - ./grcov . --binary-path ./target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
     - bash <(curl -s https://codecov.io/bash) -f lcov.info
 ```
 
@@ -308,7 +308,7 @@ build:
     # you expect, look for '.profraw' files in other directories.
         target/coverage
     # If your target dir is modified, this will need to match...
-        --binary-path target/debug
+        --binary-path target/debug/deps
     # Where the source directory is expected
         -s .
     # Where to write the output; this should be a directory that exists.
