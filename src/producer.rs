@@ -598,15 +598,18 @@ pub fn producer(
         );
     }
 
-    assert!(
-        !(gcno_stems_archives.borrow().is_empty()
-            && profdatas.borrow().is_empty()
-            && profraws.borrow().is_empty()
-            && infos.borrow().is_empty()
-            && gocovs.borrow().is_empty()
-            && xmls.borrow().is_empty()),
-        "No input files found"
-    );
+    if gcno_stems_archives.borrow().is_empty()
+        && profdatas.borrow().is_empty()
+        && profraws.borrow().is_empty()
+        && infos.borrow().is_empty()
+        && gocovs.borrow().is_empty()
+        && xmls.borrow().is_empty()
+    {
+        if gcda_stems_archives.borrow().is_empty() {
+            panic!("No input files found");
+        }
+        panic!("Invalid input files: found .gcda files without .gcno files (the .gcno files should be produced during compilation, were they removed?)");
+    }
 
     file_content_producer(&infos.into_inner(), sender, ItemFormat::Info);
     file_content_producer(&xmls.into_inner(), sender, ItemFormat::JacocoXml);
@@ -1369,7 +1372,7 @@ mod tests {
 
     // Test passing a gcda archive with no gcno archive makes zip_producer fail.
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "found .gcda files without .gcno files")]
     fn test_zip_producer_with_gcda_archive_and_no_gcno_archive() {
         let (sender, _) = unbounded();
 
