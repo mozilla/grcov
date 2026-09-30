@@ -239,7 +239,8 @@ pub fn output_covdir(results: &[ResultTuple], output_file: Option<&Path>, precis
 }
 
 pub fn output_lcov(results: &[ResultTuple], output_file: Option<&Path>, demangle: bool) {
-    let demangle_options = DemangleOptions::name_only();
+    // Keep overloads distinct when LCOV output is read back.
+    let demangle_options = DemangleOptions::complete();
     let mut writer = BufWriter::new(get_target_output_writable(output_file));
     writer.write_all(b"TN:\n").unwrap();
 
@@ -776,8 +777,72 @@ mod tests {
         let results = read_file(&file_path);
 
         assert!(results.contains("FN:1,std::mem::align_of::<std::mem::Discriminant>\n"));
-        assert!(results.contains("FN:2,wikipedia::article::format\n"));
+        assert!(results.contains("FN:2,wikipedia::article::format()\n"));
         assert!(results.contains("FN:3,hello_world\n"));
+    }
+
+    #[test]
+    fn test_lcov_overloads_roundtrip() {
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let file_path = tmp_dir.path().join("overloads.info");
+        let functions = [
+            ("_ZN3MapIidE4findEi", "Map<int, double>::find(int)", 1, true),
+            (
+                "_ZN3MapIidE4findEii",
+                "Map<int, double>::find(int, int)",
+                2,
+                false,
+            ),
+            ("_ZN3Foo3barEv", "Foo::bar()", 3, true),
+            ("_ZNK3Foo3barEv", "Foo::bar() const", 4, false),
+        ];
+        let results = vec![(
+            PathBuf::from("overloads.cpp"),
+            PathBuf::from("overloads.cpp"),
+            CovResult {
+                lines: [(1, 2), (2, 0), (3, 1), (4, 0)].iter().cloned().collect(),
+                branches: [(1, vec![true, false])].iter().cloned().collect(),
+                functions: functions
+                    .iter()
+                    .map(|&(mangled, _, start, executed)| {
+                        (mangled.to_string(), Function { start, executed })
+                    })
+                    .collect(),
+            },
+        )];
+
+        // Both default demangling and --no-demangle must preserve function identity.
+        for demangle in [false, true] {
+            output_lcov(&results, Some(&file_path), demangle);
+            let lcov = read_file(&file_path);
+            assert!(lcov.contains("FNF:4\n"));
+            assert!(lcov.contains("FNH:2\n"));
+
+            let expected = CovResult {
+                functions: functions
+                    .iter()
+                    .map(|&(mangled, signature, start, executed)| {
+                        let name = if demangle { signature } else { mangled };
+                        (name.to_string(), Function { start, executed })
+                    })
+                    .collect(),
+                ..results[0].2.clone()
+            };
+            let parsed = crate::parser::parse_lcov(lcov.into_bytes(), true, false).unwrap();
+            assert_eq!(
+                parsed,
+                vec![("overloads.cpp".to_string(), expected)],
+                "demangle={demangle}"
+            );
+
+            // Already-demangled names must survive another export and read.
+            let (path, coverage) = &parsed[0];
+            let results = [(PathBuf::from(path), PathBuf::from(path), coverage.clone())];
+            output_lcov(&results, Some(&file_path), demangle);
+            let reparsed =
+                crate::parser::parse_lcov(read_file(&file_path).into_bytes(), true, false).unwrap();
+            assert_eq!(reparsed, parsed, "second pass, demangle={demangle}");
+        }
     }
 
     #[test]
