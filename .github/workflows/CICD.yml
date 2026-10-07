@@ -40,6 +40,13 @@ jobs:
             clang: 12
           - gcc: 11
             clang: 13
+          # GCC 12.1 changed the gcno and gcda format, GCC 15 is the newest one.
+          # Both keep clang 11, the newest clang read by the built-in reader and
+          # hence the only one whose results do not depend on the gcov version.
+          - gcc: 12
+            clang: 11
+          - gcc: 15
+            clang: 11
     env:
       CXX: clang++-${{ matrix.clang }}
       CLANG_CXX: clang++-${{ matrix.clang }}
