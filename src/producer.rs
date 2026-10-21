@@ -1,3 +1,4 @@
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::env;
@@ -28,6 +29,14 @@ pub struct GCNOInfos {
     /// Full path to the GCNO file, unavailable when the file is in an archive.
     pub full_path: Option<PathBuf>,
     pub llvm: bool,
+}
+
+/// Whether handle_file looks at the content of such a file to classify it.
+fn needs_content(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|ext| ext.to_str()),
+        Some("gcno") | Some("info") | Some("dat") | Some("xml") | Some("out")
+    )
 }
 
 #[cfg(not(windows))]
@@ -164,6 +173,16 @@ impl Archive {
         &self.name
     }
 
+    /// Path of `name` when this archive is a plain directory, so that the file can be
+    /// read directly instead of through the archive, which is not shareable between
+    /// threads.
+    pub fn dir_path(&self, name: &str) -> Option<PathBuf> {
+        match *self.item.borrow() {
+            ArchiveType::Dir(ref dir) => Some(dir.join(name)),
+            _ => None,
+        }
+    }
+
     pub fn explore<'a>(
         &'a mut self,
         gcno_stem_archives: &RefCell<FxHashMap<GCNOInfos, &'a Archive>>,
@@ -208,7 +227,14 @@ impl Archive {
                     });
                     let full_path = entry.path();
                     if full_path.is_file() {
-                        let mut file = File::open(full_path).ok();
+                        // Only the formats sniffed by handle_file need their content: with
+                        // many runs merged the walk is mostly gcda, and opening those here
+                        // would double the syscalls for nothing.
+                        let mut file = if needs_content(full_path) {
+                            File::open(full_path).ok()
+                        } else {
+                            None
+                        };
                         let path = full_path.strip_prefix(dir).unwrap();
                         self.handle_file(
                             file.as_mut(),
@@ -355,14 +381,19 @@ fn gcno_gcda_producer(
             let gcno = format!("{stem}.gcno").to_string();
             let physical_gcno_path = tmp_dir.join(format!("{}_{}.gcno", stem, 1));
             if gcno_infos.llvm {
-                let mut gcda_buffers: Vec<Vec<u8>> = Vec::with_capacity(gcda_archives.len());
                 if let Some(gcno_buffer) = gcno_archive.read(&gcno) {
-                    for gcda_archive in gcda_archives {
-                        let gcda = format!("{stem}.gcda").to_string();
-                        if let Some(gcda_buf) = gcda_archive.read(&gcda) {
-                            gcda_buffers.push(gcda_buf);
-                        }
-                    }
+                    let gcda = format!("{stem}.gcda").to_string();
+                    // Reading one gcda per run dominates when many runs are merged into a
+                    // single gcno, so read them in parallel when they are plain files.
+                    let gcda_paths: Option<Vec<PathBuf>> =
+                        gcda_archives.iter().map(|a| a.dir_path(&gcda)).collect();
+                    let gcda_buffers: Vec<Vec<u8>> = match gcda_paths {
+                        Some(paths) => paths.par_iter().filter_map(|p| fs::read(p).ok()).collect(),
+                        None => gcda_archives
+                            .iter()
+                            .filter_map(|archive| archive.read(&gcda))
+                            .collect(),
+                    };
                     send_job(
                         ItemType::Buffers(GcnoBuffers {
                             stem: stem.clone(),
@@ -712,6 +743,54 @@ mod tests {
                 }
             }
         }
+    }
+
+    fn write_file(path: &Path, content: &[u8]) {
+        fs::create_dir_all(path.parent().unwrap()).expect("Failed to create directory");
+        fs::write(path, content).expect("Failed to write file");
+    }
+
+    #[test]
+    fn test_needs_content() {
+        for name in ["a.gcno", "a.info", "a.dat", "a.xml", "a.out"] {
+            assert!(needs_content(Path::new(name)), "{} is sniffed", name);
+        }
+        for name in [
+            "a.gcda",
+            "a.profraw",
+            "a.profdata",
+            "linked-files-map.json",
+            "a.c",
+            "a",
+        ] {
+            assert!(!needs_content(Path::new(name)), "{} is not sniffed", name);
+        }
+    }
+
+    #[test]
+    fn test_archive_dir_path() {
+        let dir = Archive {
+            name: "cov".to_string(),
+            item: RefCell::new(ArchiveType::Dir(PathBuf::from("/tmp/cov"))),
+        };
+        assert_eq!(
+            dir.dir_path("sub/main.gcda"),
+            Some(PathBuf::from("/tmp/cov/sub/main.gcda"))
+        );
+
+        let zip = Archive {
+            name: "test/llvm/gcda1.zip".to_string(),
+            item: RefCell::new(ArchiveType::Zip(RefCell::new(open_archive(
+                "test/llvm/gcda1.zip",
+            )))),
+        };
+        assert_eq!(zip.dir_path("file.gcda"), None);
+
+        let plain = Archive {
+            name: "plain files".to_string(),
+            item: RefCell::new(ArchiveType::Plain(vec![PathBuf::from("test/prova.info")])),
+        };
+        assert_eq!(plain.dir_path("test/prova.info"), None);
     }
 
     #[test]
@@ -1600,6 +1679,83 @@ mod tests {
                 panic!("Buffers expected");
             }
         }
+    }
+
+    fn get_llvm_buffers(receiver: &JobReceiver) -> Vec<GcnoBuffers> {
+        let mut buffers = Vec::new();
+        while let Ok(elem) = receiver.try_recv() {
+            match elem.expect("Work item expected").item {
+                ItemType::Buffers(b) => buffers.push(b),
+                item => panic!("Buffers expected, got {:?}", item),
+            }
+        }
+        buffers
+    }
+
+    #[test]
+    fn test_dir_producer_llvm_buffers_multiple_gcda_dirs() {
+        let (sender, receiver) = unbounded();
+
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        let gcno_buf = fs::read("test/llvm/file.gcno").unwrap();
+        // Nothing parses these buffers here, so the runs are told apart by their content.
+        let gcda_bufs: Vec<Vec<u8>> = (1..=3u8).map(|i| vec![i; 4]).collect();
+
+        let mut paths = vec![tmp_path.join("gcno").to_str().unwrap().to_string()];
+        write_file(&tmp_path.join("gcno/sub/file.gcno"), &gcno_buf);
+        for (num, gcda_buf) in gcda_bufs.iter().enumerate() {
+            let dir = tmp_path.join(format!("gcda{}", num + 1));
+            write_file(&dir.join("sub/file.gcda"), gcda_buf);
+            paths.push(dir.to_str().unwrap().to_string());
+        }
+
+        producer(&tmp_path.join("out"), &paths, &sender, true, true);
+
+        let buffers = get_llvm_buffers(&receiver);
+        assert_eq!(buffers.len(), 1);
+        assert!(buffers[0].stem.replace('\\', "/").ends_with("sub/file"));
+        assert_eq!(buffers[0].gcno_buf, gcno_buf);
+        // The gcda are read in parallel, but must stay in the order of the archives.
+        assert_eq!(buffers[0].gcda_buf, gcda_bufs);
+    }
+
+    #[test]
+    fn test_producer_llvm_buffers_gcda_dir_and_zip() {
+        let (sender, receiver) = unbounded();
+
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+        let tmp_path = tmp_dir.path().to_owned();
+        let gcno_buf = fs::read("test/llvm/file.gcno").unwrap();
+        let dir_gcda_buf = vec![7u8; 4];
+        write_file(&tmp_path.join("gcno/file.gcno"), &gcno_buf);
+        write_file(&tmp_path.join("gcda/file.gcda"), &dir_gcda_buf);
+
+        let zip = Archive {
+            name: "test/llvm/gcda1.zip".to_string(),
+            item: RefCell::new(ArchiveType::Zip(RefCell::new(open_archive(
+                "test/llvm/gcda1.zip",
+            )))),
+        };
+        let zip_gcda_buf = zip.read("file.gcda").unwrap();
+
+        producer(
+            &tmp_path.join("out"),
+            &[
+                tmp_path.join("gcno").to_str().unwrap().to_string(),
+                tmp_path.join("gcda").to_str().unwrap().to_string(),
+                "test/llvm/gcda1.zip".to_string(),
+            ],
+            &sender,
+            true,
+            true,
+        );
+
+        // A zip cannot be read in parallel, so all the gcda are read one by one.
+        let buffers = get_llvm_buffers(&receiver);
+        assert_eq!(buffers.len(), 1);
+        assert_eq!(buffers[0].gcno_buf, gcno_buf);
+        assert_eq!(buffers[0].gcda_buf, vec![dir_gcda_buf, zip_gcda_buf]);
     }
 
     #[test]
