@@ -192,10 +192,10 @@ pub fn parse_lcov(
                 // Only `end_of_record` closes a record: any other line starting
                 // with 'e' is an unknown record and has to be skipped like the
                 // ones handled by the catch-all arm below.
-                let mut rest: Vec<u8> = iter.take_while(|&&c| c != b'\n').copied().collect();
-                if rest.last() == Some(&b'\r') {
-                    rest.pop();
-                }
+                let start = buffer.len() - iter.len();
+                let len = iter.take_while(|&&c| c != b'\n').count();
+                let rest = &buffer[start..start + len];
+                let rest = rest.strip_suffix(b"\r").unwrap_or(rest);
                 if rest != b"nd_of_record" {
                     continue;
                 }
@@ -1597,6 +1597,34 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
         let (ref source_name, ref result) = results[0];
         assert_eq!(source_name, "f.rs");
         assert_eq!(result.lines, [(1, 1)].iter().cloned().collect());
+    }
+
+    #[test]
+    fn test_lcov_parser_end_of_record_line_endings() {
+        for ending in ["\n", "\r\n", "", "\r"] {
+            let buf = format!("SF:f.rs\nDA:1,1\nend_of_record{ending}").into_bytes();
+            let results = parse_lcov(buf, true, false).unwrap();
+            assert_eq!(results.len(), 1, "ending: {ending:?}");
+            assert_eq!(results[0].0, "f.rs");
+            assert_eq!(results[0].1.lines, [(1, 1)].iter().cloned().collect());
+        }
+    }
+
+    #[test]
+    fn test_lcov_parser_unknown_e_record_consumes_whole_line() {
+        for record in [
+            "e",
+            "end_of_recor",
+            "end_of_record_extra",
+            "end_of_record\r\r",
+            "excluded:SF:wrong.rs",
+        ] {
+            let buf = format!("SF:f.rs\n{record}\nDA:1,1\nend_of_record\n").into_bytes();
+            let results = parse_lcov(buf, true, false).unwrap();
+            assert_eq!(results.len(), 1, "record: {record:?}");
+            assert_eq!(results[0].0, "f.rs");
+            assert_eq!(results[0].1.lines, [(1, 1)].iter().cloned().collect());
+        }
     }
 
     #[allow(non_snake_case)]
