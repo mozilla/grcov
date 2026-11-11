@@ -165,7 +165,7 @@ pub fn get_config(
 }
 
 impl tera::Filter<f64, tera::TeraResult<&'static str>> for Config {
-    fn call(&self, rate: f64, kwargs: Kwargs, _: &State) -> tera::TeraResult<&'static str> {
+    fn call(&self, rate: f64, kwargs: Kwargs, _: &State<'_>) -> tera::TeraResult<&'static str> {
         let kind = kwargs.get::<&str>("kind")?.unwrap_or("lines");
 
         fn severity(hi: f64, medium: f64, rate: f64) -> &'static str {
@@ -237,7 +237,7 @@ fn get_percentage_of_covered_lines(covered_lines: usize, total_lines: usize) -> 
     }
 }
 
-fn percent(kwargs: Kwargs, _: &State) -> tera::TeraResult<f64> {
+fn percent(kwargs: Kwargs, _: &State<'_>) -> tera::TeraResult<f64> {
     let num = kwargs.must_get::<usize>("num")?;
     let den = kwargs.must_get::<usize>("den")?;
     Ok(get_percentage_of_covered_lines(num, den))
