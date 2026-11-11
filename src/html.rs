@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use log::warn;
 use serde::{Deserialize, Serialize};
-use serde_json::value::{from_value, to_value, Value};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::{btree_map, BTreeMap};
@@ -9,7 +8,7 @@ use std::fs::{self, File};
 use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use tera::{try_get_value, Context, Tera};
+use tera::{Context, Kwargs, State, Tera};
 
 use crate::defs::*;
 
@@ -99,7 +98,7 @@ fn load_template(path: &str) -> String {
 }
 fn get_templates(user_templates: &Option<HashMap<String, String>>) -> HashMap<String, String> {
     let mut result: HashMap<String, String> = HashMap::from([
-        ("macros.html", include_str!("templates/macros.html")),
+        ("components.html", include_str!("templates/components.html")),
         ("base.html", include_str!("templates/base.html")),
         ("index.html", include_str!("templates/index.html")),
         ("file.html", include_str!("templates/file.html")),
@@ -165,31 +164,25 @@ pub fn get_config(
     (tera, conf)
 }
 
-impl tera::Filter for Config {
-    fn filter(&self, value: &Value, args: &HashMap<String, Value>) -> tera::Result<Value> {
-        let rate = try_get_value!("severity", "value", f64, value);
+impl tera::Filter<f64, tera::TeraResult<&'static str>> for Config {
+    fn call(&self, rate: f64, kwargs: Kwargs, _: &State<'_>) -> tera::TeraResult<&'static str> {
+        let kind = kwargs.get::<&str>("kind")?.unwrap_or("lines");
 
-        let kind = match args.get("kind") {
-            Some(val) => try_get_value!("severity", "kind", String, val),
-            None => "lines".to_string(),
-        };
-
-        fn severity(hi: f64, medium: f64, rate: f64) -> Value {
-            to_value(if hi <= rate && rate <= 100. {
+        fn severity(hi: f64, medium: f64, rate: f64) -> &'static str {
+            if hi <= rate && rate <= 100. {
                 "success"
             } else if medium <= rate && rate < hi {
                 "warning"
             } else {
                 "danger"
-            })
-            .unwrap()
+            }
         }
 
-        match kind.as_ref() {
+        match kind {
             "lines" => Ok(severity(self.hi_limit, self.med_limit, rate)),
             "branches" => Ok(severity(self.branch_hi_limit, self.branch_med_limit, rate)),
             "functions" => Ok(severity(self.fn_hi_limit, self.fn_med_limit, rate)),
-            _ => Err(tera::Error::msg("Unsupported kind")),
+            _ => Err(tera::Error::message("Unsupported kind")),
         }
     }
 }
@@ -244,19 +237,10 @@ fn get_percentage_of_covered_lines(covered_lines: usize, total_lines: usize) -> 
     }
 }
 
-fn percent(args: &HashMap<String, Value>) -> tera::Result<Value> {
-    if let (Some(n), Some(d)) = (args.get("num"), args.get("den")) {
-        if let (Ok(num), Ok(den)) = (
-            from_value::<usize>(n.clone()),
-            from_value::<usize>(d.clone()),
-        ) {
-            Ok(to_value(get_percentage_of_covered_lines(num, den)).unwrap())
-        } else {
-            Err(tera::Error::msg("Invalid arguments"))
-        }
-    } else {
-        Err(tera::Error::msg("Not enough arguments"))
-    }
+fn percent(kwargs: Kwargs, _: &State<'_>) -> tera::TeraResult<f64> {
+    let num = kwargs.must_get::<usize>("num")?;
+    let den = kwargs.must_get::<usize>("den")?;
+    Ok(get_percentage_of_covered_lines(num, den))
 }
 
 fn get_base(rel_path: &Path) -> String {
@@ -314,7 +298,10 @@ fn make_context(conf: &Config, path_to_root: &str) -> Context {
     };
     ctx.insert("bulma_url", &bulma_url);
 
-    ctx.insert("date", &conf.date);
+    ctx.insert(
+        "date",
+        &conf.date.map(|d| d.format("%Y-%m-%d %H:%M").to_string()),
+    );
     ctx.insert("precision", &conf.precision);
     ctx.insert("branch_enabled", &conf.branch_enabled);
 

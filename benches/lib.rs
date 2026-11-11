@@ -113,6 +113,8 @@ fn bench_lib_consumer(b: &mut Bencher) {
                         false,
                         false,
                         None,
+                        false,
+                        None,
                     );
                 })
                 .unwrap();
@@ -126,6 +128,7 @@ fn bench_lib_consumer(b: &mut Bencher) {
                     format: ItemFormat::Gcno,
                     item: ItemType::Buffers(GcnoBuffers {
                         stem: "".to_string(),
+                        full_path: None,
                         gcno_buf: gcno_buf.clone(),
                         gcda_buf: Vec::new(),
                     }),

@@ -13,11 +13,11 @@ use std::sync::Arc;
 
 use log::{error, warn};
 
-use quick_xml::encoding::Decoder;
 use quick_xml::encoding::EncodingError;
 use quick_xml::events::attributes::AttrError;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
+use quick_xml::XmlVersion;
 
 use rustc_hash::FxHashMap;
 
@@ -189,21 +189,40 @@ pub fn parse_lcov(
                     continue;
                 }
 
-                // we've a end_of_record
-                results.push((
-                    cur_file.unwrap(),
-                    CovResult {
-                        lines: cur_lines,
-                        branches: cur_branches,
-                        functions: cur_functions,
-                    },
-                ));
+                // Only `end_of_record` closes a record: any other line starting
+                // with 'e' is an unknown record and has to be skipped like the
+                // ones handled by the catch-all arm below.
+                let start = buffer.len() - iter.len();
+                let len = iter.take_while(|&&c| c != b'\n').count();
+                let rest = &buffer[start..start + len];
+                let rest = rest.strip_suffix(b"\r").unwrap_or(rest);
+                if rest != b"nd_of_record" {
+                    continue;
+                }
 
-                cur_file = None;
+                // we've a end_of_record
+                match cur_file.take() {
+                    Some(cur_file) => results.push((
+                        cur_file,
+                        CovResult {
+                            lines: cur_lines,
+                            branches: cur_branches,
+                            functions: cur_functions,
+                        },
+                    )),
+                    None => {
+                        manage_parsing_error!(
+                            ignore_parsing_error,
+                            format!("end_of_record without SF at line {line}")
+                        );
+                        parsing_error_occurs = true;
+                        continue;
+                    }
+                }
+
                 cur_lines = BTreeMap::new();
                 cur_branches = BTreeMap::new();
                 cur_functions = FxHashMap::default();
-                iter.take_while(|&&c| c != b'\n').last();
             }
             b'\n' => {
                 continue;
@@ -220,15 +239,20 @@ pub fn parse_lcov(
                         r.checked_mul(1 << 8)?.checked_add(u32::from(x))
                     });
 
-                if key.is_none() {
-                    manage_parsing_error!(
-                        ignore_parsing_error,
-                        format!("Invalid key at line {line}")
-                    );
-                    parsing_error_occurs = true;
-                }
+                let key = match key {
+                    Some(key) => key,
+                    None => {
+                        manage_parsing_error!(
+                            ignore_parsing_error,
+                            format!("Invalid key at line {line}")
+                        );
+                        parsing_error_occurs = true;
+                        iter.take_while(|&&c| c != b'\n').last();
+                        continue;
+                    }
+                };
 
-                match key.unwrap() {
+                match key {
                     SF => {
                         // SF:string
                         cur_file = Some(
@@ -286,6 +310,30 @@ pub fn parse_lcov(
                         }
 
                         // FN:int,string
+                        // A negative line number marks a synthetic function
+                        // that has no location in the source file. Treat it
+                        // like any other malformed record: fail by default,
+                        // or with --ignore-parsing-error keep the record and
+                        // report it at line 0 instead of discarding the whole
+                        // coverage file.
+                        let synthetic = iter.peek() == Some(&&b'-');
+                        if synthetic {
+                            // Without --ignore-parsing-error this returns
+                            // Err and stops parsing here, same as any other
+                            // malformed record. With the flag, it only logs
+                            // a warning and falls through: the record is
+                            // normalized (not dropped), so parsing_error_occurs
+                            // must NOT be set here, or the end_of_record
+                            // handler below would discard this otherwise-valid
+                            // result.
+                            manage_parsing_error!(
+                                ignore_parsing_error,
+                                format!(
+                                    "FN at line {line}: negative line number marks a synthetic function"
+                                )
+                            );
+                            iter.next();
+                        }
                         if let Some(c) = iter.peek() {
                             if !c.is_ascii_digit() {
                                 manage_parsing_error!(
@@ -298,6 +346,7 @@ pub fn parse_lcov(
                         let start = iter
                             .take_while(|&&c| c.is_ascii_digit())
                             .fold(0, |r, &x| r * 10 + u32::from(x - b'0'));
+                        let start = if synthetic { 0 } else { start };
                         if iter.peek().is_none() {
                             manage_parsing_error!(
                                 ignore_parsing_error,
@@ -655,15 +704,11 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
     Ok(results)
 }
 
-fn get_xml_attribute<R: BufRead>(
-    reader: &Reader<R>,
-    event: &BytesStart<'_>,
-    name: &str,
-) -> Result<String, ParserError> {
+fn get_xml_attribute(event: &BytesStart<'_>, name: &str) -> Result<String, ParserError> {
     for a in event.attributes() {
         let a = a?;
-        if a.key.into_inner() == name.as_bytes() {
-            return Ok(a.decode_and_unescape_value(reader.decoder())?.into_owned());
+        if a.key.into_inner() == name {
+            return Ok(a.normalized_value(XmlVersion::Implicit1_0)?.into_owned());
         }
     }
     Err(ParserError::InvalidRecord(format!(
@@ -680,15 +725,15 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
 
     loop {
         match parser.read_event_into(buf) {
-            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"line" => {
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == "line" => {
                 let (mut ci, mut cb, mut mb, mut nr) = (None, None, None, None);
                 for a in e.attributes() {
                     let a = a?;
                     match a.key.into_inner() {
-                        b"ci" => ci = Some(Decoder {}.decode(&a.value)?.parse::<u64>()?),
-                        b"cb" => cb = Some(Decoder {}.decode(&a.value)?.parse::<u64>()?),
-                        b"mb" => mb = Some(Decoder {}.decode(&a.value)?.parse::<u64>()?),
-                        b"nr" => nr = Some(Decoder {}.decode(&a.value)?.parse::<u32>()?),
+                        "ci" => ci = Some(a.value.parse::<u64>()?),
+                        "cb" => cb = Some(a.value.parse::<u64>()?),
+                        "mb" => mb = Some(a.value.parse::<u64>()?),
+                        "nr" => nr = Some(a.value.parse::<u32>()?),
                         _ => (),
                     }
                 }
@@ -717,7 +762,7 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
                     lines.insert(nr, hit);
                 }
             }
-            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"sourcefile" => {
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == "sourcefile" => {
                 break;
             }
             Err(e) => return Err(ParserError::Parse(e.to_string())),
@@ -738,12 +783,12 @@ fn parse_jacoco_report_method<T: BufRead>(
 
     loop {
         match parser.read_event_into(buf) {
-            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"counter" => {
-                if get_xml_attribute(parser, e, "type")? == "METHOD" {
-                    executed = get_xml_attribute(parser, e, "covered")?.parse::<u32>()? > 0;
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == "counter" => {
+                if get_xml_attribute(e, "type")? == "METHOD" {
+                    executed = get_xml_attribute(e, "covered")?.parse::<u32>()? > 0;
                 }
             }
-            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"method" => break,
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == "method" => break,
             Err(e) => return Err(ParserError::Parse(e.to_string())),
             _ => {}
         }
@@ -762,15 +807,15 @@ fn parse_jacoco_report_class<T: BufRead>(
 
     loop {
         match parser.read_event_into(buf) {
-            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"method" => {
-                let name = get_xml_attribute(parser, e, "name")?;
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == "method" => {
+                let name = get_xml_attribute(e, "name")?;
                 let full_name = format!("{class_name}#{name}");
 
-                let start_line = get_xml_attribute(parser, e, "line")?.parse::<u32>()?;
+                let start_line = get_xml_attribute(e, "line")?.parse::<u32>()?;
                 let function = parse_jacoco_report_method(parser, buf, start_line)?;
                 functions.insert(full_name, function);
             }
-            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"class" => break,
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == "class" => break,
             Err(e) => return Err(ParserError::Parse(e.to_string())),
             _ => {}
         }
@@ -791,8 +836,8 @@ fn parse_jacoco_report_package<T: BufRead>(
         match parser.read_event_into(buf) {
             Ok(Event::Start(ref e)) => {
                 match e.local_name().into_inner() {
-                    b"class" => {
-                        let fq_class = get_xml_attribute(parser, e, "name")?;
+                    "class" => {
+                        let fq_class = get_xml_attribute(e, "name")?;
                         // Class name: "Person$Age"
                         let class = fq_class
                             .split('/')
@@ -806,7 +851,7 @@ fn parse_jacoco_report_package<T: BufRead>(
                         // Fully qualified class name: "org/example/Person$Age"
                         // Generally, we will use the filename if its present,
                         // but if it isn't, fallback to the top level class name
-                        let file = get_xml_attribute(parser, e, "sourcefilename")
+                        let file = get_xml_attribute(e, "sourcefilename")
                             .unwrap_or(format!("{top_class}.java"));
 
                         // Process all <method /> and <counter /> for this class
@@ -825,9 +870,9 @@ fn parse_jacoco_report_package<T: BufRead>(
                             }
                         };
                     }
-                    b"sourcefile" => {
+                    "sourcefile" => {
                         // Fully qualified class name: "org/example/Person$Age"
-                        let file = get_xml_attribute(parser, e, "name")?;
+                        let file = get_xml_attribute(e, "name")?;
 
                         let JacocoReport { lines, branches } =
                             parse_jacoco_report_sourcefile(parser, buf)?;
@@ -850,7 +895,7 @@ fn parse_jacoco_report_package<T: BufRead>(
                     &_ => {}
                 }
             }
-            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"package" => break,
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == "package" => break,
             Err(e) => return Err(ParserError::Parse(e.to_string())),
             _ => {}
         }
@@ -885,8 +930,8 @@ pub fn parse_jacoco_xml_report<T: Read>(
 
     loop {
         match parser.read_event_into(&mut buf) {
-            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"package" => {
-                let package = get_xml_attribute(&parser, e, "name")?;
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == "package" => {
+                let package = get_xml_attribute(e, "name")?;
                 let mut package_results =
                     parse_jacoco_report_package(&mut parser, &mut buf, &package)?;
                 results.append(&mut package_results);
@@ -1386,6 +1431,57 @@ mod tests {
 
     #[allow(non_snake_case)]
     #[test]
+    fn test_lcov_parser_FN_record_with_negative_line_number_ignored() {
+        // Some producers emit synthetic functions without a source line, e.g.
+        // JaCoCo for Scala's `.curried` / `.tupled`. With --ignore-parsing-error,
+        // the record is kept and reported at line 0 instead of discarding the
+        // whole coverage file.
+        let buf = "TN:\nSF:foo.scala\nFN:-1,curried\nFNDA:0,curried\nDA:1,0\nend_of_record\n"
+            .as_bytes()
+            .to_vec();
+        let results = parse_lcov(buf, false, true).unwrap();
+        assert_eq!(results.len(), 1);
+
+        let (ref source_name, ref result) = results[0];
+        assert_eq!(source_name, "foo.scala");
+        assert_eq!(result.lines, [(1, 0)].iter().cloned().collect());
+        let func = result.functions.get("curried").unwrap();
+        assert_eq!(func.start, 0);
+        assert!(!func.executed);
+    }
+
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_lcov_parser_FN_record_with_negative_line_number_not_ignored() {
+        // Without --ignore-parsing-error, a negative FN line number is a hard
+        // parse error, same as any other malformed record.
+        let buf = "TN:\nSF:foo.scala\nFN:-1,curried\nFNDA:0,curried\nDA:1,0\nend_of_record\n"
+            .as_bytes()
+            .to_vec();
+        let result = parse_lcov(buf, false, false);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Invalid record: 'FN at line 3: negative line number marks a synthetic function'"
+        );
+    }
+
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_lcov_parser_FN_record_without_line_number() {
+        // Control: a missing line number is still an invalid record.
+        let buf = "SF:foo.scala\nFN:,curried\nend_of_record\n"
+            .as_bytes()
+            .to_vec();
+        let result = parse_lcov(buf, false, false);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.to_string(), "Invalid record: 'FN at line 2'");
+    }
+
+    #[allow(non_snake_case)]
+    #[test]
     fn test_lcov_parser_invalid_DA_record() {
         let mut f = File::open("./test/invalid_DA_record.info").expect("Failed to open lcov file");
         let mut buf = Vec::new();
@@ -1461,6 +1557,107 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.to_string(), "Invalid record: 'DA at line 5'");
+    }
+
+    #[test]
+    fn test_lcov_parser_end_of_record_without_source_file() {
+        let buf = "end_of_record\n".as_bytes().to_vec();
+        let result = parse_lcov(buf, true, false);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Invalid record: 'end_of_record without SF at line 1'"
+        );
+    }
+
+    #[test]
+    fn test_lcov_parser_ignoring_end_of_record_without_source_file() {
+        let buf = "end_of_record\nSF:f.rs\nDA:1,1\nend_of_record\n"
+            .as_bytes()
+            .to_vec();
+        let results = parse_lcov(buf, true, true).unwrap();
+        assert_eq!(results.len(), 1);
+        let (ref source_name, ref result) = results[0];
+        assert_eq!(source_name, "f.rs");
+        assert_eq!(result.lines, [(1, 1)].iter().cloned().collect());
+    }
+
+    #[test]
+    fn test_lcov_parser_line_starting_with_e_is_not_end_of_record() {
+        let buf = "SF:f.rs\nDA:1,1\nend_of_record\nexcluded_by_a_tool\n"
+            .as_bytes()
+            .to_vec();
+        let results = parse_lcov(buf, true, false).unwrap();
+        assert_eq!(results.len(), 1);
+        let (ref source_name, ref result) = results[0];
+        assert_eq!(source_name, "f.rs");
+        assert_eq!(result.lines, [(1, 1)].iter().cloned().collect());
+    }
+
+    #[test]
+    fn test_lcov_parser_end_of_record_line_endings() {
+        for ending in ["\n", "\r\n", "", "\r"] {
+            let buf = format!("SF:f.rs\nDA:1,1\nend_of_record{ending}").into_bytes();
+            let results = parse_lcov(buf, true, false).unwrap();
+            assert_eq!(results.len(), 1, "ending: {ending:?}");
+            assert_eq!(results[0].0, "f.rs");
+            assert_eq!(results[0].1.lines, [(1, 1)].iter().cloned().collect());
+        }
+    }
+
+    #[test]
+    fn test_lcov_parser_unknown_e_record_consumes_whole_line() {
+        for record in [
+            "e",
+            "end_of_recor",
+            "end_of_record_extra",
+            "end_of_record\r\r",
+            "excluded:SF:wrong.rs",
+        ] {
+            let buf = format!("SF:f.rs\n{record}\nDA:1,1\nend_of_record\n").into_bytes();
+            let results = parse_lcov(buf, true, false).unwrap();
+            assert_eq!(results.len(), 1, "record: {record:?}");
+            assert_eq!(results[0].0, "f.rs");
+            assert_eq!(results[0].1.lines, [(1, 1)].iter().cloned().collect());
+        }
+    }
+
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_lcov_parser_DA_record_with_checksum() {
+        // `DA:<line>,<count>,<checksum>` is valid lcov: the checksum used to be
+        // read back as the beginning of a new record.
+        let buf = "SF:f.rs\nDA:5,3,e4f2\nDA:6,1\nend_of_record\n"
+            .as_bytes()
+            .to_vec();
+        let results = parse_lcov(buf, true, false).unwrap();
+        assert_eq!(results.len(), 1);
+        let (ref source_name, ref result) = results[0];
+        assert_eq!(source_name, "f.rs");
+        assert_eq!(result.lines, [(5, 3), (6, 1)].iter().cloned().collect());
+    }
+
+    #[test]
+    fn test_lcov_parser_invalid_key() {
+        let buf = "SF:f.rs\nSFFFFF:x\nDA:1,1\nend_of_record\n"
+            .as_bytes()
+            .to_vec();
+        let result = parse_lcov(buf, true, false);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.to_string(), "Invalid record: 'Invalid key at line 2'");
+    }
+
+    #[test]
+    fn test_lcov_parser_ignoring_invalid_key() {
+        // As for any other ignored parsing error the rest of the record is
+        // dropped, but the parser must not panic.
+        let buf = "SF:f.rs\nSFFFFF:x\nDA:1,1\nend_of_record\n"
+            .as_bytes()
+            .to_vec();
+        let results = parse_lcov(buf, true, true).unwrap();
+        assert!(results.is_empty());
     }
 
     #[test]

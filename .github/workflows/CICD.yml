@@ -28,6 +28,9 @@ jobs:
           key: test-${{ runner.os }}-cargo-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
       - name: Test
         run: cargo test --lib
+      - name: Run benchmarks once as tests
+        if: matrix.toolchain == 'nightly'
+        run: cargo test --benches
   test-coverage:
     name: Test coverage (gcc-${{ matrix.gcc }}, clang-${{ matrix.clang }})
     runs-on: ubuntu-22.04
@@ -56,18 +59,9 @@ jobs:
     steps:
       - name: Prepare C toolchains
         run: |
-          # Add LLVM keys
-          curl -o- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-
-          # Add extra APT repos
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main'
-          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-12 main'
-          sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-13 main'
-
           # Install toolchains
-          sudo apt-get update
-          sudo apt-get install -y clang-${{ matrix.clang }} g++-${{ matrix.gcc }}
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y clang-${{ matrix.clang }} g++-${{ matrix.gcc }}
       - name: Checkout repository
         uses: actions/checkout@v3
       - name: Setup Rust

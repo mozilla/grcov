@@ -1,13 +1,11 @@
 [package]
 name = "grcov"
-version = "0.10.7"
+version = "0.10.8"
 authors = ["Marco Castelluccio <mcastelluccio@mozilla.com>"]
 description = "Rust tool to collect and aggregate code coverage data for multiple source files"
 license = "MPL-2.0"
 documentation = "https://github.com/mozilla/grcov"
-homepage = "https://github.com/mozilla/grcov"
 repository = "https://github.com/mozilla/grcov"
-readme = "README.md"
 keywords = ["coverage"]
 categories = ["command-line-utilities", "development-tools", "development-tools::testing"]
 exclude = [
@@ -47,7 +45,7 @@ lazy_static = "1.5"
 log = "0.4"
 md-5 = "0.11"
 num_cpus = "1.17"
-quick-xml = "0.39"
+quick-xml = "0.42"
 rayon = "1.11"
 regex = "1.12"
 rustc-hash = "2.1"
@@ -61,10 +59,10 @@ symbolic-common = "13.6"
 symbolic-demangle = { version = "13.6", default-features = false }
 tabled = "0.22"
 tempfile = "3.27"
-tera = "1.20"
+tera = "2.4"
 uuid = { version = "1.23", features = ["v4"] }
 walkdir = "2.5"
-zip = { version = "8.2", default-features = false }
+zip = { version = "9.4", default-features = false }
 
 [dev-dependencies]
 pretty_assertions = "1.4"

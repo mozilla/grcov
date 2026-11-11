@@ -11,7 +11,7 @@ use test::{black_box, Bencher};
 fn bench_parser_lcov(b: &mut Bencher) {
     b.iter(|| {
         let file = std::fs::read("./test/prova.info").expect("Failed to open lcov file");
-        black_box(grcov::parse_lcov(file, true).unwrap());
+        black_box(grcov::parse_lcov(file, true, false).unwrap());
     });
 }
 
