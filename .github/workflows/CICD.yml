@@ -50,8 +50,8 @@ jobs:
       - name: Prepare C toolchains
         run: |
           # Install toolchains
-          sudo apt-get update
-          sudo apt-get install -y clang-${{ matrix.clang }} g++-${{ matrix.gcc }}
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y clang-${{ matrix.clang }} g++-${{ matrix.gcc }}
       - name: Checkout repository
         uses: actions/checkout@v3
       - name: Setup Rust
