@@ -62,7 +62,7 @@ tempfile = "3.27"
 tera = "2.4"
 uuid = { version = "1.23", features = ["v4"] }
 walkdir = "2.5"
-zip = { version = "8.2", default-features = false }
+zip = { version = "9.4", default-features = false }
 
 [dev-dependencies]
 pretty_assertions = "1.4"
