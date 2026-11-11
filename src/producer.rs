@@ -181,7 +181,7 @@ impl Archive {
                 let mut zip = zip.borrow_mut();
                 for i in 0..zip.len() {
                     let mut file = zip.by_index(i).unwrap();
-                    let path = PathBuf::from(file.name());
+                    let path = PathBuf::from(file.name().unwrap().as_ref());
                     self.handle_file(
                         Some(&mut file),
                         &path,
