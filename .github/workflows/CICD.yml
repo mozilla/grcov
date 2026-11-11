@@ -28,6 +28,9 @@ jobs:
           key: test-${{ runner.os }}-cargo-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
       - name: Test
         run: cargo test --lib
+      - name: Run benchmarks once as tests
+        if: matrix.toolchain == 'nightly'
+        run: cargo test --benches
   test-coverage:
     name: Test coverage (gcc-${{ matrix.gcc }}, clang-${{ matrix.clang }})
     runs-on: ubuntu-22.04
