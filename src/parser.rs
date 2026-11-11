@@ -13,11 +13,11 @@ use std::sync::Arc;
 
 use log::{error, warn};
 
-use quick_xml::encoding::Decoder;
 use quick_xml::encoding::EncodingError;
 use quick_xml::events::attributes::AttrError;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
+use quick_xml::XmlVersion;
 
 use rustc_hash::FxHashMap;
 
@@ -704,15 +704,11 @@ pub fn parse_gcov(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserEr
     Ok(results)
 }
 
-fn get_xml_attribute<R: BufRead>(
-    reader: &Reader<R>,
-    event: &BytesStart<'_>,
-    name: &str,
-) -> Result<String, ParserError> {
+fn get_xml_attribute(event: &BytesStart<'_>, name: &str) -> Result<String, ParserError> {
     for a in event.attributes() {
         let a = a?;
-        if a.key.into_inner() == name.as_bytes() {
-            return Ok(a.decode_and_unescape_value(reader.decoder())?.into_owned());
+        if a.key.into_inner() == name {
+            return Ok(a.normalized_value(XmlVersion::Implicit1_0)?.into_owned());
         }
     }
     Err(ParserError::InvalidRecord(format!(
@@ -729,15 +725,15 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
 
     loop {
         match parser.read_event_into(buf) {
-            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"line" => {
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == "line" => {
                 let (mut ci, mut cb, mut mb, mut nr) = (None, None, None, None);
                 for a in e.attributes() {
                     let a = a?;
                     match a.key.into_inner() {
-                        b"ci" => ci = Some(Decoder {}.decode(&a.value)?.parse::<u64>()?),
-                        b"cb" => cb = Some(Decoder {}.decode(&a.value)?.parse::<u64>()?),
-                        b"mb" => mb = Some(Decoder {}.decode(&a.value)?.parse::<u64>()?),
-                        b"nr" => nr = Some(Decoder {}.decode(&a.value)?.parse::<u32>()?),
+                        "ci" => ci = Some(a.value.parse::<u64>()?),
+                        "cb" => cb = Some(a.value.parse::<u64>()?),
+                        "mb" => mb = Some(a.value.parse::<u64>()?),
+                        "nr" => nr = Some(a.value.parse::<u32>()?),
                         _ => (),
                     }
                 }
@@ -766,7 +762,7 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
                     lines.insert(nr, hit);
                 }
             }
-            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"sourcefile" => {
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == "sourcefile" => {
                 break;
             }
             Err(e) => return Err(ParserError::Parse(e.to_string())),
@@ -787,12 +783,12 @@ fn parse_jacoco_report_method<T: BufRead>(
 
     loop {
         match parser.read_event_into(buf) {
-            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"counter" => {
-                if get_xml_attribute(parser, e, "type")? == "METHOD" {
-                    executed = get_xml_attribute(parser, e, "covered")?.parse::<u32>()? > 0;
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == "counter" => {
+                if get_xml_attribute(e, "type")? == "METHOD" {
+                    executed = get_xml_attribute(e, "covered")?.parse::<u32>()? > 0;
                 }
             }
-            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"method" => break,
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == "method" => break,
             Err(e) => return Err(ParserError::Parse(e.to_string())),
             _ => {}
         }
@@ -811,15 +807,15 @@ fn parse_jacoco_report_class<T: BufRead>(
 
     loop {
         match parser.read_event_into(buf) {
-            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"method" => {
-                let name = get_xml_attribute(parser, e, "name")?;
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == "method" => {
+                let name = get_xml_attribute(e, "name")?;
                 let full_name = format!("{class_name}#{name}");
 
-                let start_line = get_xml_attribute(parser, e, "line")?.parse::<u32>()?;
+                let start_line = get_xml_attribute(e, "line")?.parse::<u32>()?;
                 let function = parse_jacoco_report_method(parser, buf, start_line)?;
                 functions.insert(full_name, function);
             }
-            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"class" => break,
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == "class" => break,
             Err(e) => return Err(ParserError::Parse(e.to_string())),
             _ => {}
         }
@@ -840,8 +836,8 @@ fn parse_jacoco_report_package<T: BufRead>(
         match parser.read_event_into(buf) {
             Ok(Event::Start(ref e)) => {
                 match e.local_name().into_inner() {
-                    b"class" => {
-                        let fq_class = get_xml_attribute(parser, e, "name")?;
+                    "class" => {
+                        let fq_class = get_xml_attribute(e, "name")?;
                         // Class name: "Person$Age"
                         let class = fq_class
                             .split('/')
@@ -855,7 +851,7 @@ fn parse_jacoco_report_package<T: BufRead>(
                         // Fully qualified class name: "org/example/Person$Age"
                         // Generally, we will use the filename if its present,
                         // but if it isn't, fallback to the top level class name
-                        let file = get_xml_attribute(parser, e, "sourcefilename")
+                        let file = get_xml_attribute(e, "sourcefilename")
                             .unwrap_or(format!("{top_class}.java"));
 
                         // Process all <method /> and <counter /> for this class
@@ -874,9 +870,9 @@ fn parse_jacoco_report_package<T: BufRead>(
                             }
                         };
                     }
-                    b"sourcefile" => {
+                    "sourcefile" => {
                         // Fully qualified class name: "org/example/Person$Age"
-                        let file = get_xml_attribute(parser, e, "name")?;
+                        let file = get_xml_attribute(e, "name")?;
 
                         let JacocoReport { lines, branches } =
                             parse_jacoco_report_sourcefile(parser, buf)?;
@@ -899,7 +895,7 @@ fn parse_jacoco_report_package<T: BufRead>(
                     &_ => {}
                 }
             }
-            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"package" => break,
+            Ok(Event::End(ref e)) if e.local_name().into_inner() == "package" => break,
             Err(e) => return Err(ParserError::Parse(e.to_string())),
             _ => {}
         }
@@ -934,8 +930,8 @@ pub fn parse_jacoco_xml_report<T: Read>(
 
     loop {
         match parser.read_event_into(&mut buf) {
-            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"package" => {
-                let package = get_xml_attribute(&parser, e, "name")?;
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == "package" => {
+                let package = get_xml_attribute(e, "name")?;
                 let mut package_results =
                     parse_jacoco_report_package(&mut parser, &mut buf, &package)?;
                 results.append(&mut package_results);
