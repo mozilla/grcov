@@ -44,13 +44,11 @@ mod file_walker;
 pub use crate::file_walker::{find_binaries, ParallelWalker};
 
 use log::{error, warn};
-use std::fs;
 use std::io::{BufReader, Cursor};
 use std::{
     collections::{btree_map, hash_map},
     path::Path,
 };
-use walkdir::WalkDir;
 
 // Merge results, without caring about duplicate lines (they will be removed at the end).
 pub fn merge_results(result: &mut CovResult, result2: CovResult) -> bool {
@@ -162,15 +160,6 @@ fn rename_single_files(results: &mut [(String, CovResult)], stem: &str) {
     }
 }
 
-// Some versions of GCC, because of a bug, generate multiple gcov files for each
-// gcno, so we have to support this case too for the time being.
-#[derive(PartialEq, Eq)]
-enum GcovType {
-    Unknown,
-    SingleFile,
-    MultipleFiles,
-}
-
 macro_rules! try_parse {
     ($v:expr, $f:expr) => {
         match $v {
@@ -194,8 +183,6 @@ pub fn consumer(
     ignore_parsing_error: bool,
     num_threads: Option<usize>,
 ) {
-    let mut gcov_type = GcovType::Unknown;
-
     while let Ok(work_item) = receiver.recv() {
         if work_item.is_none() {
             break;
@@ -206,56 +193,15 @@ pub fn consumer(
                 match work_item.item {
                     ItemType::Path((stem, gcno_path)) => {
                         // GCC
-                        if let Err(e) = run_gcov(&gcno_path, branch_enabled, working_dir) {
-                            error!("Error when running gcov: {e}");
-                            continue;
-                        };
-                        let gcov_ext = get_gcov_output_ext();
-                        let gcov_path =
-                            gcno_path.file_name().unwrap().to_str().unwrap().to_string() + gcov_ext;
-                        let gcov_path = working_dir.join(gcov_path);
-                        if gcov_type == GcovType::Unknown {
-                            gcov_type = if gcov_path.exists() {
-                                GcovType::SingleFile
-                            } else {
-                                GcovType::MultipleFiles
-                            };
-                        }
-
-                        let mut new_results = if gcov_type == GcovType::SingleFile {
-                            let new_results = try_parse!(
-                                if gcov_ext.ends_with("gz") {
-                                    parse_gcov_gz(&gcov_path)
-                                } else if gcov_ext.ends_with("gcov") {
-                                    parse_gcov(&gcov_path)
-                                } else {
-                                    panic!("Invalid gcov extension: {}", gcov_ext);
-                                },
-                                work_item.name
-                            );
-                            fs::remove_file(gcov_path).unwrap();
-                            new_results
-                        } else {
-                            let mut new_results: Vec<(String, CovResult)> = Vec::new();
-
-                            for entry in WalkDir::new(working_dir).min_depth(1) {
-                                let gcov_path = entry.unwrap();
-                                let gcov_path = gcov_path.path();
-
-                                new_results.append(&mut try_parse!(
-                                    if gcov_path.extension().unwrap() == "gz" {
-                                        parse_gcov_gz(gcov_path)
-                                    } else {
-                                        parse_gcov(gcov_path)
-                                    },
-                                    work_item.name
-                                ));
-
-                                fs::remove_file(gcov_path).unwrap();
+                        let gcov_output = match run_gcov(&gcno_path, branch_enabled) {
+                            Ok(output) => output,
+                            Err(e) => {
+                                error!("Error when running gcov: {e}");
+                                continue;
                             }
-
-                            new_results
                         };
+                        let mut new_results =
+                            try_parse!(parse_gcov_json(&gcov_output), work_item.name);
 
                         rename_external_files(&mut new_results, Some(&gcno_path));
                         if guess_directory {

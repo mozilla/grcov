@@ -1,4 +1,3 @@
-use flate2::read::GzDecoder;
 use regex::Regex;
 use serde::{Deserialize, Deserializer};
 use std::cmp::{max, Ordering};
@@ -554,55 +553,54 @@ where
     }
 }
 
-pub fn parse_gcov_gz(gcov_path: &Path) -> Result<Vec<(String, CovResult)>, ParserError> {
-    let f = File::open(gcov_path)
-        .unwrap_or_else(|_| panic!("Failed to open gcov file {}", gcov_path.display()));
-
-    let file = BufReader::new(&f);
-    let gz = GzDecoder::new(file);
-    let mut gcov: GcovJson = serde_json::from_reader(gz).unwrap();
+/// Parses the JSON that `gcov -i -t` writes, which may hold several documents.
+pub fn parse_gcov_json(buf: &[u8]) -> Result<Vec<(String, CovResult)>, ParserError> {
     let mut results = Vec::new();
 
-    if gcov.format_version != "1" && gcov.format_version != "2" {
-        error!(
-            "Format version {} is not expected, please file a bug on https://github.com/mozilla/grcov",
-            gcov.format_version
-        );
-    }
+    for gcov in serde_json::Deserializer::from_slice(buf).into_iter::<GcovJson>() {
+        let mut gcov = gcov.map_err(|e| ParserError::Parse(e.to_string()))?;
 
-    for mut file in gcov.files.drain(..) {
-        let mut lines = BTreeMap::new();
-        let mut branches = BTreeMap::new();
-        for mut line in file.lines.drain(..) {
-            lines.insert(line.line_number, line.count);
-            if !line.branches.is_empty() {
-                branches.insert(
-                    line.line_number,
-                    line.branches.drain(..).map(|b| b.count > 0).collect(),
-                );
-            }
-        }
-        if lines.is_empty() {
-            continue;
-        }
-        let mut functions = FxHashMap::default();
-        for fun in file.functions.drain(..) {
-            functions.insert(
-                fun.demangled_name,
-                Function {
-                    start: fun.start_line,
-                    executed: fun.execution_count > 0,
-                },
+        if gcov.format_version != "1" && gcov.format_version != "2" {
+            error!(
+                "Format version {} is not expected, please file a bug on https://github.com/mozilla/grcov",
+                gcov.format_version
             );
         }
-        results.push((
-            file.file,
-            CovResult {
-                lines,
-                branches,
-                functions,
-            },
-        ));
+
+        for mut file in gcov.files.drain(..) {
+            let mut lines = BTreeMap::new();
+            let mut branches = BTreeMap::new();
+            for mut line in file.lines.drain(..) {
+                lines.insert(line.line_number, line.count);
+                if !line.branches.is_empty() {
+                    branches.insert(
+                        line.line_number,
+                        line.branches.drain(..).map(|b| b.count > 0).collect(),
+                    );
+                }
+            }
+            if lines.is_empty() {
+                continue;
+            }
+            let mut functions = FxHashMap::default();
+            for fun in file.functions.drain(..) {
+                functions.insert(
+                    fun.demangled_name,
+                    Function {
+                        start: fun.start_line,
+                        executed: fun.execution_count > 0,
+                    },
+                );
+            }
+            results.push((
+                file.file,
+                CovResult {
+                    lines,
+                    branches,
+                    functions,
+                },
+            ));
+        }
     }
 
     Ok(results)
@@ -2207,8 +2205,8 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
     }
 
     #[test]
-    fn test_parser_gcov_gz() {
-        let results = parse_gcov_gz(Path::new(
+    fn test_parser_gcov_json() {
+        let results = parse_gcov_json(&read_gz(
             "./test/mozillavpn_serverconnection.gcno.gcov.json.gz",
         ))
         .unwrap();
@@ -2385,6 +2383,26 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
             .unwrap();
         assert_eq!(func.start, 188);
         assert!(!func.executed);
+    }
+
+    fn read_gz(path: &str) -> Vec<u8> {
+        let mut buf = Vec::new();
+        flate2::read::GzDecoder::new(File::open(path).unwrap())
+            .read_to_end(&mut buf)
+            .unwrap();
+        buf
+    }
+
+    #[test]
+    fn test_parser_gcov_json_several_documents() {
+        let mut buf = read_gz("./test/mozillavpn_serverconnection.gcno.gcov.json.gz");
+        buf.extend(buf.clone());
+        assert_eq!(parse_gcov_json(&buf).unwrap().len(), 74);
+    }
+
+    #[test]
+    fn test_parser_gcov_json_garbage() {
+        assert!(parse_gcov_json(b"{\"format_version\": \"2\", \xcc\xa5").is_err());
     }
 
     #[test]
