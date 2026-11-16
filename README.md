@@ -443,7 +443,7 @@ To run integration tests, it is suggested to use the Docker image defined in tes
 docker build -t marcocas/grcov -f tests/Dockerfile .
 ```
 
-Otherwise, if you don't want to use Docker, the only prerequisite is to install GCC 7, setting the `GCC_CXX` environment variable to `g++-7` and the `GCOV` environment variable to `gcov-7`. Then run the tests with:
+Otherwise, if you don't want to use Docker, the only prerequisite is to install GCC 11 and Clang 13, setting the `GCC_CXX` environment variable to `g++-11`, the `GCOV` environment variable to `gcov-11` and the `CLANG_CXX` environment variable to `clang++-13`. Then run the tests with:
 
 ```sh
 cargo test
