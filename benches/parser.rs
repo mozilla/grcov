@@ -16,12 +16,6 @@ fn bench_parser_lcov(b: &mut Bencher) {
 }
 
 #[bench]
-fn bench_parser_gcov(b: &mut Bencher) {
-    let path = Path::new("./test/negative_counts.gcov");
-    b.iter(|| black_box(grcov::parse_gcov(path)));
-}
-
-#[bench]
 fn bench_parser_jacoco(b: &mut Bencher) {
     let path = Path::new("./test/jacoco/full-junit4-report-multiple-top-level-classes.xml");
     b.iter(|| {
