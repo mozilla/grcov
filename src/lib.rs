@@ -173,7 +173,6 @@ macro_rules! try_parse {
 }
 
 pub fn consumer(
-    working_dir: &Path,
     source_dir: Option<&Path>,
     result_map: &SyncCovResultMap,
     receiver: JobReceiver,
@@ -251,7 +250,6 @@ pub fn consumer(
                     match llvm_tools::llvm_profiles_to_lcov(
                         profraw_paths.as_slice(),
                         binary_path.as_ref().unwrap(),
-                        working_dir,
                         num_threads,
                     ) {
                         Ok(lcovs) => {

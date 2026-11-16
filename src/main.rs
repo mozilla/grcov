@@ -9,7 +9,7 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode, WriteLogger};
-use std::fs::{self, File};
+use std::fs::File;
 use std::ops::Deref;
 use std::panic;
 use std::path::{Path, PathBuf};
@@ -448,7 +448,6 @@ fn main() {
     for i in 0..num_threads {
         let receiver = receiver.clone();
         let result_map = Arc::clone(&result_map);
-        let working_dir = tmp_path.join(format!("{i}"));
         let source_root = source_root.clone();
         let binary_path = opt.binary_path.clone();
         let branch_enabled = opt.branch;
@@ -458,9 +457,7 @@ fn main() {
         let t = thread::Builder::new()
             .name(format!("Consumer {i}"))
             .spawn(move || {
-                fs::create_dir(&working_dir).expect("Failed to create working directory");
                 consumer(
-                    &working_dir,
                     source_root.as_deref(),
                     &result_map,
                     receiver,

@@ -80,10 +80,11 @@ pub fn find_binaries(binary_path: &Path) -> Vec<PathBuf> {
 pub fn llvm_profiles_to_lcov(
     profile_paths: &[PathBuf],
     binary_path: &Path,
-    working_dir: &Path,
     num_threads: Option<usize>,
 ) -> Result<Vec<Vec<u8>>, String> {
-    let profdata_path = working_dir.join("grcov.profdata");
+    let tmp_dir =
+        tempfile::tempdir().map_err(|e| format!("Failed to create temporary directory: {e}"))?;
+    let profdata_path = tmp_dir.path().join("grcov.profdata");
 
     let mut args: Vec<OsString> = vec![
         "merge".into(),
@@ -314,7 +315,6 @@ mod tests {
         let lcovs = llvm_profiles_to_lcov(
             &[tmp_path.join("default.profraw")],
             &PathBuf::from("src"), // There is no binary file in src
-            tmp_path,
             None,
         );
         assert!(lcovs.is_ok());
@@ -349,7 +349,6 @@ mod tests {
         let lcovs = llvm_profiles_to_lcov(
             &[tmp_path.join("default.profraw")],
             &tmp_path.join(binary_path),
-            tmp_path,
             Some(2),
         );
         assert!(lcovs.is_ok(), "Error: {}", lcovs.unwrap_err());
@@ -383,12 +382,7 @@ mod tests {
 
         assert_eq!(status.unwrap().code().unwrap(), 0);
 
-        let lcovs = llvm_profiles_to_lcov(
-            &[profdata_path],
-            &tmp_path.join(binary_path),
-            tmp_path,
-            None,
-        );
+        let lcovs = llvm_profiles_to_lcov(&[profdata_path], &tmp_path.join(binary_path), None);
 
         assert!(lcovs.is_ok(), "Error: {}", lcovs.unwrap_err());
         let lcovs = lcovs.unwrap();
@@ -431,12 +425,8 @@ mod tests {
             .expect("Failed to build");
         assert!(status.success(), "Error when running `cargo run`");
 
-        let lcovs = llvm_profiles_to_lcov(
-            &[path_with, path_without],
-            &tmp_path.join(bin_path),
-            tmp_path,
-            None,
-        );
+        let lcovs =
+            llvm_profiles_to_lcov(&[path_with, path_without], &tmp_path.join(bin_path), None);
 
         assert!(lcovs.is_ok(), "Error: {}", lcovs.unwrap_err());
         let lcovs = lcovs.unwrap();
