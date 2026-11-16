@@ -33,7 +33,7 @@ jobs:
         run: cargo test --benches
   test-coverage:
     name: Test coverage (gcc-${{ matrix.gcc }}, clang-${{ matrix.clang }})
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os || 'ubuntu-22.04' }}
     strategy:
       matrix:
         include:
@@ -43,10 +43,14 @@ jobs:
             clang: 12
           - gcc: 11
             clang: 13
-          # GCC 12.1 changed the gcno and gcda format. It pairs with a clang the
-          # built-in reader handles, so gcov can't skew its results.
+          # GCC 12.1 changed the gcno and gcda format, GCC 15 is the newest one.
+          # Both pair with a clang the built-in reader handles, so gcov can't skew
+          # its results. GCC 15 needs 26.04, which has no clang older than 17.
           - gcc: 12
             clang: 11
+          - gcc: 15
+            clang: 21
+            os: ubuntu-26.04
     env:
       CXX: clang++-${{ matrix.clang }}
       CLANG_CXX: clang++-${{ matrix.clang }}
