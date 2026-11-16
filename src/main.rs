@@ -393,6 +393,12 @@ fn main() {
     }));
 
     let num_threads: usize = opt.threads.unwrap_or_else(|| 1.max(num_cpus::get() - 1));
+    // Size the global pool so that the parallel gcda reads honour --threads too.
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build_global()
+        .expect("Failed to size the rayon thread pool");
+
     let source_root = opt
         .source_dir
         .filter(|source_dir| source_dir != Path::new(""))
