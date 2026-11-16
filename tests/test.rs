@@ -670,13 +670,16 @@ fn test_integration_guess_single_file() {
     );
 }
 
+// An lcov file needs no gcov, so these don't depend on which gcno the local gcov reads.
+const LCOV_INPUT: &str = "test/prova_fn_with_commas.info";
+
 #[test]
 fn test_coveralls_works_with_just_token_arg() {
     for output in &["coveralls", "coveralls+"] {
         let status = Command::new(get_cmd_path())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .args(vec![".", "-t", output, "--token", "123"])
+            .args(vec![LCOV_INPUT, "-t", output, "--token", "123"])
             .status()
             .expect("Failed to run grcov");
         assert!(status.success());
@@ -690,7 +693,7 @@ fn test_coveralls_works_with_just_service_name_and_job_id_args() {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .args(vec![
-                ".",
+                LCOV_INPUT,
                 "-t",
                 output,
                 "--service-name",
@@ -710,7 +713,13 @@ fn test_coveralls_service_name_is_not_sufficient() {
         let status = Command::new(get_cmd_path())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .args(vec![".", "-t", output, "--service-name", "travis-ci"])
+            .args(vec![
+                LCOV_INPUT,
+                "-t",
+                output,
+                "--service-name",
+                "travis-ci",
+            ])
             .status()
             .expect("Failed to run grcov");
         assert!(!status.success());
@@ -723,7 +732,7 @@ fn test_coveralls_service_job_id_is_not_sufficient() {
         let status = Command::new(get_cmd_path())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .args(vec![".", "-t", output, "--service-job-id", "456"])
+            .args(vec![LCOV_INPUT, "-t", output, "--service-job-id", "456"])
             .status()
             .expect("Failed to run grcov");
         assert!(!status.success());
