@@ -50,6 +50,15 @@ pub trait GcovReader<E: Endian> {
     fn get_stem(&self) -> &str;
     fn skip_u32(&mut self) -> Result<(), GcovReaderError>;
     fn skip(&mut self, len: usize) -> Result<(), GcovReaderError>;
+    /// Moves to `pos`, unless it was already read past.
+    fn skip_to(&mut self, pos: usize) -> Result<(), GcovReaderError> {
+        let cur = self.get_pos();
+        if pos > cur {
+            self.skip(pos - cur)
+        } else {
+            Ok(())
+        }
+    }
     fn is_little_endian(&self) -> bool {
         E::is_little_endian()
     }
@@ -485,12 +494,13 @@ impl Gcno {
 
     fn read_edges<E: Endian, T: GcovReader<E> + Sized>(
         fun: &mut GcovFunction,
-        count: u32,
+        length: usize,
         reader: &mut T,
     ) -> Result<(), GcovReaderError> {
         let edges = &mut fun.edges;
         let blocks = &mut fun.blocks;
-        let count = ((count - 1) / 2) as usize;
+        // the source block, then a destination block and flags per edge
+        let count = (length / 4 - 1) / 2;
         let block_no = reader.read_u32()? as usize;
         if block_no <= blocks.len() {
             blocks[block_no].destination.reserve(count);
@@ -571,13 +581,12 @@ impl Gcno {
 
     fn read_blocks<E: Endian, T: GcovReader<E> + Sized>(
         fun: &mut GcovFunction,
-        length: u32,
+        length: usize,
         version: u32,
         reader: &mut T,
     ) -> Result<(), GcovReaderError> {
         if version < 80 {
-            let length = length as usize;
-            for no in 0..length {
+            for no in 0..length / 4 {
                 // flags, currently unused
                 reader.skip_u32()?;
                 fun.blocks.push(GcovBlock::new(no));
@@ -600,13 +609,14 @@ impl Gcno {
             if tag == 0 {
                 break;
             }
-            let length = reader.read_u32()?;
+            let length = reader.read_u32()? as usize;
             // GCC 12.1 and newer count bytes, older versions count 4-byte words
             let length = if self.version >= 120 {
-                length / 4
-            } else {
                 length
+            } else {
+                4 * length
             };
+            let end_of_record = reader.get_pos() + length;
 
             if tag == GCOV_TAG_FUNCTION {
                 let identifier = reader.read_u32()?;
@@ -655,27 +665,20 @@ impl Gcno {
                 });
                 self.ident_to_fun.insert(identifier, pos);
             } else if tag == GCOV_TAG_BLOCKS {
-                let fun = if let Some(fun) = self.functions.last_mut() {
-                    fun
-                } else {
-                    continue;
-                };
-                Gcno::read_blocks(fun, length, self.version, reader)?;
+                if let Some(fun) = self.functions.last_mut() {
+                    Gcno::read_blocks(fun, length, self.version, reader)?;
+                }
             } else if tag == GCOV_TAG_ARCS {
-                let fun = if let Some(fun) = self.functions.last_mut() {
-                    fun
-                } else {
-                    continue;
-                };
-                Gcno::read_edges(fun, length, reader)?;
+                if let Some(fun) = self.functions.last_mut() {
+                    Gcno::read_edges(fun, length, reader)?;
+                }
             } else if tag == GCOV_TAG_LINES {
-                let fun = if let Some(fun) = self.functions.last_mut() {
-                    fun
-                } else {
-                    continue;
-                };
-                Gcno::read_lines(fun, self.version, reader)?;
+                if let Some(fun) = self.functions.last_mut() {
+                    Gcno::read_lines(fun, self.version, reader)?;
+                }
             }
+            // skip what was not read, such as the conditions and paths of GCC 14 and 15
+            reader.skip_to(end_of_record)?;
         }
         Ok(())
     }
@@ -705,6 +708,8 @@ impl Gcno {
                     reader.skip_u32()?;
                 }
                 let mut current_fun_id: Option<usize> = None;
+                // ident, line checksum and, since GCC 4.7, cfg checksum
+                let function_length = if version >= 47 { 12 } else { 8 };
                 while let Ok(tag) = reader.read_u32() {
                     if tag == 0 {
                         break;
@@ -715,24 +720,18 @@ impl Gcno {
                     // are not written out, only their would-be size is.
                     let (length, omitted) = if version >= 120 {
                         let length = length as i32;
-                        (length.unsigned_abs() / 4, length < 0)
+                        (length.unsigned_abs() as usize, length < 0)
                     } else {
-                        (length, false)
+                        (4 * length as usize, false)
                     };
-                    let mut pos = reader.get_pos();
+                    let end_of_record = reader.get_pos() + if omitted { 0 } else { length };
 
-                    if tag == GCOV_TAG_FUNCTION {
-                        if length == 0 {
-                            continue;
-                        }
-
-                        if length == 1 {
-                            return Err(GcovReaderError::Str(format!(
-                                "Invalid header length in {}",
-                                reader.get_stem()
-                            )));
-                        }
-
+                    // A shorter function record, like the 0-length placeholder of a function
+                    // absent from this object, is skipped as GCC does. Clang 10 and older
+                    // append the function name, so a longer one is read.
+                    if tag == GCOV_TAG_FUNCTION && length < function_length {
+                        current_fun_id = None;
+                    } else if tag == GCOV_TAG_FUNCTION {
                         let id = reader.read_u32()?;
                         let line_sum = reader.read_u32()?;
                         let cfg_sum = if version >= 47 { reader.read_u32()? } else { 0 };
@@ -756,16 +755,11 @@ impl Gcno {
                                 reader.get_stem()
                             )));
                         }
-                    } else if tag == GCOV_TAG_COUNTER_ARCS {
-                        let fun = if let Some(fun_id) = &current_fun_id {
-                            &mut self.functions[*fun_id]
-                        } else {
-                            continue;
-                        };
-
-                        let count = length;
+                    } else if let (GCOV_TAG_COUNTER_ARCS, Some(fun_id)) = (tag, current_fun_id) {
+                        let fun = &mut self.functions[fun_id];
                         let edges = &mut fun.edges;
-                        if fun.real_edge_count as u32 != count / 2 {
+                        // one 8-byte counter per edge off the spanning tree
+                        if fun.real_edge_count != length / 8 {
                             return Err(GcovReaderError::Str(format!(
                                 "Unexpected number of edges (in {}) in {}",
                                 fun.name,
@@ -786,7 +780,7 @@ impl Gcno {
                     } else if tag == GCOV_TAG_OBJECT_SUMMARY {
                         let runcounts = reader.read_u32()?;
                         reader.skip_u32()?;
-                        self.runcounts += if length == 9 {
+                        self.runcounts += if length == 36 {
                             reader.read_u32()?
                         } else {
                             runcounts
@@ -799,10 +793,7 @@ impl Gcno {
                         }
                         self.programcounts += 1;
                     }
-                    if !omitted {
-                        pos += 4 * (length as usize);
-                    }
-                    reader.skip(pos - reader.get_pos())?;
+                    reader.skip_to(end_of_record)?;
                 }
 
                 Ok(())
