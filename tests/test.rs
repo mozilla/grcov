@@ -18,6 +18,10 @@ fn get_tool(name: &str, default: &str) -> String {
 }
 
 fn make(path: &Path, compiler: &str) {
+    make_with_flags(path, compiler, &[]);
+}
+
+fn make_with_flags(path: &Path, compiler: &str, flags: &[&str]) {
     let mut args = Vec::new();
 
     let c_cpp_globs = vec!["*.cpp", "*.c"];
@@ -40,6 +44,7 @@ fn make(path: &Path, compiler: &str) {
         .arg("-ftest-coverage")
         .arg("-O0")
         .arg("-fno-inline")
+        .args(flags)
         .args(args)
         .current_dir(path)
         .status()
@@ -130,6 +135,15 @@ fn get_cmd_path() -> &'static str {
 }
 
 fn run_grcov(paths: Vec<&Path>, source_root: &Path, output_format: &str) -> String {
+    run_grcov_with_args(paths, source_root, output_format, &[])
+}
+
+fn run_grcov_with_args(
+    paths: Vec<&Path>,
+    source_root: &Path,
+    output_format: &str,
+    extra_args: &[&str],
+) -> String {
     let mut args: Vec<&str> = Vec::new();
 
     for path in &paths {
@@ -157,6 +171,7 @@ fn run_grcov(paths: Vec<&Path>, source_root: &Path, output_format: &str) -> Stri
     args.push("--ignore");
     args.push("/Applications/*");
     args.push("--guess-directory-when-missing");
+    args.extend_from_slice(extra_args);
 
     let output = Command::new(get_cmd_path())
         .args(args)
@@ -453,6 +468,7 @@ fn test_integration() {
         if path.starts_with("tests/basic_zip_zip")
             || path.starts_with("tests/basic_zip_dir")
             || path.starts_with("tests/rust")
+            || path.starts_with("tests/conditions")
         {
             continue;
         }
@@ -670,13 +686,47 @@ fn test_integration_guess_single_file() {
     );
 }
 
+// The built-in reader (--llvm) has to skip the condition (GCC 14+) and path (GCC 15+)
+// records, and then agree with gcov.
+#[test]
+fn test_integration_gcc_conditions_and_paths() {
+    if !cfg!(target_os = "linux") {
+        return;
+    }
+    let gpp = &get_tool("GCC_CXX", "g++");
+    let gcc_version: u32 = get_version(gpp).parse().unwrap();
+    if gcc_version < 14 {
+        return;
+    }
+    let mut flags = vec!["-fcondition-coverage"];
+    if gcc_version >= 15 {
+        flags.push("-fpath-coverage");
+    }
+
+    let path = Path::new("tests/conditions");
+    do_clean(path);
+    make_with_flags(path, gpp, &flags);
+    run(path);
+    let gcov = run_grcov(vec![path], path, "coveralls");
+    let builtin = run_grcov_with_args(vec![path], path, "coveralls", &["--llvm"]);
+    do_clean(path);
+
+    let gcov: Value = serde_json::from_str(&gcov).unwrap();
+    let builtin: Value = serde_json::from_str(&builtin).unwrap();
+    assert!(!gcov["source_files"].as_array().unwrap().is_empty());
+    assert_eq!(builtin, gcov);
+}
+
+// An lcov file needs no gcov, so these don't depend on which gcno the local gcov reads.
+const LCOV_INPUT: &str = "test/prova_fn_with_commas.info";
+
 #[test]
 fn test_coveralls_works_with_just_token_arg() {
     for output in &["coveralls", "coveralls+"] {
         let status = Command::new(get_cmd_path())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .args(vec![".", "-t", output, "--token", "123"])
+            .args(vec![LCOV_INPUT, "-t", output, "--token", "123"])
             .status()
             .expect("Failed to run grcov");
         assert!(status.success());
@@ -690,7 +740,7 @@ fn test_coveralls_works_with_just_service_name_and_job_id_args() {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .args(vec![
-                ".",
+                LCOV_INPUT,
                 "-t",
                 output,
                 "--service-name",
@@ -710,7 +760,13 @@ fn test_coveralls_service_name_is_not_sufficient() {
         let status = Command::new(get_cmd_path())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .args(vec![".", "-t", output, "--service-name", "travis-ci"])
+            .args(vec![
+                LCOV_INPUT,
+                "-t",
+                output,
+                "--service-name",
+                "travis-ci",
+            ])
             .status()
             .expect("Failed to run grcov");
         assert!(!status.success());
@@ -723,7 +779,7 @@ fn test_coveralls_service_job_id_is_not_sufficient() {
         let status = Command::new(get_cmd_path())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .args(vec![".", "-t", output, "--service-job-id", "456"])
+            .args(vec![LCOV_INPUT, "-t", output, "--service-job-id", "456"])
             .status()
             .expect("Failed to run grcov");
         assert!(!status.success());
