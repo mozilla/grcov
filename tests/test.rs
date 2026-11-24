@@ -729,3 +729,36 @@ fn test_coveralls_service_job_id_is_not_sufficient() {
         assert!(!status.success());
     }
 }
+
+#[test]
+fn test_no_functions() {
+    // Both an LCOV input (functions skipped while parsing) and a JaCoCo input
+    // (functions dropped after parsing).
+    for input in &["test/prova.info", "test/jacoco/basic-report.xml"] {
+        let run = |extra_args: &[&str]| {
+            let output = Command::new(get_cmd_path())
+                .args([input, "-t", "lcov"])
+                .args(extra_args)
+                .output()
+                .expect("Failed to run grcov");
+            assert!(output.status.success());
+            String::from_utf8(output.stdout).unwrap()
+        };
+        let is_function_record = |line: &&str| line.starts_with("FN");
+
+        let with_functions = run(&[]);
+        let without_functions = run(&["--no-functions"]);
+
+        assert!(with_functions.lines().any(|line| is_function_record(&line)));
+        assert!(!without_functions
+            .lines()
+            .any(|line| is_function_record(&line)));
+        assert_eq!(
+            with_functions
+                .lines()
+                .filter(|line| !is_function_record(line))
+                .collect::<Vec<_>>(),
+            without_functions.lines().collect::<Vec<_>>(),
+        );
+    }
+}
