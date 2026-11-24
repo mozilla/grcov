@@ -215,6 +215,10 @@ struct Opt {
     /// Enables parsing branch coverage information.
     #[arg(long)]
     branch: bool,
+    /// Disables parsing function coverage information. Reports won't contain any
+    /// function, and parsing is faster when only line and branch coverage are needed.
+    #[arg(long)]
+    no_functions: bool,
     /// Filters out covered/uncovered files. Use 'covered' to only return covered files, 'uncovered'
     /// to only return uncovered files.
     #[arg(long, value_enum)]
@@ -452,6 +456,7 @@ fn main() {
         let source_root = source_root.clone();
         let binary_path = opt.binary_path.clone();
         let branch_enabled = opt.branch;
+        let functions_enabled = !opt.no_functions;
         let guess_directory = opt.guess_directory;
         let ignore_parsing_error = opt.ignore_parsing_error;
 
@@ -465,6 +470,7 @@ fn main() {
                     &result_map,
                     receiver,
                     branch_enabled,
+                    functions_enabled,
                     guess_directory,
                     binary_path.as_deref(),
                     ignore_parsing_error,

@@ -189,6 +189,7 @@ pub fn consumer(
     result_map: &SyncCovResultMap,
     receiver: JobReceiver,
     branch_enabled: bool,
+    functions_enabled: bool,
     guess_directory: bool,
     binary_path: Option<&Path>,
     ignore_parsing_error: bool,
@@ -201,7 +202,7 @@ pub fn consumer(
             break;
         }
         let work_item = work_item.unwrap();
-        let new_results = match work_item.format {
+        let mut new_results = match work_item.format {
             ItemFormat::Gcno => {
                 match work_item.item {
                     ItemType::Path((stem, gcno_path)) => {
@@ -313,7 +314,12 @@ pub fn consumer(
 
                             for lcov in lcovs {
                                 new_results.append(&mut try_parse!(
-                                    parse_lcov(lcov, branch_enabled, ignore_parsing_error),
+                                    parse_lcov(
+                                        lcov,
+                                        branch_enabled,
+                                        functions_enabled,
+                                        ignore_parsing_error
+                                    ),
                                     work_item.name
                                 ));
                             }
@@ -334,7 +340,12 @@ pub fn consumer(
                 if let ItemType::Content(content) = work_item.item {
                     if work_item.format == ItemFormat::Info {
                         try_parse!(
-                            parse_lcov(content, branch_enabled, ignore_parsing_error),
+                            parse_lcov(
+                                content,
+                                branch_enabled,
+                                functions_enabled,
+                                ignore_parsing_error,
+                            ),
                             work_item.name
                         )
                     } else if work_item.format == ItemFormat::JacocoXml {
@@ -350,6 +361,12 @@ pub fn consumer(
                 }
             }
         };
+
+        if !functions_enabled {
+            for (_, result) in &mut new_results {
+                result.functions.clear();
+            }
+        }
 
         add_results(new_results, result_map, source_dir);
     }
@@ -459,7 +476,7 @@ mod tests {
             .expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let results = parse_lcov(buf, false, false).unwrap();
+        let results = parse_lcov(buf, false, true, false).unwrap();
         let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
             FxHashMap::with_capacity_and_hasher(1, Default::default()),
         ));
@@ -493,7 +510,7 @@ mod tests {
             .expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let results = parse_lcov(buf, false, false).unwrap();
+        let results = parse_lcov(buf, false, true, false).unwrap();
         let result_map: Arc<SyncCovResultMap> = Arc::new(Mutex::new(
             FxHashMap::with_capacity_and_hasher(3, Default::default()),
         ));

@@ -111,6 +111,7 @@ fn bench_lib_consumer(b: &mut Bencher) {
                         &result_map,
                         receiver,
                         false,
+                        true,
                         false,
                         None,
                         false,

@@ -153,6 +153,7 @@ pub fn add_branch(branches: &mut BTreeMap<u32, Vec<bool>>, line_no: u32, no: u32
 pub fn parse_lcov(
     buffer: Vec<u8>,
     branch_enabled: bool,
+    functions_enabled: bool,
     ignore_parsing_error: bool,
 ) -> Result<Vec<(String, CovResult)>, ParserError> {
     let mut cur_file = None;
@@ -303,6 +304,9 @@ pub fn parse_lcov(
                             0
                         };
                         *cur_lines.entry(line_no).or_insert(0) += execution_count;
+                    }
+                    FN | FNDA if !functions_enabled => {
+                        iter.take_while(|&&c| c != b'\n').last();
                     }
                     FN => {
                         if ignore_parsing_error && parsing_error_occurs {
@@ -1067,7 +1071,7 @@ mod tests {
         let mut f = File::open("./test/prova.info").expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let results = parse_lcov(buf, false, false).unwrap();
+        let results = parse_lcov(buf, false, true, false).unwrap();
 
         assert_eq!(results.len(), 603);
 
@@ -1153,7 +1157,7 @@ mod tests {
         let mut f = File::open("./test/prova.info").expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let results = parse_lcov(buf, true, false).unwrap();
+        let results = parse_lcov(buf, true, true, false).unwrap();
 
         assert_eq!(results.len(), 603);
 
@@ -1247,12 +1251,48 @@ mod tests {
     }
 
     #[test]
+    fn test_lcov_parser_without_functions() {
+        let mut f = File::open("./test/prova.info").expect("Failed to open lcov file");
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf).unwrap();
+        let with_functions = parse_lcov(buf.clone(), true, true, false).unwrap();
+        let without_functions = parse_lcov(buf, true, false, false).unwrap();
+
+        assert!(with_functions
+            .iter()
+            .any(|(_, result)| !result.functions.is_empty()));
+        assert_eq!(with_functions.len(), without_functions.len());
+        for ((name, result), (name_without, result_without)) in
+            with_functions.iter().zip(without_functions.iter())
+        {
+            assert_eq!(name, name_without);
+            assert_eq!(result.lines, result_without.lines);
+            assert_eq!(result.branches, result_without.branches);
+            assert!(result_without.functions.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_lcov_parser_without_functions_skips_invalid_function_records() {
+        // Function records are not parsed at all, so invalid ones are not errors.
+        let buf = b"SF:file.js\nFN:,f\nFNDA:1,g\nDA:1,3\nend_of_record\n".to_vec();
+        assert!(parse_lcov(buf.clone(), false, true, false).is_err());
+
+        let results = parse_lcov(buf, false, false, false).unwrap();
+        assert_eq!(results.len(), 1);
+        let (ref source_name, ref result) = results[0];
+        assert_eq!(source_name, "file.js");
+        assert_eq!(result.lines, [(1, 3)].iter().cloned().collect());
+        assert!(result.functions.is_empty());
+    }
+
+    #[test]
     fn test_lcov_parser_fn_with_commas() {
         let mut f =
             File::open("./test/prova_fn_with_commas.info").expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let results = parse_lcov(buf, true, false).unwrap();
+        let results = parse_lcov(buf, true, true, false).unwrap();
 
         assert_eq!(results.len(), 1);
 
@@ -1343,7 +1383,7 @@ mod tests {
         let mut f = File::open("./test/empty_line.info").expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let results = parse_lcov(buf, true, false).unwrap();
+        let results = parse_lcov(buf, true, true, false).unwrap();
 
         assert_eq!(results.len(), 1);
 
@@ -1439,7 +1479,7 @@ mod tests {
         let buf = "TN:\nSF:foo.scala\nFN:-1,curried\nFNDA:0,curried\nDA:1,0\nend_of_record\n"
             .as_bytes()
             .to_vec();
-        let results = parse_lcov(buf, false, true).unwrap();
+        let results = parse_lcov(buf, false, true, true).unwrap();
         assert_eq!(results.len(), 1);
 
         let (ref source_name, ref result) = results[0];
@@ -1458,7 +1498,7 @@ mod tests {
         let buf = "TN:\nSF:foo.scala\nFN:-1,curried\nFNDA:0,curried\nDA:1,0\nend_of_record\n"
             .as_bytes()
             .to_vec();
-        let result = parse_lcov(buf, false, false);
+        let result = parse_lcov(buf, false, true, false);
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(
@@ -1474,7 +1514,7 @@ mod tests {
         let buf = "SF:foo.scala\nFN:,curried\nend_of_record\n"
             .as_bytes()
             .to_vec();
-        let result = parse_lcov(buf, false, false);
+        let result = parse_lcov(buf, false, true, false);
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.to_string(), "Invalid record: 'FN at line 2'");
@@ -1486,7 +1526,7 @@ mod tests {
         let mut f = File::open("./test/invalid_DA_record.info").expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let result = parse_lcov(buf, true, false);
+        let result = parse_lcov(buf, true, true, false);
         assert!(result.is_err());
     }
 
@@ -1496,7 +1536,7 @@ mod tests {
         let mut f = File::open("./test/invalid_DA_record.info").expect("Failed to open lcov file");
         let mut buf = Vec::new();
         f.read_to_end(&mut buf).unwrap();
-        let results = parse_lcov(buf, true, true).unwrap();
+        let results = parse_lcov(buf, true, true, true).unwrap();
         assert_eq!(results.len(), 1);
 
         let (ref source_name, ref result) = results[0];
@@ -1553,7 +1593,7 @@ DA:156,12
 DA
 TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_2dinherit_2emeta_2funset_2fiframe_2dtag_2ehttp_2ehtml_2c_20about_3ablank"
         .as_bytes().to_vec();
-        let result = parse_lcov(buf, true, false);
+        let result = parse_lcov(buf, true, true, false);
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.to_string(), "Invalid record: 'DA at line 5'");
@@ -1562,7 +1602,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
     #[test]
     fn test_lcov_parser_end_of_record_without_source_file() {
         let buf = "end_of_record\n".as_bytes().to_vec();
-        let result = parse_lcov(buf, true, false);
+        let result = parse_lcov(buf, true, true, false);
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(
@@ -1576,7 +1616,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
         let buf = "end_of_record\nSF:f.rs\nDA:1,1\nend_of_record\n"
             .as_bytes()
             .to_vec();
-        let results = parse_lcov(buf, true, true).unwrap();
+        let results = parse_lcov(buf, true, true, true).unwrap();
         assert_eq!(results.len(), 1);
         let (ref source_name, ref result) = results[0];
         assert_eq!(source_name, "f.rs");
@@ -1588,7 +1628,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
         let buf = "SF:f.rs\nDA:1,1\nend_of_record\nexcluded_by_a_tool\n"
             .as_bytes()
             .to_vec();
-        let results = parse_lcov(buf, true, false).unwrap();
+        let results = parse_lcov(buf, true, true, false).unwrap();
         assert_eq!(results.len(), 1);
         let (ref source_name, ref result) = results[0];
         assert_eq!(source_name, "f.rs");
@@ -1599,7 +1639,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
     fn test_lcov_parser_end_of_record_line_endings() {
         for ending in ["\n", "\r\n", "", "\r"] {
             let buf = format!("SF:f.rs\nDA:1,1\nend_of_record{ending}").into_bytes();
-            let results = parse_lcov(buf, true, false).unwrap();
+            let results = parse_lcov(buf, true, true, false).unwrap();
             assert_eq!(results.len(), 1, "ending: {ending:?}");
             assert_eq!(results[0].0, "f.rs");
             assert_eq!(results[0].1.lines, [(1, 1)].iter().cloned().collect());
@@ -1616,7 +1656,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
             "excluded:SF:wrong.rs",
         ] {
             let buf = format!("SF:f.rs\n{record}\nDA:1,1\nend_of_record\n").into_bytes();
-            let results = parse_lcov(buf, true, false).unwrap();
+            let results = parse_lcov(buf, true, true, false).unwrap();
             assert_eq!(results.len(), 1, "record: {record:?}");
             assert_eq!(results[0].0, "f.rs");
             assert_eq!(results[0].1.lines, [(1, 1)].iter().cloned().collect());
@@ -1631,7 +1671,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
         let buf = "SF:f.rs\nDA:5,3,e4f2\nDA:6,1\nend_of_record\n"
             .as_bytes()
             .to_vec();
-        let results = parse_lcov(buf, true, false).unwrap();
+        let results = parse_lcov(buf, true, true, false).unwrap();
         assert_eq!(results.len(), 1);
         let (ref source_name, ref result) = results[0];
         assert_eq!(source_name, "f.rs");
@@ -1643,7 +1683,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
         let buf = "SF:f.rs\nSFFFFF:x\nDA:1,1\nend_of_record\n"
             .as_bytes()
             .to_vec();
-        let result = parse_lcov(buf, true, false);
+        let result = parse_lcov(buf, true, true, false);
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.to_string(), "Invalid record: 'Invalid key at line 2'");
@@ -1656,7 +1696,7 @@ TN:http_3a_2f_2fweb_2dplatform_2etest_3a8000_2freferrer_2dpolicy_2fgen_2fsrcdoc_
         let buf = "SF:f.rs\nSFFFFF:x\nDA:1,1\nend_of_record\n"
             .as_bytes()
             .to_vec();
-        let results = parse_lcov(buf, true, true).unwrap();
+        let results = parse_lcov(buf, true, true, true).unwrap();
         assert!(results.is_empty());
     }
 

@@ -94,6 +94,10 @@ Options:
       --branch
           Enables parsing branch coverage information
 
+      --no-functions
+          Disables parsing function coverage information. Reports won't contain any function, and
+          parsing is faster when only line and branch coverage are needed
+
       --filter <FILTER>
           Filters out covered/uncovered files. Use 'covered' to only return covered files,
           'uncovered' to only return uncovered files
