@@ -304,28 +304,31 @@ build:
     - ./bin/integration-tests --foo bar
     # Create the output directory
     - mkdir target/coverage
-    # This is a multi-line command. You can also write it all as one line if desired, just remove
-    # the '|' and all the newlines.
-    - |
+    # Collect coverage and write the reports. The command below is split over several lines using
+    # a YAML folded block (">-"), so it is joined into a single line. Comments can't be placed
+    # inside the block, so the options are explained here:
+    #
+    # - The first argument ("target/coverage") is the path to the '.profraw' files. It must match the setting in
+    #   LLVM_PROFILE_FILE. If you're not getting the coverage you expect, look for '.profraw'
+    #   files in other directories.
+    # - '--binary-path' is where the binaries are, if your target dir is modified this will need to
+    #   match.
+    # - '-s' is where the source directory is expected.
+    # - '-o' is where to write the output; this should be a directory that exists.
+    # - '--keep-only' excludes coverage of crates and Rust stdlib code. If you get unexpected
+    #   coverage results from this (empty, for example), try different combinations of
+    #   '--ignore-not-existing', '--ignore "$HOME/.cargo/**"' and see what kind of filtering gets
+    #   you the coverage you're looking for.
+    # - '--output-types': doing both isn't strictly necessary, if you won't use the HTML version
+    #   you can modify this line.
+    - >-
         grcov
-    # This path must match the setting in LLVM_PROFILE_FILE. If you're not getting the coverage
-    # you expect, look for '.profraw' files in other directories.
         target/coverage
-    # If your target dir is modified, this will need to match...
         --binary-path target/debug
-    # Where the source directory is expected
         -s .
-    # Where to write the output; this should be a directory that exists.
         -o target/coverage
-    # Exclude coverage of crates and Rust stdlib code. If you get unexpected coverage results from
-    # this (empty, for example), try different combinations of '--ignore-not-existing',
-    # '--ignore "$HOME/.cargo/**"' and see what kind of filtering gets you the coverage you're
-    # looking for.
         --keep-only 'src/*'
-    # Doing both isn't strictly necessary, if you won't use the HTML version you can modify this
-    # line.
         --output-types html,cobertura
-
     # Extract just the top-level coverage number from the XML report.
     - xmllint --xpath "concat('Coverage - ', 100 * string(//coverage/@line-rate), '%')" target/coverage/cobertura.xml
   coverage: '/Coverage - \d+(?:\.\d+)?/'
