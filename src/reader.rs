@@ -2,7 +2,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use std::cmp;
 use std::collections::{btree_map, hash_map, BTreeMap};
-use std::convert::From;
+use std::convert::{From, TryInto};
 use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
 use std::io::{BufReader, Error, Read, Write};
@@ -50,6 +50,15 @@ pub trait GcovReader<E: Endian> {
     fn get_stem(&self) -> &str;
     fn skip_u32(&mut self) -> Result<(), GcovReaderError>;
     fn skip(&mut self, len: usize) -> Result<(), GcovReaderError>;
+    /// Moves to `pos`, unless it was already read past.
+    fn skip_to(&mut self, pos: usize) -> Result<(), GcovReaderError> {
+        let cur = self.get_pos();
+        if pos > cur {
+            self.skip(pos - cur)
+        } else {
+            Ok(())
+        }
+    }
     fn is_little_endian(&self) -> bool {
         E::is_little_endian()
     }
@@ -163,6 +172,7 @@ pub struct GcovReaderBuf<E: Endian> {
     stem: String,
     buffer: Vec<u8>,
     pos: usize,
+    version: u32,
     phantom: PhantomData<E>,
 }
 
@@ -172,15 +182,13 @@ macro_rules! read_u {
         let start = $buf.pos;
         $buf.pos += size;
         if $buf.pos <= $buf.buffer.len() {
-            let val: $ty = unsafe {
-                // data are aligned so it's safe to do that
-                #[allow(clippy::transmute_ptr_to_ptr)]
-                *std::mem::transmute::<*const u8, *const $ty>($buf.buffer[start..].as_ptr())
-            };
+            // GCC 12.1 and newer drop the padding, so the data can be unaligned.
+            let bytes: [u8; std::mem::size_of::<$ty>()] =
+                $buf.buffer[start..$buf.pos].try_into().unwrap();
             Ok(if $buf.is_little_endian() {
-                val.to_le()
+                <$ty>::from_le_bytes(bytes)
             } else {
-                val.to_be()
+                <$ty>::from_be_bytes(bytes)
             })
         } else {
             Err(GcovReaderError::Str(format!(
@@ -194,7 +202,7 @@ macro_rules! read_u {
 macro_rules! skip {
     ($size: expr, $buf: expr) => {{
         $buf.pos += $size;
-        if $buf.pos < $buf.buffer.len() {
+        if $buf.pos <= $buf.buffer.len() {
             Ok(())
         } else {
             Err(GcovReaderError::Str(format!(
@@ -212,6 +220,7 @@ impl<E: Endian> GcovReaderBuf<E> {
             stem: stem.to_string(),
             buffer,
             pos: 4, // we already read gcno or gcda
+            version: 0,
             phantom: PhantomData,
         }
     }
@@ -237,7 +246,13 @@ impl<E: Endian> GcovReader<E> for GcovReaderBuf<E> {
         if len == 0 {
             return Ok("".to_string());
         }
-        let len = len as usize * 4;
+        // Since GCC 12.1 the length is a byte count and the string is not padded,
+        // before that it counted 4-byte words.
+        let len = if self.version >= 120 {
+            len as usize
+        } else {
+            len as usize * 4
+        };
         let start = self.pos;
         self.pos += len;
         if self.pos <= self.buffer.len() {
@@ -279,19 +294,22 @@ impl<E: Endian> GcovReader<E> for GcovReaderBuf<E> {
         let i = self.pos;
         if i + 4 <= self.buffer.len() {
             self.pos += 4;
-            if self.is_little_endian() && self.buffer[i] == b'*' {
-                Ok(self.get_version(&self.buffer[i + 1..i + 4]))
+            let version = if self.is_little_endian() && self.buffer[i] == b'*' {
+                self.get_version(&self.buffer[i + 1..i + 4])
             } else if !self.is_little_endian() && self.buffer[i + 3] == b'*' {
                 let buf = [self.buffer[i + 2], self.buffer[i + 1], self.buffer[i]];
-                Ok(self.get_version(&buf))
+                self.get_version(&buf)
             } else {
                 let bytes = &self.buffer[i..i + 4];
-                Err(GcovReaderError::Str(format!(
+                return Err(GcovReaderError::Str(format!(
                     "Unexpected version: {} in {}",
                     String::from_utf8_lossy(bytes),
                     self.get_stem()
-                )))
-            }
+                )));
+            };
+            // remembered because it drives the on-disk layout, see read_string
+            self.version = version;
+            Ok(version)
         } else {
             Err(GcovReaderError::Str(format!(
                 "Not enough data in buffer: Cannot read version in {}",
@@ -459,6 +477,10 @@ impl Gcno {
     ) -> Result<(), GcovReaderError> {
         self.version = reader.read_version()?;
         self.checksum = reader.read_u32()?;
+        if self.version >= 120 {
+            // checksum of the file contents
+            reader.skip_u32()?;
+        }
         if self.version >= 90 {
             self.cwd = Some(reader.read_string()?);
         }
@@ -472,12 +494,13 @@ impl Gcno {
 
     fn read_edges<E: Endian, T: GcovReader<E> + Sized>(
         fun: &mut GcovFunction,
-        count: u32,
+        length: usize,
         reader: &mut T,
     ) -> Result<(), GcovReaderError> {
         let edges = &mut fun.edges;
         let blocks = &mut fun.blocks;
-        let count = ((count - 1) / 2) as usize;
+        // the source block, then a destination block and flags per edge
+        let count = (length / 4 - 1) / 2;
         let block_no = reader.read_u32()? as usize;
         if block_no <= blocks.len() {
             blocks[block_no].destination.reserve(count);
@@ -558,13 +581,12 @@ impl Gcno {
 
     fn read_blocks<E: Endian, T: GcovReader<E> + Sized>(
         fun: &mut GcovFunction,
-        length: u32,
+        length: usize,
         version: u32,
         reader: &mut T,
     ) -> Result<(), GcovReaderError> {
         if version < 80 {
-            let length = length as usize;
-            for no in 0..length {
+            for no in 0..length / 4 {
                 // flags, currently unused
                 reader.skip_u32()?;
                 fun.blocks.push(GcovBlock::new(no));
@@ -587,7 +609,14 @@ impl Gcno {
             if tag == 0 {
                 break;
             }
-            let length = reader.read_u32()?;
+            let length = reader.read_u32()? as usize;
+            // GCC 12.1 and newer count bytes, older versions count 4-byte words
+            let length = if self.version >= 120 {
+                length
+            } else {
+                4 * length
+            };
+            let end_of_record = reader.get_pos() + length;
 
             if tag == GCOV_TAG_FUNCTION {
                 let identifier = reader.read_u32()?;
@@ -636,27 +665,20 @@ impl Gcno {
                 });
                 self.ident_to_fun.insert(identifier, pos);
             } else if tag == GCOV_TAG_BLOCKS {
-                let fun = if let Some(fun) = self.functions.last_mut() {
-                    fun
-                } else {
-                    continue;
-                };
-                Gcno::read_blocks(fun, length, self.version, reader)?;
+                if let Some(fun) = self.functions.last_mut() {
+                    Gcno::read_blocks(fun, length, self.version, reader)?;
+                }
             } else if tag == GCOV_TAG_ARCS {
-                let fun = if let Some(fun) = self.functions.last_mut() {
-                    fun
-                } else {
-                    continue;
-                };
-                Gcno::read_edges(fun, length, reader)?;
+                if let Some(fun) = self.functions.last_mut() {
+                    Gcno::read_edges(fun, length, reader)?;
+                }
             } else if tag == GCOV_TAG_LINES {
-                let fun = if let Some(fun) = self.functions.last_mut() {
-                    fun
-                } else {
-                    continue;
-                };
-                Gcno::read_lines(fun, self.version, reader)?;
+                if let Some(fun) = self.functions.last_mut() {
+                    Gcno::read_lines(fun, self.version, reader)?;
+                }
             }
+            // skip what was not read, such as the conditions and paths of GCC 14 and 15
+            reader.skip_to(end_of_record)?;
         }
         Ok(())
     }
@@ -681,26 +703,35 @@ impl Gcno {
                     reader.get_stem()
                 )))
             } else {
+                if version >= 120 {
+                    // checksum of the file contents
+                    reader.skip_u32()?;
+                }
                 let mut current_fun_id: Option<usize> = None;
+                // ident, line checksum and, since GCC 4.7, cfg checksum
+                let function_length = if version >= 47 { 12 } else { 8 };
                 while let Ok(tag) = reader.read_u32() {
                     if tag == 0 {
                         break;
                     }
                     let length = reader.read_u32()?;
-                    let mut pos = reader.get_pos();
+                    // GCC 12.1 and newer count bytes instead of 4-byte words, and negate
+                    // the length of a counter record whose counters are all zero: those
+                    // are not written out, only their would-be size is.
+                    let (length, omitted) = if version >= 120 {
+                        let length = length as i32;
+                        (length.unsigned_abs() as usize, length < 0)
+                    } else {
+                        (4 * length as usize, false)
+                    };
+                    let end_of_record = reader.get_pos() + if omitted { 0 } else { length };
 
-                    if tag == GCOV_TAG_FUNCTION {
-                        if length == 0 {
-                            continue;
-                        }
-
-                        if length == 1 {
-                            return Err(GcovReaderError::Str(format!(
-                                "Invalid header length in {}",
-                                reader.get_stem()
-                            )));
-                        }
-
+                    // A shorter function record, like the 0-length placeholder of a function
+                    // absent from this object, is skipped as GCC does. Clang 10 and older
+                    // append the function name, so a longer one is read.
+                    if tag == GCOV_TAG_FUNCTION && length < function_length {
+                        current_fun_id = None;
+                    } else if tag == GCOV_TAG_FUNCTION {
                         let id = reader.read_u32()?;
                         let line_sum = reader.read_u32()?;
                         let cfg_sum = if version >= 47 { reader.read_u32()? } else { 0 };
@@ -724,16 +755,11 @@ impl Gcno {
                                 reader.get_stem()
                             )));
                         }
-                    } else if tag == GCOV_TAG_COUNTER_ARCS {
-                        let fun = if let Some(fun_id) = &current_fun_id {
-                            &mut self.functions[*fun_id]
-                        } else {
-                            continue;
-                        };
-
-                        let count = length;
+                    } else if let (GCOV_TAG_COUNTER_ARCS, Some(fun_id)) = (tag, current_fun_id) {
+                        let fun = &mut self.functions[fun_id];
                         let edges = &mut fun.edges;
-                        if fun.real_edge_count as u32 != count / 2 {
+                        // one 8-byte counter per edge off the spanning tree
+                        if fun.real_edge_count != length / 8 {
                             return Err(GcovReaderError::Str(format!(
                                 "Unexpected number of edges (in {}) in {}",
                                 fun.name,
@@ -741,18 +767,20 @@ impl Gcno {
                             )));
                         }
 
-                        for edge in edges.iter_mut() {
-                            if edge.is_on_tree() {
-                                continue;
+                        if !omitted {
+                            for edge in edges.iter_mut() {
+                                if edge.is_on_tree() {
+                                    continue;
+                                }
+                                let counter = reader.read_counter()?;
+                                edge.counter += counter;
+                                fun.blocks[edge.source].counter += counter;
                             }
-                            let counter = reader.read_counter()?;
-                            edge.counter += counter;
-                            fun.blocks[edge.source].counter += counter;
                         }
                     } else if tag == GCOV_TAG_OBJECT_SUMMARY {
                         let runcounts = reader.read_u32()?;
                         reader.skip_u32()?;
-                        self.runcounts += if length == 9 {
+                        self.runcounts += if length == 36 {
                             reader.read_u32()?
                         } else {
                             runcounts
@@ -765,8 +793,7 @@ impl Gcno {
                         }
                         self.programcounts += 1;
                     }
-                    pos += 4 * (length as usize);
-                    reader.skip(pos - reader.get_pos())?;
+                    reader.skip_to(end_of_record)?;
                 }
 
                 Ok(())
@@ -1324,6 +1351,55 @@ mod tests {
     }
 
     #[test]
+    fn test_reader_gcno_gcda_gcc11() {
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/reader_gcc-11.gcno");
+        from_path(&mut gcno, FileType::Gcda, "test/reader_gcc-11.gcda");
+        gcno.stop();
+        let output = format!("{gcno:?}");
+        let input = get_input_string("test/reader_gcc-11.gcno.1.dump");
+
+        assert_eq!(output, input);
+    }
+
+    #[test]
+    fn test_reader_gcno_gcda_gcc12() {
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/reader_gcc-12.gcno");
+        from_path(&mut gcno, FileType::Gcda, "test/reader_gcc-12.gcda");
+        gcno.stop();
+        let output = format!("{gcno:?}");
+        let input = get_input_string("test/reader_gcc-12.gcno.1.dump");
+
+        assert_eq!(output, input);
+    }
+
+    #[test]
+    fn test_reader_gcno_gcda_gcc15() {
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/reader_gcc-15.gcno");
+        from_path(&mut gcno, FileType::Gcda, "test/reader_gcc-15.gcda");
+        gcno.stop();
+        let output = format!("{gcno:?}");
+        let input = get_input_string("test/reader_gcc-15.gcno.1.dump");
+
+        assert_eq!(output, input);
+    }
+
+    #[test]
+    fn test_reader_version() {
+        for (path, expected) in [
+            ("test/reader_gcc-11.gcno", 115),
+            ("test/reader_gcc-12.gcno", 125),
+            ("test/reader_gcc-15.gcno", 152),
+        ] {
+            let mut gcno = Gcno::new();
+            from_path(&mut gcno, FileType::Gcno, path);
+            assert_eq!(gcno.version, expected, "Wrong version for {}", path);
+        }
+    }
+
+    #[test]
     fn test_reader_gcno_gcda_clang22() {
         let mut gcno = Gcno::new();
         from_path(&mut gcno, FileType::Gcno, "test/reader_clang-22.gcno");
@@ -1512,6 +1588,76 @@ mod tests {
 
         let expected = vec![(
             String::from("file_branch.c"),
+            CovResult {
+                lines,
+                branches,
+                functions,
+            },
+        )];
+
+        assert_eq!(result, expected);
+    }
+
+    // Since GCC 12.1 the counters of a function which never ran are left out and only
+    // their size is written, as a negated record length.
+    #[test]
+    fn test_reader_finalize_zero_counts_gcc12() {
+        let mut gcno = Gcno::new();
+        from_path(&mut gcno, FileType::Gcno, "test/zero_counts_gcc-12.gcno");
+        from_path(&mut gcno, FileType::Gcda, "test/zero_counts_gcc-12.gcda");
+        gcno.stop();
+        let result = gcno.finalize(true);
+
+        let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
+        [
+            (1, 1),
+            (3, 1),
+            (4, 4),
+            (5, 3),
+            (7, 1),
+            (10, 0),
+            (12, 0),
+            (13, 0),
+            (15, 0),
+            (18, 1),
+            (20, 1),
+        ]
+        .iter()
+        .for_each(|x| {
+            lines.insert(x.0, x.1);
+        });
+
+        let mut functions: FunctionMap = FxHashMap::default();
+        functions.insert(
+            String::from("called"),
+            Function {
+                start: 1,
+                executed: true,
+            },
+        );
+        functions.insert(
+            String::from("never_called"),
+            Function {
+                start: 10,
+                executed: false,
+            },
+        );
+        functions.insert(
+            String::from("main"),
+            Function {
+                start: 18,
+                executed: true,
+            },
+        );
+        let mut branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();
+        [(4, vec![true, true]), (12, vec![false, false])]
+            .iter()
+            .for_each(|x| {
+                branches.insert(x.0, x.1.clone());
+            });
+
+        let expected = vec![(
+            String::from("zero_counts.c"),
             CovResult {
                 lines,
                 branches,
